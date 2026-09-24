@@ -266,7 +266,7 @@ On Linux or macOS: `./create-server.sh <mods folder> [world folder] [ram]`.
 
 ## AoT RPG server mod (`rpg-mod/`)
 
-A Fabric 1.21.1 mod that runs on the server. It also works in single-player if it's in your mods folder. GitHub Actions builds it: open the **Actions** tab, then **Build AoT RPG mod**, then the latest run, and download the `aot-rpg-mod` artifact. Put the jar in the server's `mods` folder. Adding it to the client modpack is optional.
+A Fabric 1.21.1 mod that runs on the server. It also works in single-player if it's in your mods folder. It is built by GitHub Actions and saved as `dist/aot-rpg.jar`. Put it in the server's `mods` folder. Adding it to the client modpack is optional.
 
 Character creation starts on a player's first join. The player is frozen and protected until they finish:
 1. **Origin**: Shiganshina, Trost, Ragako, Stohess, Mitras or the Underground. Each gives a small bonus and sets where the character starts.
