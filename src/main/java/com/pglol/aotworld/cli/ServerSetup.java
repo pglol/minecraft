@@ -33,6 +33,65 @@ final class ServerSetup {
     private static final HttpClient HTTP = HttpClient.newBuilder()
         .followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(20)).build();
 
+    /** Asks for everything in the console. Handles dragged paths (quotes, spaces, brackets). */
+    static void wizard(Path server, Path toolDir) throws IOException, InterruptedException {
+        java.io.BufferedReader in = new java.io.BufferedReader(new java.io.InputStreamReader(System.in));
+        System.out.println();
+        System.out.println(" === Attack on Titan RPG - server creator ===");
+        System.out.println();
+        System.out.println(" 1) Your modpack's MODS folder.");
+        System.out.println("    Modrinth app: right-click the profile > Open folder > mods");
+        Path mods;
+        while (true) {
+            mods = ask(in, "    Drag the mods folder here and press Enter: ", null);
+            if (mods != null && Files.isDirectory(mods.resolve("mods"))) mods = mods.resolve("mods");
+            if (mods != null && Files.isDirectory(mods)) break;
+            System.out.println("    That folder doesn't exist, try again.");
+        }
+        System.out.println();
+        Path def = toolDir == null ? null : toolDir.resolve("AttackOnTitan");
+        System.out.println(" 2) The WORLD folder (the one with level.dat inside, e.g. saves\\AttackOnTitan).");
+        Path world;
+        while (true) {
+            world = ask(in, "    Drag the world folder here and press Enter" + (def != null && Files.exists(def) ? " (Enter = " + def + ")" : "") + ": ", def);
+            if (world != null && !Files.exists(world.resolve("level.dat")) && Files.isDirectory(world)) {
+                // They may have dragged the saves folder: use the only world inside it.
+                try (var st = Files.list(world)) {
+                    var worlds = st.filter(d -> Files.exists(d.resolve("level.dat"))).toList();
+                    if (worlds.size() == 1) world = worlds.get(0);
+                }
+            }
+            if (world != null && Files.exists(world.resolve("level.dat"))) break;
+            System.out.println("    No level.dat in that folder. Drag the world folder itself, try again.");
+        }
+        System.out.println();
+        String ram = line(in, " 3) Server memory, e.g. 6G (Enter = 6G): ");
+        if (ram.isEmpty()) ram = "6G";
+        if (ram.matches("\\d+")) ram += "G";
+        System.out.println();
+        System.out.println(" 4) The server needs you to accept the Minecraft EULA: https://aka.ms/MinecraftEULA");
+        boolean eula = line(in, "    Do you accept it? (y/n): ").toLowerCase(java.util.Locale.ROOT).startsWith("y");
+        System.out.println();
+        run(server, mods, world, null, ram, eula, toolDir);
+    }
+
+    private static String line(java.io.BufferedReader in, String prompt) throws IOException {
+        System.out.print(prompt);
+        System.out.flush();
+        String l = in.readLine();
+        return l == null ? "" : l.trim();
+    }
+
+    private static Path ask(java.io.BufferedReader in, String prompt, Path def) throws IOException {
+        String l = line(in, prompt).replace("\"", "").replace("'", "").trim();
+        if (l.isEmpty()) return def;
+        try {
+            return java.nio.file.Paths.get(l);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     static void run(Path server, Path mods, Path world, String loader, String ram, boolean eula, Path toolDir)
             throws IOException, InterruptedException {
         Files.createDirectories(server);
@@ -167,6 +226,7 @@ final class ServerSetup {
     }
 
     private static void copyTree(Path from, Path to) throws IOException {
+        long[] done = {0, 0};
         Files.walkFileTree(from, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes a) throws IOException {
@@ -178,8 +238,12 @@ final class ServerSetup {
             public FileVisitResult visitFile(Path file, BasicFileAttributes a) throws IOException {
                 if (!file.getFileName().toString().equals("session.lock"))
                     Files.copy(file, to.resolve(from.relativize(file).toString()), StandardCopyOption.REPLACE_EXISTING);
+                done[0]++;
+                done[1] += a.size();
+                if (done[0] % 200 == 0) System.out.printf("  %,d files, %,d MB copied...%n", done[0], done[1] >> 20);
                 return FileVisitResult.CONTINUE;
             }
         });
+        System.out.printf("  done: %,d files, %,d MB%n", done[0], done[1] >> 20);
     }
 }

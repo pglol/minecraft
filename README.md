@@ -251,7 +251,7 @@ stops natural spawning in the mod's own dimension while you're in this world.
 `create-server.bat` (Windows) builds a ready-to-run Fabric server in `AoT-Server` next to it:
 
 1. `dist/aot-rpg.jar` (the RPG mod) is picked up automatically.
-2. Double-click `create-server.bat`. Drag your modpack's **mods** folder into the window when it asks (Modrinth app: right-click the profile, then Open folder, then mods). Then drag in the generated world folder, or press Enter to use `AttackOnTitan`.
+2. Double-click `create-server.bat` and answer the questions. You can drag the mods folder and the world folder into the window; paths with spaces are fine.
 3. Accept the Minecraft EULA when asked. Then run `AoT-Server\start.bat`. The server needs Java 21.
 
 What the creator does:

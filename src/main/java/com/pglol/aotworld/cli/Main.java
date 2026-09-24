@@ -76,6 +76,10 @@ public final class Main {
                 } catch (Exception ignored) {
                     // run from classes
                 }
+                if (mods == null && world == null) {
+                    ServerSetup.wizard(Paths.get(args[1]), tool);
+                    break;
+                }
                 ServerSetup.run(Paths.get(args[1]), mods == null ? null : Paths.get(mods),
                     world == null ? null : Paths.get(world), opt(args, "--loader", null), opt(args, "--ram", "6G"),
                     java.util.Arrays.asList(args).contains("--accept-eula"), tool);
