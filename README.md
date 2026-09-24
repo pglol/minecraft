@@ -246,6 +246,48 @@ Add any of these lines to override the defaults:
 Turning off vanilla spawning is a world gamerule (`doMobSpawning false`), so it also
 stops natural spawning in the mod's own dimension while you're in this world.
 
+## Running a server (server creator)
+
+`create-server.bat` (Windows) builds a ready-to-run Fabric server in `AoT-Server` next to it:
+
+1. Put the `aot-rpg-*.jar` mod (see below) in the same folder as `create-server.bat`, or in your modpack's mods folder.
+2. Double-click `create-server.bat`. Drag your modpack's **mods** folder into the window when it asks (Modrinth app: right-click the profile, then Open folder, then mods). Then drag in the generated world folder, or press Enter to use `AttackOnTitan`.
+3. Accept the Minecraft EULA when asked. Then run `AoT-Server\start.bat`. The server needs Java 21.
+
+What the creator does:
+- Downloads the Fabric server for 1.21.1.
+- Copies your mods, skipping client-only mods such as Sodium, Iris and EMF/ETF.
+- Copies the world.
+- Writes `server.properties`. It sets `allow-flight=true` so ODM gear doesn't get players kicked, and `spawn-protection=0`.
+
+To make yourself operator, type `op <yourname>` in the server console. Players join with the same modpack.
+
+On Linux or macOS: `./create-server.sh <mods folder> [world folder] [ram]`.
+
+## AoT RPG server mod (`rpg-mod/`)
+
+A Fabric 1.21.1 mod that runs on the server. It also works in single-player if it's in your mods folder. GitHub Actions builds it: open the **Actions** tab, then **Build AoT RPG mod**, then the latest run, and download the `aot-rpg-mod` artifact. Put the jar in the server's `mods` folder. Adding it to the client modpack is optional.
+
+Character creation starts on a player's first join. The player is frozen and protected until they finish:
+1. **Origin**: Shiganshina, Trost, Ragako, Stohess, Mitras or the Underground. Each gives a small bonus and sets where the character starts.
+2. **Discipline**: Scout, Vanguard, Guardian, Marksman or Medic. Each has its own perks and starting gear.
+3. **Stats**: spend 5 points on Strength, Agility, Endurance and Resolve.
+4. **Name**: a first name (typed, or taken from your username) and a family name (rolled from AoT-style surnames, or typed).
+5. **Enlist**: an intro sequence plays and you receive the cadet uniform, gear, emeralds and a Recruitment Letter pointing to the Cadet Training Camp. You're then sent to your origin town, which becomes your spawn point.
+
+Progression:
+- Killing titans gives XP. Players within 32 blocks get half as an assist.
+- Levels run from 1 to 100, and each level gives 1 stat point.
+- An XP bar at the top of the screen shows your level, name and discipline.
+
+Every player has a floating name tag showing their character name, level and discipline, visible within about 20 blocks. It replaces the username tag.
+
+Commands:
+- `/character`: character sheet; spend stat points here.
+- `/aotrpg reset <player>`, `/aotrpg setlevel <player> <level>`, `/aotrpg xp <player> <amount>`, `/aotrpg reload` (operators).
+
+Character data is saved in `<world>/aot_rpg/players/`. Place coordinates come from `<world>/aot-rpg.json`, which the generator writes. Running `add-titans.bat` on an older world adds it.
+
 ## Previews without Minecraft
 
 ```
