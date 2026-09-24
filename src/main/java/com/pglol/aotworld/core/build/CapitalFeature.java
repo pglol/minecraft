@@ -27,7 +27,7 @@ public final class CapitalFeature extends TownFeature {
                 Style.CAPITAL, 3, 5, 34,
                 new int[] {Blocks.STONE_BRICKS, Blocks.POLISHED_ANDESITE, Blocks.POLISHED_ANDESITE, Blocks.SMOOTH_STONE})
                 .plaza(0, 0, 95)
-                .exclude(TUNNEL_X0 - 8, TUNNEL_Z - 8, TUNNEL_X1 + 10, TUNNEL_Z + 8),
+                .exclude(TUNNEL_X0 - 8, TUNNEL_Z - 8, TUNNEL_X1 + 10, TUNNEL_Z + 8).plots(0.05),
             -(int) atlas.capitalRadius, -(int) atlas.capitalRadius, (int) atlas.capitalRadius, (int) atlas.capitalRadius);
         this.seed = seed;
         palace = new House(-40, -26, 40, 26, true, BASE, 5, Style.PALACE, 1, false);

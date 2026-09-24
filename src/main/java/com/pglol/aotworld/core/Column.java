@@ -10,9 +10,14 @@ public final class Column {
     public int water = NO_WATER;
     public int surface, sub;
     public int biome;
-    public boolean river;
+    public boolean river, lake;
     /** Distance from the road centre line, or -1 when not on a road. */
     public double road = -1;
+    public Road.Type roadType;
+    public double roadAlong, roadSide;
+    /** Nearest road within grading range (even when not on it): type and distance from its edge. */
+    public Road.Type nearRoad;
+    public double nearEdge;
     public int landmass;
     public double sd;
     public double forest;

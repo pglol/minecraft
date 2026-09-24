@@ -1,5 +1,6 @@
 package com.pglol.aotworld.anvil;
 
+import com.pglol.aotworld.core.BlockEntity;
 import com.pglol.aotworld.core.Blocks;
 import com.pglol.aotworld.core.ChunkBuffer;
 import com.pglol.aotworld.core.Terrain;
@@ -35,6 +36,12 @@ public final class ChunkSerializer {
 
         Nbt.ListTag sections = new Nbt.ListTag(Nbt.COMPOUND);
         Nbt.ListTag blockEntities = new Nbt.ListTag(Nbt.COMPOUND);
+        java.util.Map<Long, BlockEntity> explicit = new java.util.HashMap<>();
+        for (BlockEntity e : buf.entities()) {
+            if (buf.get(e.x, e.y, e.z) == Blocks.AIR) continue;
+            explicit.put(posKey(e.x, e.y, e.z), e);
+            blockEntities.add(explicitTag(e));
+        }
         short[] raw = buf.raw();
         Nbt.ListTag biomePalette = biomePalette(buf);
         long[] biomeData = biomeData(buf, biomePalette);
@@ -54,7 +61,7 @@ public final class ChunkSerializer {
                         }
                         indices[(ly * 16 + lz) * 16 + lx] = li;
                         String be = blockEntity(id);
-                        if (be != null) {
+                        if (be != null && !explicit.containsKey(posKey((chunkX << 4) + lx, y0 + ly, (chunkZ << 4) + lz))) {
                             blockEntities.add(new Nbt.Compound().putString("id", be)
                                 .putInt("x", (chunkX << 4) + lx).putInt("y", y0 + ly).putInt("z", (chunkZ << 4) + lz)
                                 .putByte("keepPacked", 0));
@@ -92,6 +99,31 @@ public final class ChunkSerializer {
             deflater.end();
         }
         return bytes.toByteArray();
+    }
+
+    private static long posKey(int x, int y, int z) {
+        return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFF);
+    }
+
+    private static Nbt.Compound explicitTag(BlockEntity e) {
+        Nbt.Compound c = new Nbt.Compound().putString("id", e.id).putInt("x", e.x).putInt("y", e.y).putInt("z", e.z)
+            .putByte("keepPacked", 0);
+        if (e.lines != null) {
+            Nbt.ListTag front = new Nbt.ListTag(Nbt.STRING), back = new Nbt.ListTag(Nbt.STRING);
+            for (int i = 0; i < 4; i++) {
+                String line = i < e.lines.length ? e.lines[i] : "";
+                front.add("\"" + line.replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+                back.add("\"\"");
+            }
+            c.put("front_text", new Nbt.Compound().put("messages", front).putString("color", "black").putByte("has_glowing_text", 0));
+            c.put("back_text", new Nbt.Compound().put("messages", back).putString("color", "black").putByte("has_glowing_text", 0));
+            c.putByte("is_waxed", 1);
+        }
+        if (e.lootTable != null) {
+            c.putString("LootTable", e.lootTable);
+            c.putLong("LootTableSeed", com.pglol.aotworld.core.Hash.of(e.x, e.y, e.z));
+        }
+        return c;
     }
 
     private static Nbt.ListTag biomePalette(ChunkBuffer buf) {

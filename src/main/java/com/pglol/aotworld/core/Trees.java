@@ -1,9 +1,11 @@
 package com.pglol.aotworld.core;
 
+import com.pglol.aotworld.core.build.GiantForest;
+
 /** Ordinary trees plus the 80-block giants of the Forest of Giant Trees. */
 final class Trees {
     private static final int CELL = 7, MARGIN = 4;
-    private static final int GIANT_CELL = 22, GIANT_REACH = 28;
+    private static final int GIANT_REACH = GiantForest.REACH;
     private static final int GIANT_BARK = Blocks.id("spruce_wood[axis=y]");
     private static final int GIANT_BRANCH_X = Blocks.id("spruce_wood[axis=x]");
     private static final int GIANT_BRANCH_Z = Blocks.id("spruce_wood[axis=z]");
@@ -11,11 +13,13 @@ final class Trees {
     private final AotWorld world;
     private final long seed;
     private final Atlas.Site giant;
+    private final GiantForest forest;
 
     Trees(AotWorld world) {
         this.world = world;
         this.seed = Hash.of(world.spec.seed, 0x7EE5);
         this.giant = world.atlas.site(Atlas.Kind.GIANT_FOREST);
+        this.forest = world.giantForest;
     }
 
     void place(ChunkBuffer buf, java.util.List<Feature> features, Column scratch) {
@@ -29,7 +33,7 @@ final class Trees {
                 int tz = gz * CELL + Hash.range(Hash.mix(h + 1), 0, CELL - 1);
                 if (giant != null && Math.hypot(tx - giant.x, tz - giant.z) < giant.radius) continue;
                 world.terrain.sample(tx, tz, scratch);
-                if (scratch.underwater() || scratch.river || scratch.road >= 0 || scratch.surface != Blocks.GRASS) continue;
+                if (scratch.underwater() || scratch.river || scratch.lake || scratch.road >= 0 || scratch.surface != Blocks.GRASS) continue;
                 double density = 0.025 + scratch.forest * 0.7;
                 if (scratch.height > 150 || scratch.mountain > 0.6) density *= 0.3;
                 if (roll >= density) continue;
@@ -38,7 +42,7 @@ final class Trees {
             }
         }
         if (giant != null && Math.abs(x0 + 8 - giant.x) < giant.radius + 60 && Math.abs(z0 + 8 - giant.z) < giant.radius + 60) {
-            giants(buf, x0, z0, scratch);
+            giants(buf, x0, z0);
         }
     }
 
@@ -95,50 +99,40 @@ final class Trees {
 
     // ---- Giant trees -------------------------------------------------------------------
 
-    private void giants(ChunkBuffer buf, int x0, int z0, Column scratch) {
-        for (int gx = Math.floorDiv(x0 - GIANT_REACH, GIANT_CELL); gx <= Math.floorDiv(x0 + 15 + GIANT_REACH, GIANT_CELL); gx++) {
-            for (int gz = Math.floorDiv(z0 - GIANT_REACH, GIANT_CELL); gz <= Math.floorDiv(z0 + 15 + GIANT_REACH, GIANT_CELL); gz++) {
-                long h = Hash.of(seed ^ 0x61A7, gx, gz);
-                int tx = gx * GIANT_CELL + Hash.range(h, 3, GIANT_CELL - 4);
-                int tz = gz * GIANT_CELL + Hash.range(Hash.mix(h + 1), 3, GIANT_CELL - 4);
-                if (Math.hypot(tx - giant.x, tz - giant.z) > giant.radius - 12) continue;
-                world.terrain.sample(tx, tz, scratch);
-                if (scratch.underwater() || scratch.river) continue;
-                if (world.atlas.roadDistance(tx, tz, scratch.landmass) >= 0) continue;
-                if (nearRoad(tx, tz, scratch.landmass)) continue;
-                giant(buf, tx, scratch.height, tz, Hash.mix(h + 2));
+    private void giants(ChunkBuffer buf, int x0, int z0) {
+        java.util.Set<GiantForest.Tree> done = new java.util.HashSet<>();
+        for (int cx = x0; cx <= x0 + 15; cx += 15) {
+            for (int cz = z0; cz <= z0 + 15; cz += 15) {
+                for (GiantForest.Tree t : forest.index.at(cx, cz)) {
+                    if (done.add(t)) giant(buf, t);
+                }
             }
         }
     }
 
-    private boolean nearRoad(int x, int z, int landmass) {
-        for (int d = -8; d <= 8; d += 4) {
-            if (world.atlas.roadDistance(x + d, z, landmass) >= 0 || world.atlas.roadDistance(x, z + d, landmass) >= 0) return true;
-        }
-        return false;
-    }
-
-    private void giant(ChunkBuffer buf, int tx, int ground, int tz, long h) {
-        double radius = 2.5 + Hash.unit(h) * 1.4;
-        int height = Hash.range(Hash.mix(h + 1), 62, 88);
+    private void giant(ChunkBuffer buf, GiantForest.Tree tree) {
+        int tx = tree.x, tz = tree.z, ground = tree.ground;
+        long h = tree.seed;
+        double radius = tree.radius;
+        int height = tree.height;
         int top = ground + height;
         int x0 = buf.x0(), z0 = buf.z0();
 
         int nb = Hash.range(Hash.mix(h + 2), 5, 7);
-        double[][] branches = new double[nb][];
+        java.util.List<double[]> branches = new java.util.ArrayList<>();
         for (int i = 0; i < nb; i++) {
             long bh = Hash.of(h, i);
             double ang = Hash.unit(bh) * Math.PI * 2;
             int y = ground + 22 + (int) (Hash.unit(Hash.mix(bh + 1)) * (height - 38));
             double len = 9 + Hash.unit(Hash.mix(bh + 2)) * 8;
-            branches[i] = new double[] {Math.cos(ang), Math.sin(ang), y, len};
+            if (y + len * 0.35 + 8 >= tree.noBranchLo && y - 2 <= tree.noBranchHi) continue;
+            branches.add(new double[] {Math.cos(ang), Math.sin(ang), y, len});
         }
 
         for (int x = Math.max(x0, tx - GIANT_REACH); x <= Math.min(x0 + 15, tx + GIANT_REACH); x++) {
             for (int z = Math.max(z0, tz - GIANT_REACH); z <= Math.min(z0 + 15, tz + GIANT_REACH); z++) {
                 double dx = x - tx, dz = z - tz;
                 double d = Math.sqrt(dx * dx + dz * dz);
-                // Trunk with a flared base.
                 if (d <= radius + 3.5) {
                     for (int y = ground - 2; y <= top; y++) {
                         double flare = Math.max(0, 1 - (y - ground) / 9.0);
@@ -146,7 +140,6 @@ final class Trees {
                         if (d <= r) buf.set(x, y, z, GIANT_BARK);
                     }
                 }
-                // Branches.
                 for (double[] b : branches) {
                     double ex = tx + b[0] * (radius + b[3]), ez = tz + b[1] * (radius + b[3]);
                     double[] t = new double[1];
@@ -158,11 +151,9 @@ final class Trees {
                         buf.set(x, by, z, id);
                         if (along < radius + 4) buf.set(x, by + 1, z, id);
                     }
-                    // Leaf cluster at the branch tip.
                     double cy = b[2] + (radius + b[3]) * 0.35 + 2;
                     blob(buf, x, z, Mth.dist(x, z, ex, ez), cy, 5.5, h);
                 }
-                // Crown.
                 blob(buf, x, z, d, top + 2, 10, h);
             }
         }

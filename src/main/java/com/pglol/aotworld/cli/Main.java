@@ -30,8 +30,9 @@ public final class Main {
         "",
         "  generate <worldDir> [options]   write a playable world folder",
         "      --seed <n>                  terrain seed (default 1)",
-        "      --scale <blocksPerKm>       20 = 1:50 (default), 10 = 1:100",
-        "      --island-scale <f>          squash of land outside Wall Maria (default 0.35, 1 = reference map)",
+        "      --scale <blocksPerKm>       size of the Walls: 7 (default, ~1:140), 20 = 1:50 canon",
+        "      --island-length <blocks>    Paradis north-to-south length (default 19000, ~40 min by horse)",
+        "      --island-scale <f>          set the outer-island squash directly instead of --island-length",
         "      --place <name>              only generate around a named place (see 'places')",
         "      --radius <blocks>           radius for --place (default 1000)",
         "      --area <x0,z0,x1,z1>        only generate this block rectangle",
@@ -64,9 +65,17 @@ public final class Main {
         return def;
     }
 
+    static AotWorld world(String[] args) {
+        long seed = Long.parseLong(opt(args, "--seed", "1"));
+        double scale = Double.parseDouble(opt(args, "--scale", String.valueOf(AotWorld.DEFAULT_SCALE)));
+        String is = opt(args, "--island-scale", null);
+        double island = is != null ? Double.parseDouble(is)
+            : Atlas.islandScaleForLength(scale, Double.parseDouble(opt(args, "--island-length", String.valueOf(AotWorld.DEFAULT_ISLAND_LENGTH))));
+        return new AotWorld(seed, scale, island);
+    }
+
     private static void places(String[] args) {
-        AotWorld w = new AotWorld(Long.parseLong(opt(args, "--seed", "1")), Double.parseDouble(opt(args, "--scale", "20")),
-            Double.parseDouble(opt(args, "--island-scale", String.valueOf(AotWorld.DEFAULT_ISLAND_SCALE))));
+        AotWorld w = world(args);
         List<Region> regs = new ArrayList<>(w.atlas.regions());
         regs.sort((a, b) -> Integer.compare(a.minLevel, b.minLevel));
         for (Region r : regs) {
@@ -82,13 +91,13 @@ public final class Main {
         }
         Path dir = Paths.get(args[1]);
         long seed = Long.parseLong(opt(args, "--seed", "1"));
-        double scale = Double.parseDouble(opt(args, "--scale", "20"));
-        double island = Double.parseDouble(opt(args, "--island-scale", String.valueOf(AotWorld.DEFAULT_ISLAND_SCALE)));
         int threads = Integer.parseInt(opt(args, "--threads", String.valueOf(Runtime.getRuntime().availableProcessors())));
         String name = opt(args, "--name", "Attack on Titan - Paradis & Marley");
 
-        System.out.println("Building map layout...");
-        AotWorld w = new AotWorld(seed, scale, island);
+        System.out.println("Building map layout (roads, villages, plots, caves)...");
+        AotWorld w = world(args);
+        System.out.printf(Locale.ROOT, "  %d villages, %d property plots, %d points of interest, %d lakes, %d roads%n",
+            w.villages.size(), w.plots.size(), w.pois.size(), w.lakes.size(), w.roads.roads().size());
         Atlas a = w.atlas;
         int x0 = a.minX, z0 = a.minZ, x1 = a.maxX, z1 = a.maxZ;
         boolean partial = false;
@@ -179,6 +188,7 @@ public final class Main {
         }
         LevelDat.write(dir, name, seed, spawn[0], spawn[1], spawn[2], bx, bz, size);
         Datapack.write(dir, w);
+        Registry.write(dir, w);
         System.out.printf(Locale.ROOT, "Done in %s: %d chunks written, palette %d block states.%n",
             time((System.currentTimeMillis() - start) / 1000.0), written.get(), Blocks.size());
     }

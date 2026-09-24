@@ -97,6 +97,7 @@ public final class Blocks {
     public static final int SCAFFOLDING = id("scaffolding[distance=0,bottom=false]");
     public static final int LANTERN = id("lantern[hanging=false]");
     public static final int LANTERN_HANGING = id("lantern[hanging=true]");
+    public static final int SOUL_LANTERN_FLOOR = id("soul_lantern[hanging=false]");
     public static final int TORCH = id("torch");
     public static final int CAMPFIRE = id("campfire[lit=true]");
     public static final int BARREL = id("barrel[facing=up]");

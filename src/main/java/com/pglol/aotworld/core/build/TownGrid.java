@@ -28,6 +28,7 @@ public final class TownGrid {
     private double plazaA = Double.NaN, plazaB, plazaR;
     private final List<int[]> exclusions = new ArrayList<>();
     private boolean lamps = true;
+    private double plotChance = 0;
 
     public TownGrid(int ox, int oz, int dir, int baseY, long seed, Shape shape, Style[] styles,
                     int minFloors, int maxFloors, int block, int[] streetBlocks) {
@@ -57,6 +58,42 @@ public final class TownGrid {
     public TownGrid exclude(int x0, int z0, int x1, int z1) {
         exclusions.add(new int[] {Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)});
         return this;
+    }
+
+    /** Fraction of city blocks left as empty fenced property plots. */
+    public TownGrid plots(double chance) {
+        plotChance = chance;
+        return this;
+    }
+
+    private boolean plotBlock(int ia, int ib) {
+        if (plotChance <= 0) return false;
+        if (Hash.unit(Hash.of(seed ^ 0x9107, ia, ib)) >= plotChance) return false;
+        int shift = street / 2;
+        int a0 = ia * block + street, b0 = ib * block + street - shift;
+        int a1 = a0 + 2 * lot, b1 = b0 + 2 * lot;
+        return lotValid(a0, b0, a1, b1);
+    }
+
+    /** Enumerates the plot blocks of this grid within a world-space box. */
+    public java.util.List<Plot> plotList(int minX, int minZ, int maxX, int maxZ) {
+        java.util.List<Plot> out = new java.util.ArrayList<>();
+        if (plotChance <= 0) return out;
+        int[] as = {localA(minX, minZ), localA(maxX, maxZ), localA(minX, maxZ), localA(maxX, minZ)};
+        int[] bs = {localB(minX, minZ), localB(maxX, maxZ), localB(minX, maxZ), localB(maxX, minZ)};
+        int amin = Math.min(Math.min(as[0], as[1]), Math.min(as[2], as[3])), amax = Math.max(Math.max(as[0], as[1]), Math.max(as[2], as[3]));
+        int bmin = Math.min(Math.min(bs[0], bs[1]), Math.min(bs[2], bs[3])), bmax = Math.max(Math.max(bs[0], bs[1]), Math.max(bs[2], bs[3]));
+        int shift = street / 2;
+        int gate = ux == 1 ? Style.W : ux == -1 ? Style.E : uz == 1 ? Style.N : Style.S;
+        for (int ia = Math.floorDiv(amin, block); ia <= Math.floorDiv(amax, block); ia++) {
+            for (int ib = Math.floorDiv(bmin + shift, block); ib <= Math.floorDiv(bmax + shift, block); ib++) {
+                if (!plotBlock(ia, ib)) continue;
+                int a0 = ia * block + street, b0 = ib * block + street - shift;
+                int a1 = a0 + 2 * lot, b1 = b0 + 2 * lot;
+                out.add(new Plot(Plot.Kind.TOWN, worldX(a0, b0), worldZ(a0, b0), worldX(a1, b1), worldZ(a1, b1), baseY, gate));
+            }
+        }
+        return out;
     }
 
     public TownGrid noLamps() {
@@ -112,6 +149,10 @@ public final class TownGrid {
         }
 
         int ia = Math.floorDiv(a, block), ib = Math.floorDiv(b + shift, block);
+        if (plotBlock(ia, ib)) {
+            buf.set(x, baseY, z, Blocks.GRASS);
+            return;
+        }
         int ra = ma - street, rb = mb - street;
         if (ra == lot || rb == lot) {
             buf.set(x, baseY, z, Hash.unit(h) < 0.5 ? Blocks.GRAVEL : Blocks.COBBLE);

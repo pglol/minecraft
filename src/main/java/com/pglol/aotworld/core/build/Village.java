@@ -7,37 +7,69 @@ import com.pglol.aotworld.core.Column;
 import com.pglol.aotworld.core.Feature;
 import com.pglol.aotworld.core.Hash;
 import com.pglol.aotworld.core.Mth;
+import com.pglol.aotworld.core.Pad;
 import com.pglol.aotworld.core.WorldSpec;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** A farming village: cottages around a well, dirt paths, and crop fields. */
+/**
+ * A village: cottages on levelled pads around a well, footpaths to each door,
+ * and extras by type (fields, terraced gardens, log piles, fishing docks).
+ */
 public final class Village extends Feature {
+    public enum Type { FARM, HILL, FOREST, FISHING, HIDDEN, MARLEY }
+
     public final String name;
-    public final int cx, cz, radius;
+    public final Type type;
+    public final int cx, cz, radius, centerY;
     private final List<House> houses = new ArrayList<>();
     private final List<int[]> fields = new ArrayList<>(); // x0, z0, x1, z1, crop, alongX
-    private final double[] road;
+    private final List<Pad> pads = new ArrayList<>();
     private final long seed;
+    /** Fishing villages: direction (unit vector) towards the sea, and where the dock starts. */
+    private double seaX, seaZ;
     private static final int[] CROPS = {Blocks.WHEAT, Blocks.WHEAT, Blocks.CARROTS, Blocks.POTATOES, Blocks.BEETROOTS};
 
-    public Village(AotWorld world, String name, int cx, int cz, int radius, long seed, boolean marley, double[] roadTo) {
-        super(cx - radius - 80, cz - radius - 80, cx + radius + 80, cz + radius + 80);
+    public Village(AotWorld world, String name, Type type, int cx, int cz, int radius, long seed) {
+        super(cx - radius - 90, cz - radius - 90, cx + radius + 90, cz + radius + 90);
         this.name = name;
+        this.type = type;
         this.cx = cx;
         this.cz = cz;
         this.radius = radius;
         this.seed = seed;
-        this.road = roadTo == null ? null : new double[] {cx, cz, roadTo[0], roadTo[1]};
+        this.centerY = world.terrain.naturalHeight(cx, cz);
+        pads.add(Pad.circle(cx, cz, 7, centerY, 8));
 
-        Style[] styles = marley ? new Style[] {Style.LIBERIO[2], Style.RURAL[0]} : Style.RURAL;
-        int want = name != null ? 14 : Hash.range(seed, 6, 11);
-        for (int i = 0; i < 80 && houses.size() < want; i++) {
+        if (type == Type.FISHING) {
+            double bx = 0, bz = 0;
+            for (int i = 0; i < 16; i++) {
+                double a = i * Math.PI / 8;
+                double sd = world.atlas.landSD(cx + Math.cos(a) * 200, cz + Math.sin(a) * 200);
+                bx -= Math.cos(a) * sd;
+                bz -= Math.sin(a) * sd;
+            }
+            double l = Math.hypot(bx, bz);
+            seaX = l == 0 ? 1 : bx / l;
+            seaZ = l == 0 ? 0 : bz / l;
+        }
+
+        Style[] styles;
+        switch (type) {
+            case MARLEY: styles = new Style[] {Style.LIBERIO[2], Style.RURAL[0]}; break;
+            case HILL: styles = new Style[] {Style.HILL[0], Style.HILL[1], Style.RURAL[0]}; break;
+            case FOREST: case HIDDEN: styles = new Style[] {Style.CABIN[0], Style.CABIN[1]}; break;
+            case FISHING: styles = new Style[] {Style.RURAL[0], Style.RURAL[2], Style.PARADIS[1]}; break;
+            default: styles = Style.RURAL;
+        }
+        int want = name != null ? 13 : Hash.range(seed, 6, 11);
+        for (int i = 0; i < 90 && houses.size() < want; i++) {
             long h = Hash.of(seed, i);
             double ang = Hash.unit(h) * Math.PI * 2;
             double dist = 14 + Hash.unit(Hash.mix(h + 1)) * (radius - 18);
             int hx = cx + (int) (Math.cos(ang) * dist), hz = cz + (int) (Math.sin(ang) * dist);
+            if (type == Type.FISHING && world.atlas.landSD(hx, hz) < 18) continue;
             int w = Hash.range(Hash.mix(h + 2), 7, 9), d = Hash.range(Hash.mix(h + 3), 6, 8);
             int dx = hx - cx, dz = hz - cz;
             boolean doorOnX = Math.abs(dx) > Math.abs(dz);
@@ -47,32 +79,51 @@ public final class Village extends Feature {
             if (overlaps(x0 - 4, z0 - 4, x1 + 4, z1 + 4)) continue;
             int hmin = Integer.MAX_VALUE, hmax = Integer.MIN_VALUE;
             for (int[] c : new int[][] {{x0, z0}, {x1, z0}, {x0, z1}, {x1, z1}, {hx, hz}}) {
-                int hh = world.terrain.height(c[0], c[1]);
+                int hh = world.terrain.naturalHeight(c[0], c[1]);
                 hmin = Math.min(hmin, hh);
                 hmax = Math.max(hmax, hh);
             }
-            if (hmax - hmin > 3 || hmin <= WorldSpec.SEA) continue;
-            int base = world.terrain.height(hx, hz);
+            if (hmax - hmin > 12 || hmin <= WorldSpec.SEA) continue;
+            int base = world.terrain.naturalHeight(hx, hz);
             int doorSide = doorOnX ? (dx > 0 ? -1 : 1) : (dz > 0 ? -1 : 1);
-            int floors = Hash.unit(Hash.mix(h + 4)) < 0.7 ? 1 : 2;
+            int floors = Hash.unit(Hash.mix(h + 4)) < (type == Type.HILL ? 0.5 : 0.7) ? 1 : 2;
             Style st = styles[Hash.range(Hash.mix(h + 5), 0, styles.length - 1)];
             houses.add(new House(x0, z0, x1, z1, !doorOnX, base, floors, st, doorSide, Hash.unit(Hash.mix(h + 6)) < 0.5));
+            pads.add(Pad.rect(x0 - 2, z0 - 2, x1 + 2, z1 + 2, base, 7));
         }
-        int nf = Hash.range(Hash.mix(seed + 9), 3, 5) + (name != null ? 2 : 0);
-        for (int i = 0; i < 30 && fields.size() < nf; i++) {
-            long h = Hash.of(seed, 1000 + i);
-            double ang = Hash.unit(h) * Math.PI * 2;
-            double dist = radius + 16 + Hash.unit(Hash.mix(h + 1)) * 40;
-            int fx = cx + (int) (Math.cos(ang) * dist), fz = cz + (int) (Math.sin(ang) * dist);
-            int w = Hash.range(Hash.mix(h + 2), 16, 28), d = Hash.range(Hash.mix(h + 3), 12, 20);
-            int[] f = {fx - w / 2, fz - d / 2, fx + w / 2, fz + d / 2, CROPS[Hash.range(Hash.mix(h + 4), 0, 4)],
-                Hash.unit(Hash.mix(h + 5)) < 0.5 ? 1 : 0};
-            boolean clash = false;
-            for (int[] o : fields) {
-                if (f[2] + 3 >= o[0] && f[0] - 3 <= o[2] && f[3] + 3 >= o[1] && f[1] - 3 <= o[3]) clash = true;
+
+        if (type == Type.FARM || type == Type.MARLEY || (type == Type.HILL)) {
+            int nf = type == Type.HILL ? Hash.range(Hash.mix(seed + 9), 3, 5) : Hash.range(Hash.mix(seed + 9), 3, 5) + (name != null ? 2 : 0);
+            for (int i = 0; i < 40 && fields.size() < nf; i++) {
+                long h = Hash.of(seed, 1000 + i);
+                double ang = Hash.unit(h) * Math.PI * 2;
+                double dist = type == Type.HILL ? radius * 0.6 + Hash.unit(Hash.mix(h + 1)) * 20
+                                                : radius + 16 + Hash.unit(Hash.mix(h + 1)) * 40;
+                int fx = cx + (int) (Math.cos(ang) * dist), fz = cz + (int) (Math.sin(ang) * dist);
+                int w = type == Type.HILL ? Hash.range(Hash.mix(h + 2), 8, 12) : Hash.range(Hash.mix(h + 2), 16, 28);
+                int d = type == Type.HILL ? Hash.range(Hash.mix(h + 3), 6, 9) : Hash.range(Hash.mix(h + 3), 12, 20);
+                int[] f = {fx - w / 2, fz - d / 2, fx + w / 2, fz + d / 2, CROPS[Hash.range(Hash.mix(h + 4), 0, 4)],
+                    Hash.unit(Hash.mix(h + 5)) < 0.5 ? 1 : 0};
+                boolean clash = overlaps(f[0] - 2, f[1] - 2, f[2] + 2, f[3] + 2);
+                for (int[] o : fields) {
+                    if (f[2] + 3 >= o[0] && f[0] - 3 <= o[2] && f[3] + 3 >= o[1] && f[1] - 3 <= o[3]) clash = true;
+                }
+                if (clash) continue;
+                fields.add(f);
+                if (type == Type.HILL) {
+                    // Terraced garden: level each little field.
+                    pads.add(Pad.rect(f[0] - 1, f[1] - 1, f[2] + 1, f[3] + 1, world.terrain.naturalHeight(fx, fz), 6));
+                }
             }
-            if (!clash) fields.add(f);
         }
+    }
+
+    public List<Pad> pads() {
+        return pads;
+    }
+
+    public List<House> houses() {
+        return houses;
     }
 
     private boolean overlaps(int x0, int z0, int x1, int z1) {
@@ -81,12 +132,6 @@ public final class Village extends Feature {
             if (x1 >= o.x0 && x0 <= o.x1 && z1 >= o.z0 && z0 <= o.z1) return true;
         }
         return false;
-    }
-
-    public double roadDistance(int x, int z) {
-        if (road == null) return 99;
-        if (Math.hypot(x - cx, z - cz) < radius) return 99;
-        return Mth.segDist(x, z, road[0], road[1], road[2], road[3], null);
     }
 
     @Override
@@ -103,6 +148,7 @@ public final class Village extends Feature {
 
     @Override
     public void column(ChunkBuffer buf, int x, int z, Column col) {
+        if (type == Type.FISHING) dock(buf, x, z, col);
         if (col.underwater()) return;
         int h = col.height;
         for (int[] f : fields) {
@@ -111,7 +157,8 @@ public final class Village extends Feature {
             int row = f[5] == 1 ? z - f[1] : x - f[0];
             buf.set(x, h + 1, z, Blocks.AIR);
             if (x == f[0] || x == f[2] || z == f[1] || z == f[3]) {
-                buf.set(x, h, z, Blocks.DIRT_PATH);
+                buf.set(x, h, z, type == Type.HILL ? Blocks.COBBLE : Blocks.DIRT_PATH);
+                if (type == Type.HILL) buf.set(x, h + 1, z, Blocks.COBBLE_WALL);
             } else if (row % 9 == 4) {
                 buf.set(x, h, z, Blocks.WATER);
             } else {
@@ -127,6 +174,7 @@ public final class Village extends Feature {
             }
         }
         double dc = Math.hypot(x - cx, z - cz);
+        int ground = type == Type.HIDDEN || type == Type.FOREST ? Blocks.id("moss_block") : Blocks.DIRT_PATH;
         if (dc <= 2.2) {
             if (dc <= 0.8) {
                 buf.fill(x, h - 4, h, z, Blocks.WATER);
@@ -137,22 +185,47 @@ public final class Village extends Feature {
             return;
         }
         if (dc <= 6) {
-            buf.set(x, h, z, Blocks.DIRT_PATH);
+            buf.set(x, h, z, dc > 5.3 && type == Type.HILL ? Blocks.COBBLE : ground);
             buf.set(x, h + 1, z, Blocks.AIR);
             return;
         }
         for (House house : houses) {
             int[] s = house.doorstep();
             if (Mth.segDist(x, z, cx, cz, s[0], s[1], null) <= 1.0) {
-                if (buf.get(x, h, z) == Blocks.GRASS) {
-                    buf.set(x, h, z, Blocks.DIRT_PATH);
+                int top = buf.get(x, h, z);
+                if (top == Blocks.GRASS || top == Blocks.SAND) {
+                    buf.set(x, h, z, ground);
                     buf.set(x, h + 1, z, Blocks.AIR);
                 }
                 return;
             }
         }
-        if (dc < radius && Hash.unit(Hash.of(seed, x, z)) < 0.004) {
-            buf.set(x, h + 1, z, Blocks.HAY);
+        long hh = Hash.of(seed, x, z);
+        if (dc < radius) {
+            double u = Hash.unit(hh);
+            if (type == Type.FOREST && u < 0.006) {
+                buf.set(x, h + 1, z, Blocks.OAK_LOG_X);
+                buf.set(x, h + 2, z, Blocks.OAK_LOG_X);
+            } else if (u < 0.004) {
+                buf.set(x, h + 1, z, Blocks.HAY);
+            }
+        }
+    }
+
+    /** A pier from the shore straight out to sea. */
+    private void dock(ChunkBuffer buf, int x, int z, Column col) {
+        double rx = x - cx, rz = z - cz;
+        double along = rx * seaX + rz * seaZ, across = -rx * seaZ + rz * seaX;
+        if (along < radius * 0.5 || along > radius + 160 || Math.abs(across) > 2) return;
+        if (!col.underwater() || col.lake || col.river) return;
+        int deck = WorldSpec.SEA + 2;
+        if (col.water - col.height > 12) return; // stop where it gets deep
+        buf.set(x, deck, z, Blocks.SPRUCE_PLANKS);
+        buf.fill(x, col.water + 1, deck - 1, z, Blocks.AIR);
+        if (Math.abs(across) >= 1.5 && Math.floorMod((int) along, 5) == 0) {
+            buf.fill(x, col.height, deck - 1, z, Blocks.SPRUCE_LOG);
+            buf.set(x, deck + 1, z, Blocks.SPRUCE_FENCE);
+            if (Math.floorMod((int) along, 15) == 0) buf.set(x, deck + 2, z, Blocks.LANTERN);
         }
     }
 }

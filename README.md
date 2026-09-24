@@ -1,116 +1,166 @@
 # Attack on Titan: Paradis & Marley map generator
 
 A standalone generator that writes a finished **Minecraft Java 1.21.1** world with
-Paradis Island and the Marleyan coast. It's built to be the base of a Wynncraft-style
-open-world RPG. The output is a normal world folder. It works in singleplayer and on
-Fabric, Forge, NeoForge or vanilla servers, and doesn't depend on any mod. It's
-designed to run alongside a modpack such as Danny's AOT, which supplies the titans and
-ODM gear.
+Paradis Island and the Marleyan coast. It's built as the base for a Wynncraft-style
+open-world RPG. The output is a normal world folder that works in singleplayer and on
+Fabric, Forge, NeoForge or vanilla servers. It's designed to sit alongside an AoT
+modpack such as Danny's AOT, which supplies the titans and ODM gear.
 
 ![Overview](docs/previews/overview.png)
 
+## Scale and travel times
+
+The map is sized for travel on horseback. An average horse covers about 8 blocks/s
+once hills and bends are counted.
+
+| Trip | Distance | Time |
+|---|---|---|
+| Paradis, north tip to south tip | ~19,000 blocks | ~40 min on horseback |
+| Paradis, east to west | ~12,500 blocks | ~25 min |
+| Paradis Port → Marley Port City | ~4,500 blocks of sea | ~10 min by boat |
+| Across Marley's coast | ~4,000 × 9,000 blocks | ~8–10 min |
+| Wall Maria (radius 3,360) | Shiganshina → Trost ~700 blocks | ~1.5 min |
+
+The Walls are 7 blocks per canon km (about 1:140) and keep their true 50-block height.
+The land outside Wall Maria follows the traced reference map, squashed to hit the 40
+minute target. Both are adjustable: see [Options](#options).
+
 ## What's in the world
 
-- **The three Walls** at canon scale: 50 blocks tall and 9 thick, with radii of 5,000 /
-  7,600 / 9,600 blocks at 1:50 (Wall Sina 250 km, Rose 380 km, Maria 480 km). Each wall
-  has a walkway, crenellations, cannons, iron portcullis gates, scaffolding lift shafts
-  (hold jump to ride up) and arched water gates where rivers pass under.
-- **12 districts** bulging out from the walls, each a walled half-circle town of
-  timber-frame houses with streets, plazas, fountains, markets, wells and gardens:
-  Shiganshina, Trost, Karanes, Krolva, Utopia, Stohess, Ehrmich, Yalkell, Orvud,
-  Quinta, plus two fan-named Maria districts.
-- **Mitras**, the royal capital: stone mansions, the royal palace with four towers and
-  gardens, and a stairway down to the **Underground City**, a lit cavern town under the
-  capital.
-- **Landmarks:** Forest of Giant Trees (80–90-block trees with branches for ODM), Utgard
-  Castle ruins, Reiss Chapel with the crystal cavern beneath it, Survey Corps HQ, the
-  104th Cadet Corps training camp, Ragako Village and Paradis Port with piers and a
-  lighthouse.
-- **Paradis Island** shaped after the reference map: snowy northern mountains, eastern
-  and south-eastern hills, the southern Sand Barrens, rivers, forests, ring roads, and
-  about 200 procedurally placed farming villages with fields.
-- **Marley**, only the part needed for quests and fights: the walled **Liberio
-  Internment Zone**, **Marley Port City** with the military headquarters and piers, and
-  the **Marleyan Military Base** (barracks, HQ, parade ground, depots, training field,
-  watchtowers). They're linked by roads across the sea from Paradis Port.
-- **Level zones** from Lv 1 at Shiganshina to Lv 85 at the Marleyan base. Each zone has
-  a warp. See [Places and warps](#places-and-warps).
+- **The three Walls:** walkways, cannons, iron portcullis gates, scaffolding lifts
+  (hold jump to ride up) and water gates for rivers.
+- **12 districts:** Shiganshina, Trost, Karanes, Stohess, Ehrmich and the rest. Each
+  is a walled half-circle town with streets, a plaza, markets and fenced town plots.
+- **Mitras:** the palace and noble estates, plus the Underground City beneath it.
+- **Landmarks:** the Forest of Giant Trees, Utgard Castle, Reiss Chapel and its
+  crystal cavern, Survey Corps HQ, the cadet training camp, Ragako and Paradis Port
+  (stone quay, piers, lighthouse).
+- **About 100 villages of several types:**
+  - farming villages with fields
+  - hill villages terraced into slopes, with stepped gardens
+  - forest cabin villages
+  - fishing villages with docks
+  - Marleyan brick hamlets
+- **The Forest of Giant Trees:**
+  - the Canopy Hideout: decks 30 blocks up the giant trees, joined by rope bridges,
+    with cabins built around the trunks and a scaffolding lift up
+  - the Hidden Grove: a secluded village in a clearing, reached by a faint path
+- **Wilderness:** bigger hills outside the walls, stepped hillsides, snowy northern
+  peaks, about 40 lakes, rivers, the Sand Barrens, and coasts that mix beaches,
+  stony shores and sea cliffs.
+- **Roads:** ring roads and gate roads as main highways with lamp posts, and paved
+  roads in Marley. Winding trails link villages to each other and to the highways, and
+  footpaths lead to plots and hideouts. Roads are graded into the slopes, bridge
+  rivers and lakes, and enter walled places through their gates.
+- **Marley:** the walled Liberio Internment Zone, Marley Port City with the military
+  HQ and a quay, and the Marleyan Military Base (barracks, HQ, parade ground, depots,
+  training field).
 
-| | |
-|---|---|
-| ![Shiganshina](docs/previews/shiganshina.png) | ![Marley](docs/previews/marley.png) |
+![Places](docs/previews/places.png)
 
-![Landmarks](docs/previews/landmarks.png)
+### Missions: titan caves and Survey Corps camps
+
+- **About 25 titan caves.** Each is a hillside cave mouth leading down to a great hall
+  about 30 blocks tall, sized for titans, with a titan's bone ribcage and two side
+  chambers. Loot chests use vanilla dungeon, mineshaft and pyramid loot. Every cave
+  is its own named zone (e.g. *The Titan's Throat*) with a level range and a warp.
+- **About 20 Survey Corps expedition camps:** a palisade, tents, a supply wagon with a
+  loot chest, a horse corral, a watchtower with a lift, and a flag. Three camps ring
+  the Forest of Giant Trees.
+- **Smaller finds:** ruined watchtowers on hilltops, campsites, stone circles, hermit
+  cabins and shipwrecks with treasure.
+
+All of them are listed with coordinates and levels in `missions.csv` in the world
+folder.
+
+### Property plots for player housing
+
+There are about **530 empty plots** across the map, each fenced and levelled, with a
+gate facing its driveway and a numbered sign (`Property #123`). Sizes:
+
+| Size | Interior | Where |
+|---|---|---|
+| Small | 14 × 14 | village edges, forests, meadows |
+| Medium | 20 × 20 | villages, lakesides, coasts, forest clearings |
+| Large | 28 × 28 | meadows, lakesides, mountainsides, hilltops |
+| Estate | 36 × 36 | secluded hilltops (mansions) |
+| Town | 23 × 23 | whole city blocks inside the districts and Mitras |
+| Treehouse | 13 × 13 deck | the Canopy Hideout, 30 blocks up |
+
+`plots.csv` and `plots.json` in the world folder list every plot: id, type, size,
+buildable interior corners, floor height, gate side and zone. A housing plugin or mod
+can paste a house schematic or instance straight onto a plot from that list.
 
 ## Generating the world
 
-You need Java 17 or newer (the Java that ships with Minecraft 1.21 works, or install it
-from https://adoptium.net).
+You need Java 17 or newer (the Java bundled with Minecraft 1.21 works, or get it from
+https://adoptium.net).
 
-1. Download `dist/aot-world.jar` and `dist/generate-world.bat` (or `generate-world.sh`)
-   into the same folder.
+1. Download `dist/aot-world.jar` and `dist/generate-world.bat` (or `.sh`) into one folder.
 2. Double-click `generate-world.bat`, or run:
    ```
    java -Xmx4G -jar aot-world.jar generate AttackOnTitan
    ```
-3. Copy the `AttackOnTitan` folder into your instance's `saves` folder. In the Modrinth
-   App that's the instance's *Files → saves* folder. For a Fabric server, put it next to
-   the server jar and set `level-name=AttackOnTitan` in `server.properties`.
-4. Open the world. You spawn in Shiganshina's plaza.
+3. Copy the `AttackOnTitan` folder into your instance's `saves` folder. On a Fabric
+   server, set `level-name=AttackOnTitan` instead.
+4. You spawn in Shiganshina.
 
-The full map is about 4.1 million chunks (roughly 16 GB on disk). It takes about 45
-minutes on a 4-core CPU and about 20 minutes on 8 cores. Open sea far from land isn't
-written: the world uses a flat-ocean generator there, so it still looks like ocean.
+The full map is about 900k chunks, roughly **3.6 GB**. It takes about 15–20 minutes
+on a 4-core CPU. Open sea far from land isn't written; the game fills it with
+matching flat ocean.
 
-### Try a small piece first
+To try a small piece first (a few seconds):
 
 ```
 java -jar aot-world.jar generate TestWorld --place shiganshina-district --radius 800
 ```
 
-This generates in a few seconds, and the world border is set to the generated area.
-
 ### Options
 
 | Option | Meaning |
 |---|---|
-| `--scale 20` | Blocks per canon km. 20 = 1:50 (default), 10 = 1:100 (the map becomes a quarter the area). |
-| `--island-scale 0.35` | Squash applied to the land outside Wall Maria. 1.0 makes Paradis as big relative to the walls as on the reference map (about 77k blocks tall). |
+| `--island-length 19000` | Paradis north-to-south length in blocks, about 40 min on horseback. Lower it for a quicker map. |
+| `--scale 7` | Size of the Walls in blocks per canon km. 7 ≈ 1:140 (default), 20 = canon 1:50. |
+| `--island-scale <f>` | Set the outer-island squash directly instead of `--island-length`. |
 | `--place <id>` / `--radius <n>` | Generate only around a place (ids come from `places`). |
 | `--area x0,z0,x1,z1` | Generate only a rectangle. |
-| `--threads <n>` | Worker threads (default: all cores). |
-| `--seed <n>` | Changes terrain noise, villages and river meanders. The layout stays the same. |
+| `--threads <n>` / `--seed <n>` | Worker threads / terrain seed. |
 
 ## Places and warps
 
-`java -jar aot-world.jar places` lists every zone with its level range and coordinates.
-The generator also writes:
+`java -jar aot-world.jar places` lists every zone with its levels and coordinates:
+districts, landmarks, each titan cave and camp, the Hidden Grove and the Canopy
+Hideout. The world also includes a datapack:
 
-- `aot-places.txt` in the world folder, a list of every zone with coordinates.
-- a datapack with clickable fast travel: `/function aot:places` lists the zones and
-  `/function aot:warp/<id>` teleports you, e.g. `/function aot:warp/trost-district`.
+- `/function aot:places` shows a clickable list of zones.
+- `/function aot:warp/<id>` teleports you, e.g. `/function aot:warp/the-titan-s-throat`.
 
-Level ranges are metadata for your server design; nothing enforces them in-game. Titans
-come from your AoT mod and follow that mod's spawn rules.
+Level ranges are metadata for server design; nothing enforces them in-game. Titans
+come from your AoT mod.
 
 ## Previews without Minecraft
 
 ```
-java -jar aot-world.jar preview overview map.png            # whole world, 16 blocks per pixel
-java -jar aot-world.jar preview detail trost.png 0 7600 600  # 600x600 blocks around (0, 7600)
+java -jar aot-world.jar preview overview map.png             # whole world
+java -jar aot-world.jar preview detail trost.png 0 2660 400  # 400x400 blocks around (0, 2660)
 ```
 
 ## Customising
 
-All geography lives in `src/main/java/com/pglol/aotworld/core/Atlas.java`: district
-names, landmark positions, level ranges, mountain ranges, rivers and the traced Paradis
-outline. Buildings are in `core/build/` (`House`, `TownGrid`, `WallFeature`,
-`Landmarks`, `CapitalFeature`). Build with `mvn package`. The jar lands in `target/`.
+- **Geography:** `src/main/java/com/pglol/aotworld/core/Atlas.java` (districts,
+  landmarks, level ranges, mountains, rivers, the traced Paradis outline).
+- **Layout of everything scattered:** `core/AotWorld.java`, `Scatter.java` and
+  `Villages.java` (villages, plots, caves, camps, lakes, trails).
+- **Buildings:** `core/build/`.
+
+Build with `mvn package`.
 
 ## How it works
 
-The core (`core/`) is pure Java with no Minecraft dependency. Every block is a
-deterministic function of its coordinates, so any chunk can be generated on its own and
-in parallel. `anvil/` serialises chunks to Anvil region files (DataVersion 3955) and
-writes `level.dat`. Lighting and heightmaps are left for the game to compute on first
-load, so the first visit to an area can take a moment longer.
+The core is pure Java with no Minecraft dependency. When the tool starts, it lays the
+whole map out in about half a second: geography, then roads, villages, trails, the
+forest, lakes, points of interest, plots and driveways. It then records the levelled
+ground each of them needs. After that, every block is a deterministic function of its
+coordinates, so chunks are generated independently and in parallel. They're written
+as Anvil region files (DataVersion 3955) together with `level.dat`, the datapack and
+the plot and mission lists. Lighting is computed by the game on first load.

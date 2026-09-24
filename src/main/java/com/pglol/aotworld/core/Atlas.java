@@ -65,7 +65,7 @@ public final class Atlas {
     public final List<Wall> walls;
     public final List<District> districts = new ArrayList<>();
     /** Radius of Mitras, the capital at the centre of Wall Sina. */
-    public final double capitalRadius = 650;
+    public final double capitalRadius;
     public final double districtRadius;
 
     // ---- Landmark sites ------------------------------------------------------------------
@@ -125,8 +125,6 @@ public final class Atlas {
     public final River.Index riverIndex;
     /** Ring roads, one between each pair of walls plus one outside Wall Maria. */
     public final double[] ringRoads;
-    /** Straight road segments (x1, z1, x2, z2). */
-    public final List<double[]> roads = new ArrayList<>();
 
     public final List<Region> regions = new ArrayList<>();
 
@@ -170,6 +168,7 @@ public final class Atlas {
         maria = new Wall("Wall Maria", km(480));
         walls = List.of(sina, rose, maria);
         districtRadius = Math.min(320, Math.max(200, 16 * k));
+        capitalRadius = Math.min(650, Math.max(360, 0.26 * sina.radius));
 
         // District names follow the series where known; the placements are approximate
         // and fan-named districts are marked. Rename or move them freely here.
@@ -208,15 +207,16 @@ public final class Atlas {
 
         // Marley sits across the sea to the west of the island's western coast.
         marleyZ = fromMap(250, 700)[1];
-        marleyHalf = km(300);
-        marleyDepth = km(300);
+        marleyHalf = 4500;
+        marleyDepth = 4000;
         double westCoast = 0;
         for (int i = 0; i < coastTable.length; i++) {
             double th = i * 2 * Math.PI / coastTable.length;
             double x = Math.cos(th) * coastTable[i], z = Math.sin(th) * coastTable[i];
             if (Math.abs(z - marleyZ) < marleyHalf) westCoast = Math.min(westCoast, x);
         }
-        marleyWest = westCoast - 800 - km(220) - marleyDepth;
+        // About ten minutes by boat from Paradis Port to Marley Port City.
+        marleyWest = westCoast - 4100 - marleyDepth;
 
         // Rivers.
         int ri = 0;
@@ -233,7 +233,6 @@ public final class Atlas {
         };
 
         placeSites();
-        buildRoads();
         buildRegions();
 
         double px0 = 0, px1 = 0, pz0 = 0, pz1 = 0;
@@ -252,6 +251,45 @@ public final class Atlas {
         maxX = west + side;
         minZ = (north + south) / 2 - side / 2;
         maxZ = minZ + side;
+    }
+
+    /** Finds the island scale that makes Paradis the given length (north tip to south tip) in blocks. */
+    public static double islandScaleForLength(double blocksPerKm, double length) {
+        double lo = 0.05, hi = 1.5;
+        for (int it = 0; it < 40; it++) {
+            double mid = (lo + hi) / 2;
+            double z0 = 0, z1 = 0;
+            for (int i = 0; i < 720; i++) {
+                double th = i * 2 * Math.PI / 720;
+                double best = outlineDistanceKm(th);
+                double l = best <= 480 ? best : 480 + (best - 480) * mid;
+                z0 = Math.min(z0, Math.sin(th) * l);
+                z1 = Math.max(z1, Math.sin(th) * l);
+            }
+            if ((z1 - z0) * blocksPerKm > length) hi = mid; else lo = mid;
+        }
+        return (lo + hi) / 2;
+    }
+
+    private static double outlineDistanceKm(double th) {
+        int n = OUTLINE.length / 2;
+        double dx = Math.cos(th), dz = Math.sin(th), best = 0;
+        for (int e = 0; e < n; e++) {
+            double ax = (OUTLINE[2 * e] - MAP_CX) * KM_PER_PX, az = (OUTLINE[2 * e + 1] - MAP_CZ) * KM_PER_PX;
+            int f = (e + 1) % n;
+            double bx = (OUTLINE[2 * f] - MAP_CX) * KM_PER_PX, bz = (OUTLINE[2 * f + 1] - MAP_CZ) * KM_PER_PX;
+            double ex = bx - ax, ez = bz - az;
+            double den = dx * ez - dz * ex;
+            if (Math.abs(den) < 1e-12) continue;
+            double t = (ax * ez - az * ex) / den, u = (ax * dz - az * dx) / den;
+            if (t > 0 && u >= 0 && u <= 1) best = Math.max(best, t);
+        }
+        return best;
+    }
+
+    public void addRegion(Region r) {
+        regions.add(r);
+        regions.sort(Comparator.comparingInt((Region q) -> q.priority).reversed());
     }
 
     public double km(double v) {
@@ -286,24 +324,10 @@ public final class Atlas {
     }
 
     private void buildCoastTable() {
-        int n = OUTLINE.length / 2;
         double minR = maria.radius + districtRadius + 900;
         for (int i = 0; i < coastTable.length; i++) {
             double th = i * 2 * Math.PI / coastTable.length;
-            double dx = Math.cos(th), dz = Math.sin(th);
-            double best = 0;
-            for (int e = 0; e < n; e++) {
-                double ax = (OUTLINE[2 * e] - MAP_CX) * KM_PER_PX, az = (OUTLINE[2 * e + 1] - MAP_CZ) * KM_PER_PX;
-                int f = (e + 1) % n;
-                double bx = (OUTLINE[2 * f] - MAP_CX) * KM_PER_PX, bz = (OUTLINE[2 * f + 1] - MAP_CZ) * KM_PER_PX;
-                double ex = bx - ax, ez = bz - az;
-                double den = dx * ez - dz * ex;
-                if (Math.abs(den) < 1e-12) continue;
-                double t = (ax * ez - az * ex) / den;   // distance along the ray
-                double u = (ax * dz - az * dx) / den;   // position along the edge
-                if (t > 0 && u >= 0 && u <= 1) best = Math.max(best, t);
-            }
-            coastTable[i] = Math.max(minR, km(compress(best)));
+            coastTable[i] = Math.max(minR, km(compress(outlineDistanceKm(th))));
         }
     }
 
@@ -332,7 +356,7 @@ public final class Atlas {
     public double marleyCoastX(double z) {
         double u = (z - marleyZ) / marleyHalf;
         double bump = Math.sqrt(Math.max(0, 1 - u * u));
-        double wobble = km(18) * Math.sin(z / km(70) + marleyPhase[0]) + km(22) * coastNoise.fbm(z / km(90) + 50, 3.7, 3);
+        double wobble = 350 * Math.sin(z / 1400 + marleyPhase[0]) + 450 * coastNoise.fbm(z / 1800 + 50, 3.7, 3);
         return marleyWest + (marleyDepth + wobble) * bump;
     }
 
@@ -392,7 +416,8 @@ public final class Atlas {
     // ---- Rivers --------------------------------------------------------------------------
 
     private River paradisRiver(String name, double theta0, double theta1, SplittableRandom rnd) {
-        double sx = Math.cos(theta0) * km(45), sz = Math.sin(theta0) * km(45);
+        double r0 = Math.max(km(45), capitalRadius + 90);
+        double sx = Math.cos(theta0) * r0, sz = Math.sin(theta0) * r0;
         double[] coast = coastAlong(Math.cos(theta1) * (maria.radius + 600), Math.sin(theta1) * (maria.radius + 600),
             Math.cos(theta1), Math.sin(theta1));
         double ex = coast[0] + Math.cos(theta1) * 400, ez = coast[1] + Math.sin(theta1) * 400;
@@ -433,7 +458,7 @@ public final class Atlas {
     }
 
     private void placeSites() {
-        site("Forest of Giant Trees", Kind.GIANT_FOREST, polar(120, 430), (int) Math.max(300, km(28)), 0, 0);
+        site("Forest of Giant Trees", Kind.GIANT_FOREST, polar(120, 430), (int) Math.max(280, km(28)), 0, 0);
         site("Utgard Castle", Kind.UTGARD, polar(300, 335), 45, 45, Double.NaN);
         site("Reiss Chapel", Kind.REISS_CHAPEL, polar(241, 300), 55, 50, Double.NaN);
         site("Survey Corps HQ", Kind.SURVEY_HQ, polar(30, 345), 50, 50, Double.NaN);
@@ -456,6 +481,47 @@ public final class Atlas {
             new double[] {marleyCoastX(marleyZ) - 2300, marleyZ - 700}, 260, 260, Double.NaN);
     }
 
+    /**
+     * Where a road should leave a site heading towards (tx, tz): the gate
+     * position and a point straight out from it. Walled sites only have
+     * specific gates; towns leave along their main street.
+     */
+    public double[] exit(Site s, double tx, double tz) {
+        double[][] gates; // gate x, z offsets and outward normal
+        switch (s.kind) {
+            case LIBERIO:
+                gates = new double[][] {{0, -171, 0, -1}, {0, 171, 0, 1}, {-221, 0, -1, 0}, {221, 0, 1, 0}};
+                break;
+            case MILITARY_BASE:
+                gates = new double[][] {{0, -131, 0, -1}, {181, 0, 1, 0}};
+                break;
+            case SURVEY_HQ: gates = new double[][] {{0, 31, 0, 1}}; break;
+            case TRAINING_CAMP: gates = new double[][] {{0, 77, 0, 1}}; break;
+            case UTGARD: gates = new double[][] {{0, 25, 0, 1}}; break;
+            case REISS_CHAPEL: gates = new double[][] {{0, 20, 0, 1}}; break;
+            case PARADIS_PORT:
+            case MARLEY_PORT: {
+                int land = (s.seaDir + 2) % 4;
+                double r = s.radius - 10;
+                gates = new double[][] {{DIR_X[land] * r, DIR_Z[land] * r, DIR_X[land], DIR_Z[land]}};
+                break;
+            }
+            default:
+                return new double[] {s.x, s.z, s.x, s.z};
+        }
+        double[] best = null;
+        double bd = Double.MAX_VALUE;
+        for (double[] g : gates) {
+            double gx = s.x + g[0], gz = s.z + g[1];
+            double d = Mth.dist(gx + g[2] * 30, gz + g[3] * 30, tx, tz);
+            if (d < bd) {
+                bd = d;
+                best = new double[] {gx, gz, gx + g[2] * 30, gz + g[3] * 30};
+            }
+        }
+        return best;
+    }
+
     /** 0..1, 1 in the middle of the southern sand barrens. */
     public double desert(double x, double z) {
         double dx = (x - desertX) / desertRX, dz = (z - desertZ) / desertRZ;
@@ -469,45 +535,6 @@ public final class Atlas {
     public Site site(Kind kind) {
         for (Site s : sites) if (s.kind == kind) return s;
         return null;
-    }
-
-    // ---- Roads ---------------------------------------------------------------------------
-
-    private void buildRoads() {
-        // Connect inland Paradis landmarks radially to the ring road of their ring.
-        for (Site s : sites) {
-            if (landmass(s.x, s.z) != Column.PARADIS || s.kind == Kind.GIANT_FOREST) continue;
-            double r = Math.sqrt((double) s.x * s.x + (double) s.z * s.z);
-            double target = ringRoads[Math.min(ring(s.x, s.z), 3)];
-            if (s.kind == Kind.PARADIS_PORT) target = ringRoads[3];
-            double f = target / r;
-            roads.add(new double[] {s.x, s.z, s.x * f, s.z * f});
-        }
-        Site liberio = site(Kind.LIBERIO), port = site(Kind.MARLEY_PORT), base = site(Kind.MILITARY_BASE);
-        roads.add(new double[] {port.x, port.z, liberio.x, liberio.z});
-        roads.add(new double[] {port.x, port.z, base.x, base.z});
-        roads.add(new double[] {liberio.x, liberio.z, base.x, base.z});
-    }
-
-    /**
-     * Distance to the nearest static road centre line, or -1 when further than
-     * 2.5 blocks. Village roads are handled by {@link Villages}.
-     */
-    public double roadDistance(double x, double z, int landmass) {
-        double best = 99;
-        if (landmass == Column.PARADIS) {
-            double r = Math.sqrt(x * x + z * z);
-            if (r > capitalRadius - 5) {
-                best = Math.min(Math.abs(x), Math.abs(z));
-            }
-            for (double rr : ringRoads) best = Math.min(best, Math.abs(r - rr));
-        }
-        for (double[] s : roads) {
-            if (x < Math.min(s[0], s[2]) - 3 || x > Math.max(s[0], s[2]) + 3
-                || z < Math.min(s[1], s[3]) - 3 || z > Math.max(s[1], s[3]) + 3) continue;
-            best = Math.min(best, Mth.segDist(x, z, s[0], s[1], s[2], s[3], null));
-        }
-        return best <= 2.5 ? best : -1;
     }
 
     // ---- Regions -------------------------------------------------------------------------

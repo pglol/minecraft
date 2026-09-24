@@ -7,7 +7,6 @@ import com.pglol.aotworld.core.ChunkBuffer;
 import com.pglol.aotworld.core.Column;
 import com.pglol.aotworld.core.Region;
 import com.pglol.aotworld.core.Terrain;
-import com.pglol.aotworld.core.Villages;
 import com.pglol.aotworld.core.WorldSpec;
 import com.pglol.aotworld.core.build.Village;
 
@@ -40,17 +39,21 @@ public final class MapPreview {
         }
         if (args[0].equals("overview")) {
             long seed = args.length > 2 ? Long.parseLong(args[2]) : 1L;
-            double bpk = args.length > 3 ? Double.parseDouble(args[3]) : 20;
-            int bpp = args.length > 4 ? Integer.parseInt(args[4]) : 16;
-            AotWorld w = new AotWorld(seed, bpk);
+            double bpk = args.length > 3 ? Double.parseDouble(args[3]) : AotWorld.DEFAULT_SCALE;
+            int bpp = args.length > 4 ? Integer.parseInt(args[4]) : 8;
+            AotWorld w = world(seed, bpk);
             ImageIO.write(overview(w, bpp), "png", new File(args[1]));
         } else {
             int cx = Integer.parseInt(args[2]), cz = Integer.parseInt(args[3]), size = Integer.parseInt(args[4]);
             long seed = args.length > 5 ? Long.parseLong(args[5]) : 1L;
-            double bpk = args.length > 6 ? Double.parseDouble(args[6]) : 20;
-            AotWorld w = new AotWorld(seed, bpk);
+            double bpk = args.length > 6 ? Double.parseDouble(args[6]) : AotWorld.DEFAULT_SCALE;
+            AotWorld w = world(seed, bpk);
             ImageIO.write(detail(w, cx, cz, size), "png", new File(args[1]));
         }
+    }
+
+    private static AotWorld world(long seed, double bpk) {
+        return new AotWorld(seed, bpk, Atlas.islandScaleForLength(bpk, AotWorld.DEFAULT_ISLAND_LENGTH));
     }
 
     // ---- Overview ------------------------------------------------------------------------
@@ -97,25 +100,18 @@ public final class MapPreview {
                     (int) X.applyAsDouble(r.xs[i + 1]), (int) Z.applyAsDouble(r.zs[i + 1]));
             }
         }
-        g.setStroke(new BasicStroke(1.5f));
-        g.setColor(new Color(0xE8D8A8));
-        for (double rr : a.ringRoads) {
-            for (int i = 0; i < 720; i++) {
-                double t0 = Math.toRadians(i * 0.5), t1 = Math.toRadians((i + 1) * 0.5);
-                double x0 = Math.cos(t0) * rr, z0 = Math.sin(t0) * rr, x1 = Math.cos(t1) * rr, z1 = Math.sin(t1) * rr;
-                if (a.landSD(x0, z0) < 0) continue;
-                g.drawLine((int) X.applyAsDouble(x0), (int) Z.applyAsDouble(z0), (int) X.applyAsDouble(x1), (int) Z.applyAsDouble(z1));
+        for (com.pglol.aotworld.core.Road r : w.roads.roads()) {
+            switch (r.type) {
+                case MAIN: g.setStroke(new BasicStroke(2f)); g.setColor(new Color(0xF2E3B3)); break;
+                case PAVED: g.setStroke(new BasicStroke(2f)); g.setColor(new Color(0xD0D0D0)); break;
+                case TRAIL: g.setStroke(new BasicStroke(1.2f)); g.setColor(new Color(0xC9A56B)); break;
+                default: g.setStroke(new BasicStroke(0.8f)); g.setColor(new Color(0x9C7A4A)); break;
             }
-        }
-        for (int dir = 0; dir < 4; dir++) {
-            double ux = Atlas.DIR_X[dir], uz = Atlas.DIR_Z[dir];
-            double end = a.capitalRadius;
-            while (a.paradisSD(ux * end, uz * end) > 0) end += 32;
-            g.drawLine((int) X.applyAsDouble(ux * a.capitalRadius), (int) Z.applyAsDouble(uz * a.capitalRadius),
-                (int) X.applyAsDouble(ux * end), (int) Z.applyAsDouble(uz * end));
-        }
-        for (double[] r : a.roads) {
-            g.drawLine((int) X.applyAsDouble(r[0]), (int) Z.applyAsDouble(r[1]), (int) X.applyAsDouble(r[2]), (int) Z.applyAsDouble(r[3]));
+            for (int i = 0; i + 1 < r.xs.length; i++) {
+                if (a.landSD(r.xs[i], r.zs[i]) < 0) continue;
+                g.drawLine((int) X.applyAsDouble(r.xs[i]), (int) Z.applyAsDouble(r.zs[i]),
+                    (int) X.applyAsDouble(r.xs[i + 1]), (int) Z.applyAsDouble(r.zs[i + 1]));
+            }
         }
 
         // Towns.
@@ -134,13 +130,25 @@ public final class MapPreview {
                 || site.kind == Atlas.Kind.MILITARY_BASE ? new Color(0x8E3B2E) : new Color(0xB5651D));
             g.fillOval((int) (X.applyAsDouble(site.x) - r), (int) (Z.applyAsDouble(site.z) - r), (int) (2 * r), (int) (2 * r));
         }
-        g.setColor(new Color(0x8B5A2B));
-        for (int cx = Math.floorDiv(a.minX, Villages.CELL); cx <= Math.floorDiv(a.maxX, Villages.CELL); cx++) {
-            for (int cz = Math.floorDiv(a.minZ, Villages.CELL); cz <= Math.floorDiv(a.maxZ, Villages.CELL); cz++) {
-                Village v = w.villages.get(cx, cz);
-                if (v == null) continue;
-                g.fillOval((int) X.applyAsDouble(v.cx) - 3, (int) Z.applyAsDouble(v.cz) - 3, 6, 6);
+        for (Village v : w.villages) {
+            g.setColor(new Color(0x8B5A2B));
+            int r = Math.max(3, (int) (v.radius * s));
+            g.fillOval((int) X.applyAsDouble(v.cx) - r, (int) Z.applyAsDouble(v.cz) - r, 2 * r, 2 * r);
+        }
+        for (com.pglol.aotworld.core.build.Plot p : w.plots) {
+            g.setColor(new Color(0xE040C0));
+            int px = (int) X.applyAsDouble(p.cx()), pz = (int) Z.applyAsDouble(p.cz());
+            g.fillRect(px - 1, pz - 1, 3, 3);
+        }
+        for (com.pglol.aotworld.core.build.Poi p : w.pois) {
+            switch (p.kind) {
+                case TITAN_CAVE: g.setColor(new Color(0xB00000)); break;
+                case EXPEDITION_CAMP: g.setColor(new Color(0x1E7A2E)); break;
+                default: g.setColor(new Color(0x3050A0)); break;
             }
+            int px = (int) X.applyAsDouble(p.x), pz = (int) Z.applyAsDouble(p.z);
+            int r = p.kind == com.pglol.aotworld.core.build.Poi.Kind.TITAN_CAVE || p.kind == com.pglol.aotworld.core.build.Poi.Kind.EXPEDITION_CAMP ? 4 : 2;
+            g.fillPolygon(new int[] {px, px - r, px + r}, new int[] {pz - r, pz + r, pz + r}, 3);
         }
 
         // Walls.
@@ -173,19 +181,34 @@ public final class MapPreview {
             label(g, wall.name, X.applyAsDouble(wall.radius * Math.cos(Math.toRadians(225))) + 30,
                 Z.applyAsDouble(wall.radius * Math.sin(Math.toRadians(225))) + 10, mid);
         }
-        label(g, "PARADIS ISLAND", X.applyAsDouble(0), Z.applyAsDouble(-a.maria.radius - 4500), big);
+        label(g, "PARADIS ISLAND", X.applyAsDouble(0), Z.applyAsDouble(-a.maria.radius - 2500), big);
         label(g, "MARLEY", X.applyAsDouble(a.site(Atlas.Kind.MILITARY_BASE).x - 900), Z.applyAsDouble(a.site(Atlas.Kind.MILITARY_BASE).z + 2600), big);
         label(g, "THE SEA", X.applyAsDouble((a.marleyCoastX(a.marleyCentreZ()) + a.site(Atlas.Kind.PARADIS_PORT).x) / 2), Z.applyAsDouble(a.marleyCentreZ() - 4000), big);
 
+        // Legend.
+        g.setFont(small);
+        int ly = 30;
+        String[][] legend = {{"B00000", "Titan cave"}, {"1E7A2E", "Survey Corps camp"}, {"3050A0", "Point of interest"},
+            {"E040C0", "Property plot"}, {"8B5A2B", "Village"}};
+        g.setColor(new Color(255, 255, 255, 220));
+        g.fillRect(20, 14, 170, 18 * legend.length + 12);
+        for (String[] l : legend) {
+            g.setColor(new Color(Integer.parseInt(l[0], 16)));
+            g.fillRect(30, ly - 9, 10, 10);
+            g.setColor(Color.BLACK);
+            g.drawString(l[1], 48, ly);
+            ly += 18;
+        }
+
         // Scale bar.
-        int barBlocks = 5000;
+        int barBlocks = 2000;
         int bx = 30, by = height - 40;
         g.setColor(Color.WHITE);
         g.fillRect(bx - 6, by - 26, (int) (barBlocks * s) + 12, 40);
         g.setColor(Color.BLACK);
         g.fillRect(bx, by, (int) (barBlocks * s), 6);
         g.setFont(small);
-        g.drawString(barBlocks + " blocks  (1 px = " + bpp + " blocks, scale 1:" + (int) Math.round(1000 / w.spec.blocksPerKm) + ")", bx, by - 8);
+        g.drawString(barBlocks + " blocks, about 4 min on horseback  (1 px = " + bpp + " blocks)", bx, by - 8);
         g.dispose();
         return img;
     }
@@ -202,7 +225,7 @@ public final class MapPreview {
 
     private static int terrainColor(AotWorld w, Column c) {
         if (c.underwater()) {
-            if (c.river) return 0x3f76e4;
+            if (c.river || c.lake) return 0x3f76e4;
             int depth = c.water - c.height;
             double t = Math.min(1, depth / 30.0);
             return mix(0x4f8fe8, 0x1c3a8a, t);

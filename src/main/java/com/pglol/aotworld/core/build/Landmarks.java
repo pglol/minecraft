@@ -297,16 +297,35 @@ public final class Landmarks {
         @Override
         public void column(ChunkBuffer buf, int x, int z, Column col) {
             int a = grid.localA(x, z), b = grid.localB(x, z);
+            double d = Math.hypot(x - site.x, z - site.z);
+            boolean waterfront = d < site.radius + 20 && Math.abs(b) < site.radius - 10;
             if (!col.underwater()) {
-                if (col.sd > 4 && grid.shape.inside(x, z)) grid.column(buf, x, z, col.height);
+                if (col.sd > 8 && grid.shape.inside(x, z)) {
+                    grid.column(buf, x, z, col.height);
+                } else if (waterfront && col.sd <= 8) {
+                    // Quay promenade along the water.
+                    buf.fill(x, col.height - 2, base - 1, z, Blocks.STONE_BRICKS);
+                    buf.fill(x, base + 1, Math.max(base + 2, col.height), z, Blocks.AIR);
+                    buf.set(x, base, z, Math.floorMod(x + z, 9) == 0 ? Blocks.STONE_BRICKS : Blocks.POLISHED_ANDESITE);
+                }
                 if (hq != null && hq.covers(x, z)) hq.column(buf, x, z, base);
+                return;
+            }
+            if (waterfront && col.sd > -4 && !col.river) {
+                // Quay wall: dressed stone from the seabed up to street level, with a kerb and lamps.
+                buf.fill(x, col.height, base - 1, z, Blocks.STONE_BRICKS);
+                buf.set(x, base, z, Blocks.POLISHED_ANDESITE);
+                if (col.sd <= -2.5) {
+                    buf.set(x, base + 1, z, Math.floorMod(x + z, 16) == 0 ? Blocks.SPRUCE_FENCE : Blocks.AIR);
+                    if (Math.floorMod(x + z, 16) == 0) buf.set(x, base + 2, z, Blocks.LANTERN);
+                }
                 return;
             }
             // Piers reaching out to sea.
             if (a < 0 || a > pierEnd) return;
             int pb = Math.floorMod(b + 2, 60) - 2;
             if (Math.abs(b) > site.radius - 20) return;
-            int deck = 66;
+            int deck = base;
             if (Math.abs(pb) <= 2) {
                 buf.set(x, deck, z, Blocks.SPRUCE_PLANKS);
                 if (Math.abs(pb) == 2 && Math.floorMod(a, 4) == 0) {
@@ -316,16 +335,16 @@ public final class Landmarks {
                 }
             }
             if (!marley) {
-                double d = Math.hypot(a - (pierEnd + 6), b);
-                if (d <= 4.5) {
+                double ld = Math.hypot(a - (pierEnd + 6), b);
+                if (ld <= 4.5) {
                     int top = deck + 28;
                     buf.fill(x, col.height, deck, z, Blocks.STONE_BRICKS);
-                    if (d > 3.3) {
+                    if (ld > 3.3) {
                         for (int y = deck + 1; y <= top; y++) buf.set(x, y, z, ((y - deck) / 4) % 2 == 0 ? Blocks.WHITE_CONCRETE : Blocks.RED_CONCRETE);
                     }
                     buf.set(x, top, z, Blocks.STONE_BRICKS);
-                    if (d <= 2.5) buf.fill(x, top + 1, top + 3, z, Blocks.GLOWSTONE);
-                    else if (d <= 3.5) buf.set(x, top + 1, z, Blocks.IRON_BARS_X);
+                    if (ld <= 2.5) buf.fill(x, top + 1, top + 3, z, Blocks.GLOWSTONE);
+                    else if (ld <= 3.5) buf.set(x, top + 1, z, Blocks.IRON_BARS_X);
                     buf.set(x, top + 4, z, Blocks.id("deepslate_tiles"));
                 } else if (Math.abs(b) <= 2 && a > pierEnd && a < pierEnd + 3) {
                     buf.set(x, deck, z, Blocks.SPRUCE_PLANKS);

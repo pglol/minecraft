@@ -1,6 +1,8 @@
 package com.pglol.aotworld.core;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * One chunk worth of block ids (16 x 384 x 16), column-major so each vertical
@@ -15,12 +17,32 @@ public final class ChunkBuffer {
     private final short[] data = new short[16 * 16 * HEIGHT];
     /** Biome index (into {@link Terrain#BIOMES}) per 4x4 column, indexed qz * 4 + qx. */
     private final byte[] biomes = new byte[16];
+    private final List<BlockEntity> entities = new ArrayList<>();
     private int x0, z0;
 
     public void reset(int chunkX, int chunkZ) {
         this.x0 = chunkX << 4;
         this.z0 = chunkZ << 4;
         Arrays.fill(data, (short) 0);
+        entities.clear();
+    }
+
+    /** A standing sign with up to four lines of text. */
+    public void sign(int x, int y, int z, int rotation, String... lines) {
+        if (!contains(x, z)) return;
+        set(x, y, z, Blocks.id("oak_sign[rotation=" + (rotation & 15) + "]"));
+        entities.add(new BlockEntity(x, y, z, "minecraft:sign", lines, null));
+    }
+
+    /** A chest filled from a vanilla loot table when first opened. */
+    public void lootChest(int x, int y, int z, String facing, String lootTable) {
+        if (!contains(x, z)) return;
+        set(x, y, z, Blocks.id("chest[facing=" + facing + "]"));
+        entities.add(new BlockEntity(x, y, z, "minecraft:chest", null, lootTable));
+    }
+
+    public List<BlockEntity> entities() {
+        return entities;
     }
 
     public int x0() { return x0; }

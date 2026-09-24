@@ -13,6 +13,10 @@ public class TownFeature extends Feature {
         this.grid = grid;
     }
 
+    public TownGrid grid() {
+        return grid;
+    }
+
     @Override
     public int layer() {
         return 10;

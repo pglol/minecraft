@@ -58,6 +58,18 @@ public final class Style {
         new Style("dark_oak_log", "white_terracotta", "cobblestone", "spruce_planks", "spruce_stairs", "spruce_planks", "spruce_door", "cobblestone", true, false),
     };
 
+    // Hill villages: stone cottages with dark roofs.
+    public static final Style[] HILL = {
+        new Style("spruce_log", "cobblestone", "stone_bricks", "spruce_planks", "deepslate_tile_stairs", "deepslate_tiles", "spruce_door", "stone_bricks", true, false),
+        new Style("stripped_spruce_log", "andesite", "cobblestone", "spruce_planks", "spruce_stairs", "spruce_planks", "spruce_door", "cobblestone", true, false),
+    };
+
+    // Forest cabins: log walls and mossy stone.
+    public static final Style[] CABIN = {
+        new Style("spruce_log", "stripped_spruce_log[axis=y]", "mossy_cobblestone", "spruce_planks", "spruce_stairs", "spruce_planks", "spruce_door", "mossy_cobblestone", true, false),
+        new Style("dark_oak_log", "stripped_oak_log[axis=y]", "mossy_cobblestone", "oak_planks", "dark_oak_stairs", "dark_oak_planks", "oak_door", "mossy_cobblestone", true, false),
+    };
+
     // Mitras: stone mansions of the nobility.
     public static final Style[] CAPITAL = {
         new Style("stone_bricks", "smooth_quartz", "polished_andesite", "dark_oak_planks", "deepslate_tile_stairs", "deepslate_tiles", "dark_oak_door", "chiseled_stone_bricks", false, false),
