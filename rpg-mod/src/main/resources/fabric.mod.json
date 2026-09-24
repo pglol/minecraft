@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "aot_rpg",
+  "version": "${version}",
+  "name": "Attack on Titan RPG",
+  "description": "Server-side RPG layer for the Attack on Titan map: character creation, disciplines, stats and progression.",
+  "authors": ["pglol"],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.pglol.aotrpg.AotRpg"]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

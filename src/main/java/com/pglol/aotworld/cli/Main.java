@@ -42,6 +42,8 @@ public final class Main {
         "  places [--scale n]              list named places, level ranges and coordinates",
         "  scan-mod <mod.jar> [--out titans.txt]   list a mod's entities and write a starter titan list",
         "  titans <worldDir> --config titans.txt  add/refresh titan spawning in an existing world",
+        "  server <serverDir> --mods <modsFolder> --world <worldDir> [--ram 6G] [--loader v] [--accept-eula]",
+        "                                  build a Fabric server with your modpack's mods and the world",
         "  preview overview <out.png> [seed] [scale] [blocksPerPixel]",
         "  preview detail <out.png> <x> <z> <size> [seed] [scale]");
 
@@ -64,6 +66,19 @@ public final class Main {
                 Datapack.write(world, aw);
                 System.out.println("Titan spawning added to " + world + ". In game: /reload (or restart), then");
                 System.out.println("  /function aot_titans:off   and   /function aot_titans:on   to toggle.");
+                break;
+            }
+            case "server": {
+                String mods = opt(args, "--mods", null), world = opt(args, "--world", null);
+                Path tool = null;
+                try {
+                    tool = Paths.get(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
+                } catch (Exception ignored) {
+                    // run from classes
+                }
+                ServerSetup.run(Paths.get(args[1]), mods == null ? null : Paths.get(mods),
+                    world == null ? null : Paths.get(world), opt(args, "--loader", null), opt(args, "--ram", "6G"),
+                    java.util.Arrays.asList(args).contains("--accept-eula"), tool);
                 break;
             }
             case "preview": {

@@ -1,0 +1,106 @@
+package com.pglol.aotrpg;
+
+import net.minecraft.entity.attribute.EntityAttribute;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
+import net.minecraft.entity.attribute.EntityAttributeModifier;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.boss.BossBar;
+import net.minecraft.entity.boss.ServerBossBar;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/** Levels, XP, the XP bar, and turning stats and disciplines into attribute bonuses. */
+public final class Progression {
+    public static final int MAX_LEVEL = 100;
+    private final Map<UUID, ServerBossBar> bars = new HashMap<>();
+
+    private static Identifier id(String path) {
+        return Identifier.of(AotRpg.MOD_ID, path);
+    }
+
+    private static void set(ServerPlayerEntity p, RegistryEntry<EntityAttribute> attr, String key, double value,
+                            EntityAttributeModifier.Operation op) {
+        EntityAttributeInstance inst = p.getAttributeInstance(attr);
+        if (inst == null) return;
+        Identifier mid = id(key);
+        inst.removeModifier(mid);
+        if (value != 0) inst.addPersistentModifier(new EntityAttributeModifier(mid, value, op));
+    }
+
+    /** Re-applies every bonus from the profile. Safe to call any time. */
+    public void apply(ServerPlayerEntity p, Profile pr) {
+        var add = EntityAttributeModifier.Operation.ADD_VALUE;
+        var mul = EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+        set(p, EntityAttributes.GENERIC_ATTACK_DAMAGE, "stat_strength", 0.5 * pr.total(Stat.STRENGTH), add);
+        set(p, EntityAttributes.GENERIC_MOVEMENT_SPEED, "stat_agility", 0.015 * pr.total(Stat.AGILITY), mul);
+        set(p, EntityAttributes.GENERIC_MAX_HEALTH, "stat_endurance", 2.0 * pr.total(Stat.ENDURANCE), add);
+        set(p, EntityAttributes.GENERIC_ARMOR, "stat_resolve", pr.total(Stat.RESOLVE), add);
+
+        Discipline d = pr.discipline;
+        set(p, EntityAttributes.GENERIC_MOVEMENT_SPEED, "disc_speed",
+            d == Discipline.SCOUT ? 0.08 : d == Discipline.MARKSMAN ? 0.05 : 0, mul);
+        set(p, EntityAttributes.GENERIC_JUMP_STRENGTH, "disc_jump", d == Discipline.SCOUT ? 0.10 : 0, mul);
+        set(p, EntityAttributes.GENERIC_SAFE_FALL_DISTANCE, "disc_fall", d == Discipline.SCOUT ? 3 : 0, add);
+        set(p, EntityAttributes.GENERIC_ATTACK_DAMAGE, "disc_damage", d == Discipline.VANGUARD ? 2 : 0, add);
+        set(p, EntityAttributes.GENERIC_ATTACK_SPEED, "disc_attack_speed", d == Discipline.VANGUARD ? 0.10 : 0, mul);
+        set(p, EntityAttributes.GENERIC_MAX_HEALTH, "disc_health",
+            d == Discipline.GUARDIAN ? 6 : d == Discipline.MEDIC ? 4 : 0, add);
+        set(p, EntityAttributes.GENERIC_ARMOR, "disc_armor", d == Discipline.GUARDIAN ? 2 : 0, add);
+        set(p, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, "disc_knockback", d == Discipline.GUARDIAN ? 0.2 : 0, add);
+        if (p.getHealth() > p.getMaxHealth()) p.setHealth(p.getMaxHealth());
+    }
+
+    public void addXp(ServerPlayerEntity p, Profile pr, long amount) {
+        if (!pr.created || pr.level >= MAX_LEVEL) return;
+        pr.xp += amount;
+        boolean up = false;
+        while (pr.level < MAX_LEVEL && pr.xp >= Profile.xpForNext(pr.level)) {
+            pr.xp -= Profile.xpForNext(pr.level);
+            pr.level++;
+            pr.points++;
+            up = true;
+        }
+        if (pr.level >= MAX_LEVEL) pr.xp = 0;
+        if (up) {
+            apply(p, pr);
+            AotRpg.NAMETAGS.update(p, pr);
+            Titles.show(p, Text.literal("LEVEL UP").formatted(Formatting.GOLD, Formatting.BOLD),
+                Text.literal("Level " + pr.level + "  ·  +1 stat point  (/character)").formatted(Formatting.YELLOW), 10, 50, 20);
+            p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1.1f);
+        }
+        updateBar(p, pr);
+    }
+
+    public void updateBar(ServerPlayerEntity p, Profile pr) {
+        if (!pr.created) return;
+        ServerBossBar bar = bars.computeIfAbsent(p.getUuid(),
+            u -> new ServerBossBar(Text.empty(), BossBar.Color.YELLOW, BossBar.Style.NOTCHED_10));
+        if (!bar.getPlayers().contains(p)) bar.addPlayer(p);
+        long need = Profile.xpForNext(pr.level);
+        bar.setName(Text.literal("Lv " + pr.level + "  ").formatted(Formatting.GOLD, Formatting.BOLD)
+            .append(Text.literal(pr.name + " the " + pr.discipline.title).formatted(Formatting.WHITE))
+            .append(Text.literal(pr.level >= MAX_LEVEL ? "   MAX" : "   " + pr.xp + " / " + need + " XP").formatted(Formatting.GRAY)));
+        bar.setPercent(pr.level >= MAX_LEVEL ? 1f : Math.min(1f, (float) pr.xp / need));
+        bar.setColor(switch (pr.discipline) {
+            case SCOUT -> BossBar.Color.GREEN;
+            case VANGUARD -> BossBar.Color.RED;
+            case GUARDIAN -> BossBar.Color.BLUE;
+            case MARKSMAN -> BossBar.Color.YELLOW;
+            case MEDIC -> BossBar.Color.PINK;
+        });
+    }
+
+    public void removeBar(ServerPlayerEntity p) {
+        ServerBossBar bar = bars.remove(p.getUuid());
+        if (bar != null) bar.clearPlayers();
+    }
+}

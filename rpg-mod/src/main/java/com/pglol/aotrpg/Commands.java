@@ -1,0 +1,116 @@
+package com.pglol.aotrpg;
+
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+
+/** /character for players, /aotrpg for operators. */
+final class Commands {
+    private Commands() {}
+
+    static void register(CommandDispatcher<ServerCommandSource> d) {
+        d.register(CommandManager.literal("character").executes(c -> {
+            ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+            Profile pr = AotRpg.PROFILES.get(p.getUuid());
+            if (!pr.created) {
+                if (!AotRpg.CREATION.active(p)) AotRpg.CREATION.begin(p);
+                return 0;
+            }
+            sheet(p, pr);
+            return 1;
+        }));
+
+        d.register(CommandManager.literal("aotrpg").requires(s -> s.hasPermissionLevel(2))
+            .then(CommandManager.literal("reset").then(CommandManager.argument("player", EntityArgumentType.player())
+                .executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    AotRpg.PROFILES.reset(p.getUuid());
+                    AotRpg.NAMETAGS.remove(p);
+                    AotRpg.PROGRESSION.removeBar(p);
+                    AotRpg.PROGRESSION.apply(p, AotRpg.PROFILES.get(p.getUuid()));
+                    AotRpg.CREATION.begin(p);
+                    c.getSource().sendFeedback(() -> Text.literal("Reset " + p.getName().getString() + "'s character."), true);
+                    return 1;
+                })))
+            .then(CommandManager.literal("setlevel").then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(CommandManager.argument("level", IntegerArgumentType.integer(1, Progression.MAX_LEVEL)).executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    Profile pr = created(p);
+                    int lv = IntegerArgumentType.getInteger(c, "level");
+                    pr.points += lv - pr.level;
+                    if (pr.points < 0) pr.points = 0;
+                    pr.level = lv;
+                    pr.xp = 0;
+                    refresh(p, pr);
+                    c.getSource().sendFeedback(() -> Text.literal(pr.name + " is now level " + lv + "."), true);
+                    return 1;
+                }))))
+            .then(CommandManager.literal("xp").then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(CommandManager.argument("amount", IntegerArgumentType.integer(1)).executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    Profile pr = created(p);
+                    AotRpg.PROGRESSION.addXp(p, pr, IntegerArgumentType.getInteger(c, "amount"));
+                    AotRpg.PROFILES.save(p.getUuid());
+                    return 1;
+                }))))
+            .then(CommandManager.literal("reload").executes(c -> {
+                AotRpg.PLACES.load(c.getSource().getServer());
+                c.getSource().sendFeedback(() -> Text.literal("Reloaded aot-rpg.json."), true);
+                return 1;
+            })));
+    }
+
+    private static Profile created(ServerPlayerEntity p) throws CommandSyntaxException {
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (!pr.created) throw new com.mojang.brigadier.exceptions.SimpleCommandExceptionType(
+            Text.literal(p.getName().getString() + " has not created a character yet.")).create();
+        return pr;
+    }
+
+    private static void refresh(ServerPlayerEntity p, Profile pr) {
+        AotRpg.PROGRESSION.apply(p, pr);
+        AotRpg.PROGRESSION.updateBar(p, pr);
+        AotRpg.NAMETAGS.update(p, pr);
+        AotRpg.PROFILES.save(p.getUuid());
+    }
+
+    /** The character sheet: stats, and spending points. */
+    static void sheet(ServerPlayerEntity p, Profile pr) {
+        Menu m = new Menu(Text.literal(pr.name).formatted(Formatting.DARK_RED, Formatting.BOLD), 4);
+        m.button(4, Menu.glow(Menu.icon(Items.PLAYER_HEAD, Menu.line(pr.name, Formatting.GOLD, Formatting.BOLD),
+            Menu.line("Level " + pr.level + " " + pr.discipline.title, Formatting.YELLOW),
+            Menu.line("Origin: " + pr.origin.title, Formatting.GRAY),
+            Menu.line(pr.level >= Progression.MAX_LEVEL ? "Max level" : "XP: " + pr.xp + " / " + Profile.xpForNext(pr.level), Formatting.GRAY),
+            Menu.line("Titans slain: " + pr.titanKills, Formatting.RED),
+            Menu.line("Chapter " + pr.chapter, Formatting.DARK_GRAY))), null);
+        int[] cols = {1, 3, 5, 7};
+        Stat[] all = Stat.values();
+        for (int i = 0; i < all.length; i++) {
+            Stat st = all[i];
+            ItemStack it = Menu.icon(st.icon, Menu.line(st.title + ": " + pr.total(st), Formatting.GOLD),
+                Menu.line(st.effect, Formatting.GRAY));
+            it.setCount(Math.max(1, Math.min(99, pr.total(st))));
+            m.button(18 + cols[i], it, null);
+            if (pr.points > 0) m.button(27 + cols[i], Menu.icon(Items.LIME_STAINED_GLASS_PANE,
+                Menu.line("+1 " + st.title, Formatting.GREEN), Menu.line(pr.points + " point(s) to spend", Formatting.GRAY)), pl -> {
+                    if (pr.points <= 0) return;
+                    pr.points--;
+                    pr.stats.merge(st, 1, Integer::sum);
+                    refresh(pl, pr);
+                    pl.playSoundToPlayer(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.MASTER, 0.6f, 1.2f);
+                    sheet(pl, pr);
+                });
+        }
+        m.open(p);
+    }
+}

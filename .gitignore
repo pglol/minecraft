@@ -2,3 +2,6 @@ target/
 *.class
 /world*/
 /out/
+rpg-mod/build/
+rpg-mod/.gradle/
+rpg-mod/run/

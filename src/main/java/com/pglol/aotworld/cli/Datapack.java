@@ -31,8 +31,12 @@ final class Datapack {
         StringBuilder list = new StringBuilder();
         StringBuilder places = new StringBuilder("# Attack on Titan map - places\n\n");
         ChunkBuffer buf = new ChunkBuffer();
+        StringBuilder json = new StringBuilder("{\n  \"places\": {");
+        boolean first = true;
         for (Region r : regs) {
             int y = safeY(w, buf, r);
+            json.append(first ? "\n" : ",\n").append(String.format(Locale.ROOT, "    \"%s\": [%d, %d, %d]", r.id(), r.warpX, y, r.warpZ));
+            first = false;
             String cmd = String.format(Locale.ROOT, "tp @s %d %d %d", r.warpX, y, r.warpZ);
             Files.writeString(fn.resolve("warp").resolve(r.id() + ".mcfunction"),
                 "# " + r.name + " (" + r.levelText() + ")\n" + cmd + "\n"
@@ -66,6 +70,9 @@ final class Datapack {
         Files.writeString(fn.resolve("places.mcfunction"),
             "tellraw @s {\"text\":\"Places (click to travel)\",\"color\":\"yellow\",\"bold\":true}\n" + list, StandardCharsets.UTF_8);
         Files.writeString(world.resolve("aot-places.txt"), places.toString(), StandardCharsets.UTF_8);
+        // Read by the AoT RPG server mod (character origins, quest locations).
+        json.append("\n  }\n}\n");
+        Files.writeString(world.resolve("aot-rpg.json"), json.toString(), StandardCharsets.UTF_8);
     }
 
     /** First standing spot at or above the terrain, found by generating the chunk. */
