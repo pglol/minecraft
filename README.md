@@ -58,6 +58,40 @@ minute target. Both are adjustable: see [Options](#options).
 
 ![Places](docs/previews/places.png)
 
+### Life in the world
+
+- **Animals:**
+  - herds of horses, cows, sheep, pigs and donkeys graze the plains and meadows
+  - rabbits, foxes and goats live in the forests and hills
+  - villages keep fenced pastures, pig pens, chicken coops and horse paddocks
+  - Survey Corps HQ, the training camp, expedition-camp corrals and town stables all have horses
+- **People:**
+  - townsfolk in town streets and plazas and inside homes, with cats and chickens in gardens
+  - soldiers at the camps and the Marleyan base
+- **Furnished interiors, sized to the building:**
+  - homes get kitchens, dining tables, bedrooms, storage, studies and sitting corners
+  - halls, HQs and the palace get long dining tables, libraries and lounges
+  - barracks get bunks and armouries; stables get hay, water and horses
+  - walkways are left clear between rooms
+- **Stable Masters (horse vendors):** in town stables, farm villages, Survey Corps HQ,
+  the training camp and the Marleyan base. They trade for emeralds:
+
+  | Item | Price | Stats |
+  |---|---|---|
+  | Common Horse | 10 emeralds | speed 0.20, jump 0.6, 20 HP |
+  | Swift Courser | 24 emeralds | speed 0.30, jump 0.8, 26 HP |
+  | Survey Corps Warhorse | 48 emeralds + 1 diamond | speed 0.3375 (vanilla max), jump 1.0, 30 HP |
+  | Pack Donkey | 12 emeralds | — |
+  | Saddle / leads / hay / iron, gold and diamond horse armour | 1–32 emeralds | — |
+
+  Horses and donkeys come as tamed spawn eggs. Stable Masters stand still and can't be
+  hurt.
+- **Waterfronts:** harbour towns have a paved promenade with sea-facing benches,
+  planters and lamps. Buildings are only placed where they fit completely, so nothing
+  is ever cut off at a coast or town edge.
+- **Trees:** trees keep clear of every road and path. Forests are a little taller, and
+  open groves of big, widely spaced trees give ODM gear room to swing.
+
 ### Missions: titan caves and Survey Corps camps
 
 - **About 25 titan caves.** Each is a hillside cave mouth leading down to a great hall
@@ -147,11 +181,17 @@ map:
 - **No vanilla monsters.** Zombies, creepers, endermen, phantoms, patrols and so on
   are turned off. Horses, donkeys and farm animals are spawned by the pack instead.
 - **Titans by day** in Wall Maria territory, the wilds outside the walls and the
-  Forest of Giant Trees. They come in three patterns:
+  Forest of Giant Trees. They only ever appear on solid ground (never on treetops) and
+  come in three patterns:
   - **lone drifters**
   - **packs** of 2–5 bunched together
-  - **waves** from one direction, with a bell and a "Titans approaching!" warning, a
-    few minutes apart for anyone outside the walls
+  - **waves**: a group appears 50–80 blocks out in one direction, with a bell, a roar
+    and a "Titans approaching!" warning, then marches on the player until it's close.
+    Waves come a few minutes apart for anyone outside the walls.
+- **Titans fill the land around every player, even players in a safe zone.** Where a
+  titan may appear depends on the spot, not on where the player stands. So from a
+  wall, gate or town you can watch titans roaming the wilds, and they're already out
+  there when you ride out.
 - **Safe zones:** inside Wall Rose, every district town, Paradis Port, the Hidden
   Grove, the sea and Marley. An admin can override this with a Wall breach event.
 
@@ -161,6 +201,7 @@ map:
 2. Drag the mod's jar (instance *⋮ → Open folder → mods*) onto `scan-mod.bat`. This
    lists the mod's entities and writes `titans.txt`.
 3. Edit `titans.txt`: keep the titans you want and remove shifters and friendly NPCs.
+   The file only lists titans; spawn rates use the defaults below.
    Each line is `<zone> <entity id> <weight>`. Zones:
    - `maria` for Wall Maria territory
    - `wild` for outside the walls
@@ -171,16 +212,18 @@ map:
 The same from a terminal: `java -jar aot-world.jar scan-mod <mod.jar>` and
 `java -jar aot-world.jar titans <world> --config titans.txt`.
 
-### Settings in `titans.txt`
+### Optional settings in `titans.txt`
+
+Add any of these lines to override the defaults:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `interval` | 8 | Seconds between spawn attempts per player |
-| `chance` | 60 | Percent chance per attempt |
-| `cap` | 8 | Most titans within 128 blocks of a player (waves ignore it) |
-| `radius` | 110 | How far away titans can appear (never closer than ~28) |
-| `pack_chance` | 30 | Percent of spawns that are packs rather than lone titans |
-| `wave_minutes` / `wave_size` | 5 / 6 | How often waves come, and how big they are |
+| `interval` | 6 | Seconds between spawn attempts per player |
+| `chance` | 75 | Percent chance per attempt |
+| `cap` | 12 | Most titans near a player (waves ignore it) |
+| `radius` | 150 | How far away titans can appear (never closer than 30) |
+| `pack_chance` | 35 | Percent of spawns that are packs rather than lone titans |
+| `wave_minutes` / `wave_size` | 4 / 7 | How often waves come, and how big they are |
 | `vanilla_mobs` | off | `on` keeps vanilla monsters |
 | `animals` | on | `animal <id> <weight>` lines replace the default animal list |
 
@@ -189,10 +232,10 @@ The same from a terminal: `java -jar aot-world.jar scan-mod <mod.jar>` and
 | Command | What it does |
 |---|---|
 | `/function aot_titans:status` | Shows your zone (0 safe, 1 Wall Maria, 2 wilds), titans near you, and whether spawning is on |
-| `/function aot_titans:test` | Spawns a pack near you right now (checks the titan ids work) |
+| `/function aot_titans:test` | Spawns a pack 50–80 blocks from you right now (checks the titan ids work) |
 | `/function aot_titans:on` / `off` | Toggles titan spawning |
 | `/function aot_titans:event/breach_on` / `breach_off` | Wall breach: titans spawn inside Wall Rose and in the towns |
-| `/function aot_titans:event/wave` | Sends a wave at every player outside the safe zones |
+| `/function aot_titans:event/wave` | Sends a marching wave at every player, wherever they are |
 | `/execute as <player> at @s run function aot_titans:event/horde` | A 12-titan horde at one player, anywhere |
 
 Turning off vanilla spawning is a world gamerule (`doMobSpawning false`), so it also

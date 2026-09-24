@@ -144,7 +144,60 @@ public final class ChunkComposer {
         }
 
         trees.place(buf, features, s.tmp);
+        herds(buf, s.cols, features, seed);
         ores(buf, x0, z0, seed);
+    }
+
+    /** Wild herds grazing in the countryside. */
+    private static void herds(ChunkBuffer buf, Column[] cols, List<Feature> features, long seed) {
+        long h = Hash.of(seed ^ 0x4E2D, buf.x0(), buf.z0());
+        Column c = cols[Hash.range(h, 0, 255)];
+        if (c.underwater() || c.road >= 0 || c.landmass == Column.OCEAN) return;
+        double chance;
+        String[][] kinds;
+        switch (c.biome) {
+            case Terrain.B_PLAINS: case Terrain.B_SUNFLOWER:
+                chance = 0.10;
+                kinds = new String[][] {{"horse", "24"}, {"cow", "26"}, {"sheep", "30"}, {"pig", "14"}, {"donkey", "6"}};
+                break;
+            case Terrain.B_MEADOW:
+                chance = 0.10;
+                kinds = new String[][] {{"sheep", "45"}, {"horse", "25"}, {"cow", "20"}, {"goat", "10"}};
+                break;
+            case Terrain.B_FOREST: case Terrain.B_BIRCH: case Terrain.B_DARK_FOREST: case Terrain.B_OLD_BIRCH:
+                chance = 0.05;
+                kinds = new String[][] {{"rabbit", "30"}, {"fox", "25"}, {"pig", "25"}, {"chicken", "20"}};
+                break;
+            case Terrain.B_TAIGA: case Terrain.B_SNOWY: case Terrain.B_HILLS:
+                chance = 0.05;
+                kinds = new String[][] {{"fox", "35"}, {"rabbit", "30"}, {"goat", "20"}, {"sheep", "15"}};
+                break;
+            default:
+                return;
+        }
+        if (Hash.unit(Hash.mix(h + 1)) >= chance) return;
+        if (buf.get(c.x, c.height, c.z) != Blocks.GRASS && buf.get(c.x, c.height, c.z) != Blocks.SNOW_BLOCK) return;
+        for (Feature f : features) if (f.inBox(c.x, c.z) && f.occupies(c.x, c.z)) return;
+        int total = 0;
+        for (String[] k : kinds) total += Integer.parseInt(k[1]);
+        int pick = Hash.range(Hash.mix(h + 2), 1, total);
+        String kind = kinds[0][0];
+        for (String[] k : kinds) {
+            pick -= Integer.parseInt(k[1]);
+            if (pick <= 0) {
+                kind = k[0];
+                break;
+            }
+        }
+        int n = kind.equals("horse") || kind.equals("donkey") ? Hash.range(Hash.mix(h + 3), 2, 5) : Hash.range(Hash.mix(h + 3), 2, 4);
+        for (int i = 0; i < n; i++) {
+            int x = Math.max(buf.x0(), Math.min(buf.x0() + 15, c.x + Hash.range(Hash.of(h, i, 1), -4, 4)));
+            int z = Math.max(buf.z0(), Math.min(buf.z0() + 15, c.z + Hash.range(Hash.of(h, i, 2), -4, 4)));
+            int y = buf.top(x, z);
+            int top = buf.get(x, y, z);
+            if (top != Blocks.GRASS && top != Blocks.SNOW_BLOCK && top != Blocks.DIRT && top != Blocks.PODZOL) continue;
+            buf.mob(x, y + 1, z, kind);
+        }
     }
 
     private static int roadSurface(Column c, double u, int natural) {

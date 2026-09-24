@@ -80,16 +80,8 @@ final class ModScanner {
         sb.append("# Titan spawning for the Attack on Titan map. Generated from ").append(jar.getFileName()).append('\n');
         sb.append("# Lines: <zone> <entity id> <weight>   zone = maria (inside Wall Maria), wild (outside the walls), any\n");
         sb.append("# Delete or comment (#) anything that should not spawn, e.g. shifter or friendly NPC entities.\n");
-        sb.append("interval 8        # seconds between spawn attempts per player\n");
-        sb.append("chance 60         # percent chance per attempt\n");
-        sb.append("cap 8             # max titans within 128 blocks of a player (waves ignore it)\n");
-        sb.append("radius 110        # how far from the player titans appear\n");
-        sb.append("pack_chance 30    # percent of spawns that are a pack of 2-5 instead of a lone titan\n");
-        sb.append("wave_minutes 5    # a wave hits each player outside the walls about this often\n");
-        sb.append("wave_size 6       # titans per wave (give or take 2)\n");
-        sb.append("vanilla_mobs off  # off = no zombies/creepers/endermen etc; titans are the only monsters\n");
-        sb.append("animals on        # horses and farm animals roam (replaces vanilla animal spawning)\n");
-        sb.append("# animal minecraft:horse 30   # optional: your own animal list (defaults: horse, cow, sheep, pig, chicken, rabbit, fox, donkey)\n\n");
+        sb.append("# Spawn rates use good defaults; see the README if you ever want to tune them.\n");
+        sb.append("\n");
         int added = 0;
         for (Map.Entry<String, Integer> e : spawnWeights.entrySet()) {
             sb.append("any ").append(e.getKey()).append(' ').append(e.getValue()).append('\n');

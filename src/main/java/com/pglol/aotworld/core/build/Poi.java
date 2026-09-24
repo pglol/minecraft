@@ -263,6 +263,7 @@ public final class Poi extends Feature {
         }
         // Central fire with log benches.
         if (dx == 0 && dz == 0) { b.set(px, h + 1, pz, Blocks.CAMPFIRE); return; }
+        if (dx == 0 && Math.abs(dz) == 5) b.mob(px, h + 1, pz, "villager");
         if ((Math.abs(dx) == 3 && Math.abs(dz) <= 1)) { b.set(px, h + 1, pz, Blocks.OAK_LOG_Z); return; }
         if ((Math.abs(dz) == 3 && Math.abs(dx) <= 1)) { b.set(px, h + 1, pz, Blocks.OAK_LOG_X); return; }
         // Tents around the fire.
@@ -295,6 +296,7 @@ public final class Poi extends Feature {
             if (edge) b.set(px, h + 1, pz, Math.abs(px - cxr) == 7 ? Blocks.SPRUCE_FENCE_Z : Blocks.SPRUCE_FENCE_X);
             else if (pz == czr - 5 && Math.abs(px - cxr) <= 2) b.set(px, h, pz, Blocks.WATER);
             else if (Hash.unit(hh >>> 5) < 0.04) b.set(px, h + 1, pz, Blocks.HAY);
+            if (!edge && (px - cxr) % 4 == 0 && pz == czr + 2) b.mob(px, h + 1, pz, "horse");
             return;
         }
         // Watchtower with scaffolding lift and a green flag.
@@ -396,6 +398,7 @@ public final class Poi extends Feature {
             }
         }
         if (dx == 6 && dz == 0) b.set(px, h + 1, pz, Blocks.CAMPFIRE);
+        if ((dx == -2 || dx == 2) && dz == 7) b.mob(px, h + 1, pz, "chicken");
     }
 
     private void shipwreck(ChunkBuffer b, int px, int pz, Column col) {

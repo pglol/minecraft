@@ -26,6 +26,8 @@ public final class Village extends Feature {
     private final List<House> houses = new ArrayList<>();
     private final List<int[]> fields = new ArrayList<>(); // x0, z0, x1, z1, crop, alongX
     private final List<Pad> pads = new ArrayList<>();
+    /** Animal pens: x0, z0, x1, z1, kind (0 cattle and sheep, 1 pigs, 2 chickens, 3 horses). */
+    private final List<int[]> pens = new ArrayList<>();
     private final long seed;
     /** Fishing villages: direction (unit vector) towards the sea, and where the dock starts. */
     private double seaX, seaZ;
@@ -116,6 +118,59 @@ public final class Village extends Feature {
                 }
             }
         }
+        addPens(world);
+    }
+
+    private void addPens(AotWorld world) {
+        int want = type == Type.FARM ? 3 : (type == Type.HILL || type == Type.MARLEY ? 2 : (type == Type.FISHING ? 1 : 1));
+        for (int i = 0; i < 30 && pens.size() < want; i++) {
+            long h = Hash.of(seed, 2000 + i);
+            double ang = Hash.unit(h) * Math.PI * 2;
+            int kind = pens.isEmpty() && type == Type.FARM ? 3 : Hash.range(Hash.mix(h + 4), 0, 2);
+            if (type == Type.FOREST || type == Type.HIDDEN) kind = 2;
+            int w = kind == 2 ? 7 : Hash.range(Hash.mix(h + 2), 11, 15), d = kind == 2 ? 6 : Hash.range(Hash.mix(h + 3), 9, 12);
+            double dist = radius - 6 + Hash.unit(Hash.mix(h + 1)) * 14;
+            int px = cx + (int) (Math.cos(ang) * dist), pz = cz + (int) (Math.sin(ang) * dist);
+            int[] pen = {px - w / 2, pz - d / 2, px - w / 2 + w - 1, pz - d / 2 + d - 1, kind};
+            if (overlaps(pen[0] - 3, pen[1] - 3, pen[2] + 3, pen[3] + 3)) continue;
+            boolean clash = false;
+            for (int[] o : fields) if (pen[2] + 3 >= o[0] && pen[0] - 3 <= o[2] && pen[3] + 3 >= o[1] && pen[1] - 3 <= o[3]) clash = true;
+            for (int[] o : pens) if (pen[2] + 3 >= o[0] && pen[0] - 3 <= o[2] && pen[3] + 3 >= o[1] && pen[1] - 3 <= o[3]) clash = true;
+            if (clash || world.atlas.landSD(px, pz) < 12) continue;
+            pens.add(pen);
+            pads.add(Pad.rect(pen[0] - 1, pen[1] - 1, pen[2] + 1, pen[3] + 1, world.terrain.naturalHeight(px, pz), 6));
+        }
+    }
+
+    private static final String[][] PEN_ANIMALS = {
+        {"cow", "sheep", "cow", "sheep", "sheep"}, {"pig", "pig", "pig"}, {"chicken", "chicken", "chicken", "chicken"}, {"horse", "horse", "horse"}
+    };
+
+    /** Draws a pen and its animals; returns true when the column belongs to one. */
+    private boolean pen(ChunkBuffer buf, int x, int z, int h) {
+        for (int[] p : pens) {
+            if (x < p[0] || x > p[2] || z < p[1] || z > p[3]) continue;
+            boolean ex = x == p[0] || x == p[2], ez = z == p[1] || z == p[3];
+            buf.fill(x, h + 1, h + 3, z, Blocks.AIR);
+            int top = buf.get(x, h, z);
+            if (top != Blocks.GRASS) buf.set(x, h, z, Blocks.GRASS);
+            if (ex || ez) {
+                int midX = (p[0] + p[2]) / 2;
+                boolean gate = ez && z == p[1] && x == midX;
+                buf.set(x, h + 1, z, gate ? Blocks.id("oak_fence_gate[facing=north]")
+                    : (ex && ez) ? Blocks.OAK_FENCE : (ez ? Blocks.id("oak_fence[east=true,west=true]") : Blocks.id("oak_fence[north=true,south=true]")));
+                return true;
+            }
+            int ix = x - p[0] - 1, iz = z - p[1] - 1;
+            String[] animals = PEN_ANIMALS[p[4]];
+            if (iz == 1 && ix >= 1 && ix % 2 == 1 && ix / 2 < animals.length) buf.mob(x, h + 1, z, animals[ix / 2]);
+            if (p[4] == 3 && ix == 0 && iz == 0) buf.set(x, h + 1, z, Blocks.HAY);
+            if (p[4] == 3 && ix == 1 && iz == 3 && Hash.unit(Hash.of(seed, p[0], p[1])) < 0.7) buf.mob(x, h + 1, z, "aot:stable_master");
+            if (p[4] != 2 && x == p[2] - 1 && z > p[1] + 1 && z < p[1] + 4) buf.set(x, h, z, Blocks.WATER);
+            if (p[4] == 2 && x == p[0] + 1 && z == p[1] + 1) buf.set(x, h + 1, z, Blocks.HAY);
+            return true;
+        }
+        return false;
     }
 
     public List<Pad> pads() {
@@ -142,6 +197,7 @@ public final class Village extends Feature {
     @Override
     public boolean occupies(int x, int z) {
         if (Math.hypot(x - cx, z - cz) < radius + 6) return true;
+        for (int[] p : pens) if (x >= p[0] - 2 && x <= p[2] + 2 && z >= p[1] - 2 && z <= p[3] + 2) return true;
         for (int[] f : fields) if (x >= f[0] - 1 && x <= f[2] + 1 && z >= f[1] - 1 && z <= f[3] + 1) return true;
         return false;
     }
@@ -167,9 +223,14 @@ public final class Village extends Feature {
             }
             return;
         }
+        if (pen(buf, x, z, h)) return;
         for (House house : houses) {
             if (house.covers(x, z)) {
                 house.column(buf, x, z, h);
+                int[] step = house.doorstep();
+                if (x == step[0] && z == step[1] && Hash.unit(Hash.of(seed, x, z, 7)) < 0.7) {
+                    buf.mob(x, buf.top(x, z) + 1, z, "villager");
+                }
                 return;
             }
         }

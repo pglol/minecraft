@@ -30,7 +30,7 @@ public final class CapitalFeature extends TownFeature {
                 .exclude(TUNNEL_X0 - 8, TUNNEL_Z - 8, TUNNEL_X1 + 10, TUNNEL_Z + 8).plots(0.05),
             -(int) atlas.capitalRadius, -(int) atlas.capitalRadius, (int) atlas.capitalRadius, (int) atlas.capitalRadius);
         this.seed = seed;
-        palace = new House(-40, -26, 40, 26, true, BASE, 5, Style.PALACE, 1, false);
+        palace = new House(-40, -26, 40, 26, true, BASE, 5, Style.PALACE, 1, false).use(House.Use.HALL);
         underground = new TownGrid(0, 0, Atlas.EAST, CAVE_FLOOR, Hash.of(seed, 77),
             (x, z) -> x * x + z * z < CAVE_TOWN_R * CAVE_TOWN_R, Style.UNDERGROUND, 1, 2, 26,
             new int[] {Blocks.COBBLE, Blocks.GRAVEL, Blocks.MOSSY_COBBLE, Blocks.ANDESITE});
@@ -54,6 +54,8 @@ public final class CapitalFeature extends TownFeature {
                 buf.set(x, BASE, z, Blocks.WATER);
             } else if (d <= 6.2) {
                 buf.set(x, BASE + 1, z, Blocks.SMOOTH_QUARTZ);
+            } else if (Math.abs(x) == 3 && (z == 40 || z == 80)) {
+                buf.mob(x, BASE + 1, z, "villager");
             } else if (Math.abs(x) >= 6 && Math.abs(x) <= 28 && z % 6 != 0) {
                 buf.set(x, BASE, z, Blocks.GRASS);
                 if (Math.abs(x) == 6 || Math.abs(x) == 28) buf.set(x, BASE + 1, z, Blocks.OAK_LEAVES);

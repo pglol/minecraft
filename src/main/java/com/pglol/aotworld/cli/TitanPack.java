@@ -52,7 +52,7 @@ final class TitanPack {
     };
 
     static void write(Path world, AotWorld w, Path config) throws IOException {
-        int interval = 8, chance = 60, cap = 8, radius = 110, packChance = 30, waveMinutes = 5, waveSize = 6;
+        int interval = 6, chance = 75, cap = 12, radius = 150, packChance = 35, waveMinutes = 4, waveSize = 7;
         boolean vanillaMobs = false, animals = true;
         List<Entry> entries = new ArrayList<>();
         List<Entry> animalList = new ArrayList<>();
@@ -100,11 +100,23 @@ final class TitanPack {
         StringBuilder banned = new StringBuilder("{\"values\":[");
         for (int i = 0; i < BANNED.length; i++) banned.append(i > 0 ? "," : "").append("\"minecraft:").append(BANNED[i]).append('"');
         write(root.resolve("data/aot_titans/tags/entity_type/banned.json"), banned.append("]}").toString());
+        Files.createDirectories(root.resolve("data/aot_titans/tags/block"));
+        write(root.resolve("data/aot_titans/tags/block/ground.json"), "{\"values\":[\"#minecraft:dirt\",\"#minecraft:sand\",\"minecraft:gravel\","
+            + "\"minecraft:stone\",\"minecraft:andesite\",\"minecraft:granite\",\"minecraft:diorite\",\"minecraft:tuff\",\"minecraft:calcite\","
+            + "\"minecraft:dirt_path\",\"minecraft:snow_block\",\"minecraft:farmland\",\"minecraft:cobblestone\",\"minecraft:mossy_cobblestone\","
+            + "\"minecraft:sandstone\",\"minecraft:clay\"]}");
+        write(root.resolve("data/aot_titans/tags/block/passable.json"), "{\"values\":[\"minecraft:air\",\"minecraft:cave_air\","
+            + "\"minecraft:short_grass\",\"minecraft:tall_grass\",\"minecraft:fern\",\"minecraft:large_fern\",\"minecraft:dead_bush\","
+            + "\"minecraft:snow\",\"#minecraft:flowers\",\"#minecraft:saplings\",\"minecraft:wheat\",\"minecraft:carrots\","
+            + "\"minecraft:potatoes\",\"minecraft:beetroots\"]}");
 
         // ---- Lifecycle --------------------------------------------------------------------
         StringBuilder load = new StringBuilder();
         load.append("scoreboard objectives add aot_titans dummy\n");
         load.append("scoreboard objectives add aot_wave dummy\n");
+        load.append("scoreboard objectives add aot_age dummy\n");
+        load.append("scoreboard players set #force aot_titans 0\n");
+        load.append("schedule function aot_titans:march 5t replace\n");
         load.append("execute unless score #enabled aot_titans matches 0..1 run scoreboard players set #enabled aot_titans 1\n");
         load.append("execute unless score #breach aot_titans matches 0..1 run scoreboard players set #breach aot_titans 0\n");
         if (!vanillaMobs) {
@@ -151,12 +163,12 @@ final class TitanPack {
         write(fn.resolve("zone.mcfunction"), z.toString());
 
         StringBuilder p = new StringBuilder();
-        p.append("execute store result score #zone aot_titans run function aot_titans:zone\n");
-        p.append("execute if score #zone aot_titans matches 0 run return 0\n");
-        p.append("# Waves roll in every few minutes.\n");
-        p.append("scoreboard players add @s aot_wave 1\n");
-        p.append("execute if score @s aot_wave matches ").append(waveLoops).append(".. run return run function aot_titans:wave\n");
-        p.append("execute store result score #near aot_titans if entity @e[type=#aot_titans:titans,distance=..128]\n");
+        p.append("# Titans fill the wilds around every player - also when watching from a wall or a town.\n");
+        p.append("execute store result score #pz aot_titans run function aot_titans:zone\n");
+        p.append("# Waves roll in every few minutes for players out in titan territory.\n");
+        p.append("execute if score #pz aot_titans matches 1.. run scoreboard players add @s aot_wave 1\n");
+        p.append("execute if score #pz aot_titans matches 1.. if score @s aot_wave matches ").append(waveLoops).append(".. run function aot_titans:wave\n");
+        p.append("execute store result score #near aot_titans if entity @e[type=#aot_titans:titans,distance=..").append(radius + 20).append("]\n");
         p.append("execute if score #near aot_titans matches ").append(cap).append(".. run return 0\n");
         p.append("execute store result score #roll aot_titans run random value 1..100\n");
         p.append("execute if score #roll aot_titans matches ").append(chance + 1).append(".. run return 0\n");
@@ -166,36 +178,82 @@ final class TitanPack {
         write(fn.resolve("player.mcfunction"), p.toString());
 
         // ---- Spawn patterns --------------------------------------------------------------
-        write(fn.resolve("lone.mcfunction"), String.join("\n",
-            "# A single titan drifting somewhere around the player.",
+        // A spot is good when it is on real ground (never leaves), in titan territory, and not
+        // right next to a player. Each pattern tries a few spots.
+        write(fn.resolve("reject.mcfunction"), "kill @s\nreturn 0");
+        write(fn.resolve("check.mcfunction"), String.join("\n",
+            "# Run as a marker. Returns 1 if titans may appear here.",
+            "execute if entity @a[distance=..#MIN#] run return run function aot_titans:reject",
+            "execute unless block ~ ~-1 ~ #aot_titans:ground run return run function aot_titans:reject",
+            "execute if block ~ ~ ~ minecraft:water run return run function aot_titans:reject",
+            "execute store result score #zone aot_titans run function aot_titans:zone",
+            "execute if score #force aot_titans matches 1 if score #zone aot_titans matches 0 run scoreboard players set #zone aot_titans 2",
+            "execute if score #zone aot_titans matches 0 run return run function aot_titans:reject",
+            "return 1").replace("#MIN#", "30"));
+        write(fn.resolve("try_lone.mcfunction"), String.join("\n",
             "summon marker ~ ~ ~ {Tags:[\"aot_sp\"]}",
             "spreadplayers ~ ~ 0 " + radius + " under 250 false @e[type=marker,tag=aot_sp,limit=1,sort=nearest]",
-            "execute as @e[type=marker,tag=aot_sp] at @s if entity @a[distance=..28] run kill @s",
-            "execute at @e[type=marker,tag=aot_sp,limit=1] run function aot_titans:pick",
-            "kill @e[type=marker,tag=aot_sp]"));
+            "execute as @e[type=marker,tag=aot_sp,limit=1] at @s run return run function aot_titans:lone_here"));
+        write(fn.resolve("lone_here.mcfunction"), String.join("\n",
+            "execute store result score #ok aot_titans run function aot_titans:check",
+            "execute if score #ok aot_titans matches 0 run return 0",
+            "function aot_titans:pick",
+            "kill @s",
+            "return 1"));
+        write(fn.resolve("lone.mcfunction"), String.join("\n",
+            "# A single titan drifting somewhere around the player (up to 4 tries).",
+            "execute store result score #ok aot_titans run function aot_titans:try_lone",
+            "execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:try_lone",
+            "execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:try_lone",
+            "execute if score #ok aot_titans matches 0 run function aot_titans:try_lone",
+            "tag @e[tag=aot_new] remove aot_new"));
+        write(fn.resolve("try_group.mcfunction"), String.join("\n",
+            "summon marker ~ ~ ~ {Tags:[\"aot_sp\"]}",
+            "spreadplayers ~ ~ 0 #R# under 250 false @e[type=marker,tag=aot_sp,limit=1,sort=nearest]",
+            "execute as @e[type=marker,tag=aot_sp,limit=1] at @s run return run function aot_titans:group_here"));
+        write(fn.resolve("group_here.mcfunction"), String.join("\n",
+            "execute store result score #ok aot_titans run function aot_titans:check",
+            "execute if score #ok aot_titans matches 0 run return 0",
+            "function aot_titans:group",
+            "kill @s",
+            "return 1"));
         write(fn.resolve("pack.mcfunction"), String.join("\n",
             "# A pack of 2-5 titans bunched together.",
-            "summon marker ~ ~ ~ {Tags:[\"aot_sp\"]}",
-            "spreadplayers ~ ~ 0 " + radius + " under 250 false @e[type=marker,tag=aot_sp,limit=1,sort=nearest]",
-            "execute as @e[type=marker,tag=aot_sp] at @s if entity @a[distance=..36] run kill @s",
             "execute store result score #n aot_titans run random value 2..5",
-            "execute at @e[type=marker,tag=aot_sp,limit=1] run function aot_titans:group",
-            "kill @e[type=marker,tag=aot_sp]"));
+            "scoreboard players set #r aot_titans " + radius,
+            "execute store result score #ok aot_titans run function aot_titans:try_group_far",
+            "execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:try_group_far",
+            "execute if score #ok aot_titans matches 0 run function aot_titans:try_group_far",
+            "tag @e[tag=aot_new] remove aot_new"));
+        write(fn.resolve("try_group_far.mcfunction"), read(fn, "try_group").replace("#R#", String.valueOf(radius)));
+        write(fn.resolve("try_group_near.mcfunction"), read(fn, "try_group").replace("#R#", "80")
+            .replace("group_here", "wave_here"));
+        Files.delete(fn.resolve("try_group.mcfunction"));
+        write(fn.resolve("wave_here.mcfunction"), String.join("\n",
+            "# Waves come from 50-80 blocks out.",
+            "execute if entity @a[distance=..50] run return run function aot_titans:reject",
+            "execute store result score #ok aot_titans run function aot_titans:check",
+            "execute if score #ok aot_titans matches 0 run return 0",
+            "function aot_titans:group",
+            "playsound minecraft:entity.ravager.roar hostile @a[distance=..160] ~ ~ ~ 4 0.5",
+            "kill @s",
+            "return 1"));
+
         StringBuilder wave = new StringBuilder();
-        wave.append("# A wave: a group that appears together in one direction, with a warning.\n");
+        wave.append("# A wave: a group appears in one direction and marches on the player.\n");
         wave.append("execute store result score @s aot_wave run random value -").append(Math.max(1, waveLoops / 2)).append("..0\n");
-        wave.append("summon marker ~ ~ ~ {Tags:[\"aot_sp\"]}\n");
-        wave.append("spreadplayers ~ ~ 0 ").append(Math.max(60, radius - 10)).append(" under 250 false @e[type=marker,tag=aot_sp,limit=1,sort=nearest]\n");
-        wave.append("execute as @e[type=marker,tag=aot_sp] at @s if entity @a[distance=..45] run kill @s\n");
-        wave.append("execute unless entity @e[type=marker,tag=aot_sp] run return 0\n");
         wave.append("execute store result score #n aot_titans run random value ").append(Math.max(2, waveSize - 2)).append("..").append(waveSize + 2).append('\n');
-        wave.append("execute at @e[type=marker,tag=aot_sp,limit=1] run function aot_titans:group\n");
+        wave.append("execute store result score #ok aot_titans run function aot_titans:try_group_near\n");
+        for (int i = 0; i < 4; i++) {
+            wave.append("execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:try_group_near\n");
+        }
+        wave.append("execute if score #ok aot_titans matches 0 run return 0\n");
+        wave.append("tag @e[tag=aot_new] add aot_wave\n");
+        wave.append("tag @e[tag=aot_new] remove aot_new\n");
         wave.append("title @s times 10 60 20\n");
         wave.append("title @s subtitle {\"text\":\"A wave of titans is closing in\",\"color\":\"gray\"}\n");
         wave.append("title @s title {\"text\":\"Titans approaching!\",\"color\":\"dark_red\",\"bold\":true}\n");
         wave.append("playsound minecraft:block.bell.use master @s ~ ~ ~ 1 0.6\n");
-        wave.append("execute at @e[type=marker,tag=aot_sp,limit=1] run playsound minecraft:entity.ravager.roar hostile @a[distance=..160] ~ ~ ~ 4 0.5\n");
-        wave.append("kill @e[type=marker,tag=aot_sp]\n");
         write(fn.resolve("wave.mcfunction"), wave.toString());
 
         StringBuilder group = new StringBuilder("# Spawns #n titans spread within 12 blocks of here.\n");
@@ -206,8 +264,25 @@ final class TitanPack {
         write(fn.resolve("group_one.mcfunction"), String.join("\n",
             "summon marker ~ ~ ~ {Tags:[\"aot_pk\"]}",
             "spreadplayers ~ ~ 0 12 under 250 false @e[type=marker,tag=aot_pk,limit=1,sort=nearest]",
-            "execute at @e[type=marker,tag=aot_pk,limit=1] run function aot_titans:pick",
+            "execute as @e[type=marker,tag=aot_pk,limit=1] at @s if block ~ ~-1 ~ #aot_titans:ground run function aot_titans:pick",
             "kill @e[type=marker,tag=aot_pk]"));
+
+        // Wave titans march towards the nearest player until they are close.
+        write(fn.resolve("march.mcfunction"), String.join("\n",
+            "schedule function aot_titans:march 5t replace",
+            "execute as @e[type=#aot_titans:titans,tag=aot_wave] at @s run function aot_titans:nudge"));
+        write(fn.resolve("nudge.mcfunction"), String.join("\n",
+            "scoreboard players add @s aot_age 1",
+            "execute if score @s aot_age matches 480.. run return run tag @s remove aot_wave",
+            "execute unless entity @p[gamemode=!spectator,distance=..160] run return 0",
+            "execute if entity @p[gamemode=!spectator,distance=..12] run return run tag @s remove aot_wave",
+            "execute facing entity @p[gamemode=!spectator] feet rotated ~ 0 positioned ^ ^ ^0.6 run function aot_titans:step"));
+        write(fn.resolve("step.mcfunction"), String.join("\n",
+            "# Walk one small step, climbing up or down a block to follow the ground.",
+            "execute unless block ~ ~ ~ #aot_titans:passable positioned ~ ~1 ~ if block ~ ~ ~ #aot_titans:passable run return run tp @s ~ ~ ~ facing entity @p[gamemode=!spectator] feet",
+            "execute unless block ~ ~ ~ #aot_titans:passable run return 0",
+            "execute if block ~ ~-1 ~ #aot_titans:passable positioned ~ ~-1 ~ run return run tp @s ~ ~ ~ facing entity @p[gamemode=!spectator] feet",
+            "tp @s ~ ~ ~ facing entity @p[gamemode=!spectator] feet"));
 
         // Weighted pick of a titan for the zone (#zone: 1 = Maria, 2 = wild).
         write(fn.resolve("pick.mcfunction"), String.join("\n",
@@ -256,14 +331,15 @@ final class TitanPack {
                 + "{\"text\":\" (0 safe, 1 Wall Maria, 2 wilds)  titans near you=\",\"color\":\"gray\"},{\"score\":{\"name\":\"#near\",\"objective\":\"aot_titans\"}}]",
             "execute unless predicate aot_titans:daytime run tellraw @s {\"text\":\"It is night: titans do not spawn until morning.\",\"color\":\"gray\"}"));
         write(fn.resolve("test.mcfunction"), String.join("\n",
-            "# Spawns a pack right now near you, anywhere, to check the titan ids work.",
-            "scoreboard players set #zone aot_titans 2",
+            "# Spawns a pack near you right now, anywhere, to check the titan ids work.",
+            "scoreboard players set #force aot_titans 1",
             "scoreboard players set #n aot_titans 3",
-            "summon marker ~ ~ ~ {Tags:[\"aot_sp\"]}",
-            "spreadplayers ~ ~ 0 40 under 250 false @e[type=marker,tag=aot_sp,limit=1,sort=nearest]",
-            "execute at @e[type=marker,tag=aot_sp,limit=1] run function aot_titans:group",
-            "kill @e[type=marker,tag=aot_sp]",
-            "tellraw @s {\"text\":\"Spawned a test pack of titans within 40 blocks.\",\"color\":\"gold\"}"));
+            "execute store result score #ok aot_titans run function aot_titans:try_group_near",
+            "execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:try_group_near",
+            "execute if score #ok aot_titans matches 0 run function aot_titans:try_group_near",
+            "tag @e[tag=aot_new] remove aot_new",
+            "scoreboard players set #force aot_titans 0",
+            "tellraw @s {\"text\":\"Spawned a test pack of titans 50-80 blocks away.\",\"color\":\"gold\"}"));
         write(fn.resolve("event/breach_on.mcfunction"), String.join("\n",
             "scoreboard players set #breach aot_titans 1",
             "title @a times 10 80 20",
@@ -274,22 +350,21 @@ final class TitanPack {
             "scoreboard players set #breach aot_titans 0",
             "title @a title {\"text\":\"The breach has been sealed\",\"color\":\"green\"}"));
         write(fn.resolve("event/wave.mcfunction"), String.join("\n",
-            "# Sends a wave at every player who is not in a safe zone right now.",
-            "execute as @a[gamemode=!spectator] at @s if dimension minecraft:overworld run function aot_titans:event/wave_one"));
-        write(fn.resolve("event/wave_one.mcfunction"), String.join("\n",
-            "execute store result score #zone aot_titans run function aot_titans:zone",
-            "execute if score #zone aot_titans matches 0 run return 0",
-            "function aot_titans:wave"));
+            "# Sends a wave at every player in the overworld, wherever they are.",
+            "scoreboard players set #force aot_titans 1",
+            "execute as @a[gamemode=!spectator] at @s if dimension minecraft:overworld run function aot_titans:wave",
+            "scoreboard players set #force aot_titans 0"));
         write(fn.resolve("event/horde.mcfunction"), String.join("\n",
             "# Run as a player: /execute as <name> at @s run function aot_titans:event/horde",
-            "scoreboard players set #zone aot_titans 2",
+            "scoreboard players set #force aot_titans 1",
             "scoreboard players set #n aot_titans 12",
-            "summon marker ~ ~ ~ {Tags:[\"aot_sp\"]}",
-            "spreadplayers ~ ~ 0 90 under 250 false @e[type=marker,tag=aot_sp,limit=1,sort=nearest]",
-            "execute at @e[type=marker,tag=aot_sp,limit=1] run function aot_titans:group",
-            "title @a[distance=..200] title {\"text\":\"A HORDE IS COMING\",\"color\":\"dark_red\",\"bold\":true}",
-            "execute as @a[distance=..200] at @s run playsound minecraft:entity.ravager.roar hostile @s ~ ~ ~ 1 0.5",
-            "kill @e[type=marker,tag=aot_sp]"));
+            "execute store result score #ok aot_titans run function aot_titans:try_group_near",
+            "execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:try_group_near",
+            "execute if score #ok aot_titans matches 0 run function aot_titans:try_group_near",
+            "tag @e[tag=aot_new] add aot_wave",
+            "tag @e[tag=aot_new] remove aot_new",
+            "scoreboard players set #force aot_titans 0",
+            "title @a[distance=..200] title {\"text\":\"A HORDE IS COMING\",\"color\":\"dark_red\",\"bold\":true}"));
     }
 
     private static List<Entry> filter(List<Entry> all, String zone) {
@@ -309,7 +384,7 @@ final class TitanPack {
         int from = 1;
         for (Entry e : list) {
             int to = from + e.weight - 1;
-            s.append(String.format(Locale.ROOT, "execute if score #pick aot_titans matches %d..%d run summon %s ~ ~ ~%n", from, to, e.id));
+            s.append(String.format(Locale.ROOT, "execute if score #pick aot_titans matches %d..%d run summon %s ~ ~ ~ {Tags:[\"aot_new\"]}%n", from, to, e.id));
             from = to + 1;
         }
         write(file, s.toString());
@@ -322,6 +397,10 @@ final class TitanPack {
         int i = 0;
         for (String id : ids) t.append(i++ > 0 ? "," : "").append("{\"id\":\"").append(id).append("\",\"required\":false}");
         return t.append("]}").toString();
+    }
+
+    private static String read(Path fn, String name) throws IOException {
+        return Files.readString(fn.resolve(name + ".mcfunction"), StandardCharsets.UTF_8);
     }
 
     private static void deleteTree(Path p) throws IOException {

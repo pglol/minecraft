@@ -184,7 +184,7 @@ public final class AotWorld {
         addFeature(new CapitalFeature(atlas, Hash.of(seed, 300)));
         for (Atlas.Site s : atlas.sites) {
             if (s.kind == Atlas.Kind.NAMED_VILLAGE) continue;
-            Feature f = Landmarks.create(s, seed);
+            Feature f = Landmarks.create(s, seed, atlas);
             if (f != null) addFeature(f);
         }
     }

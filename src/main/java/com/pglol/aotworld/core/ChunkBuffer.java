@@ -18,6 +18,22 @@ public final class ChunkBuffer {
     /** Biome index (into {@link Terrain#BIOMES}) per 4x4 column, indexed qz * 4 + qx. */
     private final byte[] biomes = new byte[16];
     private final List<BlockEntity> entities = new ArrayList<>();
+    private final List<Mob> mobs = new ArrayList<>();
+
+    /** A creature placed at generation time (animals, horses, townsfolk). */
+    public static final class Mob {
+        public final double x, y, z;
+        public final String id;
+        public final long seed;
+
+        Mob(double x, double y, double z, String id, long seed) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.id = id;
+            this.seed = seed;
+        }
+    }
     private int x0, z0;
 
     public void reset(int chunkX, int chunkZ) {
@@ -25,6 +41,17 @@ public final class ChunkBuffer {
         this.z0 = chunkZ << 4;
         Arrays.fill(data, (short) 0);
         entities.clear();
+        mobs.clear();
+    }
+
+    /** Places a creature standing on the block below (x, y, z), if that column is in this chunk. */
+    public void mob(int x, int y, int z, String id) {
+        if (!contains(x, z)) return;
+        mobs.add(new Mob(x + 0.5, y, z + 0.5, id.contains(":") ? id : "minecraft:" + id, Hash.of(x, y, z)));
+    }
+
+    public List<Mob> mobs() {
+        return mobs;
     }
 
     /** A standing sign with up to four lines of text. */

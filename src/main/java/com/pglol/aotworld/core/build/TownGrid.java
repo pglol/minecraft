@@ -144,6 +144,8 @@ public final class TownGrid {
             if (lamps && ma == street - 1 && mb == street - 1 && !avenue) {
                 buf.fill(x, baseY + 1, baseY + 3, z, Blocks.SPRUCE_FENCE);
                 buf.set(x, baseY + 4, z, Blocks.LANTERN);
+            } else if (ma == 2 && mb == 2 && Hash.unit(h >>> 5) < 0.3) {
+                buf.mob(x, baseY + 1, z, "villager");
             }
             return;
         }
@@ -170,10 +172,12 @@ public final class TownGrid {
             buf.set(x, baseY, z, Blocks.GRASS);
             return;
         }
-        if (u < 0.8) {
+        if (u < 0.74) {
             House house = house(qa, qb, la0, lb0, la1, lb1, lh);
             buf.set(x, baseY, z, Blocks.COBBLE);
             if (house.covers(x, z)) house.column(buf, x, z, baseY);
+        } else if (u < 0.80) {
+            stable(buf, x, z, a, b, la0, lb0, la1, lb1, h);
         } else if (u < 0.87) {
             garden(buf, x, z, a, b, la0, lb0, la1, lb1, h);
         } else if (u < 0.93) {
@@ -184,10 +188,14 @@ public final class TownGrid {
     }
 
     private boolean lotValid(int la0, int lb0, int la1, int lb1) {
-        int[][] corners = {{la0 - 1, lb0 - 1}, {la1 + 1, lb0 - 1}, {la0 - 1, lb1 + 1}, {la1 + 1, lb1 + 1}};
-        for (int[] c : corners) {
-            if (!shape.inside(worldX(c[0], c[1]), worldZ(c[0], c[1]))) return false;
+        // The whole outline (with the roof overhang) must be inside the town: never clip a building.
+        for (int a = la0 - 1; a <= la1 + 1; a += 2) {
+            if (!shape.inside(worldX(a, lb0 - 1), worldZ(a, lb0 - 1)) || !shape.inside(worldX(a, lb1 + 1), worldZ(a, lb1 + 1))) return false;
         }
+        for (int b = lb0 - 1; b <= lb1 + 1; b += 2) {
+            if (!shape.inside(worldX(la0 - 1, b), worldZ(la0 - 1, b)) || !shape.inside(worldX(la1 + 1, b), worldZ(la1 + 1, b))) return false;
+        }
+        if (!shape.inside(worldX(la1 + 1, lb1 + 1), worldZ(la1 + 1, lb1 + 1))) return false;
         if (!Double.isNaN(plazaA)) {
             double ca = Math.max(la0, Math.min(plazaA, la1)), cb = Math.max(lb0, Math.min(plazaB, lb1));
             double da = ca - plazaA, db = cb - plazaB;
@@ -216,7 +224,9 @@ public final class TownGrid {
         int floors = Hash.range(Hash.mix(lh + 3), minFloors, maxFloors);
         Style st = styles[Hash.range(Hash.mix(lh + 4), 0, styles.length - 1)];
         boolean chimney = Hash.unit(Hash.mix(lh + 5)) < 0.4;
-        return new House(xA, zA, xB, zB, alongX, baseY, floors, st, sign, chimney);
+        House hs = new House(xA, zA, xB, zB, alongX, baseY, floors, st, sign, chimney);
+        if (!st.timber && Hash.unit(Hash.mix(lh + 6)) < 0.3) hs.use(House.Use.HALL);
+        return hs;
     }
 
     private void plazaColumn(ChunkBuffer buf, int x, int z, int a, int b, long h) {
@@ -234,6 +244,41 @@ public final class TownGrid {
             buf.set(x, baseY + 1, z, Blocks.STONE_BRICKS);
         } else if (d > plazaR - 1.2 && Hash.unit(h) < 0.08) {
             buf.set(x, baseY + 1, z, Blocks.OAK_LEAVES);
+        } else if (d > 7 && d < plazaR - 3 && Hash.unit(h >>> 9) < 0.012) {
+            buf.mob(x, baseY + 1, z, "villager");
+        }
+    }
+
+    private static final int[] SIGN_ROT = {4};
+
+    /** A fenced town stable: a roofed shelter, hay, a trough and a couple of horses. */
+    private void stable(ChunkBuffer buf, int x, int z, int a, int b, int la0, int lb0, int la1, int lb1, long h) {
+        buf.set(x, baseY, z, Hash.unit(h) < 0.5 ? Blocks.COARSE_DIRT : Blocks.GRASS);
+        boolean ea = a == la0 || a == la1, eb = b == lb0 || b == lb1;
+        int ga = (la0 + la1) / 2;
+        if (ea || eb) {
+            boolean gate = a == la0 && Math.abs(b - (lb0 + lb1) / 2) <= 0;
+            if (!gate) buf.set(x, baseY + 1, z, (ea && eb) ? Blocks.OAK_FENCE : (ea == (ux != 0) ? Blocks.SPRUCE_FENCE_Z : Blocks.SPRUCE_FENCE_X));
+            if (ea && eb) buf.set(x, baseY + 2, z, Blocks.TORCH);
+            return;
+        }
+        int ra = a - la0, rb = b - lb0;
+        if (ra >= 7) {
+            // Shelter along the back of the lot.
+            boolean post = (ra == 7 || ra == 10) && (rb == 1 || rb == 10);
+            if (post) buf.fill(x, baseY + 1, baseY + 3, z, Blocks.SPRUCE_FENCE);
+            buf.set(x, baseY + 4, z, Blocks.id("spruce_slab[type=bottom]"));
+            if (ra == 10 && rb >= 3 && rb <= 8 && rb % 2 == 1) buf.set(x, baseY + 1, z, Blocks.HAY);
+        } else if (ra == 2 && rb >= 4 && rb <= 7) {
+            buf.set(x, baseY, z, Blocks.WATER);
+        }
+        if ((ra == 4 && rb == 3) || (ra == 5 && rb == 8)) buf.mob(x, baseY + 1, z, "horse");
+        long sh = Hash.mix(seed + la0 * 31L + lb0);
+        if (ra == 8 && rb == 5 && Hash.unit(sh) < 0.5) buf.mob(x, baseY + 1, z, "horse");
+        // Many stables have a Stable Master selling horses.
+        if (Hash.unit(sh >>> 7) < 0.6) {
+            if (ra == 8 && rb == 2) buf.mob(x, baseY + 1, z, "aot:stable_master");
+            if (ra == 1 && rb == 2) buf.sign(x, baseY + 1, z, SIGN_ROT[0], "Stables", "Horses for sale", "", "");
         }
     }
 
@@ -247,6 +292,8 @@ public final class TownGrid {
         } else if (da == 0 && db == 0) {
             buf.fill(x, baseY + 1, baseY + 4, z, Blocks.OAK_LOG);
             buf.fill(x, baseY + 5, baseY + 6, z, Blocks.OAK_LEAVES);
+        } else if (da == 3 && db == 3) {
+            buf.mob(x, baseY + 1, z, Hash.unit(h >>> 3) < 0.6 ? "chicken" : "cat");
         } else if (da <= 2 && db <= 2 && da + db <= 3) {
             buf.fill(x, baseY + 4, baseY + 5, z, Blocks.OAK_LEAVES);
         } else {
@@ -283,5 +330,6 @@ public final class TownGrid {
             buf.set(x, baseY + 4, z, Blocks.id("spruce_slab[type=bottom]"));
         }
         if (da == 0 && db == 0) buf.set(x, baseY + 4, z, Blocks.id("spruce_slab[type=bottom]"));
+        if (da == 3 && db == 0) buf.mob(x, baseY + 1, z, Hash.unit(h >>> 3) < 0.5 ? "villager" : "cat");
     }
 }

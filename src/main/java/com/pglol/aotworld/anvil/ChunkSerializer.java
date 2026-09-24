@@ -101,6 +101,108 @@ public final class ChunkSerializer {
         return bytes.toByteArray();
     }
 
+    private static final String[] CAT_VARIANTS = {"tabby", "black", "red", "siamese", "british_shorthair", "calico", "ragdoll", "white"};
+    private static final String[] VILLAGER_TYPES = {"plains", "plains", "plains", "taiga"};
+
+    /** Entity chunk NBT (entities/r.x.z.mca), or null when the chunk has no creatures. */
+    public byte[] serializeEntities(ChunkBuffer buf, int chunkX, int chunkZ) throws IOException {
+        if (buf.mobs().isEmpty()) return null;
+        Nbt.ListTag list = new Nbt.ListTag(Nbt.COMPOUND);
+        for (ChunkBuffer.Mob m : buf.mobs()) {
+            long h = m.seed;
+            boolean vendor = m.id.equals("aot:stable_master");
+            Nbt.Compound c = new Nbt.Compound().putString("id", vendor ? "minecraft:villager" : m.id);
+            c.put("Pos", new Nbt.ListTag(Nbt.DOUBLE).add(m.x).add(m.y).add(m.z));
+            c.put("Motion", new Nbt.ListTag(Nbt.DOUBLE).add(0.0).add(0.0).add(0.0));
+            c.put("Rotation", new Nbt.ListTag(Nbt.FLOAT).add((float) (com.pglol.aotworld.core.Hash.unit(h) * 360 - 180)).add(0f));
+            long u1 = com.pglol.aotworld.core.Hash.mix(h + 11), u2 = com.pglol.aotworld.core.Hash.mix(h + 12);
+            c.putIntArray("UUID", new int[] {(int) (u1 >>> 32), (int) u1, (int) (u2 >>> 32), (int) u2});
+            c.putByte("OnGround", 1).putFloat("FallDistance", 0).putShort("Fire", -1).putShort("Air", 300);
+            c.putByte("PersistenceRequired", 1);
+            int r = (int) Math.floorMod(com.pglol.aotworld.core.Hash.mix(h + 13), 1000L);
+            switch (m.id) {
+                case "minecraft:horse":
+                    c.putInt("Variant", (r % 7) + 256 * ((r / 7) % 5));
+                    break;
+                case "minecraft:sheep":
+                    c.putByte("Color", r < 800 ? 0 : (r < 880 ? 7 : (r < 940 ? 15 : 12)));
+                    break;
+                case "minecraft:villager":
+                    c.put("VillagerData", new Nbt.Compound().putString("type", "minecraft:" + VILLAGER_TYPES[r % VILLAGER_TYPES.length])
+                        .putString("profession", "minecraft:none").putInt("level", 1));
+                    break;
+                case "aot:stable_master":
+                    stableMaster(c);
+                    break;
+                case "minecraft:cat":
+                    c.putString("variant", "minecraft:" + CAT_VARIANTS[r % CAT_VARIANTS.length]);
+                    break;
+                default:
+                    break;
+            }
+            list.add(c);
+        }
+        Nbt.Compound root = new Nbt.Compound()
+            .putInt("DataVersion", DATA_VERSION)
+            .putIntArray("Position", new int[] {chunkX, chunkZ})
+            .put("Entities", list);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream(1024);
+        Deflater deflater = new Deflater(6);
+        try (DataOutputStream out = new DataOutputStream(new DeflaterOutputStream(bytes, deflater, 1024))) {
+            Nbt.writeRoot(out, root);
+        } finally {
+            deflater.end();
+        }
+        return bytes.toByteArray();
+    }
+
+    /** A horse vendor: stays put, can't be hurt, and sells horses by quality tier. */
+    private static void stableMaster(Nbt.Compound c) {
+        c.put("VillagerData", new Nbt.Compound().putString("type", "minecraft:plains")
+            .putString("profession", "minecraft:leatherworker").putInt("level", 5));
+        c.putInt("Xp", 250);
+        c.putByte("NoAI", 1).putByte("Invulnerable", 1).putByte("CustomNameVisible", 1);
+        c.putString("CustomName", "{\"text\":\"Stable Master\",\"color\":\"gold\"}");
+        Nbt.ListTag offers = new Nbt.ListTag(Nbt.COMPOUND);
+        offers.add(offer(10, 0, horseEgg("Common Horse", "horse", 0.20, 0.60, 20)));
+        offers.add(offer(24, 0, horseEgg("Swift Courser", "horse", 0.30, 0.80, 26)));
+        offers.add(offer(48, 1, horseEgg("Survey Corps Warhorse", "horse", 0.3375, 1.0, 30)));
+        offers.add(offer(12, 0, horseEgg("Pack Donkey", "donkey", 0.175, 0.5, 22)));
+        offers.add(offer(6, 0, item("minecraft:saddle", 1)));
+        offers.add(offer(2, 0, item("minecraft:lead", 2)));
+        offers.add(offer(1, 0, item("minecraft:hay_block", 4)));
+        offers.add(offer(8, 0, item("minecraft:iron_horse_armor", 1)));
+        offers.add(offer(14, 0, item("minecraft:golden_horse_armor", 1)));
+        offers.add(offer(32, 0, item("minecraft:diamond_horse_armor", 1)));
+        c.put("Offers", new Nbt.Compound().put("Recipes", offers));
+    }
+
+    private static Nbt.Compound item(String id, int count) {
+        return new Nbt.Compound().putString("id", id).putInt("count", count);
+    }
+
+    private static Nbt.Compound offer(int emeralds, int diamonds, Nbt.Compound sell) {
+        Nbt.Compound o = new Nbt.Compound().put("buy", new Nbt.Compound().putString("id", "minecraft:emerald").putInt("count", emeralds));
+        if (diamonds > 0) o.put("buyB", new Nbt.Compound().putString("id", "minecraft:diamond").putInt("count", diamonds));
+        return o.put("sell", sell).putInt("maxUses", 99999).putInt("uses", 0).putInt("xp", 0).putByte("rewardExp", 0)
+            .putFloat("priceMultiplier", 0).putInt("specialPrice", 0).putInt("demand", 0);
+    }
+
+    /** A spawn egg for a tamed horse or donkey with fixed stats. */
+    private static Nbt.Compound horseEgg(String name, String type, double speed, double jump, double health) {
+        Nbt.ListTag attrs = new Nbt.ListTag(Nbt.COMPOUND)
+            .add(new Nbt.Compound().putString("id", "minecraft:generic.movement_speed").putDouble("base", speed))
+            .add(new Nbt.Compound().putString("id", "minecraft:generic.jump_strength").putDouble("base", jump))
+            .add(new Nbt.Compound().putString("id", "minecraft:generic.max_health").putDouble("base", health));
+        Nbt.Compound data = new Nbt.Compound().putString("id", "minecraft:" + type).putByte("Tame", 1)
+            .put("Attributes", attrs).putFloat("Health", (float) health)
+            .putString("CustomName", "\"" + name + "\"");
+        Nbt.Compound comps = new Nbt.Compound()
+            .put("minecraft:entity_data", data)
+            .putString("minecraft:item_name", "{\"text\":\"" + name + "\",\"italic\":false}");
+        return new Nbt.Compound().putString("id", "minecraft:" + type + "_spawn_egg").putInt("count", 1).put("components", comps);
+    }
+
     private static long posKey(int x, int y, int z) {
         return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFF);
     }
@@ -201,6 +303,10 @@ public final class ChunkSerializer {
             String be = "";
             if (name.equals("barrel") || name.equals("bell") || name.equals("campfire") || name.equals("chest")) {
                 be = "minecraft:" + name;
+            } else if (name.equals("furnace") || name.equals("smoker") || name.equals("lectern")) {
+                be = "minecraft:" + name;
+            } else if (name.endsWith("_bed")) {
+                be = "minecraft:bed";
             }
             cache[id] = be;
             blockEntityIds = cache;

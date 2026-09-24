@@ -132,11 +132,13 @@ public final class Main {
         int cx0 = Math.floorDiv(x0, 16), cz0 = Math.floorDiv(z0, 16), cx1 = Math.floorDiv(x1, 16), cz1 = Math.floorDiv(z1, 16);
 
         Path regionDir = dir.resolve("region");
+        Path entityDir = dir.resolve("entities");
         Files.createDirectories(regionDir);
+        Files.createDirectories(entityDir);
         ExecutorService pool = Executors.newFixedThreadPool(threads);
         List<Future<?>> jobs = new ArrayList<>();
         long total = (long) (cx1 - cx0 + 1) * (cz1 - cz0 + 1);
-        AtomicLong done = new AtomicLong(), written = new AtomicLong();
+        AtomicLong done = new AtomicLong(), written = new AtomicLong(), creatures = new AtomicLong();
         long start = System.currentTimeMillis();
         final int fcx0 = cx0, fcz0 = cz0, fcx1 = cx1, fcz1 = cz1;
         System.out.printf(Locale.ROOT, "Generating %d x %d chunks with %d threads into %s%n",
@@ -148,7 +150,7 @@ public final class Main {
                 jobs.add(pool.submit(() -> {
                     ChunkBuffer buf = new ChunkBuffer();
                     ChunkSerializer ser = new ChunkSerializer();
-                    RegionWriter out = null;
+                    RegionWriter out = null, ents = null;
                     try {
                         for (int lz = 0; lz < 32; lz++) {
                             for (int lx = 0; lx < 32; lx++) {
@@ -160,10 +162,17 @@ public final class Main {
                                 byte[] data = ser.serialize(buf, cx, cz);
                                 if (out == null) out = new RegionWriter(regionDir.resolve("r." + frx + "." + frz + ".mca"));
                                 out.write(lz * 32 + lx, data);
+                                byte[] mobs = ser.serializeEntities(buf, cx, cz);
+                                if (mobs != null) {
+                                    if (ents == null) ents = new RegionWriter(entityDir.resolve("r." + frx + "." + frz + ".mca"));
+                                    ents.write(lz * 32 + lx, mobs);
+                                    creatures.addAndGet(buf.mobs().size());
+                                }
                                 written.incrementAndGet();
                             }
                         }
                         if (out != null) out.close();
+                        if (ents != null) ents.close();
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -205,8 +214,8 @@ public final class Main {
         Registry.write(dir, w);
         String titans = opt(args, "--titans", null);
         if (titans != null) TitanPack.write(dir, w, Paths.get(titans));
-        System.out.printf(Locale.ROOT, "Done in %s: %d chunks written, palette %d block states.%n",
-            time((System.currentTimeMillis() - start) / 1000.0), written.get(), Blocks.size());
+        System.out.printf(Locale.ROOT, "Done in %s: %d chunks written, %d animals and townsfolk placed.%n",
+            time((System.currentTimeMillis() - start) / 1000.0), written.get(), creatures.get());
     }
 
     /** Chunks far out to sea are left to the flat-ocean generator. */

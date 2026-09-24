@@ -11,19 +11,25 @@ import com.pglol.aotworld.core.Hash;
 public final class Landmarks {
     private Landmarks() {}
 
-    public static Feature create(Atlas.Site s, long seed) {
+    public static Feature create(Atlas.Site s, long seed, Atlas atlas) {
         switch (s.kind) {
             case GIANT_FOREST: return new GiantForestFloor(s, seed);
             case UTGARD: return new Utgard(s, seed);
             case REISS_CHAPEL: return new ReissChapel(s, seed);
             case SURVEY_HQ: return new SurveyHQ(s, seed);
             case TRAINING_CAMP: return new TrainingCamp(s, seed);
-            case PARADIS_PORT: return new Port(s, seed, false);
-            case MARLEY_PORT: return new Port(s, seed, true);
+            case PARADIS_PORT: return new Port(s, seed, false, atlas);
+            case MARLEY_PORT: return new Port(s, seed, true, atlas);
             case LIBERIO: return new Liberio(s, seed);
             case MILITARY_BASE: return new MilitaryBase(s, seed);
             default: return null;
         }
+    }
+
+    private static final int[] BENCH = new int[4];
+
+    static {
+        for (int f = 0; f < 4; f++) BENCH[f] = Blocks.id("spruce_stairs[facing=" + Style.FACING[f] + ",half=bottom]");
     }
 
     static int stoneMix(long seed, int x, int y, int z) {
@@ -127,7 +133,7 @@ public final class Landmarks {
 
         ReissChapel(Atlas.Site s, long seed) {
             super(s, seed, 44);
-            chapel = new House(s.x - 6, s.z - 11, s.x + 5, s.z + 10, false, base, 2, Style.CHAPEL, 1, false);
+            chapel = new House(s.x - 6, s.z - 11, s.x + 5, s.z + 10, false, base, 2, Style.CHAPEL, 1, false).use(House.Use.HALL);
         }
 
         @Override
@@ -185,8 +191,8 @@ public final class Landmarks {
 
         SurveyHQ(Atlas.Site s, long seed) {
             super(s, seed, 34);
-            keep = new House(s.x - 12, s.z - 22, s.x + 11, s.z - 7, true, base, 3, Style.CASTLE, 1, true);
-            stable = new House(s.x + 2, s.z + 8, s.x + 23, s.z + 15, true, base, 1, Style.RURAL[0], -1, false);
+            keep = new House(s.x - 12, s.z - 22, s.x + 11, s.z - 7, true, base, 3, Style.CASTLE, 1, true).use(House.Use.HALL);
+            stable = new House(s.x + 2, s.z + 8, s.x + 23, s.z + 15, true, base, 1, Style.RURAL[0], -1, false).bare().vendor();
         }
 
         @Override
@@ -208,6 +214,9 @@ public final class Landmarks {
             }
             if (keep.covers(x, z)) keep.column(buf, x, z, base);
             if (stable.covers(x, z)) stable.column(buf, x, z, base);
+            if (dz == 11 && dx >= 5 && dx <= 20 && dx % 4 == 1) buf.mob(x, base + 1, z, "horse");
+            if (dz == 3 && (dx == 8 || dx == 14)) buf.mob(x, base + 1, z, "horse");
+            if (dz == -4 && (dx == -2 || dx == 4)) buf.mob(x, base + 1, z, "villager");
             if (Tower.covers(x, z, site.x - 20, site.z - 20, 5)) {
                 Tower.column(buf, x, z, site.x - 20, site.z - 20, 5, base, 34, Blocks.STONE_BRICKS, Blocks.id("deepslate_tiles"), base);
             }
@@ -228,12 +237,12 @@ public final class Landmarks {
             super(s, seed, 80);
             int x = s.x, z = s.z;
             buildings = new House[] {
-                new House(x - 62, z - 62, x - 39, z - 54, true, base, 1, Style.RURAL[0], 1, true),
-                new House(x - 32, z - 62, x - 9, z - 54, true, base, 1, Style.RURAL[0], 1, true),
-                new House(x - 62, z - 44, x - 39, z - 36, true, base, 1, Style.RURAL[1], 1, true),
-                new House(x - 32, z - 44, x - 9, z - 36, true, base, 1, Style.RURAL[1], 1, true),
-                new House(x + 10, z - 62, x + 33, z - 47, true, base, 2, Style.RURAL[2], 1, true),
-                new House(x + 42, z - 62, x + 57, z - 49, true, base, 2, Style.PARADIS[0], 1, true),
+                new House(x - 62, z - 62, x - 39, z - 52, true, base, 1, Style.RURAL[0], 1, true).use(House.Use.BARRACKS),
+                new House(x - 32, z - 62, x - 9, z - 52, true, base, 1, Style.RURAL[0], 1, true).use(House.Use.BARRACKS),
+                new House(x - 62, z - 44, x - 39, z - 34, true, base, 1, Style.RURAL[1], 1, true).use(House.Use.BARRACKS),
+                new House(x - 32, z - 44, x - 9, z - 34, true, base, 1, Style.RURAL[1], 1, true).use(House.Use.BARRACKS),
+                new House(x + 10, z - 62, x + 33, z - 47, true, base, 2, Style.RURAL[2], 1, true).use(House.Use.HALL),
+                new House(x + 42, z - 62, x + 57, z - 49, true, base, 1, Style.RURAL[0], 1, true).bare().vendor(),
             };
         }
 
@@ -253,6 +262,7 @@ public final class Landmarks {
             }
             for (House h : buildings) if (h.covers(x, z)) { h.column(buf, x, z, base); return; }
             if (Math.abs(dx) <= 1 && dz > -30) buf.set(x, base, z, Blocks.DIRT_PATH);
+            if (field && Math.floorMod(dx, 17) == 3 && Math.floorMod(dz, 19) == 9) buf.mob(x, base + 1, z, Hash.unit(Hash.of(seed, x, z)) < 0.5 ? "horse" : "villager");
             if (field && Math.floorMod(dx, 12) == 6 && Math.floorMod(dz, 12) == 6) {
                 long h = Hash.of(seed, dx, dz);
                 int top = base + Hash.range(h, 8, 16);
@@ -269,29 +279,55 @@ public final class Landmarks {
         private final House hq;
         private final int pierEnd;
 
-        Port(Atlas.Site s, long seed, boolean marley) {
+        private static final int PROMENADE = 24;
+        private final int benchFacing;
+
+        Port(Atlas.Site s, long seed, boolean marley, Atlas atlas) {
             super(s, seed, s.radius + 90);
             this.marley = marley;
             int r = s.radius - 12;
+            // Buildings keep well back from the water, leaving room for a promenade.
             grid = new TownGrid(s.x, s.z, s.seaDir, base, this.seed,
-                (x, z) -> Math.hypot(x - s.x, z - s.z) < r, marley ? Style.MARLEY : Style.PARADIS,
+                (x, z) -> Math.hypot(x - s.x, z - s.z) < r && atlas.landSD(x, z) > PROMENADE, marley ? Style.MARLEY : Style.PARADIS,
                 marley ? 3 : 2, marley ? 5 : 3, marley ? 32 : 30,
                 marley ? new int[] {Blocks.SMOOTH_STONE, Blocks.STONE_BRICKS, Blocks.POLISHED_ANDESITE}
                        : new int[] {Blocks.COBBLE, Blocks.COBBLE, Blocks.ANDESITE, Blocks.STONE, Blocks.MOSSY_COBBLE});
             if (marley) {
                 grid.plaza(-s.radius * 0.45, 0, 48);
                 int px = grid.worldX((int) (-s.radius * 0.45), 0), pz = grid.worldZ((int) (-s.radius * 0.45), 0);
-                hq = new House(px - 24, pz - 15, px + 24, pz + 15, true, base, 5, Style.MARLEY_GRAND, 1, false);
+                hq = new House(px - 24, pz - 15, px + 24, pz + 15, true, base, 5, Style.MARLEY_GRAND, 1, false).use(House.Use.HALL);
             } else {
                 grid.plaza(-s.radius * 0.35, 0, 16);
                 hq = null;
             }
             pierEnd = s.radius + 60;
+            benchFacing = new int[] {Style.W, Style.N, Style.E, Style.S}[s.seaDir]; // backs to the town, facing the sea
         }
 
         @Override
         public boolean occupies(int x, int z) {
             return Math.hypot(x - site.x, z - site.z) < site.radius + 70;
+        }
+
+        /** A paved seafront: benches facing the water, planters, lamps and a few people sitting out. */
+        private void promenade(ChunkBuffer buf, int x, int z, Column col, int a, int b) {
+            buf.fill(x, col.height - 2, base - 1, z, Blocks.STONE_BRICKS);
+            buf.fill(x, base + 1, Math.max(base + 3, col.height), z, Blocks.AIR);
+            buf.set(x, base, z, Math.floorMod(a, 6) == 0 || Math.floorMod(b, 6) == 0 ? Blocks.STONE_BRICKS : Blocks.POLISHED_ANDESITE);
+            double sd = col.sd;
+            if (sd > 9 && sd <= 11) {
+                int m = Math.floorMod(b, 14);
+                if (m >= 1 && m <= 3) {
+                    buf.set(x, base + 1, z, BENCH[benchFacing]);
+                    if (m == 2 && Hash.unit(Hash.of(seed, x, z)) < 0.35) buf.mob(x, base + 1, z, "villager");
+                } else if (m == 5 || m == 13) {
+                    buf.set(x, base + 1, z, Blocks.OAK_LEAVES);
+                    buf.set(x, base + 2, z, Blocks.POPPY);
+                } else if (m == 8) {
+                    buf.fill(x, base + 1, base + 3, z, Blocks.SPRUCE_FENCE);
+                    buf.set(x, base + 4, z, Blocks.LANTERN);
+                }
+            }
         }
 
         @Override
@@ -300,13 +336,10 @@ public final class Landmarks {
             double d = Math.hypot(x - site.x, z - site.z);
             boolean waterfront = d < site.radius + 20 && Math.abs(b) < site.radius - 10;
             if (!col.underwater()) {
-                if (col.sd > 8 && grid.shape.inside(x, z)) {
+                if (grid.shape.inside(x, z)) {
                     grid.column(buf, x, z, col.height);
-                } else if (waterfront && col.sd <= 8) {
-                    // Quay promenade along the water.
-                    buf.fill(x, col.height - 2, base - 1, z, Blocks.STONE_BRICKS);
-                    buf.fill(x, base + 1, Math.max(base + 2, col.height), z, Blocks.AIR);
-                    buf.set(x, base, z, Math.floorMod(x + z, 9) == 0 ? Blocks.STONE_BRICKS : Blocks.POLISHED_ANDESITE);
+                } else if (waterfront && col.sd <= PROMENADE + 4) {
+                    promenade(buf, x, z, col, a, b);
                 }
                 if (hq != null && hq.covers(x, z)) hq.column(buf, x, z, base);
                 return;
@@ -402,15 +435,16 @@ public final class Landmarks {
         MilitaryBase(Atlas.Site s, long seed) {
             super(s, seed, 190);
             int x = s.x, z = s.z;
-            buildings.add(new House(x - 30, z - 118, x + 29, z - 93, true, base, 4, Style.MARLEY_GRAND, 1, false));
+            buildings.add(new House(x - 30, z - 118, x + 29, z - 93, true, base, 4, Style.MARLEY_GRAND, 1, false).use(House.Use.HALL));
             for (int i = 0; i < 6; i++) {
                 int bz = z - 70 + i * 26;
-                buildings.add(new House(x - 165, bz, x - 126, bz + 13, true, base, 2, Style.MARLEY[i % Style.MARLEY.length], 1, false));
-                buildings.add(new House(x - 112, bz, x - 73, bz + 13, true, base, 2, Style.MARLEY[(i + 1) % Style.MARLEY.length], 1, false));
+                buildings.add(new House(x - 165, bz, x - 126, bz + 13, true, base, 2, Style.MARLEY[i % Style.MARLEY.length], 1, false).use(House.Use.BARRACKS));
+                buildings.add(new House(x - 112, bz, x - 73, bz + 13, true, base, 2, Style.MARLEY[(i + 1) % Style.MARLEY.length], 1, false).use(House.Use.BARRACKS));
             }
             for (int i = 0; i < 3; i++) {
                 int bx = x - 40 + i * 42;
-                buildings.add(new House(bx, z + 85, bx + 33, z + 116, false, base, 2, Style.MARLEY[3], -1, false));
+                House depot = new House(bx, z + 85, bx + 33, z + 116, false, base, 2, Style.MARLEY[3], -1, false);
+                buildings.add(i == 0 ? depot.bare().vendor() : depot.use(House.Use.HALL));
             }
             towers = new int[][] {{x - HX + 4, z - HZ + 4}, {x + HX - 4, z - HZ + 4}, {x - HX + 4, z + HZ - 4}, {x + HX - 4, z + HZ - 4}};
         }
@@ -441,6 +475,7 @@ public final class Landmarks {
             boolean field = dx >= 70 && dx <= HX - 8 && dz >= -110 && dz <= 70;
             if (parade) {
                 buf.set(x, base, z, (Math.floorMod(dx, 10) == 0 || Math.floorMod(dz, 10) == 0) ? Blocks.STONE_BRICKS : Blocks.SMOOTH_STONE);
+                if (Math.floorMod(dx, 10) == 5 && Math.floorMod(dz, 20) == 5) buf.mob(x, base + 1, z, "villager");
                 if (dx == -5 && dz == -20) {
                     buf.fill(x, base + 1, base + 14, z, Blocks.id("iron_bars"));
                     buf.fill(x, base + 12, base + 14, z + 1, Blocks.RED_WOOL);
