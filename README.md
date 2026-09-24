@@ -140,38 +140,63 @@ come from your AoT mod.
 
 ## Titans from your AoT mod
 
-AoT mods such as Danny's AOT usually register their titans to spawn only in their own
-dimension. This tool adds a datapack that spawns them in this map by zone:
+AoT mods such as Danny's AOT usually spawn their titans only in their own dimension.
+This tool adds a datapack (`aot_titans`) that makes titans the only monsters in this
+map:
 
-- **Titans:** Wall Maria territory, the wilds outside the walls, and the Forest of
-  Giant Trees.
-- **Safe:** inside Wall Rose, every district town, Paradis Port, the Hidden Grove,
-  the sea and Marley.
-- **Daytime only**, with a per-player cap, a spawn chance and a spawn radius.
+- **No vanilla monsters.** Zombies, creepers, endermen, phantoms, patrols and so on
+  are turned off. Horses, donkeys and farm animals are spawned by the pack instead.
+- **Titans by day** in Wall Maria territory, the wilds outside the walls and the
+  Forest of Giant Trees. They come in three patterns:
+  - **lone drifters**
+  - **packs** of 2–5 bunched together
+  - **waves** from one direction, with a bell and a "Titans approaching!" warning, a
+    few minutes apart for anyone outside the walls
+- **Safe zones:** inside Wall Rose, every district town, Paradis Port, the Hidden
+  Grove, the sea and Marley. An admin can override this with a Wall breach event.
 
-1. **Find the mod's titan IDs.** In the Modrinth App, open your instance, choose
-   *⋮ → Open folder*, go into `mods`, then run:
-   ```
-   java -jar aot-world.jar scan-mod "path\to\mods\dannys-aot-2.4.3.jar"
-   ```
-   This lists every entity in the mod (marking the ones it spawns naturally in its own
-   dimension, with their weights) and writes a starter `titans.txt`.
-2. **Edit `titans.txt`.** Keep the titans you want and remove shifters and friendly
-   NPCs. Each line is `<zone> <entity id> <weight>`. Zones:
-   - `maria` for inside Wall Maria (e.g. smaller titans)
-   - `wild` for outside the walls (e.g. abnormals)
+### Setup (Windows, drag and drop)
+
+1. Put `aot-world.jar`, `scan-mod.bat` and `add-titans.bat` from `dist/` in one folder.
+2. Drag the mod's jar (instance *⋮ → Open folder → mods*) onto `scan-mod.bat`. This
+   lists the mod's entities and writes `titans.txt`.
+3. Edit `titans.txt`: keep the titans you want and remove shifters and friendly NPCs.
+   Each line is `<zone> <entity id> <weight>`. Zones:
+   - `maria` for Wall Maria territory
+   - `wild` for outside the walls
    - `any` for both
+4. Drag your world folder (instance *saves*) onto `add-titans.bat`, then `/reload`
+   in-game.
 
-   `interval`, `chance`, `cap` and `radius` set how often titans spawn, how likely a
-   spawn is, the most titans near one player, and how far away they appear.
-3. **Add it to your world** (no regeneration needed):
-   ```
-   java -jar aot-world.jar titans AttackOnTitan --config titans.txt
-   ```
-   You can also pass `--titans titans.txt` to `generate`. In-game, run `/reload` or
-   restart. Toggle it with `/function aot_titans:off` and `/function aot_titans:on`.
+The same from a terminal: `java -jar aot-world.jar scan-mod <mod.jar>` and
+`java -jar aot-world.jar titans <world> --config titans.txt`.
 
-The mod's own spawning stays as it is; this only adds spawns in the overworld.
+### Settings in `titans.txt`
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `interval` | 8 | Seconds between spawn attempts per player |
+| `chance` | 60 | Percent chance per attempt |
+| `cap` | 8 | Most titans within 128 blocks of a player (waves ignore it) |
+| `radius` | 110 | How far away titans can appear (never closer than ~28) |
+| `pack_chance` | 30 | Percent of spawns that are packs rather than lone titans |
+| `wave_minutes` / `wave_size` | 5 / 6 | How often waves come, and how big they are |
+| `vanilla_mobs` | off | `on` keeps vanilla monsters |
+| `animals` | on | `animal <id> <weight>` lines replace the default animal list |
+
+### Commands in-game
+
+| Command | What it does |
+|---|---|
+| `/function aot_titans:status` | Shows your zone (0 safe, 1 Wall Maria, 2 wilds), titans near you, and whether spawning is on |
+| `/function aot_titans:test` | Spawns a pack near you right now (checks the titan ids work) |
+| `/function aot_titans:on` / `off` | Toggles titan spawning |
+| `/function aot_titans:event/breach_on` / `breach_off` | Wall breach: titans spawn inside Wall Rose and in the towns |
+| `/function aot_titans:event/wave` | Sends a wave at every player outside the safe zones |
+| `/execute as <player> at @s run function aot_titans:event/horde` | A 12-titan horde at one player, anywhere |
+
+Turning off vanilla spawning is a world gamerule (`doMobSpawning false`), so it also
+stops natural spawning in the mod's own dimension while you're in this world.
 
 ## Previews without Minecraft
 
