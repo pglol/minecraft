@@ -17,7 +17,7 @@ import java.util.List;
  * A village: cottages on levelled pads around a well, footpaths to each door,
  * and extras by type (fields, terraced gardens, log piles, fishing docks).
  */
-public final class Village extends Feature {
+public final class Village extends Feature implements StableOwner {
     public enum Type { FARM, HILL, FOREST, FISHING, HIDDEN, MARLEY }
 
     public final String name;
@@ -165,12 +165,19 @@ public final class Village extends Feature {
             String[] animals = PEN_ANIMALS[p[4]];
             if (iz == 1 && ix >= 1 && ix % 2 == 1 && ix / 2 < animals.length) buf.mob(x, h + 1, z, animals[ix / 2]);
             if (p[4] == 3 && ix == 0 && iz == 0) buf.set(x, h + 1, z, Blocks.HAY);
-            if (p[4] == 3 && ix == 1 && iz == 3 && Hash.unit(Hash.of(seed, p[0], p[1])) < 0.3) buf.mob(x, h + 1, z, "aot:stable_master");
+            if (p[4] == 3 && ix == 1 && iz == 3 && type == Type.FARM) buf.mob(x, h + 1, z, "aot:stable_master");
             if (p[4] != 2 && x == p[2] - 1 && z > p[1] + 1 && z < p[1] + 4) buf.set(x, h, z, Blocks.WATER);
             if (p[4] == 2 && x == p[0] + 1 && z == p[1] + 1) buf.set(x, h + 1, z, Blocks.HAY);
             return true;
         }
         return false;
+    }
+
+    @Override
+    public int[] stableSpot() {
+        if (type != Type.FARM) return null;
+        for (int[] p : pens) if (p[4] == 3) return new int[] {p[0] + 2, p[1] + 4};
+        return null;
     }
 
     public List<Pad> pads() {

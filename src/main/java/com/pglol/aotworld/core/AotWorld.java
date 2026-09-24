@@ -5,6 +5,7 @@ import com.pglol.aotworld.core.build.GiantForest;
 import com.pglol.aotworld.core.build.Landmarks;
 import com.pglol.aotworld.core.build.Plot;
 import com.pglol.aotworld.core.build.Poi;
+import com.pglol.aotworld.core.build.StableOwner;
 import com.pglol.aotworld.core.build.Style;
 import com.pglol.aotworld.core.build.TownFeature;
 import com.pglol.aotworld.core.build.TownGrid;
@@ -37,6 +38,8 @@ public final class AotWorld {
     public final List<Poi> pois;
     public final List<Plot> plots = new ArrayList<>();
     public final GiantForest giantForest;
+    /** Stable Masters: name and world x/z. */
+    public final List<Object[]> stables = new ArrayList<>();
     public final ChunkComposer composer;
     private final List<Feature> big = new ArrayList<>();
     private final SpatialIndex<Feature> small = new SpatialIndex<>(256);
@@ -112,6 +115,10 @@ public final class AotWorld {
         for (Plot p : plots) addFeature(p);
         all.sort(Comparator.comparingInt(Feature::layer));
 
+        for (Feature f : all) {
+            if (f instanceof TownFeature) ((TownFeature) f).guaranteeStable();
+        }
+        collectStables();
         numberPlots();
         missionRegions();
         composer = new ChunkComposer(this);
@@ -186,6 +193,18 @@ public final class AotWorld {
             if (s.kind == Atlas.Kind.NAMED_VILLAGE) continue;
             Feature f = Landmarks.create(s, seed, atlas);
             if (f != null) addFeature(f);
+        }
+    }
+
+    private void collectStables() {
+        for (Feature f : all) {
+            if (!(f instanceof StableOwner)) continue;
+            int[] p = ((StableOwner) f).stableSpot();
+            if (p == null) continue;
+            Region r = atlas.regionAt(p[0], 80, p[1]);
+            String where = r == null ? "the wilds" : r.name;
+            if (f instanceof Village && ((Village) f).name == null) where = where + " (farm village)";
+            stables.add(new Object[] {where, p[0], p[1]});
         }
     }
 

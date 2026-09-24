@@ -52,7 +52,7 @@ final class TitanPack {
     };
 
     static void write(Path world, AotWorld w, Path config) throws IOException {
-        int interval = 6, chance = 75, cap = 12, radius = 150, packChance = 35, waveMinutes = 4, waveSize = 7;
+        int interval = 5, chance = 85, cap = 20, radius = 160, packChance = 40, waveMinutes = 4, waveSize = 7;
         boolean vanillaMobs = false, animals = true, travellers = true;
         List<Entry> entries = new ArrayList<>();
         List<Entry> animalList = new ArrayList<>();
@@ -119,6 +119,11 @@ final class TitanPack {
         load.append("scoreboard objectives add aot_titans dummy\n");
         load.append("scoreboard objectives add aot_wave dummy\n");
         load.append("scoreboard objectives add aot_age dummy\n");
+        load.append("scoreboard objectives add aot_trav dummy\n");
+        load.append("scoreboard objectives add aot_zone dummy\n");
+        load.append("scoreboard objectives add aot_cave dummy\n");
+        load.append("scoreboard players set #m1 aot_zone -1\n");
+        load.append("schedule function aot_titans:zones/tick 20t replace\n");
         load.append("scoreboard players set #force aot_titans 0\n");
         load.append("schedule function aot_titans:march 5t replace\n");
         if (travellers) load.append("schedule function aot_titans:walk_tick 2t replace\n");
@@ -136,6 +141,7 @@ final class TitanPack {
         loop.append("schedule function aot_titans:loop ").append(interval).append("s replace\n");
         loop.append("execute if score #enabled aot_titans matches 1 as @a[gamemode=!spectator] at @s if dimension minecraft:overworld if predicate aot_titans:daytime run function aot_titans:player\n");
         if (animals) loop.append("execute as @a[gamemode=!spectator] at @s if dimension minecraft:overworld run function aot_titans:animals\n");
+        loop.append("execute if score #enabled aot_titans matches 1 in minecraft:overworld run function aot_titans:caves\n");
         if (travellers) loop.append("execute as @a[gamemode=!spectator] at @s if dimension minecraft:overworld if predicate aot_titans:daytime run function aot_titans:traveller\n");
         if (!vanillaMobs) {
             loop.append("execute in minecraft:overworld positioned 0 0 0 as @e[type=#aot_titans:banned,distance=0..] run tp @s ~ -200 ~\n");
@@ -329,20 +335,57 @@ final class TitanPack {
         // A couple of people walking the roads near each player, moved step by step along the
         // road surface by the pack (no villager AI: no wandering off, no lag).
         if (travellers) {
-            write(fn.resolve("traveller.mcfunction"), String.join("\n",
-                "execute store result score #near aot_titans if entity @e[type=villager,tag=aot_walker,distance=..100]",
-                "execute if score #near aot_titans matches 2.. run return 0",
-                "execute store result score #roll aot_titans run random value 1..100",
-                "execute if score #roll aot_titans matches 26.. run return 0",
+            int forceLoops = Math.max(1, 240 / interval);
+            StringBuilder tv = new StringBuilder();
+            tv.append("# People walking the roads. Guaranteed at least every 4 minutes per player.\n");
+            tv.append("scoreboard players add @s aot_trav 1\n");
+            tv.append("execute store result score #near aot_titans if entity @e[type=villager,tag=aot_walker,distance=..100]\n");
+            tv.append("execute if score #near aot_titans matches 2.. run return run scoreboard players set @s aot_trav 0\n");
+            tv.append("execute store result score #roll aot_titans run random value 1..100\n");
+            tv.append("execute if score @s aot_trav matches ..").append(forceLoops - 1).append(" if score #roll aot_titans matches 41.. run return 0\n");
+            tv.append("scoreboard players set #ok aot_titans 0\n");
+            tv.append("# Look ahead and behind along the way the player is heading, then all around.\n");
+            for (String off : new String[] {"^ ^ ^45", "^ ^ ^-45", "^25 ^ ^35", "^-25 ^ ^35", "^ ^ ^70", "^ ^ ^-70", "^40 ^ ^", "^-40 ^ ^"}) {
+                tv.append("execute if score #ok aot_titans matches 0 rotated ~ 0 positioned ").append(off)
+                    .append(" store result score #ok aot_titans run function aot_titans:walker_near\n");
+            }
+            for (int i = 0; i < 12; i++) {
+                tv.append("execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:walker_far\n");
+            }
+            tv.append("execute if score #ok aot_titans matches 1 run scoreboard players set @s aot_trav 0\n");
+            write(fn.resolve("traveller.mcfunction"), tv.toString());
+            write(fn.resolve("walker_near.mcfunction"), String.join("\n",
                 "summon marker ~ ~ ~ {Tags:[\"aot_wk\"]}",
-                "spreadplayers ~ ~ 0 70 under 250 false @e[type=marker,tag=aot_wk,limit=1,sort=nearest]",
-                "execute as @e[type=marker,tag=aot_wk] at @s if entity @a[distance=..35] run kill @s",
-                "execute as @e[type=marker,tag=aot_wk] at @s unless block ~ ~-1 ~ #aot_titans:road run kill @s",
-                "execute at @e[type=marker,tag=aot_wk,limit=1] run summon villager ~ ~ ~ {NoAI:1b,Silent:1b,Invulnerable:1b,"
-                    + "Tags:[\"aot_walker\",\"aot_wk_new\"],VillagerData:{type:\"minecraft:plains\",profession:\"minecraft:none\",level:1}}",
-                "execute as @e[type=villager,tag=aot_wk_new] store result entity @s Rotation[0] float 1 run random value 0..359",
-                "tag @e[tag=aot_wk_new] remove aot_wk_new",
-                "kill @e[type=marker,tag=aot_wk]"));
+                "spreadplayers ~ ~ 0 10 under 250 false @e[type=marker,tag=aot_wk,limit=1,sort=nearest]",
+                "execute as @e[type=marker,tag=aot_wk,limit=1] at @s run return run function aot_titans:walker_here"));
+            write(fn.resolve("walker_far.mcfunction"), String.join("\n",
+                "summon marker ~ ~ ~ {Tags:[\"aot_wk\"]}",
+                "spreadplayers ~ ~ 0 75 under 250 false @e[type=marker,tag=aot_wk,limit=1,sort=nearest]",
+                "execute as @e[type=marker,tag=aot_wk,limit=1] at @s run return run function aot_titans:walker_here"));
+            StringBuilder here = new StringBuilder();
+            here.append("# Run as a marker: a traveller appears here if it is on a road and not right next to a player.\n");
+            here.append("execute if entity @a[distance=..22] run return run kill @s\n");
+            here.append("execute unless block ~ ~-1 ~ #aot_titans:road run return run kill @s\n");
+            here.append("execute unless block ~ ~ ~ #aot_titans:passable run return run kill @s\n");
+            here.append("summon villager ~ ~ ~ {NoAI:1b,Silent:1b,Invulnerable:1b,Tags:[\"aot_walker\",\"aot_wk_new\"],"
+                + "VillagerData:{type:\"minecraft:plains\",profession:\"minecraft:none\",level:1}}\n");
+            String[] types = {"plains", "taiga", "desert", "savanna", "snow", "swamp", "jungle"};
+            String[] jobs = {"none", "farmer", "shepherd", "fisherman", "cartographer", "leatherworker", "fletcher", "mason"};
+            here.append("execute store result score #pick aot_titans run random value 0..").append(types.length - 1).append('\n');
+            for (int i = 0; i < types.length; i++) {
+                here.append("execute if score #pick aot_titans matches ").append(i)
+                    .append(" run data modify entity @e[type=villager,tag=aot_wk_new,limit=1] VillagerData.type set value \"minecraft:").append(types[i]).append("\"\n");
+            }
+            here.append("execute store result score #pick aot_titans run random value 0..").append(jobs.length - 1).append('\n');
+            for (int i = 0; i < jobs.length; i++) {
+                here.append("execute if score #pick aot_titans matches ").append(i)
+                    .append(" run data modify entity @e[type=villager,tag=aot_wk_new,limit=1] VillagerData.profession set value \"minecraft:").append(jobs[i]).append("\"\n");
+            }
+            here.append("execute as @e[type=villager,tag=aot_wk_new] store result entity @s Rotation[0] float 1 run random value 0..359\n");
+            here.append("tag @e[tag=aot_wk_new] remove aot_wk_new\n");
+            here.append("kill @s\n");
+            here.append("return 1\n");
+            write(fn.resolve("walker_here.mcfunction"), here.toString());
             write(fn.resolve("walk_tick.mcfunction"), String.join("\n",
                 "schedule function aot_titans:walk_tick 2t replace",
                 "execute as @e[type=villager,tag=aot_walker] at @s run function aot_titans:walk"));
@@ -364,6 +407,9 @@ final class TitanPack {
                 "# Dead end: turn around.",
                 "tp @s ~ ~ ~ ~30 ~"));
         }
+
+        writeZones(fn, w);
+        writeCaves(fn, w, interval);
 
         // ---- Admin tools and world events -----------------------------------------------
         write(fn.resolve("on.mcfunction"), "scoreboard players set #enabled aot_titans 1\ntellraw @s {\"text\":\"Titan spawning on\",\"color\":\"red\"}");
@@ -413,6 +459,214 @@ final class TitanPack {
             "title @a[distance=..200] title {\"text\":\"A HORDE IS COMING\",\"color\":\"dark_red\",\"bold\":true}"));
     }
 
+    // ---- Titan caves ------------------------------------------------------------------------
+
+    /** Titans lie in wait in each cave's great hall and rise when a player comes close. */
+    private static void writeCaves(Path fn, AotWorld w, int interval) throws IOException {
+        int cooldown = Math.max(1, 600 / interval); // ten minutes
+        StringBuilder c = new StringBuilder("# For every titan cave: fill the great hall when a player comes near.\n");
+        Files.createDirectories(fn.resolve("cave"));
+        int n = 0;
+        for (com.pglol.aotworld.core.build.Poi p : w.pois) {
+            int[] hall = p.hallFloor();
+            if (hall == null) continue;
+            n++;
+            String key = "#c" + n;
+            c.append("execute if score ").append(key).append(" aot_cave matches 1.. run scoreboard players remove ").append(key).append(" aot_cave 1\n");
+            c.append(String.format(Locale.ROOT,
+                "execute unless score %s aot_cave matches 1.. positioned %d %d %d if entity @a[gamemode=!spectator,distance=..60] unless entity @e[type=#aot_titans:titans,distance=..40] run function aot_titans:cave/%d%n",
+                key, hall[0], hall[1], hall[2], n));
+            StringBuilder one = new StringBuilder();
+            one.append("# ").append(p.name).append('\n');
+            one.append("scoreboard players set ").append(key).append(" aot_cave ").append(cooldown).append('\n');
+            one.append("scoreboard players set #zone aot_titans 2\n");
+            one.append("execute store result score #n aot_titans run random value 2..4\n");
+            int[][] spots = {{0, 0}, {6, 4}, {-6, 3}, {3, -7}};
+            for (int k = 0; k < spots.length; k++) {
+                one.append(String.format(Locale.ROOT, "execute if score #n aot_titans matches %d.. positioned %d %d %d run function aot_titans:pick%n",
+                    k + 1, hall[0] + spots[k][0], hall[1], hall[2] + spots[k][1]));
+            }
+            one.append("tag @e[tag=aot_new] remove aot_new\n");
+            one.append(String.format(Locale.ROOT, "execute positioned %d %d %d as @a[distance=..80] at @s run playsound minecraft:entity.ravager.roar hostile @s ~ ~ ~ 1 0.5%n",
+                hall[0], hall[1], hall[2]));
+            one.append(String.format(Locale.ROOT, "title @a[x=%d,y=%d,z=%d,distance=..80] actionbar {\"text\":\"The ground trembles... something stirs in %s\",\"color\":\"dark_red\",\"bold\":true}%n",
+                hall[0], hall[1], hall[2], esc(p.name)));
+            write(fn.resolve("cave").resolve(n + ".mcfunction"), one.toString());
+        }
+        write(fn.resolve("caves.mcfunction"), c.length() == 0 ? "return 0" : c.toString());
+    }
+
+    // ---- Zone titles -------------------------------------------------------------------------
+
+    private enum Look { TOWN, SAFE, DANGER, CAVE, CAMP, LANDMARK, MARLEY, SEA }
+
+    private static final class Zone {
+        final String name, sub, lv, cond;
+        final Look look;
+
+        Zone(String name, String sub, String lv, Look look, String cond) {
+            this.name = name;
+            this.sub = sub;
+            this.lv = lv;
+            this.look = look;
+            this.cond = cond;
+        }
+    }
+
+    private static String circle(double x, double z, double r) {
+        return String.format(Locale.ROOT, "positioned %d ~ %d if entity @s[distance=..%d]", (int) x, (int) z, (int) r);
+    }
+
+    /** Titles when players enter a place, and a note when they leave one. */
+    private static void writeZones(Path fn, AotWorld w) throws IOException {
+        Atlas a = w.atlas;
+        List<Zone> zones = new ArrayList<>();
+        java.util.function.Function<String, com.pglol.aotworld.core.Region> reg = n -> {
+            for (com.pglol.aotworld.core.Region r : a.regions()) if (r.name.equals(n)) return r;
+            return null;
+        };
+        java.util.function.BiFunction<String, Look, String[]> info = (n, look) -> {
+            com.pglol.aotworld.core.Region r = reg.apply(n);
+            return new String[] {r == null ? "" : r.subtitle, r == null ? "" : r.levelText()};
+        };
+        String[] i;
+        i = info.apply("Underground City", Look.LANDMARK);
+        zones.add(new Zone("Underground City", i[0], i[1], Look.LANDMARK, "positioned 0 ~ 0 if entity @s[distance=..262,y=-64,dy=119]"));
+        for (com.pglol.aotworld.core.build.Poi p : w.pois) {
+            if (p.kind == com.pglol.aotworld.core.build.Poi.Kind.TITAN_CAVE) {
+                i = info.apply(p.name, Look.CAVE);
+                zones.add(new Zone(p.name, "Titan Cave", i[1], Look.CAVE, circle(p.x, p.z, 70)));
+            } else if (p.kind == com.pglol.aotworld.core.build.Poi.Kind.EXPEDITION_CAMP) {
+                i = info.apply(p.name, Look.CAMP);
+                zones.add(new Zone(p.name, "Survey Corps Camp", i[1], Look.CAMP, circle(p.x, p.z, 40)));
+            }
+        }
+        i = info.apply("Hidden Grove", Look.LANDMARK);
+        zones.add(new Zone("Hidden Grove", i[0], i[1], Look.LANDMARK, circle(w.giantForest.groveX, w.giantForest.groveZ, 50)));
+        com.pglol.aotworld.core.build.GiantForest.Tree t0 = w.giantForest.hideout.trees.get(0);
+        i = info.apply("Canopy Hideout", Look.LANDMARK);
+        zones.add(new Zone("Canopy Hideout", i[0], i[1], Look.LANDMARK, circle(t0.x, t0.z, 70)));
+        for (Atlas.District d : a.districts) {
+            i = info.apply(d.name, Look.TOWN);
+            zones.add(new Zone(d.name, i[0], i[1], Look.TOWN, circle(d.cx, d.cz, d.radius)
+                + String.format(Locale.ROOT, " positioned 0 ~ 0 unless entity @s[distance=..%d]", (int) d.wall.radius)));
+        }
+        i = info.apply("Mitras", Look.TOWN);
+        zones.add(new Zone("Mitras", i[0], i[1], Look.TOWN, circle(0, 0, a.capitalRadius)));
+        for (Atlas.Site site : a.sites) {
+            Look look;
+            switch (site.kind) {
+                case PARADIS_PORT: case NAMED_VILLAGE: look = Look.TOWN; break;
+                case LIBERIO: case MARLEY_PORT: case MILITARY_BASE: look = Look.MARLEY; break;
+                case GIANT_FOREST: look = Look.DANGER; break;
+                default: look = Look.LANDMARK;
+            }
+            i = info.apply(site.name, look);
+            zones.add(new Zone(site.name, i[0], i[1], look, circle(site.x, site.z, site.radius)));
+        }
+        i = info.apply("Inside Wall Sina", Look.SAFE);
+        zones.add(new Zone("Inside Wall Sina", "Behind the innermost Wall", i[1], Look.SAFE, circle(0, 0, a.sina.radius)));
+        String[] quad = {"East", "South", "West", "North"};
+        for (int q = 0; q < 4; q++) {
+            i = info.apply("Wall Rose " + quad[q], Look.SAFE);
+            zones.add(new Zone("Wall Rose " + quad[q], "Inside Wall Rose", i[1], Look.SAFE,
+                circle(0, 0, a.rose.radius) + " if score #q aot_zone matches " + q));
+        }
+        for (int q = 0; q < 4; q++) {
+            i = info.apply("Wall Maria " + quad[q], Look.DANGER);
+            zones.add(new Zone("Wall Maria " + quad[q], "Titan Territory", i[1], Look.DANGER,
+                circle(0, 0, a.maria.radius) + " if score #q aot_zone matches " + q));
+        }
+        double seaMid = (a.marleyCoastX(a.marleyCentreZ()) + a.site(Atlas.Kind.PARADIS_PORT).x) / 2;
+        int far = 200000;
+        i = info.apply("Marley", Look.MARLEY);
+        zones.add(new Zone("Marley", i[0], i[1], Look.MARLEY, String.format(Locale.ROOT,
+            "if entity @s[x=%d,y=-64,z=%d,dx=%d,dy=500,dz=%d]", -far, -far, (int) (a.marleyCoastX(a.marleyCentreZ()) + 150) + far, 2 * far)));
+        i = info.apply("The Sea", Look.SEA);
+        zones.add(new Zone("The Sea", i[0], i[1], Look.SEA, String.format(Locale.ROOT,
+            "if entity @s[x=%d,y=-64,z=%d,dx=%d,dy=500,dz=%d]", -far, -far, (int) (a.site(Atlas.Kind.PARADIS_PORT).x - 260) + far, 2 * far)));
+        i = info.apply("Sand Barrens", Look.DANGER);
+        zones.add(new Zone("Sand Barrens", i[0], i[1], Look.DANGER, circle(a.desertX, a.desertZ, (a.desertRX + a.desertRZ) / 2)));
+        int north = (int) (a.maria.radius + 1500);
+        i = info.apply("Northern Highlands", Look.DANGER);
+        zones.add(new Zone("Northern Highlands", i[0], i[1], Look.DANGER, String.format(Locale.ROOT,
+            "if entity @s[x=%d,y=-64,z=%d,dx=%d,dy=500,dz=%d]", -far, -far, 2 * far, far - north)));
+        i = info.apply("Southern Reaches", Look.DANGER);
+        zones.add(new Zone("Southern Reaches", i[0], i[1], Look.DANGER, String.format(Locale.ROOT,
+            "if entity @s[x=%d,y=-64,z=%d,dx=%d,dy=500,dz=%d]", -far, north, 2 * far, far)));
+        i = info.apply("Outside the Walls", Look.DANGER);
+        Zone outside = new Zone("Outside the Walls", i[0], i[1], Look.DANGER, "");
+
+        Path zd = fn.resolve("zones");
+        Files.createDirectories(zd);
+        write(zd.resolve("tick.mcfunction"), String.join("\n",
+            "schedule function aot_titans:zones/tick 20t replace",
+            "execute as @a at @s if dimension minecraft:overworld run function aot_titans:zones/check"));
+        write(zd.resolve("check.mcfunction"), String.join("\n",
+            "execute store result score #x aot_zone run data get entity @s Pos[0]",
+            "execute store result score #z aot_zone run data get entity @s Pos[2]",
+            "scoreboard players operation #ax aot_zone = #x aot_zone",
+            "scoreboard players operation #az aot_zone = #z aot_zone",
+            "execute if score #ax aot_zone matches ..-1 run scoreboard players operation #ax aot_zone *= #m1 aot_zone",
+            "execute if score #az aot_zone matches ..-1 run scoreboard players operation #az aot_zone *= #m1 aot_zone",
+            "execute if score #ax aot_zone >= #az aot_zone if score #x aot_zone matches 0.. run scoreboard players set #q aot_zone 0",
+            "execute if score #ax aot_zone >= #az aot_zone if score #x aot_zone matches ..-1 run scoreboard players set #q aot_zone 2",
+            "execute if score #ax aot_zone < #az aot_zone if score #z aot_zone matches 0.. run scoreboard players set #q aot_zone 1",
+            "execute if score #ax aot_zone < #az aot_zone if score #z aot_zone matches ..-1 run scoreboard players set #q aot_zone 3",
+            "execute store result score #new aot_zone run function aot_titans:zones/find",
+            "execute if score #new aot_zone = @s aot_zone run return 0",
+            "function aot_titans:zones/leave",
+            "scoreboard players operation @s aot_zone = #new aot_zone",
+            "function aot_titans:zones/enter"));
+        StringBuilder find = new StringBuilder(), enter = new StringBuilder(), leave = new StringBuilder();
+        for (int n = 0; n < zones.size(); n++) {
+            find.append("execute ").append(zones.get(n).cond).append(" run return ").append(n + 1).append('\n');
+        }
+        find.append("return ").append(zones.size() + 1).append('\n');
+        zones.add(outside);
+        for (int n = 0; n < zones.size(); n++) {
+            Zone z = zones.get(n);
+            int id = n + 1;
+            enter.append("execute if score @s aot_zone matches ").append(id).append(" run return run function aot_titans:zones/e").append(id).append('\n');
+            if (z.look != Look.DANGER) {
+                leave.append("execute if score @s aot_zone matches ").append(id).append(" run title @s actionbar {\"text\":\"Leaving ")
+                    .append(esc(z.name)).append("\",\"color\":\"gray\",\"italic\":true}\n");
+            }
+            write(zd.resolve("e" + id + ".mcfunction"), enterTitle(z));
+        }
+        write(zd.resolve("find.mcfunction"), find.toString());
+        write(zd.resolve("enter.mcfunction"), enter.toString());
+        write(zd.resolve("leave.mcfunction"), leave.length() == 0 ? "return 0" : leave.toString());
+    }
+
+    private static String esc(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String enterTitle(Zone z) {
+        String titleColor, subColor, subText, sound;
+        boolean bold = true;
+        String lv = z.lv.isEmpty() ? "" : z.lv + "  \u00b7  ";
+        switch (z.look) {
+            case TOWN: titleColor = "gold"; subColor = "yellow"; subText = lv + z.sub; sound = "minecraft:block.note_block.chime\" master @s ~ ~ ~ 0.8 1.2"; break;
+            case SAFE: titleColor = "green"; subColor = "gray"; subText = lv + z.sub; sound = "minecraft:block.note_block.harp\" master @s ~ ~ ~ 0.6 1.0"; break;
+            case CAVE: titleColor = "dark_red"; subColor = "dark_gray"; subText = "\u2620 " + lv + "Titan Cave"; bold = true; sound = "minecraft:ambient.cave\" master @s ~ ~ ~ 1 0.6"; break;
+            case CAMP: titleColor = "dark_green"; subColor = "green"; subText = lv + "Survey Corps Camp"; sound = "minecraft:block.note_block.bell\" master @s ~ ~ ~ 0.6 0.9"; break;
+            case LANDMARK: titleColor = "light_purple"; subColor = "gray"; subText = lv + z.sub; sound = "minecraft:block.amethyst_block.chime\" master @s ~ ~ ~ 1 0.8"; break;
+            case MARLEY: titleColor = "aqua"; subColor = "dark_aqua"; subText = lv + z.sub; sound = "minecraft:block.note_block.bell\" master @s ~ ~ ~ 0.7 0.7"; break;
+            case SEA: titleColor = "blue"; subColor = "dark_aqua"; subText = lv + z.sub; sound = "minecraft:block.note_block.flute\" master @s ~ ~ ~ 0.7 0.8"; break;
+            default: titleColor = "red"; subColor = "dark_red"; subText = "\u26a0 " + lv + (z.sub.isEmpty() ? "Titan Territory" : z.sub); bold = true;
+                sound = "minecraft:entity.warden.heartbeat\" master @s ~ ~ ~ 1 0.8"; break;
+        }
+        // The sound strings above carry the rest of the playsound arguments after the id.
+        String soundCmd = "playsound " + sound.replace("\"", "");
+        return String.join("\n",
+            "title @s times 10 50 20",
+            "title @s subtitle {\"text\":\"" + esc(subText) + "\",\"color\":\"" + subColor + "\"}",
+            "title @s title {\"text\":\"" + esc(z.name) + "\",\"color\":\"" + titleColor + "\",\"bold\":" + bold + "}",
+            soundCmd);
+    }
+
     private static List<Entry> filter(List<Entry> all, String zone) {
         List<Entry> out = new ArrayList<>();
         for (Entry e : all) if (e.zone.equals(zone) || e.zone.equals("any")) out.add(e);
@@ -430,7 +684,7 @@ final class TitanPack {
         int from = 1;
         for (Entry e : list) {
             int to = from + e.weight - 1;
-            s.append(String.format(Locale.ROOT, "execute if score #pick aot_titans matches %d..%d run summon %s ~ ~ ~ {Tags:[\"aot_new\"]}%n", from, to, e.id));
+            s.append(String.format(Locale.ROOT, "execute if score #pick aot_titans matches %d..%d run summon %s ~ ~ ~ {Tags:[\"aot_new\",\"aot_titan\"],PersistenceRequired:1b}%n", from, to, e.id));
             from = to + 1;
         }
         write(file, s.toString());

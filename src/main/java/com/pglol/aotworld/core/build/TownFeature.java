@@ -5,12 +5,24 @@ import com.pglol.aotworld.core.Column;
 import com.pglol.aotworld.core.Feature;
 
 /** A feature wrapping a {@link TownGrid}; subclasses add landmarks via {@link #extra}. */
-public class TownFeature extends Feature {
+public class TownFeature extends Feature implements StableOwner {
     protected final TownGrid grid;
 
     public TownFeature(TownGrid grid, int minX, int minZ, int maxX, int maxZ) {
         super(minX, minZ, maxX, maxZ);
         this.grid = grid;
+    }
+
+    private int[] stable;
+
+    /** Chooses this town's stable lot; call once after construction. */
+    public void guaranteeStable() {
+        stable = grid.guaranteeStable();
+    }
+
+    @Override
+    public int[] stableSpot() {
+        return stable;
     }
 
     public TownGrid grid() {

@@ -59,7 +59,9 @@ public final class Main {
             case "titans": {
                 Path world = Paths.get(args[1]);
                 if (!Files.exists(world.resolve("level.dat"))) throw new IllegalArgumentException(world + " is not a world folder");
-                TitanPack.write(world, world(args), Paths.get(opt(args, "--config", "titans.txt")));
+                AotWorld aw = world(args);
+                TitanPack.write(world, aw, Paths.get(opt(args, "--config", "titans.txt")));
+                Datapack.write(world, aw);
                 System.out.println("Titan spawning added to " + world + ". In game: /reload (or restart), then");
                 System.out.println("  /function aot_titans:off   and   /function aot_titans:on   to toggle.");
                 break;

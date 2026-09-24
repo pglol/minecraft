@@ -29,6 +29,9 @@ public final class TownGrid {
     private final List<int[]> exclusions = new ArrayList<>();
     private boolean lamps = true;
     private double plotChance = 0;
+    /** The lot (ia*2+qa, ib*2+qb) that always holds a stable with a Stable Master. */
+    private long stableA = Long.MIN_VALUE, stableB = Long.MIN_VALUE;
+    private int[] vendorSpot;
 
     public TownGrid(int ox, int oz, int dir, int baseY, long seed, Shape shape, Style[] styles,
                     int minFloors, int maxFloors, int block, int[] streetBlocks) {
@@ -94,6 +97,37 @@ public final class TownGrid {
             }
         }
         return out;
+    }
+
+    /**
+     * Picks the valid lot closest to the plaza (or the origin) as this town's stable, so every
+     * town has a Stable Master. Returns the vendor's world x/z, or null if no lot fits.
+     */
+    public int[] guaranteeStable() {
+        double pa = Double.isNaN(plazaA) ? block * 1.5 : plazaA, pb = Double.isNaN(plazaA) ? 0 : plazaB;
+        int shift = street / 2;
+        int ca = Math.floorDiv((int) pa, block), cb = Math.floorDiv((int) pb + shift, block);
+        double best = Double.MAX_VALUE;
+        for (int ia = ca - 6; ia <= ca + 6; ia++) {
+            for (int ib = cb - 6; ib <= cb + 6; ib++) {
+                if (plotBlock(ia, ib)) continue;
+                for (int qa = 0; qa < 2; qa++) {
+                    for (int qb = 0; qb < 2; qb++) {
+                        int la0 = ia * block + street + qa * (lot + 1);
+                        int lb0 = ib * block + street - shift + qb * (lot + 1);
+                        if (!lotValid(la0, lb0, la0 + lot - 1, lb0 + lot - 1)) continue;
+                        double d = Math.hypot(la0 + lot / 2.0 - pa, lb0 + lot / 2.0 - pb);
+                        if (d < best) {
+                            best = d;
+                            stableA = ia * 2L + qa;
+                            stableB = ib * 2L + qb;
+                            vendorSpot = new int[] {worldX(la0 + 8, lb0 + 2), worldZ(la0 + 8, lb0 + 2)};
+                        }
+                    }
+                }
+            }
+        }
+        return vendorSpot;
     }
 
     public TownGrid noLamps() {
@@ -170,12 +204,15 @@ public final class TownGrid {
             buf.set(x, baseY, z, Blocks.GRASS);
             return;
         }
-        if (u < 0.74) {
+        boolean forced = ia * 2L + qa == stableA && ib * 2L + qb == stableB;
+        if (forced) {
+            stable(buf, x, z, a, b, la0, lb0, la1, lb1, h, true);
+        } else if (u < 0.74) {
             House house = house(qa, qb, la0, lb0, la1, lb1, lh);
             buf.set(x, baseY, z, Blocks.COBBLE);
             if (house.covers(x, z)) house.column(buf, x, z, baseY);
         } else if (u < 0.80) {
-            stable(buf, x, z, a, b, la0, lb0, la1, lb1, h);
+            stable(buf, x, z, a, b, la0, lb0, la1, lb1, h, false);
         } else if (u < 0.87) {
             garden(buf, x, z, a, b, la0, lb0, la1, lb1, h);
         } else if (u < 0.93) {
@@ -248,7 +285,7 @@ public final class TownGrid {
     private static final int[] SIGN_ROT = {4};
 
     /** A fenced town stable: a roofed shelter, hay, a trough and a couple of horses. */
-    private void stable(ChunkBuffer buf, int x, int z, int a, int b, int la0, int lb0, int la1, int lb1, long h) {
+    private void stable(ChunkBuffer buf, int x, int z, int a, int b, int la0, int lb0, int la1, int lb1, long h, boolean vendor) {
         buf.set(x, baseY, z, Hash.unit(h) < 0.5 ? Blocks.COARSE_DIRT : Blocks.GRASS);
         boolean ea = a == la0 || a == la1, eb = b == lb0 || b == lb1;
         int ga = (la0 + la1) / 2;
@@ -272,7 +309,7 @@ public final class TownGrid {
         long sh = Hash.mix(seed + la0 * 31L + lb0);
         if (ra == 8 && rb == 5 && Hash.unit(sh) < 0.5) buf.mob(x, baseY + 1, z, "horse");
         // Many stables have a Stable Master selling horses.
-        if (Hash.unit(Hash.mix(sh + 7)) < 0.2) {
+        if (vendor) {
             if (ra == 8 && rb == 2) buf.mob(x, baseY + 1, z, "aot:stable_master");
             if (ra == 1 && rb == 2) buf.sign(x, baseY + 1, z, SIGN_ROT[0], "Stables", "Horses for sale", "", "");
         }

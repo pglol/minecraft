@@ -186,7 +186,12 @@ public final class Landmarks {
     }
 
     /** The old Survey Corps headquarters castle. */
-    static final class SurveyHQ extends SiteFeature {
+    static final class SurveyHQ extends SiteFeature implements StableOwner {
+        @Override
+        public int[] stableSpot() {
+            return new int[] {site.x + 8, site.z + 12};
+        }
+
         private final House keep, stable;
 
         SurveyHQ(Atlas.Site s, long seed) {
@@ -229,7 +234,12 @@ public final class Landmarks {
     }
 
     /** The 104th Cadet Corps training camp: barracks, mess hall and a field of ODM posts. */
-    static final class TrainingCamp extends SiteFeature {
+    static final class TrainingCamp extends SiteFeature implements StableOwner {
+        @Override
+        public int[] stableSpot() {
+            return new int[] {site.x + 46, site.z - 56};
+        }
+
         private final House[] buildings;
 
         TrainingCamp(Atlas.Site s, long seed) {
@@ -272,7 +282,14 @@ public final class Landmarks {
     }
 
     /** Harbour town: Paradis Port or Marley's port city with the military headquarters. */
-    static final class Port extends SiteFeature {
+    static final class Port extends SiteFeature implements StableOwner {
+        private int[] stable;
+
+        @Override
+        public int[] stableSpot() {
+            return stable;
+        }
+
         private final TownGrid grid;
         private final boolean marley;
         private final House hq;
@@ -300,6 +317,7 @@ public final class Landmarks {
                 hq = null;
             }
             pierEnd = s.radius + 60;
+            stable = grid.guaranteeStable();
             benchFacing = new int[] {Style.W, Style.N, Style.E, Style.S}[s.seaDir]; // backs to the town, facing the sea
         }
 
@@ -385,7 +403,14 @@ public final class Landmarks {
     }
 
     /** Liberio: the walled Eldian internment zone. */
-    static final class Liberio extends SiteFeature {
+    static final class Liberio extends SiteFeature implements StableOwner {
+        private int[] stable;
+
+        @Override
+        public int[] stableSpot() {
+            return stable;
+        }
+
         private static final int HX = 220, HZ = 170;
         private final TownGrid grid;
 
@@ -395,6 +420,7 @@ public final class Landmarks {
                 (x, z) -> Math.abs(x - s.x) < HX - 6 && Math.abs(z - s.z) < HZ - 6, Style.LIBERIO, 2, 4, 24,
                 new int[] {Blocks.COBBLE, Blocks.GRAVEL, Blocks.STONE_BRICKS, Blocks.ANDESITE})
                 .plaza(0, 0, 18);
+            stable = grid.guaranteeStable();
         }
 
         @Override
@@ -425,7 +451,12 @@ public final class Landmarks {
     }
 
     /** The Marleyan military base: barracks, headquarters, parade ground, depots and a training field. */
-    static final class MilitaryBase extends SiteFeature {
+    static final class MilitaryBase extends SiteFeature implements StableOwner {
+        @Override
+        public int[] stableSpot() {
+            return new int[] {site.x - 36, site.z + 94};
+        }
+
         private static final int HX = 180, HZ = 130;
         private final java.util.List<House> buildings = new java.util.ArrayList<>();
         private final int[][] towers;

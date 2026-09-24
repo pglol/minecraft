@@ -45,6 +45,24 @@ final class Datapack {
             places.append(String.format(Locale.ROOT, "%-9s %-28s x=%-7d y=%-4d z=%-7d /function aot:warp/%s%s%n",
                 r.levelText(), r.name, r.warpX, y, r.warpZ, r.id(), r.titanLevel > 0 ? "   titans" : ""));
         }
+        // Stable Masters: a clickable list and a warp to each.
+        Files.createDirectories(fn.resolve("stable"));
+        StringBuilder st = new StringBuilder("tellraw @s {\"text\":\"Stable Masters (click to travel)\",\"color\":\"gold\",\"bold\":true}\n");
+        places.append("\n# Stable Masters (horse vendors)\n\n");
+        int n = 1;
+        for (Object[] e : w.stables) {
+            String name = (String) e[0];
+            int sx = (Integer) e[1], sz = (Integer) e[2];
+            int y = w.terrain.height(sx, sz) + 1;
+            Files.writeString(fn.resolve("stable").resolve(n + ".mcfunction"),
+                String.format(Locale.ROOT, "tp @s %d %d %d%n", sx + 2, y, sz + 2), StandardCharsets.UTF_8);
+            st.append("tellraw @s [{\"text\":\"  Stable Master - \",\"color\":\"gray\"},{\"text\":\"").append(name)
+                .append("\",\"color\":\"yellow\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/function aot:stable/")
+                .append(n).append("\"}}]\n");
+            places.append(String.format(Locale.ROOT, "Stable Master  %-32s x=%-7d z=%-7d /function aot:stable/%d%n", name, sx, sz, n));
+            n++;
+        }
+        Files.writeString(fn.resolve("stables.mcfunction"), st.toString(), StandardCharsets.UTF_8);
         Files.writeString(fn.resolve("places.mcfunction"),
             "tellraw @s {\"text\":\"Places (click to travel)\",\"color\":\"yellow\",\"bold\":true}\n" + list, StandardCharsets.UTF_8);
         Files.writeString(world.resolve("aot-places.txt"), places.toString(), StandardCharsets.UTF_8);

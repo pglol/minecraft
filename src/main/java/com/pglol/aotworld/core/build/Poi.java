@@ -78,6 +78,13 @@ public final class Poi extends Feature {
         }
     }
 
+    /** Titan caves: the middle of the great hall, standing height (x, y, z). */
+    public int[] hallFloor() {
+        if (kind != Kind.TITAN_CAVE) return null;
+        double[] c = chambers[0];
+        return new int[] {(int) Math.round(c[0]), (int) Math.round(c[1] - c[4] * 0.45) + 1, (int) Math.round(c[2])};
+    }
+
     /** Levelled ground this POI needs, or null. */
     public Pad pad() {
         switch (kind) {

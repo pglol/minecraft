@@ -75,8 +75,10 @@ minute target. Both are adjustable: see [Options](#options).
   - halls, HQs and the palace get long dining tables, libraries and lounges
   - barracks get bunks and armouries; stables get hay, water and horses
   - walkways are left clear between rooms
-- **Stable Masters (horse vendors):** in town stables, farm villages, Survey Corps HQ,
-  the training camp and the Marleyan base. They trade for emeralds:
+- **Stable Masters (horse vendors):** every district town, Mitras, both ports and
+  Liberio have a signposted stable near the plaza. Every farm village, Survey Corps HQ,
+  the training camp and the Marleyan base also have one. `/function aot:stables` lists
+  them all and warps you there when you click one. They trade for emeralds:
 
   | Item | Price | Stats |
   |---|---|---|
@@ -220,11 +222,11 @@ Add any of these lines to override the defaults:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `interval` | 6 | Seconds between spawn attempts per player |
-| `chance` | 75 | Percent chance per attempt |
-| `cap` | 12 | Most titans near a player (waves ignore it) |
-| `radius` | 150 | How far away titans can appear (never closer than 30) |
-| `pack_chance` | 35 | Percent of spawns that are packs rather than lone titans |
+| `interval` | 5 | Seconds between spawn attempts per player |
+| `chance` | 85 | Percent chance per attempt |
+| `cap` | 20 | Most titans near a player (waves ignore it) |
+| `radius` | 160 | How far away titans can appear (never closer than 30) |
+| `pack_chance` | 40 | Percent of spawns that are packs rather than lone titans |
 | `wave_minutes` / `wave_size` | 4 / 7 | How often waves come, and how big they are |
 | `vanilla_mobs` | off | `on` keeps vanilla monsters |
 | `animals` | on | `animal <id> <weight>` lines replace the default animal list |
