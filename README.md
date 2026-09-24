@@ -138,6 +138,41 @@ Hideout. The world also includes a datapack:
 Level ranges are metadata for server design; nothing enforces them in-game. Titans
 come from your AoT mod.
 
+## Titans from your AoT mod
+
+AoT mods such as Danny's AOT usually register their titans to spawn only in their own
+dimension. This tool adds a datapack that spawns them in this map by zone:
+
+- **Titans:** Wall Maria territory, the wilds outside the walls, and the Forest of
+  Giant Trees.
+- **Safe:** inside Wall Rose, every district town, Paradis Port, the Hidden Grove,
+  the sea and Marley.
+- **Daytime only**, with a per-player cap, a spawn chance and a spawn radius.
+
+1. **Find the mod's titan IDs.** In the Modrinth App, open your instance, choose
+   *⋮ → Open folder*, go into `mods`, then run:
+   ```
+   java -jar aot-world.jar scan-mod "path\to\mods\dannys-aot-2.4.3.jar"
+   ```
+   This lists every entity in the mod (marking the ones it spawns naturally in its own
+   dimension, with their weights) and writes a starter `titans.txt`.
+2. **Edit `titans.txt`.** Keep the titans you want and remove shifters and friendly
+   NPCs. Each line is `<zone> <entity id> <weight>`. Zones:
+   - `maria` for inside Wall Maria (e.g. smaller titans)
+   - `wild` for outside the walls (e.g. abnormals)
+   - `any` for both
+
+   `interval`, `chance`, `cap` and `radius` set how often titans spawn, how likely a
+   spawn is, the most titans near one player, and how far away they appear.
+3. **Add it to your world** (no regeneration needed):
+   ```
+   java -jar aot-world.jar titans AttackOnTitan --config titans.txt
+   ```
+   You can also pass `--titans titans.txt` to `generate`. In-game, run `/reload` or
+   restart. Toggle it with `/function aot_titans:off` and `/function aot_titans:on`.
+
+The mod's own spawning stays as it is; this only adds spawns in the overworld.
+
 ## Previews without Minecraft
 
 ```

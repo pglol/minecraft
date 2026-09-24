@@ -38,7 +38,10 @@ public final class Main {
         "      --area <x0,z0,x1,z1>        only generate this block rectangle",
         "      --threads <n>               worker threads (default: all cores)",
         "      --name <levelName>          world name shown in the menu",
+        "      --titans <titans.txt>       also add titan spawning (see scan-mod / titans)",
         "  places [--scale n]              list named places, level ranges and coordinates",
+        "  scan-mod <mod.jar> [--out titans.txt]   list a mod's entities and write a starter titan list",
+        "  titans <worldDir> --config titans.txt  add/refresh titan spawning in an existing world",
         "  preview overview <out.png> [seed] [scale] [blocksPerPixel]",
         "  preview detail <out.png> <x> <z> <size> [seed] [scale]");
 
@@ -50,6 +53,17 @@ public final class Main {
         switch (args[0]) {
             case "generate": generate(args); break;
             case "places": places(args); break;
+            case "scan-mod":
+                ModScanner.run(Paths.get(args[1]), Paths.get(opt(args, "--out", "titans.txt")));
+                break;
+            case "titans": {
+                Path world = Paths.get(args[1]);
+                if (!Files.exists(world.resolve("level.dat"))) throw new IllegalArgumentException(world + " is not a world folder");
+                TitanPack.write(world, world(args), Paths.get(opt(args, "--config", "titans.txt")));
+                System.out.println("Titan spawning added to " + world + ". In game: /reload (or restart), then");
+                System.out.println("  /function aot_titans:off   and   /function aot_titans:on   to toggle.");
+                break;
+            }
             case "preview": {
                 String[] rest = new String[args.length - 1];
                 System.arraycopy(args, 1, rest, 0, rest.length);
@@ -189,6 +203,8 @@ public final class Main {
         LevelDat.write(dir, name, seed, spawn[0], spawn[1], spawn[2], bx, bz, size);
         Datapack.write(dir, w);
         Registry.write(dir, w);
+        String titans = opt(args, "--titans", null);
+        if (titans != null) TitanPack.write(dir, w, Paths.get(titans));
         System.out.printf(Locale.ROOT, "Done in %s: %d chunks written, palette %d block states.%n",
             time((System.currentTimeMillis() - start) / 1000.0), written.get(), Blocks.size());
     }
