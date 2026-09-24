@@ -1,0 +1,294 @@
+package com.pglol.aotworld.preview;
+
+import com.pglol.aotworld.core.AotWorld;
+import com.pglol.aotworld.core.Atlas;
+import com.pglol.aotworld.core.Blocks;
+import com.pglol.aotworld.core.ChunkBuffer;
+import com.pglol.aotworld.core.Column;
+import com.pglol.aotworld.core.Region;
+import com.pglol.aotworld.core.Terrain;
+import com.pglol.aotworld.core.Villages;
+import com.pglol.aotworld.core.WorldSpec;
+import com.pglol.aotworld.core.build.Village;
+
+import javax.imageio.ImageIO;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.stream.IntStream;
+
+/**
+ * Renders top-down PNG previews without Minecraft.
+ *
+ * <pre>
+ *   java -cp aot-world.jar com.pglol.aotworld.preview.MapPreview overview out.png [seed] [blocksPerKm] [blocksPerPixel]
+ *   java -cp aot-world.jar com.pglol.aotworld.preview.MapPreview detail out.png centerX centerZ size [seed] [blocksPerKm]
+ * </pre>
+ */
+public final class MapPreview {
+    public static void main(String[] args) throws IOException {
+        System.setProperty("java.awt.headless", "true");
+        if (args.length < 2) {
+            System.err.println("usage: overview <out.png> [seed] [bpk] [bpp] | detail <out.png> <x> <z> <size> [seed] [bpk]");
+            System.exit(1);
+        }
+        if (args[0].equals("overview")) {
+            long seed = args.length > 2 ? Long.parseLong(args[2]) : 1L;
+            double bpk = args.length > 3 ? Double.parseDouble(args[3]) : 20;
+            int bpp = args.length > 4 ? Integer.parseInt(args[4]) : 16;
+            AotWorld w = new AotWorld(seed, bpk);
+            ImageIO.write(overview(w, bpp), "png", new File(args[1]));
+        } else {
+            int cx = Integer.parseInt(args[2]), cz = Integer.parseInt(args[3]), size = Integer.parseInt(args[4]);
+            long seed = args.length > 5 ? Long.parseLong(args[5]) : 1L;
+            double bpk = args.length > 6 ? Double.parseDouble(args[6]) : 20;
+            AotWorld w = new AotWorld(seed, bpk);
+            ImageIO.write(detail(w, cx, cz, size), "png", new File(args[1]));
+        }
+    }
+
+    // ---- Overview ------------------------------------------------------------------------
+
+    public static BufferedImage overview(AotWorld w, int bpp) {
+        Atlas a = w.atlas;
+        int width = (a.maxX - a.minX) / bpp, height = (a.maxZ - a.minZ) / bpp;
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        int[] hts = new int[width * height];
+        int[] rgb = new int[width * height];
+        IntStream.range(0, height).parallel().forEach(py -> {
+            Column c = new Column();
+            for (int px = 0; px < width; px++) {
+                int x = a.minX + px * bpp, z = a.minZ + py * bpp;
+                w.terrain.sample(x, z, c);
+                hts[py * width + px] = c.height;
+                rgb[py * width + px] = terrainColor(w, c);
+            }
+        });
+        for (int py = 0; py < height; py++) {
+            for (int px = 0; px < width; px++) {
+                int i = py * width + px;
+                int c = rgb[i];
+                if (px > 0 && py > 0 && hts[i] > WorldSpec.SEA) {
+                    int d = hts[i] - hts[i - width - 1];
+                    c = shade(c, 1 + Math.max(-0.35, Math.min(0.35, d * 0.06)));
+                }
+                img.setRGB(px, py, c);
+            }
+        }
+
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        double s = 1.0 / bpp;
+        java.util.function.DoubleUnaryOperator X = x -> (x - a.minX) * s, Z = z -> (z - a.minZ) * s;
+
+        // Rivers and roads.
+        g.setStroke(new BasicStroke(2f));
+        g.setColor(new Color(0x3f76e4));
+        for (com.pglol.aotworld.core.River r : a.rivers) {
+            for (int i = 0; i + 1 < r.xs.length; i++) {
+                g.drawLine((int) X.applyAsDouble(r.xs[i]), (int) Z.applyAsDouble(r.zs[i]),
+                    (int) X.applyAsDouble(r.xs[i + 1]), (int) Z.applyAsDouble(r.zs[i + 1]));
+            }
+        }
+        g.setStroke(new BasicStroke(1.5f));
+        g.setColor(new Color(0xE8D8A8));
+        for (double rr : a.ringRoads) {
+            for (int i = 0; i < 720; i++) {
+                double t0 = Math.toRadians(i * 0.5), t1 = Math.toRadians((i + 1) * 0.5);
+                double x0 = Math.cos(t0) * rr, z0 = Math.sin(t0) * rr, x1 = Math.cos(t1) * rr, z1 = Math.sin(t1) * rr;
+                if (a.landSD(x0, z0) < 0) continue;
+                g.drawLine((int) X.applyAsDouble(x0), (int) Z.applyAsDouble(z0), (int) X.applyAsDouble(x1), (int) Z.applyAsDouble(z1));
+            }
+        }
+        for (int dir = 0; dir < 4; dir++) {
+            double ux = Atlas.DIR_X[dir], uz = Atlas.DIR_Z[dir];
+            double end = a.capitalRadius;
+            while (a.paradisSD(ux * end, uz * end) > 0) end += 32;
+            g.drawLine((int) X.applyAsDouble(ux * a.capitalRadius), (int) Z.applyAsDouble(uz * a.capitalRadius),
+                (int) X.applyAsDouble(ux * end), (int) Z.applyAsDouble(uz * end));
+        }
+        for (double[] r : a.roads) {
+            g.drawLine((int) X.applyAsDouble(r[0]), (int) Z.applyAsDouble(r[1]), (int) X.applyAsDouble(r[2]), (int) Z.applyAsDouble(r[3]));
+        }
+
+        // Towns.
+        g.setColor(new Color(0xB5651D));
+        for (Atlas.District d : a.districts) {
+            double r = d.radius * s;
+            g.fillOval((int) (X.applyAsDouble(d.cx) - r), (int) (Z.applyAsDouble(d.cz) - r), (int) (2 * r), (int) (2 * r));
+        }
+        double cr = a.capitalRadius * s;
+        g.setColor(new Color(0xC9A13B));
+        g.fillOval((int) (X.applyAsDouble(0) - cr), (int) (Z.applyAsDouble(0) - cr), (int) (2 * cr), (int) (2 * cr));
+        for (Atlas.Site site : a.sites) {
+            if (site.kind == Atlas.Kind.GIANT_FOREST) continue;
+            double r = Math.max(3, site.radius * s * 0.8);
+            g.setColor(site.kind == Atlas.Kind.LIBERIO || site.kind == Atlas.Kind.MARLEY_PORT
+                || site.kind == Atlas.Kind.MILITARY_BASE ? new Color(0x8E3B2E) : new Color(0xB5651D));
+            g.fillOval((int) (X.applyAsDouble(site.x) - r), (int) (Z.applyAsDouble(site.z) - r), (int) (2 * r), (int) (2 * r));
+        }
+        g.setColor(new Color(0x8B5A2B));
+        for (int cx = Math.floorDiv(a.minX, Villages.CELL); cx <= Math.floorDiv(a.maxX, Villages.CELL); cx++) {
+            for (int cz = Math.floorDiv(a.minZ, Villages.CELL); cz <= Math.floorDiv(a.maxZ, Villages.CELL); cz++) {
+                Village v = w.villages.get(cx, cz);
+                if (v == null) continue;
+                g.fillOval((int) X.applyAsDouble(v.cx) - 3, (int) Z.applyAsDouble(v.cz) - 3, 6, 6);
+            }
+        }
+
+        // Walls.
+        g.setStroke(new BasicStroke(3f));
+        g.setColor(new Color(0x2B2B2B));
+        for (Atlas.Wall wall : a.walls) {
+            double r = wall.radius * s;
+            g.drawOval((int) (X.applyAsDouble(0) - r), (int) (Z.applyAsDouble(0) - r), (int) (2 * r), (int) (2 * r));
+            for (Atlas.District d : wall.districts) {
+                double dr = d.radius * s;
+                double startDeg = -Math.toDegrees(Math.atan2(d.uz, d.ux)) - 90;
+                g.drawArc((int) (X.applyAsDouble(d.cx) - dr), (int) (Z.applyAsDouble(d.cz) - dr), (int) (2 * dr), (int) (2 * dr),
+                    (int) startDeg, 180);
+            }
+        }
+
+        // Labels.
+        Font big = new Font(Font.SANS_SERIF, Font.BOLD, 22), mid = new Font(Font.SANS_SERIF, Font.BOLD, 14),
+            small = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+        for (Atlas.District d : a.districts) {
+            String name = d.name.replace(" District", "");
+            label(g, name, X.applyAsDouble(d.cx + d.ux * (d.radius + 260)), Z.applyAsDouble(d.cz + d.uz * (d.radius + 260)), mid);
+        }
+        label(g, "Mitras", X.applyAsDouble(0), Z.applyAsDouble(0) - cr - 10, mid);
+        for (Atlas.Site site : a.sites) {
+            double off = site.kind == Atlas.Kind.GIANT_FOREST ? 0 : Math.max(10, site.radius * s) + 10;
+            label(g, site.name, X.applyAsDouble(site.x), Z.applyAsDouble(site.z) - off, small);
+        }
+        for (Atlas.Wall wall : a.walls) {
+            label(g, wall.name, X.applyAsDouble(wall.radius * Math.cos(Math.toRadians(225))) + 30,
+                Z.applyAsDouble(wall.radius * Math.sin(Math.toRadians(225))) + 10, mid);
+        }
+        label(g, "PARADIS ISLAND", X.applyAsDouble(0), Z.applyAsDouble(-a.maria.radius - 4500), big);
+        label(g, "MARLEY", X.applyAsDouble(a.site(Atlas.Kind.MILITARY_BASE).x - 900), Z.applyAsDouble(a.site(Atlas.Kind.MILITARY_BASE).z + 2600), big);
+        label(g, "THE SEA", X.applyAsDouble((a.marleyCoastX(a.marleyCentreZ()) + a.site(Atlas.Kind.PARADIS_PORT).x) / 2), Z.applyAsDouble(a.marleyCentreZ() - 4000), big);
+
+        // Scale bar.
+        int barBlocks = 5000;
+        int bx = 30, by = height - 40;
+        g.setColor(Color.WHITE);
+        g.fillRect(bx - 6, by - 26, (int) (barBlocks * s) + 12, 40);
+        g.setColor(Color.BLACK);
+        g.fillRect(bx, by, (int) (barBlocks * s), 6);
+        g.setFont(small);
+        g.drawString(barBlocks + " blocks  (1 px = " + bpp + " blocks, scale 1:" + (int) Math.round(1000 / w.spec.blocksPerKm) + ")", bx, by - 8);
+        g.dispose();
+        return img;
+    }
+
+    private static void label(Graphics2D g, String text, double x, double y, Font f) {
+        g.setFont(f);
+        FontMetrics fm = g.getFontMetrics();
+        int tx = (int) (x - fm.stringWidth(text) / 2.0), ty = (int) y;
+        g.setColor(new Color(255, 255, 255, 200));
+        for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) g.drawString(text, tx + dx, ty + dy);
+        g.setColor(Color.BLACK);
+        g.drawString(text, tx, ty);
+    }
+
+    private static int terrainColor(AotWorld w, Column c) {
+        if (c.underwater()) {
+            if (c.river) return 0x3f76e4;
+            int depth = c.water - c.height;
+            double t = Math.min(1, depth / 30.0);
+            return mix(0x4f8fe8, 0x1c3a8a, t);
+        }
+        if (c.road >= 0) return 0xb29663;
+        if (c.surface == Blocks.SAND) return 0xdbd3a0;
+        if (c.surface == Blocks.SNOW_BLOCK) return 0xf4f8fb;
+        if (c.height > 135) return mix(0x7f7f7f, 0xb0b0b0, Math.min(1, (c.height - 135) / 40.0));
+        int base;
+        switch (c.biome) {
+            case Terrain.B_FOREST: base = 0x3f7d2a; break;
+            case Terrain.B_BIRCH: base = 0x5d9a3c; break;
+            case Terrain.B_DARK_FOREST: base = 0x2f5a1f; break;
+            case Terrain.B_TAIGA: base = 0x3d6040; break;
+            case Terrain.B_MEADOW: base = 0x7eb05a; break;
+            case Terrain.B_HILLS: base = 0x7a8a6a; break;
+            case Terrain.B_DESERT: base = 0xd8c88a; break;
+            default: base = 0x7cb35a;
+        }
+        Atlas.Site gf = w.atlas.site(Atlas.Kind.GIANT_FOREST);
+        if (gf != null && Math.hypot(c.x - gf.x, c.z - gf.z) < gf.radius) base = 0x1f4a14;
+        return base;
+    }
+
+    // ---- Detail --------------------------------------------------------------------------
+
+    public static BufferedImage detail(AotWorld w, int cx, int cz, int size) {
+        int x0 = cx - size / 2, z0 = cz - size / 2;
+        int c0x = Math.floorDiv(x0, 16), c0z = Math.floorDiv(z0, 16);
+        int c1x = Math.floorDiv(x0 + size - 1, 16), c1z = Math.floorDiv(z0 + size - 1, 16);
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
+        int[] tops = new int[size * size];
+        int[] cols = new int[size * size];
+        int ncx = c1x - c0x + 1;
+        IntStream.range(0, ncx * (c1z - c0z + 1)).parallel().forEach(i -> {
+            int chx = c0x + i % ncx, chz = c0z + i / ncx;
+            ChunkBuffer buf = new ChunkBuffer();
+            w.composer.compose(chx, chz, buf);
+            for (int lx = 0; lx < 16; lx++) {
+                for (int lz = 0; lz < 16; lz++) {
+                    int x = (chx << 4) + lx, z = (chz << 4) + lz;
+                    int px = x - x0, pz = z - z0;
+                    if (px < 0 || pz < 0 || px >= size || pz >= size) continue;
+                    int y = buf.top(x, z);
+                    int id = buf.get(x, y, z);
+                    int color = BlockColors.color(id);
+                    if (id == Blocks.WATER) {
+                        int yy = y;
+                        while (yy > ChunkBuffer.MIN_Y && buf.get(x, yy, z) == Blocks.WATER) yy--;
+                        color = mix(0x3f76e4, 0x1c3a8a, Math.min(1, (y - yy) / 20.0));
+                    }
+                    tops[pz * size + px] = y;
+                    cols[pz * size + px] = color;
+                }
+            }
+        });
+        for (int pz = 0; pz < size; pz++) {
+            for (int px = 0; px < size; px++) {
+                int i = pz * size + px;
+                int c = cols[i];
+                if (px > 0 && pz > 0) {
+                    int d = tops[i] - tops[i - size - 1];
+                    c = shade(c, 1 + Math.max(-0.4, Math.min(0.4, d * 0.08)));
+                }
+                img.setRGB(px, pz, c);
+            }
+        }
+        return img;
+    }
+
+    // ---- Colour helpers ------------------------------------------------------------------
+
+    static int mix(int a, int b, double t) {
+        int r = (int) (((a >> 16) & 255) * (1 - t) + ((b >> 16) & 255) * t);
+        int g = (int) (((a >> 8) & 255) * (1 - t) + ((b >> 8) & 255) * t);
+        int bl = (int) ((a & 255) * (1 - t) + (b & 255) * t);
+        return (r << 16) | (g << 8) | bl;
+    }
+
+    static int shade(int c, double f) {
+        int r = (int) Math.min(255, ((c >> 16) & 255) * f);
+        int g = (int) Math.min(255, ((c >> 8) & 255) * f);
+        int b = (int) Math.min(255, (c & 255) * f);
+        return (r << 16) | (g << 8) | b;
+    }
+
+    @SuppressWarnings("unused")
+    private static Region unused;
+}
