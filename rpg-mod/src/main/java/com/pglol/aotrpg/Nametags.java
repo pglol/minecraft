@@ -78,6 +78,8 @@ public final class Nametags {
         write(d, pr, w);
         d.addCommandTag(TAG);
         d.refreshPositionAndAngles(p.getX(), p.getY() + p.getHeight(), p.getZ(), 0, 0);
+        // Register before spawning: the load event must not mistake it for a stray tag.
+        tags.put(p.getUuid(), d);
         w.spawnEntity(d);
         d.startRiding(p, true);
         return d;
@@ -91,7 +93,6 @@ public final class Nametags {
         n.putFloat("view_range", 0.35f); // about 22 blocks: a name you see up close
         n.putInt("background", 0x40000000);
         n.putBoolean("shadow", true);
-        n.putByte("alignment", (byte) 0);
         NbtCompound tf = new NbtCompound();
         tf.put("translation", floats(0f, 0.35f, 0f));
         tf.put("left_rotation", floats(0f, 0f, 0f, 1f));
