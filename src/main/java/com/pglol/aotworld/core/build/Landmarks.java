@@ -150,7 +150,7 @@ public final class Landmarks {
                     buf.fill(x, floor + 1, ceil - 1, z, Blocks.AIR);
                     int shell = u < 0.1 ? Blocks.SEA_LANTERN : (u < 0.45 ? Blocks.AMETHYST : Blocks.CALCITE);
                     buf.fill(x, ceil, ceil + 1, z, shell);
-                    if (u > 0.985) buf.fill(x, floor + 1, ceil - 1, z, Hash.unit(h >>> 5) < 0.5 ? Blocks.AMETHYST : Blocks.CALCITE);
+                    if (u > 0.985) buf.fill(x, floor + 1, ceil - 1, z, Hash.unit(Hash.mix(h + 5)) < 0.5 ? Blocks.AMETHYST : Blocks.CALCITE);
                     if (d < 1.5) {
                         buf.fill(x, floor + 1, floor + 3, z, Blocks.QUARTZ_PILLAR);
                         buf.set(x, floor + 4, z, Blocks.SEA_LANTERN);
@@ -216,7 +216,6 @@ public final class Landmarks {
             if (stable.covers(x, z)) stable.column(buf, x, z, base);
             if (dz == 11 && dx >= 5 && dx <= 20 && dx % 4 == 1) buf.mob(x, base + 1, z, "horse");
             if (dz == 3 && (dx == 8 || dx == 14)) buf.mob(x, base + 1, z, "horse");
-            if (dz == -4 && (dx == -2 || dx == 4)) buf.mob(x, base + 1, z, "villager");
             if (Tower.covers(x, z, site.x - 20, site.z - 20, 5)) {
                 Tower.column(buf, x, z, site.x - 20, site.z - 20, 5, base, 34, Blocks.STONE_BRICKS, Blocks.id("deepslate_tiles"), base);
             }
@@ -262,7 +261,7 @@ public final class Landmarks {
             }
             for (House h : buildings) if (h.covers(x, z)) { h.column(buf, x, z, base); return; }
             if (Math.abs(dx) <= 1 && dz > -30) buf.set(x, base, z, Blocks.DIRT_PATH);
-            if (field && Math.floorMod(dx, 17) == 3 && Math.floorMod(dz, 19) == 9) buf.mob(x, base + 1, z, Hash.unit(Hash.of(seed, x, z)) < 0.5 ? "horse" : "villager");
+            if (field && Math.floorMod(dx, 17) == 3 && Math.floorMod(dz, 19) == 9) buf.mob(x, base + 1, z, Hash.unit(Hash.of(seed, x, z)) < 0.6 ? "horse" : "donkey");
             if (field && Math.floorMod(dx, 12) == 6 && Math.floorMod(dz, 12) == 6) {
                 long h = Hash.of(seed, dx, dz);
                 int top = base + Hash.range(h, 8, 16);
@@ -319,7 +318,6 @@ public final class Landmarks {
                 int m = Math.floorMod(b, 14);
                 if (m >= 1 && m <= 3) {
                     buf.set(x, base + 1, z, BENCH[benchFacing]);
-                    if (m == 2 && Hash.unit(Hash.of(seed, x, z)) < 0.35) buf.mob(x, base + 1, z, "villager");
                 } else if (m == 5 || m == 13) {
                     buf.set(x, base + 1, z, Blocks.OAK_LEAVES);
                     buf.set(x, base + 2, z, Blocks.POPPY);
@@ -475,7 +473,6 @@ public final class Landmarks {
             boolean field = dx >= 70 && dx <= HX - 8 && dz >= -110 && dz <= 70;
             if (parade) {
                 buf.set(x, base, z, (Math.floorMod(dx, 10) == 0 || Math.floorMod(dz, 10) == 0) ? Blocks.STONE_BRICKS : Blocks.SMOOTH_STONE);
-                if (Math.floorMod(dx, 10) == 5 && Math.floorMod(dz, 20) == 5) buf.mob(x, base + 1, z, "villager");
                 if (dx == -5 && dz == -20) {
                     buf.fill(x, base + 1, base + 14, z, Blocks.id("iron_bars"));
                     buf.fill(x, base + 12, base + 14, z + 1, Blocks.RED_WOOL);

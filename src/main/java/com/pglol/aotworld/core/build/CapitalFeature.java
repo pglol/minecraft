@@ -54,8 +54,6 @@ public final class CapitalFeature extends TownFeature {
                 buf.set(x, BASE, z, Blocks.WATER);
             } else if (d <= 6.2) {
                 buf.set(x, BASE + 1, z, Blocks.SMOOTH_QUARTZ);
-            } else if (Math.abs(x) == 3 && (z == 40 || z == 80)) {
-                buf.mob(x, BASE + 1, z, "villager");
             } else if (Math.abs(x) >= 6 && Math.abs(x) <= 28 && z % 6 != 0) {
                 buf.set(x, BASE, z, Blocks.GRASS);
                 if (Math.abs(x) == 6 || Math.abs(x) == 28) buf.set(x, BASE + 1, z, Blocks.OAK_LEAVES);
@@ -75,7 +73,7 @@ public final class CapitalFeature extends TownFeature {
         long h = Hash.of(seed, x, z, 5);
         if (Hash.unit(h) < 0.02) buf.set(x, ceiling, z, Blocks.GLOWSTONE);
         if (d < CAVE_TOWN_R) underground.column(buf, x, z, CAVE_FLOOR);
-        else if (Hash.unit(h >>> 3) < 0.05) buf.fill(x, CAVE_FLOOR + 1, CAVE_FLOOR + Hash.range(h, 1, 3), z, Blocks.COBBLE);
+        else if (Hash.unit(Hash.mix(h + 3)) < 0.05) buf.fill(x, CAVE_FLOOR + 1, CAVE_FLOOR + Hash.range(h, 1, 3), z, Blocks.COBBLE);
     }
 
     private void tunnel(ChunkBuffer buf, int x, int z) {

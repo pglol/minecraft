@@ -65,9 +65,11 @@ minute target. Both are adjustable: see [Options](#options).
   - rabbits, foxes and goats live in the forests and hills
   - villages keep fenced pastures, pig pens, chicken coops and horse paddocks
   - Survey Corps HQ, the training camp, expedition-camp corrals and town stables all have horses
-- **People:**
-  - townsfolk in town streets and plazas and inside homes, with cats and chickens in gardens
-  - soldiers at the camps and the Marleyan base
+- **People:** kept deliberately few, with nothing wandering or lagging:
+  - Stable Masters (below) stand still
+  - an occasional resident stays inside a home
+  - travellers walk the roads near players (see the titan datapack below)
+  - cats and chickens live in town gardens
 - **Furnished interiors, sized to the building:**
   - homes get kitchens, dining tables, bedrooms, storage, studies and sitting corners
   - halls, HQs and the palace get long dining tables, libraries and lounges
@@ -226,6 +228,7 @@ Add any of these lines to override the defaults:
 | `wave_minutes` / `wave_size` | 4 / 7 | How often waves come, and how big they are |
 | `vanilla_mobs` | off | `on` keeps vanilla monsters |
 | `animals` | on | `animal <id> <weight>` lines replace the default animal list |
+| `travellers` | on | People walking the roads near players |
 
 ### Commands in-game
 

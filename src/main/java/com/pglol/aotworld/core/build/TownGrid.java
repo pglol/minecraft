@@ -144,8 +144,6 @@ public final class TownGrid {
             if (lamps && ma == street - 1 && mb == street - 1 && !avenue) {
                 buf.fill(x, baseY + 1, baseY + 3, z, Blocks.SPRUCE_FENCE);
                 buf.set(x, baseY + 4, z, Blocks.LANTERN);
-            } else if (ma == 2 && mb == 2 && Hash.unit(h >>> 5) < 0.3) {
-                buf.mob(x, baseY + 1, z, "villager");
             }
             return;
         }
@@ -244,8 +242,6 @@ public final class TownGrid {
             buf.set(x, baseY + 1, z, Blocks.STONE_BRICKS);
         } else if (d > plazaR - 1.2 && Hash.unit(h) < 0.08) {
             buf.set(x, baseY + 1, z, Blocks.OAK_LEAVES);
-        } else if (d > 7 && d < plazaR - 3 && Hash.unit(h >>> 9) < 0.012) {
-            buf.mob(x, baseY + 1, z, "villager");
         }
     }
 
@@ -276,7 +272,7 @@ public final class TownGrid {
         long sh = Hash.mix(seed + la0 * 31L + lb0);
         if (ra == 8 && rb == 5 && Hash.unit(sh) < 0.5) buf.mob(x, baseY + 1, z, "horse");
         // Many stables have a Stable Master selling horses.
-        if (Hash.unit(sh >>> 7) < 0.6) {
+        if (Hash.unit(Hash.mix(sh + 7)) < 0.2) {
             if (ra == 8 && rb == 2) buf.mob(x, baseY + 1, z, "aot:stable_master");
             if (ra == 1 && rb == 2) buf.sign(x, baseY + 1, z, SIGN_ROT[0], "Stables", "Horses for sale", "", "");
         }
@@ -293,7 +289,7 @@ public final class TownGrid {
             buf.fill(x, baseY + 1, baseY + 4, z, Blocks.OAK_LOG);
             buf.fill(x, baseY + 5, baseY + 6, z, Blocks.OAK_LEAVES);
         } else if (da == 3 && db == 3) {
-            buf.mob(x, baseY + 1, z, Hash.unit(h >>> 3) < 0.6 ? "chicken" : "cat");
+            buf.mob(x, baseY + 1, z, Hash.unit(Hash.mix(h + 3)) < 0.6 ? "chicken" : "cat");
         } else if (da <= 2 && db <= 2 && da + db <= 3) {
             buf.fill(x, baseY + 4, baseY + 5, z, Blocks.OAK_LEAVES);
         } else {
@@ -330,6 +326,6 @@ public final class TownGrid {
             buf.set(x, baseY + 4, z, Blocks.id("spruce_slab[type=bottom]"));
         }
         if (da == 0 && db == 0) buf.set(x, baseY + 4, z, Blocks.id("spruce_slab[type=bottom]"));
-        if (da == 3 && db == 0) buf.mob(x, baseY + 1, z, Hash.unit(h >>> 3) < 0.5 ? "villager" : "cat");
+        if (da == 3 && db == 0) buf.mob(x, baseY + 1, z, Hash.unit(Hash.mix(h + 3)) < 0.5 ? "chicken" : "cat");
     }
 }

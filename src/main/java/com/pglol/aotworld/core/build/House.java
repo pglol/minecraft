@@ -263,8 +263,8 @@ public final class House {
                 b.set(x, bedY, z, bed(color, acrossFacing(false), false));
             } else if (a == ax1 - 1 && c == cc && id >= 4) {
                 b.set(x, y1, z, FURNACE[alongFacing(false)]);
-            } else if (a == ca + 1 && c == cc + 1 && Hash.unit(hs) < 0.6) {
-                b.mob(x, y1, z, "villager");
+            } else if (a == ca + 1 && c == cc + 1 && use == Use.HOME && Hash.unit(hs) < 0.12) {
+                b.mob(x, y1, z, "aot:resident");
             }
             if (vendor && a == ca && c == cc - 1) b.mob(x, y1, z, "aot:stable_master");
             return;
@@ -289,7 +289,7 @@ public final class House {
             if (vendor && k == 0 && cellA == 0 && cellC == 0) room = Room.SHOP;
             if (oa == -1 && oc == -1) {
                 // Walkway corner: sometimes someone is standing there.
-                if (k == 0 && use != Use.STABLE && Hash.unit(Hash.mix(h + 9)) < 0.35) b.mob(x, y, z, "villager");
+                if (k == 0 && use == Use.HOME && Hash.unit(Hash.mix(h + 9)) < 0.05) b.mob(x, y, z, "aot:resident");
                 continue;
             }
             if (oa < 0 || oc < 0 || oa > 2 || oc > 2) continue;

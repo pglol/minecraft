@@ -198,11 +198,11 @@ public final class Poi extends Feature {
         int floorBlock = u < 0.45 ? Blocks.GRAVEL : (u < 0.8 ? Blocks.COARSE_DIRT : (u < 0.9 ? Blocks.MOSSY_COBBLE : BONE));
         if (floorMin < col.height - 1) b.set(px, floorMin, pz, floorBlock);
         if (topMax < col.height - 2) {
-            double v = Hash.unit(h >>> 7);
+            double v = Hash.unit(Hash.mix(h + 7));
             if (v < 0.004) b.set(px, topMax, pz, SOUL_LANTERN);
             else if (v < 0.03) b.set(px, topMax, pz, Blocks.id("cobweb"));
         }
-        if (Hash.unit(h >>> 13) < 0.02 && floorMin < col.height - 2) {
+        if (Hash.unit(Hash.mix(h + 13)) < 0.02 && floorMin < col.height - 2) {
             b.fill(px, floorMin + 1, floorMin + Hash.range(h, 1, 2), pz, BONE);
         }
         // A titan's ribcage in the main hall.
@@ -232,8 +232,8 @@ public final class Poi extends Feature {
         }
         // Rubble and bones at the mouth.
         double[] tn = tunnels[0];
-        if (Math.hypot(px - tn[0], pz - tn[2]) < 10 && b.get(px, col.height, pz) != Blocks.AIR && Hash.unit(h >>> 21) < 0.08) {
-            b.set(px, col.height + 1, pz, Hash.unit(h >>> 25) < 0.5 ? Blocks.MOSSY_COBBLE : BONE);
+        if (Math.hypot(px - tn[0], pz - tn[2]) < 10 && b.get(px, col.height, pz) != Blocks.AIR && Hash.unit(Hash.mix(h + 21)) < 0.08) {
+            b.set(px, col.height + 1, pz, Hash.unit(Hash.mix(h + 25)) < 0.5 ? Blocks.MOSSY_COBBLE : BONE);
         }
     }
 
@@ -257,13 +257,12 @@ public final class Poi extends Feature {
             if (Math.abs(ang) > 0.25) {
                 b.set(px, h + 1, pz, Blocks.SPRUCE_FENCE);
                 b.set(px, h + 2, pz, Blocks.SPRUCE_FENCE);
-                if (Hash.unit(hh >>> 9) < 0.06) b.set(px, h + 3, pz, Blocks.TORCH);
+                if (Hash.unit(Hash.mix(hh + 9)) < 0.06) b.set(px, h + 3, pz, Blocks.TORCH);
             }
             return;
         }
         // Central fire with log benches.
         if (dx == 0 && dz == 0) { b.set(px, h + 1, pz, Blocks.CAMPFIRE); return; }
-        if (dx == 0 && Math.abs(dz) == 5) b.mob(px, h + 1, pz, "villager");
         if ((Math.abs(dx) == 3 && Math.abs(dz) <= 1)) { b.set(px, h + 1, pz, Blocks.OAK_LOG_Z); return; }
         if ((Math.abs(dz) == 3 && Math.abs(dx) <= 1)) { b.set(px, h + 1, pz, Blocks.OAK_LOG_X); return; }
         // Tents around the fire.
@@ -286,7 +285,7 @@ public final class Poi extends Feature {
             b.set(px, h + 1, pz, Blocks.SPRUCE_PLANKS);
             if (Math.abs(pz - wz) == 3 && Math.abs(px - wx) == 1) b.set(px, h + 1, pz, Blocks.id("dark_oak_fence"));
             if (px == wx && pz == wz) b.lootChest(px, h + 2, pz, "east", "minecraft:chests/village/village_weaponsmith");
-            else if (Math.abs(pz - wz) <= 2 && Hash.unit(hh >>> 3) < 0.5) b.set(px, h + 2, pz, Blocks.BARREL);
+            else if (Math.abs(pz - wz) <= 2 && Hash.unit(Hash.mix(hh + 3)) < 0.5) b.set(px, h + 2, pz, Blocks.BARREL);
             return;
         }
         // Horse corral with a trough.
@@ -295,7 +294,7 @@ public final class Poi extends Feature {
             boolean edge = Math.abs(px - cxr) == 7 || Math.abs(pz - czr) == 7;
             if (edge) b.set(px, h + 1, pz, Math.abs(px - cxr) == 7 ? Blocks.SPRUCE_FENCE_Z : Blocks.SPRUCE_FENCE_X);
             else if (pz == czr - 5 && Math.abs(px - cxr) <= 2) b.set(px, h, pz, Blocks.WATER);
-            else if (Hash.unit(hh >>> 5) < 0.04) b.set(px, h + 1, pz, Blocks.HAY);
+            else if (Hash.unit(Hash.mix(hh + 5)) < 0.04) b.set(px, h + 1, pz, Blocks.HAY);
             if (!edge && (px - cxr) % 4 == 0 && pz == czr + 2) b.mob(px, h + 1, pz, "horse");
             return;
         }
@@ -380,7 +379,7 @@ public final class Poi extends Feature {
         } else if (d < 2.3) {
             b.set(px, h, pz, Blocks.MOSSY_STONE_BRICKS);
         } else if (Hash.unit(hh) < 0.15) {
-            b.set(px, h + 1, pz, Hash.unit(hh >>> 4) < 0.5 ? Blocks.POPPY : Blocks.AZURE_BLUET);
+            b.set(px, h + 1, pz, Hash.unit(Hash.mix(hh + 4)) < 0.5 ? Blocks.POPPY : Blocks.AZURE_BLUET);
         }
     }
 

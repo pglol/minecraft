@@ -110,8 +110,8 @@ public final class ChunkSerializer {
         Nbt.ListTag list = new Nbt.ListTag(Nbt.COMPOUND);
         for (ChunkBuffer.Mob m : buf.mobs()) {
             long h = m.seed;
-            boolean vendor = m.id.equals("aot:stable_master");
-            Nbt.Compound c = new Nbt.Compound().putString("id", vendor ? "minecraft:villager" : m.id);
+            boolean npc = m.id.startsWith("aot:");
+            Nbt.Compound c = new Nbt.Compound().putString("id", npc ? "minecraft:villager" : m.id);
             c.put("Pos", new Nbt.ListTag(Nbt.DOUBLE).add(m.x).add(m.y).add(m.z));
             c.put("Motion", new Nbt.ListTag(Nbt.DOUBLE).add(0.0).add(0.0).add(0.0));
             c.put("Rotation", new Nbt.ListTag(Nbt.FLOAT).add((float) (com.pglol.aotworld.core.Hash.unit(h) * 360 - 180)).add(0f));
@@ -133,6 +133,12 @@ public final class ChunkSerializer {
                     break;
                 case "aot:stable_master":
                     stableMaster(c);
+                    break;
+                case "aot:resident":
+                    // Stays put: no AI means no wandering and no lag.
+                    c.put("VillagerData", new Nbt.Compound().putString("type", "minecraft:" + VILLAGER_TYPES[r % VILLAGER_TYPES.length])
+                        .putString("profession", "minecraft:none").putInt("level", 1));
+                    c.putByte("NoAI", 1).putByte("Silent", 1).putByte("Invulnerable", 1);
                     break;
                 case "minecraft:cat":
                     c.putString("variant", "minecraft:" + CAT_VARIANTS[r % CAT_VARIANTS.length]);
@@ -161,7 +167,7 @@ public final class ChunkSerializer {
         c.put("VillagerData", new Nbt.Compound().putString("type", "minecraft:plains")
             .putString("profession", "minecraft:leatherworker").putInt("level", 5));
         c.putInt("Xp", 250);
-        c.putByte("NoAI", 1).putByte("Invulnerable", 1).putByte("CustomNameVisible", 1);
+        c.putByte("NoAI", 1).putByte("Silent", 1).putByte("Invulnerable", 1).putByte("CustomNameVisible", 1);
         c.putString("CustomName", "{\"text\":\"Stable Master\",\"color\":\"gold\"}");
         Nbt.ListTag offers = new Nbt.ListTag(Nbt.COMPOUND);
         offers.add(offer(10, 0, horseEgg("Common Horse", "horse", 0.20, 0.60, 20)));

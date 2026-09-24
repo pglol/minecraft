@@ -165,7 +165,7 @@ public final class Village extends Feature {
             String[] animals = PEN_ANIMALS[p[4]];
             if (iz == 1 && ix >= 1 && ix % 2 == 1 && ix / 2 < animals.length) buf.mob(x, h + 1, z, animals[ix / 2]);
             if (p[4] == 3 && ix == 0 && iz == 0) buf.set(x, h + 1, z, Blocks.HAY);
-            if (p[4] == 3 && ix == 1 && iz == 3 && Hash.unit(Hash.of(seed, p[0], p[1])) < 0.7) buf.mob(x, h + 1, z, "aot:stable_master");
+            if (p[4] == 3 && ix == 1 && iz == 3 && Hash.unit(Hash.of(seed, p[0], p[1])) < 0.3) buf.mob(x, h + 1, z, "aot:stable_master");
             if (p[4] != 2 && x == p[2] - 1 && z > p[1] + 1 && z < p[1] + 4) buf.set(x, h, z, Blocks.WATER);
             if (p[4] == 2 && x == p[0] + 1 && z == p[1] + 1) buf.set(x, h + 1, z, Blocks.HAY);
             return true;
@@ -227,10 +227,6 @@ public final class Village extends Feature {
         for (House house : houses) {
             if (house.covers(x, z)) {
                 house.column(buf, x, z, h);
-                int[] step = house.doorstep();
-                if (x == step[0] && z == step[1] && Hash.unit(Hash.of(seed, x, z, 7)) < 0.7) {
-                    buf.mob(x, buf.top(x, z) + 1, z, "villager");
-                }
                 return;
             }
         }

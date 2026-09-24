@@ -80,7 +80,7 @@ public final class ChunkComposer {
                 }
                 boolean bridge = c.road >= 0 && c.underwater() && (c.river || c.lake);
                 if (c.road >= 0 && !c.underwater()) {
-                    surface = roadSurface(c, Hash.unit(hh >>> 8), surface);
+                    surface = roadSurface(c, Hash.unit(Hash.mix(hh + 8)), surface);
                     if (surface != Blocks.GRASS) sub = Blocks.DIRT;
                 }
                 buf.set(x, ChunkBuffer.MIN_Y, z, Blocks.BEDROCK);
@@ -98,7 +98,7 @@ public final class ChunkComposer {
                 }
                 if (c.underwater()) {
                     buf.fill(x, h + 1, c.water, z, Blocks.WATER);
-                    if (!c.river && c.water - h >= 2 && Hash.unit(hh >>> 16) < 0.06) buf.set(x, h + 1, z, Blocks.SEAGRASS);
+                    if (!c.river && c.water - h >= 2 && Hash.unit(Hash.mix(hh + 16)) < 0.06) buf.set(x, h + 1, z, Blocks.SEAGRASS);
                     if (bridge) {
                         int deck = c.water + 2;
                         buf.set(x, deck, z, Blocks.SPRUCE_PLANKS);

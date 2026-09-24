@@ -53,7 +53,7 @@ final class TitanPack {
 
     static void write(Path world, AotWorld w, Path config) throws IOException {
         int interval = 6, chance = 75, cap = 12, radius = 150, packChance = 35, waveMinutes = 4, waveSize = 7;
-        boolean vanillaMobs = false, animals = true;
+        boolean vanillaMobs = false, animals = true, travellers = true;
         List<Entry> entries = new ArrayList<>();
         List<Entry> animalList = new ArrayList<>();
         for (String raw : Files.readAllLines(config, StandardCharsets.UTF_8)) {
@@ -70,6 +70,7 @@ final class TitanPack {
                 case "wave_size": waveSize = Integer.parseInt(p[1]); break;
                 case "vanilla_mobs": vanillaMobs = p[1].equals("on"); break;
                 case "animals": animals = !p[1].equals("off"); break;
+                case "travellers": travellers = !p[1].equals("off"); break;
                 case "animal": animalList.add(new Entry("any", p[1], p.length > 2 ? Integer.parseInt(p[2]) : 10)); break;
                 case "maria": case "wild": case "any":
                     if (p.length < 2 || !p[1].contains(":")) throw new IllegalArgumentException("bad line: " + raw);
@@ -101,6 +102,9 @@ final class TitanPack {
         for (int i = 0; i < BANNED.length; i++) banned.append(i > 0 ? "," : "").append("\"minecraft:").append(BANNED[i]).append('"');
         write(root.resolve("data/aot_titans/tags/entity_type/banned.json"), banned.append("]}").toString());
         Files.createDirectories(root.resolve("data/aot_titans/tags/block"));
+        write(root.resolve("data/aot_titans/tags/block/road.json"), "{\"values\":[\"minecraft:dirt_path\",\"minecraft:gravel\","
+            + "\"minecraft:coarse_dirt\",\"minecraft:cobblestone\",\"minecraft:mossy_cobblestone\",\"minecraft:stone_bricks\","
+            + "\"minecraft:andesite\",\"minecraft:polished_andesite\",\"minecraft:smooth_stone\",\"minecraft:stone\"]}");
         write(root.resolve("data/aot_titans/tags/block/ground.json"), "{\"values\":[\"#minecraft:dirt\",\"#minecraft:sand\",\"minecraft:gravel\","
             + "\"minecraft:stone\",\"minecraft:andesite\",\"minecraft:granite\",\"minecraft:diorite\",\"minecraft:tuff\",\"minecraft:calcite\","
             + "\"minecraft:dirt_path\",\"minecraft:snow_block\",\"minecraft:farmland\",\"minecraft:cobblestone\",\"minecraft:mossy_cobblestone\","
@@ -117,6 +121,7 @@ final class TitanPack {
         load.append("scoreboard objectives add aot_age dummy\n");
         load.append("scoreboard players set #force aot_titans 0\n");
         load.append("schedule function aot_titans:march 5t replace\n");
+        if (travellers) load.append("schedule function aot_titans:walk_tick 2t replace\n");
         load.append("execute unless score #enabled aot_titans matches 0..1 run scoreboard players set #enabled aot_titans 1\n");
         load.append("execute unless score #breach aot_titans matches 0..1 run scoreboard players set #breach aot_titans 0\n");
         if (!vanillaMobs) {
@@ -131,6 +136,7 @@ final class TitanPack {
         loop.append("schedule function aot_titans:loop ").append(interval).append("s replace\n");
         loop.append("execute if score #enabled aot_titans matches 1 as @a[gamemode=!spectator] at @s if dimension minecraft:overworld if predicate aot_titans:daytime run function aot_titans:player\n");
         if (animals) loop.append("execute as @a[gamemode=!spectator] at @s if dimension minecraft:overworld run function aot_titans:animals\n");
+        if (travellers) loop.append("execute as @a[gamemode=!spectator] at @s if dimension minecraft:overworld if predicate aot_titans:daytime run function aot_titans:traveller\n");
         if (!vanillaMobs) {
             loop.append("execute in minecraft:overworld positioned 0 0 0 as @e[type=#aot_titans:banned,distance=0..] run tp @s ~ -200 ~\n");
         }
@@ -317,6 +323,46 @@ final class TitanPack {
                 from = to + 1;
             }
             write(fn.resolve("herd_one.mcfunction"), one.toString());
+        }
+
+        // ---- Road travellers ------------------------------------------------------------
+        // A couple of people walking the roads near each player, moved step by step along the
+        // road surface by the pack (no villager AI: no wandering off, no lag).
+        if (travellers) {
+            write(fn.resolve("traveller.mcfunction"), String.join("\n",
+                "execute store result score #near aot_titans if entity @e[type=villager,tag=aot_walker,distance=..100]",
+                "execute if score #near aot_titans matches 2.. run return 0",
+                "execute store result score #roll aot_titans run random value 1..100",
+                "execute if score #roll aot_titans matches 26.. run return 0",
+                "summon marker ~ ~ ~ {Tags:[\"aot_wk\"]}",
+                "spreadplayers ~ ~ 0 70 under 250 false @e[type=marker,tag=aot_wk,limit=1,sort=nearest]",
+                "execute as @e[type=marker,tag=aot_wk] at @s if entity @a[distance=..35] run kill @s",
+                "execute as @e[type=marker,tag=aot_wk] at @s unless block ~ ~-1 ~ #aot_titans:road run kill @s",
+                "execute at @e[type=marker,tag=aot_wk,limit=1] run summon villager ~ ~ ~ {NoAI:1b,Silent:1b,Invulnerable:1b,"
+                    + "Tags:[\"aot_walker\",\"aot_wk_new\"],VillagerData:{type:\"minecraft:plains\",profession:\"minecraft:none\",level:1}}",
+                "execute as @e[type=villager,tag=aot_wk_new] store result entity @s Rotation[0] float 1 run random value 0..359",
+                "tag @e[tag=aot_wk_new] remove aot_wk_new",
+                "kill @e[type=marker,tag=aot_wk]"));
+            write(fn.resolve("walk_tick.mcfunction"), String.join("\n",
+                "schedule function aot_titans:walk_tick 2t replace",
+                "execute as @e[type=villager,tag=aot_walker] at @s run function aot_titans:walk"));
+            write(fn.resolve("walk.mcfunction"), String.join("\n",
+                "# Leave when nobody is around, after about three minutes, or at night.",
+                "scoreboard players add @s aot_age 1",
+                "execute if score @s aot_age matches 1800.. run return run tp @s ~ -200 ~",
+                "execute unless entity @a[distance=..120] run return run tp @s ~ -200 ~",
+                "execute unless predicate aot_titans:daytime run return run tp @s ~ -200 ~",
+                "# Step forward along the road, up or down a block with the ground.",
+                "execute rotated ~ 0 positioned ^ ^ ^0.25 if block ~ ~-1 ~ #aot_titans:road if block ~ ~ ~ #aot_titans:passable if block ~ ~1 ~ #aot_titans:passable run return run tp @s ~ ~ ~",
+                "execute rotated ~ 0 positioned ^ ^ ^0.25 positioned ~ ~1 ~ if block ~ ~-1 ~ #aot_titans:road if block ~ ~ ~ #aot_titans:passable if block ~ ~1 ~ #aot_titans:passable run return run tp @s ~ ~ ~",
+                "execute rotated ~ 0 positioned ^ ^ ^0.25 positioned ~ ~-1 ~ if block ~ ~-1 ~ #aot_titans:road if block ~ ~ ~ #aot_titans:passable if block ~ ~1 ~ #aot_titans:passable run return run tp @s ~ ~ ~",
+                "# The road bends: turn towards the side that still has road.",
+                "execute rotated ~30 0 positioned ^ ^ ^1.5 if block ~ ~-1 ~ #aot_titans:road at @s run return run tp @s ~ ~ ~ ~10 ~",
+                "execute rotated ~-30 0 positioned ^ ^ ^1.5 if block ~ ~-1 ~ #aot_titans:road at @s run return run tp @s ~ ~ ~ ~-10 ~",
+                "execute rotated ~70 0 positioned ^ ^ ^1.5 if block ~ ~-1 ~ #aot_titans:road at @s run return run tp @s ~ ~ ~ ~20 ~",
+                "execute rotated ~-70 0 positioned ^ ^ ^1.5 if block ~ ~-1 ~ #aot_titans:road at @s run return run tp @s ~ ~ ~ ~-20 ~",
+                "# Dead end: turn around.",
+                "tp @s ~ ~ ~ ~30 ~"));
         }
 
         // ---- Admin tools and world events -----------------------------------------------
