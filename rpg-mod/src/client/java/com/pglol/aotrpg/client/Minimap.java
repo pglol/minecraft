@@ -79,6 +79,17 @@ public final class Minimap {
         return w.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
     }
 
+    /** A tiny house icon centred on (cx, cy). */
+    static void house(DrawContext c, int cx, int cy, int col) {
+        c.fill(cx - 4, cy - 1, cx + 5, cy + 5, 0xFF101010);
+        c.fill(cx - 3, cy, cx + 4, cy + 4, col);
+        c.fill(cx - 1, cy + 2, cx + 2, cy + 4, 0xFF3A2A16);
+        for (int i = 0; i < 4; i++) {
+            c.fill(cx - 4 + i, cy - 1 - i, cx + 5 - i, cy - i, i == 0 ? 0xFF101010 : col);
+        }
+        c.fill(cx, cy - 5, cx + 1, cy - 4, 0xFF101010);
+    }
+
     /** Slightly muted colours so markers stand out (ABGR). */
     private static int mute(int abgr) {
         int r = abgr & 255, g = (abgr >> 8) & 255, b = (abgr >> 16) & 255;
@@ -170,6 +181,12 @@ public final class Minimap {
         }
         // Quest targets, map marks and party highlights (pinned to the edge when far away).
         for (Net.Marker m : ClientState.markers) {
+            if (m.kind().equals("home")) {
+                // Your homes: a small house, only when on the minimap.
+                double hx = m.x() + 0.5 - ox, hz = m.z() + 0.5 - oz;
+                if (hx >= 3 && hx <= s - 3 && hz >= 3 && hz <= s - 3) house(c, x + (int) hx, y + (int) hz, 0xFF000000 | m.color());
+                continue;
+            }
             int[] p = clamp(m.x() + 0.5 - ox, m.z() + 0.5 - oz, s);
             diamond(c, x + p[0], y + p[1], 3, 0xFF101010, 0xFF000000 | m.color());
         }

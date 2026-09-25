@@ -31,6 +31,7 @@ public final class Beams {
         float td = ctx.tickCounter().getTickDelta(true);
         long time = mc.world.getTime();
         for (Net.Marker m : ClientState.markers) {
+            if (m.kind().equals("home")) continue; // homes are on the map, not beams
             double dx = m.x() + 0.5 - cam.x, dz = m.z() + 0.5 - cam.z;
             double dist = Math.sqrt(dx * dx + dz * dz);
             if (dist < 3) continue; // standing in it: do not blind the player
@@ -45,7 +46,7 @@ public final class Beams {
 
         // Icons go through their own buffer so they draw on top, through walls.
         VertexConsumerProvider.Immediate icons = mc.getBufferBuilders().getEntityVertexConsumers();
-        for (Net.Marker m : ClientState.markers) icon(mc, ms, icons, cam, m);
+        for (Net.Marker m : ClientState.markers) if (!m.kind().equals("home")) icon(mc, ms, icons, cam, m);
         float td2 = ctx.tickCounter().getTickDelta(true);
         for (Net.PartyMember pm : ClientState.party) partyIcon(mc, ms, icons, cam, pm, td2);
         icons.draw();

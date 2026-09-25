@@ -70,6 +70,7 @@ public final class AotRpg implements ModInitializer {
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
     public static final Furniture FURNITURE = new Furniture();
+    public static final HomeRaids RAIDS = new HomeRaids();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -140,8 +141,9 @@ public final class AotRpg implements ModInitializer {
                     && HOMES.useDoor(sp, hit.getBlockPos(), sp.isSneaking())) return ActionResult.SUCCESS;
                 if (world.getRegistryKey() == Homes.WORLD && HOMES.useHomeDoor(sp, hit.getBlockPos())) return ActionResult.SUCCESS;
             }
-            if (world.getRegistryKey() == Homes.WORLD && state.isIn(net.minecraft.registry.tag.BlockTags.ANVIL)
-                && HOMES.hasUpgrade(sp, hit.getBlockPos(), Homes.Upgrade.FORGE)) {
+            // Any anvil on your own property is your forge (the yard smithy, or a Workshop Anvil).
+            if (state.isIn(net.minecraft.registry.tag.BlockTags.ANVIL) && PROFILES.get(sp.getUuid()).created
+                && (HOMES.hasUpgrade(sp, hit.getBlockPos(), Homes.Upgrade.FORGE) || FURNITURE.ownProperty(sp, hit.getBlockPos()))) {
                 FORGE.open(sp);
                 return ActionResult.SUCCESS;
             }
@@ -460,6 +462,7 @@ public final class AotRpg implements ModInitializer {
         }
         PARTIES.tick(server, ticks);
         GUARD.tick(server, ticks);
+        RAIDS.tick(server, ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {
             PROFILES.saveAll();

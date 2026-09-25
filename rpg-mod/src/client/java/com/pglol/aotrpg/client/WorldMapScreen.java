@@ -347,6 +347,15 @@ public class WorldMapScreen extends Screen {
         for (Net.Marker m : ClientState.markers) {
             int x = (int) sx(m.x() + 0.5), y = (int) sy(m.z() + 0.5);
             int col = 0xFF000000 | m.color();
+            if (m.kind().equals("home")) {
+                if (x < mapL + 4 || x > mapR - 4 || y < mapT + 4 || y > mapB - 4) continue;
+                Minimap.house(c, x, y, col);
+                if (Math.abs(mouseX - x) < 6 && Math.abs(mouseY - y) < 6) {
+                    c.drawTooltip(textRenderer, List.of(Text.literal(m.label()).withColor(col),
+                        Text.literal(distance(m.x(), m.z())).formatted(Formatting.GRAY)), mouseX, mouseY);
+                }
+                continue;
+            }
             x = MathHelper.clamp(x, mapL + 4, mapR - 4);
             y = MathHelper.clamp(y, mapT + 4, mapB - 4);
             c.fill(x - 1, y - 4, x + 2, y + 5, 0xFF101010);

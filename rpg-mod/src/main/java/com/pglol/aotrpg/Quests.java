@@ -271,6 +271,7 @@ public final class Quests {
                 if (hd != null) list.add(new Net.Marker("party_quest", "★ " + hd.title(), hd.x(), hd.y(), hd.z(), 0xD070FF));
             }
         }
+        AotRpg.HOMES.markers(p, list);
         int hash = Objects.hash(list.toArray());
         Integer last = lastMarkers.put(p.getUuid(), hash);
         if (!force && last != null && last == hash) return;

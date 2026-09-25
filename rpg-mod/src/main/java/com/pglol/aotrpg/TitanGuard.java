@@ -55,7 +55,7 @@ public final class TitanGuard {
     }
 
     private static boolean wanderingTitan(Entity e) {
-        if (!(e instanceof LivingEntity) || !AotRpg.isTitan(e)) return false;
+        if (!(e instanceof LivingEntity) || !AotRpg.isTitan(e) || HomeRaids.raider(e)) return false;
         String path = Registries.ENTITY_TYPE.getId(e.getType()).getPath();
         for (String s : SHIFTERS) if (path.contains(s)) return false;
         for (Entity p : e.getPassengerList()) if (p instanceof PlayerEntity) return false;
@@ -63,11 +63,13 @@ public final class TitanGuard {
     }
 
     public void tick(MinecraftServer server, int ticks) {
-        if (ticks % 20 != 7 || (rose == 0 && zones.isEmpty()) || breach(server)) return;
+        if (ticks % 20 != 7) return;
+        boolean walls = (rose != 0 || !zones.isEmpty()) && !breach(server);
         ServerWorld w = server.getOverworld();
         List<Entity> gone = new ArrayList<>();
         for (Entity e : w.iterateEntities()) {
-            if (wanderingTitan(e) && protectedAt(e.getX(), e.getZ())) gone.add(e);
+            // Homes stay safe even during a breach (their raids are separate).
+            if (wanderingTitan(e) && ((walls && protectedAt(e.getX(), e.getZ())) || AotRpg.RAIDS.guarded(e.getX(), e.getZ()))) gone.add(e);
         }
         for (Entity e : gone) {
             w.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + e.getHeight() / 2, e.getZ(), 20,

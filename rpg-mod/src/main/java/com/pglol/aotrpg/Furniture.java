@@ -115,7 +115,7 @@ public final class Furniture {
             "-1,0,0 bamboo_fence;0,0,0 white_stained_glass_pane[east=true,west=true];1,0,0 bamboo_fence;-1,1,0 bamboo_fence;0,1,0 white_stained_glass_pane[east=true,west=true];1,1,0 bamboo_fence"),
         new Piece("banner", "Wings of Freedom Banner", "Decor", 150, "0,0,0 green_banner[rotation=8]"),
         new Piece("clock", "Grandfather Clock", "Decor", 200, "0,0,0 dark_oak_log;0,1,0 dark_oak_trapdoor[facing=south,open=true];0,2,0 dark_oak_log;0,3,0 dark_oak_slab[type=bottom]"),
-        new Piece("anvil", "Workshop Anvil", "Decor", 300, "0,0,0 anvil[facing=east];1,0,0 grindstone[face=floor,facing=south]"));
+        new Piece("anvil", "Workshop Anvil (your forge)", "Storage", 2400, "0,0,0 anvil[facing=east];1,0,0 grindstone[face=floor,facing=south]"));
 
     public static Piece piece(String id) {
         for (Piece p : CATALOG) if (p.id().equals(id)) return p;

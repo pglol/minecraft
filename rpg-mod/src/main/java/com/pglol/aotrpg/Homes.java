@@ -82,6 +82,10 @@ public final class Homes {
         public String stem;
         public String ownerName = "";
         public int template = -1;
+        /** Home raids: distinct days the owner has played since the last raid, and when it was. */
+        public int daysPlayed;
+        public long lastDay;
+        public long lastRaid;
     }
 
     /** An operator's offer of a home or plot to a player at a set price. */
@@ -591,6 +595,21 @@ public final class Homes {
         Offer o = HomeAdmin.offerFor(p, home);
         ServerPlayNetworking.send(p, new Net.HomeView(home, townOf(h), size, price(h), d != null, deeds(p).size(), MAX_HOMES, ups, visits, open,
             "home", o == null ? -1 : o.price, ""));
+    }
+
+    /** Your homes and property on the map: town house doors and plot centres. */
+    public void markers(ServerPlayerEntity p, List<Net.Marker> list) {
+        for (Deed d : deeds(p)) {
+            if (d.home < 0 || d.home >= AotRpg.PLACES.homes.size()) continue;
+            int[] h = AotRpg.PLACES.homes.get(d.home);
+            list.add(new Net.Marker("home", "Your home · " + townOf(h), h[6], h[4] + 1, h[7], 0xF2C14E));
+        }
+        String me = stem(p);
+        for (var e : data.plots.entrySet()) {
+            if (!me.equals(e.getValue().stem) || e.getKey() >= AotRpg.PLACES.plots.size()) continue;
+            Places.PlotInfo pl = AotRpg.PLACES.plots.get(e.getKey());
+            list.add(new Net.Marker("home", "Your property · #" + pl.id(), (pl.x0() + pl.x1()) / 2, pl.y(), (pl.z0() + pl.z1()) / 2, 0xF2C14E));
+        }
     }
 
     public void forget(ServerPlayerEntity p) {

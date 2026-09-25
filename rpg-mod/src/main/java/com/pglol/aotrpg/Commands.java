@@ -137,6 +137,11 @@ final class Commands {
                     c.getSource().sendFeedback(() -> Text.literal("Gave " + n + " event tokens to " + p.getName().getString()), true);
                     return 1;
                 }))))
+            .then(CommandManager.literal("raid").executes(c -> {
+                boolean ok = AotRpg.RAIDS.forceStart(c.getSource().getPlayerOrThrow());
+                if (!ok) c.getSource().sendError(Text.literal("You need to own a property plot (and no raid running there)."));
+                return ok ? 1 : 0;
+            }))
             .then(CommandManager.literal("campfire").executes(c -> {
                 ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
                 var pos = p.getBlockPos();
