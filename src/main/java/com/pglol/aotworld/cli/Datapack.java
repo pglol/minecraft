@@ -79,8 +79,35 @@ final class Datapack {
             json.append(firstFire ? "\n    " : ",\n    ").append(String.format(Locale.ROOT, "[%d, %d, %d]", f[0], f[1], f[2]));
             firstFire = false;
         }
-        json.append("\n  ]\n}\n");
+        json.append("\n  ],\n  \"areas\": [");
+        boolean firstArea = true;
+        for (Region r : regs) {
+            int y = r.maxY < 100 ? 12 : w.terrain.height(r.warpX, r.warpZ) + 1;
+            json.append(firstArea ? "\n    " : ",\n    ").append(String.format(Locale.ROOT,
+                "{\"id\": \"%s\", \"name\": \"%s\", \"sub\": \"%s\", \"min\": %d, \"max\": %d, \"titans\": %d, \"look\": \"%s\", \"prio\": %d, \"x\": %d, \"y\": %d, \"z\": %d}",
+                r.id(), r.name.replace("\"", "'"), r.subtitle.replace("\"", "'"), r.minLevel, r.maxLevel, r.titanLevel, look(r), r.priority,
+                r.warpX, y, r.warpZ));
+            firstArea = false;
+        }
+        int bpp = Math.max(4, (w.atlas.maxX - w.atlas.minX) / 2048);
+        json.append(String.format(Locale.ROOT, "\n  ],\n  \"map\": {\"file\": \"aot-map.png\", \"x0\": %d, \"z0\": %d, \"bpp\": %d}\n}\n",
+            w.atlas.minX, w.atlas.minZ, bpp));
+        System.out.println("Drawing the in-game world map...");
+        javax.imageio.ImageIO.write(com.pglol.aotworld.preview.MapPreview.overview(w, bpp, true), "png", world.resolve("aot-map.png").toFile());
         Files.writeString(world.resolve("aot-rpg.json"), json.toString(), StandardCharsets.UTF_8);
+    }
+
+    /** Map label colour theme for a region (matches the entry titles). */
+    private static String look(Region r) {
+        String n = r.name, s = r.subtitle;
+        if (s.equals("Titan Cave")) return "cave";
+        if (s.equals("Survey Corps Camp")) return "camp";
+        if (n.equals("The Sea")) return "sea";
+        if (s.startsWith("Marley") || s.equals("The Marleyan Empire")) return "marley";
+        if (n.endsWith("District") || n.equals("Mitras") || n.contains("Village") || n.contains("Port")) return "town";
+        if (s.equals("Inside Wall Rose") || s.equals("Interior")) return "safe";
+        if (s.equals("Titan Territory") || r.titanLevel > 0 || n.equals("Outside the Walls")) return "danger";
+        return "landmark";
     }
 
     /** First standing spot at or above the terrain, found by generating the chunk. */

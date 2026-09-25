@@ -59,6 +59,11 @@ public final class MapPreview {
     // ---- Overview ------------------------------------------------------------------------
 
     public static BufferedImage overview(AotWorld w, int bpp) {
+        return overview(w, bpp, false);
+    }
+
+    /** clean = the in-game map: terrain, water, roads, towns and walls only (the game draws its own labels). */
+    public static BufferedImage overview(AotWorld w, int bpp, boolean clean) {
         Atlas a = w.atlas;
         int width = (a.maxX - a.minX) / bpp, height = (a.maxZ - a.minZ) / bpp;
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
@@ -135,12 +140,12 @@ public final class MapPreview {
             int r = Math.max(3, (int) (v.radius * s));
             g.fillOval((int) X.applyAsDouble(v.cx) - r, (int) Z.applyAsDouble(v.cz) - r, 2 * r, 2 * r);
         }
-        for (com.pglol.aotworld.core.build.Plot p : w.plots) {
+        for (com.pglol.aotworld.core.build.Plot p : clean ? java.util.List.<com.pglol.aotworld.core.build.Plot>of() : w.plots) {
             g.setColor(new Color(0xE040C0));
             int px = (int) X.applyAsDouble(p.cx()), pz = (int) Z.applyAsDouble(p.cz());
             g.fillRect(px - 1, pz - 1, 3, 3);
         }
-        for (com.pglol.aotworld.core.build.Poi p : w.pois) {
+        for (com.pglol.aotworld.core.build.Poi p : clean ? java.util.List.<com.pglol.aotworld.core.build.Poi>of() : w.pois) {
             switch (p.kind) {
                 case TITAN_CAVE: g.setColor(new Color(0xB00000)); break;
                 case EXPEDITION_CAMP: g.setColor(new Color(0x1E7A2E)); break;
@@ -165,6 +170,11 @@ public final class MapPreview {
             }
         }
 
+        if (clean) {
+            g.dispose();
+            parchment(img);
+            return img;
+        }
         // Labels.
         Font big = new Font(Font.SANS_SERIF, Font.BOLD, 22), mid = new Font(Font.SANS_SERIF, Font.BOLD, 14),
             small = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
@@ -251,6 +261,32 @@ public final class MapPreview {
     }
 
     // ---- Detail --------------------------------------------------------------------------
+
+    /** Old-map look: colours pulled toward sepia parchment, darker edges. */
+    private static void parchment(BufferedImage img) {
+        int w = img.getWidth(), h = img.getHeight();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int c = img.getRGB(x, y);
+                double r = (c >> 16) & 255, gg = (c >> 8) & 255, b = c & 255;
+                double lum = 0.3 * r + 0.59 * gg + 0.11 * b;
+                boolean water = b > r + 30 && b > gg;
+                double sr, sg, sb;
+                if (water) {
+                    sr = 60 + lum * 0.25; sg = 88 + lum * 0.30; sb = 96 + lum * 0.30;
+                } else {
+                    sr = 70 + lum * 0.78; sg = 58 + lum * 0.66; sb = 34 + lum * 0.42;
+                }
+                double k = 0.62;
+                r = r * (1 - k) + sr * k;
+                gg = gg * (1 - k) + sg * k;
+                b = b * (1 - k) + sb * k;
+                double dx = (x - w / 2.0) / (w / 2.0), dy = (y - h / 2.0) / (h / 2.0);
+                double v = 1 - 0.35 * Math.pow(Math.min(1, Math.sqrt(dx * dx + dy * dy)), 2.2);
+                img.setRGB(x, y, ((int) Math.min(255, r * v) << 16) | ((int) Math.min(255, gg * v) << 8) | (int) Math.min(255, b * v));
+            }
+        }
+    }
 
     public static BufferedImage detail(AotWorld w, int cx, int cz, int size) {
         int x0 = cx - size / 2, z0 = cz - size / 2;
