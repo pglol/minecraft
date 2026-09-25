@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.util.Hand;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
@@ -45,6 +46,8 @@ public final class AotRpg implements ModInitializer {
     public static final DeathCare DEATH = new DeathCare();
     public static final Quests QUESTS = new Quests();
     public static final TitanGuard GUARD = new TitanGuard();
+    public static final QuickHeal HEAL = new QuickHeal();
+    public static final Cosmetics COSMETICS = new Cosmetics();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
     public static boolean hasClient(ServerPlayerEntity p) {
@@ -73,6 +76,27 @@ public final class AotRpg implements ModInitializer {
     public void onInitialize() {
         Net.register();
         SatchelHandler.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.QuickHealUse.ID, (payload, ctx) -> {
+            if (PROFILES.get(ctx.player().getUuid()).created) HEAL.use(ctx.player());
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.SelectCosmetic.ID, (payload, ctx) -> COSMETICS.select(ctx.player(), payload.id()));
+        // APG gun shots: send a trail in the shooter's style to everyone nearby.
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            var stack = player.getStackInHand(hand);
+            if (!world.isClient && player instanceof ServerPlayerEntity sp && AotItems.isApgGun(stack)) {
+                var eye = sp.getEyePos();
+                var end = eye.add(sp.getRotationVec(1f).multiply(96));
+                var hit = world.raycast(new net.minecraft.world.RaycastContext(eye, end, net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
+                    net.minecraft.world.RaycastContext.FluidHandling.NONE, sp));
+                var to = hit.getType() == net.minecraft.util.hit.HitResult.Type.MISS ? end : hit.getPos();
+                var start = eye.add(sp.getRotationVec(1f).multiply(0.8)).add(0, -0.25, 0);
+                Net.Trail t = new Net.Trail(COSMETICS.selected(sp, "trail"), start.x, start.y, start.z, to.x, to.y, to.z);
+                for (ServerPlayerEntity o : sp.getServerWorld().getPlayers()) {
+                    if (o.squaredDistanceTo(sp) < 128 * 128 && ServerPlayNetworking.canSend(o, Net.Trail.ID)) ServerPlayNetworking.send(o, t);
+                }
+            }
+            return net.minecraft.util.TypedActionResult.pass(stack);
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.WorldDataRequest.ID, (payload, ctx) -> {
             sendWorldData(ctx.player());
             QUESTS.send(ctx.player());
@@ -145,6 +169,7 @@ public final class AotRpg implements ModInitializer {
             SATCHEL.open(server);
             QUESTS.load(server);
             AotItems.scan(server);
+            COSMETICS.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
@@ -156,6 +181,7 @@ public final class AotRpg implements ModInitializer {
             ServerPlayerEntity p = handler.getPlayer();
             Profile pr = PROFILES.get(p.getUuid());
             PARTIES.joined(p);
+            COSMETICS.sync(p);
             sendWorldData(p);
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
@@ -182,6 +208,7 @@ public final class AotRpg implements ModInitializer {
             STAMINA.remove(p);
             SATCHEL.unload(p.getUuid());
             QUESTS.forget(p);
+            HEAL.forget(p);
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
             PROFILES.save(p.getUuid());
@@ -230,6 +257,10 @@ public final class AotRpg implements ModInitializer {
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
             STORY.tick(p, PROFILES.get(p.getUuid()), ticks);
             QUESTS.tick(p, PROFILES.get(p.getUuid()), ticks);
+            if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {
+                SATCHEL.tickSupplies(p);
+                HEAL.sync(p, ticks % 40 == 0);
+            }
             if (ticks % 20 == 0 && PROFILES.get(p.getUuid()).created) PROGRESSION.hunger(p);
         }
         PARTIES.tick(server, ticks);

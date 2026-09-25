@@ -42,8 +42,10 @@ public final class AotItems {
             ITEMS.sort((a, b) -> a.getPath().compareTo(b.getPath()));
         }
         StringBuilder b = new StringBuilder("# Items from the Attack on Titan mod (" + namespace + "), found by the AoT RPG mod.\n");
-        b.append("# Starter kit picks: odm=").append(best(ODM)).append(" grips(x2)=").append(best(GRIP, "blade"))
-            .append(" blades=").append(best(BLADE, "grip", "handle")).append(" gas=").append(best(GAS)).append("\n\n");
+        b.append("# Starter kit picks: odm grips(x2)=").append(best(ODM, "handle", "blade", "gas", "boot", "uniform"))
+            .append(" blades=").append(exact("blade_component") != null ? namespace + ":blade_component" : best(BLADE, "grip", "handle"))
+            .append(" gas=").append(best(GAS)).append(" ice burst=").append(best(CLUSTER))
+            .append(" uniform=").append(exact("uniform") != null ? namespace + ":uniform" : "none").append("\n\n");
         for (Identifier id : ITEMS) b.append(id).append('\n');
         try {
             var f = server.getSavePath(WorldSavePath.ROOT).resolve("aot_rpg").resolve("aot-items.txt");
@@ -92,9 +94,47 @@ public final class AotItems {
     }
 
     public static final String[] ODM = {"odm_gear", "odm", "maneuver", "3dmg"};
+    public static final String[] CLUSTER = {"ice_burst", "iceburst", "cluster"};
+    /** Consumables that live in the satchel and move into the inventory while armed. */
+    public static final String[] SUPPLY_PATHS = {"blade_component", "apg_cartridge"};
     public static final String[] GRIP = {"grip", "handle", "trigger"};
     public static final String[] BLADE = {"blade"};
     public static final String[] GAS = {"gas_canister", "gas", "canister"};
+
+    /** The AoT mod's item with exactly this path (e.g. "uniform"), or null. */
+    public static Item exact(String path) {
+        if (namespace == null) return null;
+        Identifier id = Identifier.of(namespace, path);
+        return Registries.ITEM.containsId(id) ? Registries.ITEM.get(id) : null;
+    }
+
+    public static boolean isAot(ItemStack s) {
+        return namespace != null && !s.isEmpty() && Registries.ITEM.getId(s.getItem()).getNamespace().equals(namespace);
+    }
+
+    private static String path(ItemStack s) {
+        return Registries.ITEM.getId(s.getItem()).getPath();
+    }
+
+    /** Blades, APG cartridges and Ice Burst clusters: satchel supplies. */
+    public static boolean isSupply(ItemStack s) {
+        if (!isAot(s)) return false;
+        String p = path(s);
+        for (String x : SUPPLY_PATHS) if (p.equals(x)) return true;
+        for (String x : CLUSTER) if (p.contains(x)) return true;
+        return false;
+    }
+
+    /** Items that use supplies: ODM grips, the APG gun, gas canisters. */
+    public static boolean usesSupplies(ItemStack s) {
+        if (!isAot(s) || isSupply(s)) return false;
+        String p = path(s);
+        return p.contains("odm") || p.contains("grip") || p.contains("apg_gun") || p.contains("gun") || p.contains("canister") || p.contains("gas");
+    }
+
+    public static boolean isApgGun(ItemStack s) {
+        return isAot(s) && path(s).contains("apg_gun");
+    }
 
     /** First AoT item whose id contains any of the keywords (earlier keywords win). */
     public static Identifier find(String... keywords) {

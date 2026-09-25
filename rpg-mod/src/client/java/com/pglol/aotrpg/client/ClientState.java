@@ -24,6 +24,10 @@ public final class ClientState {
     public static java.util.List<Net.Marker> markers = java.util.List.of();
     public static java.util.List<Net.QuestView> quests = java.util.List.of();
 
+    public static java.util.List<String> cosmetics = java.util.List.of("trail_tracer");
+    public static String trail = "trail_tracer";
+    public static boolean cosmeticsAll;
+
     public static Net.PartyMember partyMember(java.util.UUID id) {
         for (Net.PartyMember m : party) if (m.id().equals(id)) return m;
         return null;

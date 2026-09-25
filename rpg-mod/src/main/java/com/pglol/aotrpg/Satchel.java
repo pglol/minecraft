@@ -51,7 +51,7 @@ public final class Satchel {
 
     /** What the satchel holds: story items, anything edible and supplies. */
     public static boolean accepts(ItemStack s) {
-        return !s.isEmpty() && (isStory(s) || s.contains(DataComponentTypes.FOOD) || SUPPLIES.contains(s.getItem()));
+        return !s.isEmpty() && (isStory(s) || s.contains(DataComponentTypes.FOOD) || SUPPLIES.contains(s.getItem()) || AotItems.isSupply(s));
     }
 
     public void open(MinecraftServer server) {
@@ -110,6 +110,59 @@ public final class Satchel {
         if (!rest.isEmpty()) p.giveItemStack(rest);
         if (!rest.isEmpty()) p.dropItem(rest, false);
         save(p.getUuid());
+    }
+
+    /**
+     * Supplies (blades, cartridges, Ice Burst clusters) live in the satchel. While the player holds
+     * gear that uses them, one stack of each sits in the inventory so reloading and refilling work;
+     * otherwise they (and newly picked-up ones) go back into the satchel.
+     */
+    public void tickSupplies(ServerPlayerEntity p) {
+        var inv = p.getInventory();
+        SimpleInventory bag = get(p.getUuid());
+        boolean armed = AotItems.usesSupplies(p.getMainHandStack()) || AotItems.usesSupplies(p.getOffHandStack());
+        boolean changed = false;
+        if (armed) {
+            for (int i = 0; i < bag.size(); i++) {
+                ItemStack s = bag.getStack(i);
+                if (!AotItems.isSupply(s)) continue;
+                int have = 0;
+                for (ItemStack m : inv.main) if (ItemStack.areItemsAndComponentsEqual(m, s)) have += m.getCount();
+                int want = s.getMaxCount() - have;
+                if (want <= 0) continue;
+                // Prefer the main inventory rows over the hotbar.
+                for (int slot = 9; slot < 36 && want > 0 && !s.isEmpty(); slot++) {
+                    ItemStack m = inv.main.get(slot);
+                    if (m.isEmpty()) {
+                        int k = Math.min(want, s.getCount());
+                        inv.main.set(slot, s.split(k));
+                        want -= k;
+                        changed = true;
+                    } else if (ItemStack.areItemsAndComponentsEqual(m, s) && m.getCount() < m.getMaxCount()) {
+                        int k = Math.min(Math.min(want, s.getCount()), m.getMaxCount() - m.getCount());
+                        m.increment(k);
+                        s.decrement(k);
+                        want -= k;
+                        changed = true;
+                    }
+                }
+            }
+        } else if (p.currentScreenHandler == p.playerScreenHandler && p.currentScreenHandler.getCursorStack().isEmpty()) {
+            // Not while a chest or the satchel is open, so manual moves are never fought.
+            for (int slot = 0; slot < inv.main.size(); slot++) {
+                ItemStack m = inv.main.get(slot);
+                if (!AotItems.isSupply(m)) continue;
+                ItemStack rest = bag.addStack(m.copy());
+                if (rest.getCount() != m.getCount()) {
+                    inv.main.set(slot, rest);
+                    changed = true;
+                }
+            }
+        }
+        if (changed) {
+            bag.markDirty();
+            inv.markDirty();
+        }
     }
 
     public void openScreen(ServerPlayerEntity p) {

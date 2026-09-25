@@ -389,7 +389,68 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: use the quick-heal. */
+    public record QuickHealUse() implements CustomPayload {
+        public static final Id<QuickHealUse> ID = id("quick_heal");
+        public static final PacketCodec<RegistryByteBuf, QuickHealUse> CODEC = PacketCodec.unit(new QuickHealUse());
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: the next heal item (registry id), how many, and the cooldown. */
+    public record HealInfo(String item, int count, int cooldown, int cooldownMax) implements CustomPayload {
+        public static final Id<HealInfo> ID = id("heal_info");
+        public static final PacketCodec<RegistryByteBuf, HealInfo> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.item); b.writeVarInt(v.count); b.writeVarInt(v.cooldown); b.writeVarInt(v.cooldownMax);
+        }, b -> new HealInfo(b.readString(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: unlocked cosmetics and what is selected (trail first). */
+    public record CosmeticsSync(java.util.List<String> unlocked, java.util.List<String> selected, boolean allowlisted) implements CustomPayload {
+        public static final Id<CosmeticsSync> ID = id("cosmetics");
+        public static final PacketCodec<RegistryByteBuf, CosmeticsSync> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.unlocked.size());
+            for (String s : v.unlocked) b.writeString(s);
+            b.writeVarInt(v.selected.size());
+            for (String s : v.selected) b.writeString(s);
+            b.writeBoolean(v.allowlisted);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 256);
+            java.util.List<String> u = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) u.add(b.readString());
+            int m = Math.min(b.readVarInt(), 32);
+            java.util.List<String> s = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) s.add(b.readString());
+            return new CosmeticsSync(u, s, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: select a cosmetic. */
+    public record SelectCosmetic(String id) implements CustomPayload {
+        public static final Id<SelectCosmetic> ID = id("select_cosmetic");
+        public static final PacketCodec<RegistryByteBuf, SelectCosmetic> CODEC =
+            PacketCodec.of((v, b) -> b.writeString(v.id), b -> new SelectCosmetic(b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: a shot's trail from start to end in the shooter's chosen style. */
+    public record Trail(String style, double x0, double y0, double z0, double x1, double y1, double z1) implements CustomPayload {
+        public static final Id<Trail> ID = id("trail");
+        public static final PacketCodec<RegistryByteBuf, Trail> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.style);
+            b.writeDouble(v.x0); b.writeDouble(v.y0); b.writeDouble(v.z0);
+            b.writeDouble(v.x1); b.writeDouble(v.y1); b.writeDouble(v.z1);
+        }, b -> new Trail(b.readString(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playC2S().register(QuickHealUse.ID, QuickHealUse.CODEC);
+        PayloadTypeRegistry.playS2C().register(HealInfo.ID, HealInfo.CODEC);
+        PayloadTypeRegistry.playS2C().register(CosmeticsSync.ID, CosmeticsSync.CODEC);
+        PayloadTypeRegistry.playC2S().register(SelectCosmetic.ID, SelectCosmetic.CODEC);
+        PayloadTypeRegistry.playS2C().register(Trail.ID, Trail.CODEC);
         PayloadTypeRegistry.playC2S().register(WorldDataRequest.ID, WorldDataRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(Areas.ID, Areas.CODEC);
         PayloadTypeRegistry.playS2C().register(MapFiles.ID, MapFiles.CODEC);

@@ -37,25 +37,32 @@ public final class Kit {
     }
 
     public static void give(ServerPlayerEntity p, Profile pr, int[] camp) {
-        p.giveItemStack(uniform(Items.LEATHER_CHESTPLATE, 0x6B4F2A, "Cadet Jacket", "Standard issue, 104th Cadet Corps"));
+        // Uniform: the AoT mod's uniform when installed.
+        Item uniformItem = AotItems.exact("uniform");
+        if (uniformItem != null) p.giveItemStack(new ItemStack(uniformItem));
+        else p.giveItemStack(uniform(Items.LEATHER_CHESTPLATE, 0x6B4F2A, "Cadet Jacket", "Standard issue, 104th Cadet Corps"));
         p.giveItemStack(uniform(Items.LEATHER_LEGGINGS, 0xE8E0C8, "Training Trousers", "Standard issue, 104th Cadet Corps"));
-        p.giveItemStack(uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "Riding Boots", "Standard issue, 104th Cadet Corps"));
-        // Gear from the AoT mod when it is installed (ODM gear, blades, gas), otherwise a training sword.
+        p.giveItemStack(uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "ODM Boots",
+            "Strapped boots for ODM gear. Standard issue, 104th Cadet Corps"));
         if (AotItems.present()) {
-            // Standard issue ODM gear (not the anti-personnel model), two grips, blades and gas.
-            ItemStack odm = AotItems.bestStack(1, AotItems.ODM, "grip", "handle", "blade", "gas");
-            if (!odm.isEmpty()) p.giveItemStack(odm);
-            ItemStack grip = AotItems.bestStack(1, AotItems.GRIP, "blade");
-            if (!grip.isEmpty()) {
-                if (grip.getMaxCount() > 1) grip.setCount(2);
-                else p.giveItemStack(grip.copy());
-                p.giveItemStack(grip);
+            // Standard ODM gear: one grip for each hand, a gas canister, and supplies in the satchel.
+            ItemStack odm = AotItems.bestStack(1, AotItems.ODM, "handle", "blade", "gas", "boot", "uniform");
+            if (odm.isEmpty()) odm = AotItems.bestStack(1, AotItems.GRIP, "blade");
+            if (!odm.isEmpty()) {
+                p.giveItemStack(odm.copy());
+                p.giveItemStack(odm.copy());
             }
-            ItemStack blades = AotItems.bestStack(8, AotItems.BLADE, "grip", "handle");
-            if (!blades.isEmpty()) p.giveItemStack(blades);
-            else if (grip.isEmpty()) p.giveItemStack(named(Items.IRON_SWORD, 1, "Training Blade", Formatting.WHITE, "Dull, but it will do."));
-            ItemStack gas = AotItems.bestStack(8, AotItems.GAS);
+            ItemStack gas = AotItems.bestStack(1, AotItems.GAS);
             if (!gas.isEmpty()) p.giveItemStack(gas);
+            ItemStack clusters = AotItems.bestStack(16, AotItems.CLUSTER);
+            if (!clusters.isEmpty()) AotRpg.SATCHEL.add(p, clusters);
+            Item blade = AotItems.exact("blade_component");
+            if (blade != null) AotRpg.SATCHEL.add(p, new ItemStack(blade, Math.min(16, blade.getMaxCount())));
+            else {
+                ItemStack blades = AotItems.bestStack(8, AotItems.BLADE, "grip", "handle");
+                if (!blades.isEmpty()) AotRpg.SATCHEL.add(p, blades);
+            }
+            if (odm.isEmpty()) p.giveItemStack(named(Items.IRON_SWORD, 1, "Training Blade", Formatting.WHITE, "Dull, but it will do."));
         } else {
             p.giveItemStack(named(Items.IRON_SWORD, 1, "Training Blade", Formatting.WHITE, "Dull, but it will do."));
         }

@@ -16,7 +16,15 @@ import org.lwjgl.glfw.GLFW;
 
 /** Client side: creator and character screens, the RPG HUD, the K key. */
 public final class AotRpgClient implements ClientModInitializer {
-    private static KeyBinding characterKey, mapKey, journalKey, satchelKey;
+    private static KeyBinding characterKey, mapKey, journalKey, satchelKey, healKey, socialKey;
+
+    public static KeyBinding healKey() {
+        return healKey;
+    }
+
+    public static KeyBinding socialKey() {
+        return socialKey;
+    }
 
     public static KeyBinding mapKey() {
         return mapKey;
@@ -37,7 +45,22 @@ public final class AotRpgClient implements ClientModInitializer {
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, "category.aot_rpg"));
         journalKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.journal",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_J, "category.aot_rpg"));
+        healKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.heal",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_H, "category.aot_rpg"));
+        socialKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.social",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, "category.aot_rpg"));
         WorldRenderEvents.AFTER_ENTITIES.register(Beams::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.HealInfo.ID, (payload, ctx) -> {
+            CombatHotbar.heal = payload;
+            CombatHotbar.healAt = net.minecraft.util.Util.getMeasuringTimeMs();
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.CosmeticsSync.ID, (payload, ctx) -> {
+            ClientState.cosmetics = payload.unlocked();
+            ClientState.trail = payload.selected().isEmpty() ? "trail_tracer" : payload.selected().get(0);
+            ClientState.cosmeticsAll = payload.allowlisted();
+            if (ctx.client().currentScreen instanceof CosmeticsScreen s) s.refresh();
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.Trail.ID, (payload, ctx) -> Trails.spawn(payload));
 
         ClientPlayNetworking.registerGlobalReceiver(Net.OpenCreator.ID, (payload, ctx) -> {
             // A fresh creator (not a rejected attempt) means the character was reset.
@@ -105,6 +128,12 @@ public final class AotRpgClient implements ClientModInitializer {
             }
             while (satchelKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) ClientPlayNetworking.send(new Net.OpenSatchel());
+            }
+            while (healKey.wasPressed()) {
+                if (ClientState.profile != null && client.currentScreen == null) ClientPlayNetworking.send(new Net.QuickHealUse());
+            }
+            while (socialKey.wasPressed()) {
+                if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());
             }
             Minimap.tick(client);
             // Exhausted: no sprinting until stamina recovers.

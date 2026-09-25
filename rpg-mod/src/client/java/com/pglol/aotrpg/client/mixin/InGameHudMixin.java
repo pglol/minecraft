@@ -15,6 +15,15 @@ public abstract class InGameHudMixin {
         if (RpgHud.active()) ci.cancel();
     }
 
+    /** The combat hotbar replaces the vanilla one (same place, all nine slots). */
+    @Inject(method = "renderHotbar", at = @At("HEAD"), cancellable = true)
+    private void aotrpg$hotbar(net.minecraft.client.gui.DrawContext context, net.minecraft.client.render.RenderTickCounter tick, CallbackInfo ci) {
+        if (com.pglol.aotrpg.client.CombatHotbar.active()) {
+            com.pglol.aotrpg.client.CombatHotbar.render(context, tick);
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "renderExperienceBar", at = @At("HEAD"), cancellable = true)
     private void aotrpg$xpBar(CallbackInfo ci) {
         if (RpgHud.active()) ci.cancel();

@@ -135,6 +135,43 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Closed the Underground stairway trench (" + n + " blocks). The stairs below are untouched."), true);
                 return 1;
             })))
+            .then(CommandManager.literal("cosmetics")
+                .then(CommandManager.literal("allow").then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    AotRpg.COSMETICS.allow(p, true);
+                    c.getSource().sendFeedback(() -> Text.literal(p.getName().getString() + " is on the cosmetics allowlist (all unlocked)."), true);
+                    return 1;
+                })))
+                .then(CommandManager.literal("disallow").then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    AotRpg.COSMETICS.allow(p, false);
+                    c.getSource().sendFeedback(() -> Text.literal(p.getName().getString() + " removed from the cosmetics allowlist."), true);
+                    return 1;
+                })))
+                .then(CommandManager.literal("grant").then(CommandManager.argument("player", EntityArgumentType.player())
+                    .then(CommandManager.argument("id", com.mojang.brigadier.arguments.StringArgumentType.word())
+                        .suggests((c, b) -> {
+                            b.suggest("all");
+                            for (Cosmetics.Def d : Cosmetics.ALL) b.suggest(d.id());
+                            return b.buildFuture();
+                        })
+                        .executes(c -> cosmetic(c.getSource(), EntityArgumentType.getPlayer(c, "player"),
+                            com.mojang.brigadier.arguments.StringArgumentType.getString(c, "id"), true)))))
+                .then(CommandManager.literal("revoke").then(CommandManager.argument("player", EntityArgumentType.player())
+                    .then(CommandManager.argument("id", com.mojang.brigadier.arguments.StringArgumentType.word())
+                        .suggests((c, b) -> {
+                            b.suggest("all");
+                            for (Cosmetics.Def d : Cosmetics.ALL) b.suggest(d.id());
+                            return b.buildFuture();
+                        })
+                        .executes(c -> cosmetic(c.getSource(), EntityArgumentType.getPlayer(c, "player"),
+                            com.mojang.brigadier.arguments.StringArgumentType.getString(c, "id"), false)))))
+                .then(CommandManager.literal("list").then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    c.getSource().sendFeedback(() -> Text.literal(p.getName().getString() + (AotRpg.COSMETICS.allowlisted(p) ? " (allowlisted)" : "")
+                        + ": " + String.join(", ", AotRpg.COSMETICS.unlocked(p))), false);
+                    return 1;
+                }))))
             .then(CommandManager.literal("items").executes(c -> {
                 AotItems.scan(c.getSource().getServer());
                 c.getSource().sendFeedback(() -> Text.literal(AotItems.all().size() + " AoT mod items listed in <world>/aot_rpg/aot-items.txt"), false);
@@ -150,6 +187,16 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Reloaded aot-rpg.json."), true);
                 return 1;
             })));
+    }
+
+    private static int cosmetic(ServerCommandSource src, ServerPlayerEntity p, String id, boolean on) {
+        if (!id.equals("all") && Cosmetics.def(id) == null) {
+            src.sendError(Text.literal("Unknown cosmetic: " + id));
+            return 0;
+        }
+        AotRpg.COSMETICS.grant(p, id, on);
+        src.sendFeedback(() -> Text.literal((on ? "Granted " : "Revoked ") + id + (on ? " to " : " from ") + p.getName().getString()), true);
+        return 1;
     }
 
     private static int setMode(ServerCommandSource src, ServerPlayerEntity p, String mode) {
