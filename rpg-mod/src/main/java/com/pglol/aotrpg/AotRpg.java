@@ -194,6 +194,16 @@ public final class AotRpg implements ModInitializer {
             }
             return net.minecraft.util.TypedActionResult.pass(stack);
         });
+        // No vanilla chest loot: containers with a loot table are emptied of it before they open.
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (!world.isClient && !CARE.config.vanillaChestLoot && world.getRegistryKey() == net.minecraft.world.World.OVERWORLD
+                && world.getBlockEntity(hit.getBlockPos()) instanceof net.minecraft.block.entity.LootableContainerBlockEntity lc
+                && lc.getLootTable() != null) {
+                lc.setLootTable(null);
+                lc.markDirty();
+            }
+            return ActionResult.PASS;
+        });
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             var item = player.getStackInHand(hand).getItem();
             if (!world.isClient && (item instanceof net.minecraft.item.FlintAndSteelItem || item instanceof net.minecraft.item.FireChargeItem

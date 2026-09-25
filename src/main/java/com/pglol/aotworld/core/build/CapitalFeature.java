@@ -33,7 +33,7 @@ public final class CapitalFeature extends TownFeature {
         palace = new House(-40, -26, 40, 26, true, BASE, 5, Style.PALACE, 1, false).use(House.Use.HALL);
         underground = new TownGrid(0, 0, Atlas.EAST, CAVE_FLOOR, Hash.of(seed, 77),
             (x, z) -> x * x + z * z < CAVE_TOWN_R * CAVE_TOWN_R, Style.UNDERGROUND, 1, 2, 26,
-            new int[] {Blocks.COBBLE, Blocks.GRAVEL, Blocks.MOSSY_COBBLE, Blocks.ANDESITE});
+            new int[] {Blocks.COBBLE, Blocks.GRAVEL, Blocks.MOSSY_COBBLE, Blocks.ANDESITE}).noStables();
     }
 
     @Override

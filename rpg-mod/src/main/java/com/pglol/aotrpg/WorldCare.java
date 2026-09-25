@@ -59,6 +59,8 @@ public final class WorldCare {
         public boolean regen = true;
         public int regenDelaySeconds = 300;
         public int blocksPerSecond = 80;
+        /** Vanilla loot tables in chests and barrels (off: loot comes from quests, bosses and drops). */
+        public boolean vanillaChestLoot = false;
         public List<Zone> buildZones = new ArrayList<>();
     }
 

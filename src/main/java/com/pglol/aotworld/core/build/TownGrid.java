@@ -58,6 +58,14 @@ public final class TownGrid {
         return this;
     }
 
+    private boolean stables = true;
+
+    /** No stables here (the Underground City has no horses and no paddocks). */
+    public TownGrid noStables() {
+        stables = false;
+        return this;
+    }
+
     public TownGrid exclude(int x0, int z0, int x1, int z1) {
         exclusions.add(new int[] {Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)});
         return this;
@@ -211,8 +219,12 @@ public final class TownGrid {
             House house = house(qa, qb, la0, lb0, la1, lb1, lh);
             buf.set(x, baseY, z, Blocks.COBBLE);
             if (house.covers(x, z)) house.column(buf, x, z, baseY);
-        } else if (u < 0.80) {
+        } else if (u < 0.80 && stables) {
             stable(buf, x, z, a, b, la0, lb0, la1, lb1, h, false);
+        } else if (u < 0.80) {
+            House house = house(qa, qb, la0, lb0, la1, lb1, lh);
+            buf.set(x, baseY, z, Blocks.COBBLE);
+            if (house.covers(x, z)) house.column(buf, x, z, baseY);
         } else if (u < 0.87) {
             garden(buf, x, z, a, b, la0, lb0, la1, lb1, h);
         } else if (u < 0.93) {

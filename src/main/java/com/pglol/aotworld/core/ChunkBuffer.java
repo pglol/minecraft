@@ -61,11 +61,17 @@ public final class ChunkBuffer {
         entities.add(new BlockEntity(x, y, z, "minecraft:sign", lines, null));
     }
 
-    /** A chest filled from a vanilla loot table when first opened. */
+    /**
+     * Vanilla loot tables in chests are off: loot comes from the RPG systems (quests, bosses,
+     * drops), so the world's chests start empty. Set to true for the old behaviour.
+     */
+    public static boolean vanillaLoot = false;
+
+    /** A chest; filled from a vanilla loot table when first opened only if vanillaLoot is on. */
     public void lootChest(int x, int y, int z, String facing, String lootTable) {
         if (!contains(x, z)) return;
         set(x, y, z, Blocks.id("chest[facing=" + facing + "]"));
-        entities.add(new BlockEntity(x, y, z, "minecraft:chest", null, lootTable));
+        entities.add(new BlockEntity(x, y, z, "minecraft:chest", null, vanillaLoot ? lootTable : null));
     }
 
     public List<BlockEntity> entities() {
