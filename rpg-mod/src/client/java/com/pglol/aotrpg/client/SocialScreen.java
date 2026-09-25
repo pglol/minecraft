@@ -64,9 +64,10 @@ public final class SocialScreen extends Screen {
             })).selected(tab == i);
         }
         // Shortcuts along the bottom.
-        String[] names = {"Party", "Battle Pass", "Event Shop", "Market", "Factions"};
+        String[] names = {"Party", "Tasks", "Battle Pass", "Event Shop", "Market", "Factions"};
         Runnable[] runs = {
             () -> client.setScreen(new PartyScreen()),
+            () -> ClientPlayNetworking.send(new Net.TaskAction("open", "")),
             () -> ClientPlayNetworking.send(new Net.PassAction("open", 0)),
             () -> ClientPlayNetworking.send(new Net.EventAction("open", "")),
             () -> ClientPlayNetworking.send(new Net.MarketAction("open", "", 0, 0)),

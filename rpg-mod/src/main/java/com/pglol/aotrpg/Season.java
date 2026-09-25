@@ -92,6 +92,14 @@ public final class Season {
         if (data.xpPerTier <= 0) data.xpPerTier = 1000;
     }
 
+    public String id() {
+        return data.id;
+    }
+
+    public long endsAt() {
+        return data.endsAt;
+    }
+
     public boolean ended() {
         return data.endsAt > 0 && System.currentTimeMillis() > data.endsAt;
     }
@@ -121,6 +129,7 @@ public final class Season {
         a.passXp = Math.min(a.passXp + n, data.xpPerTier * data.tiers.size());
         int after = tier(a);
         AotRpg.PROFILES.saveAccount(p.getUuid());
+        AotRpg.TASKS.set(p, Tasks.PASS, after);
         if (after > before) {
             Titles.show(p, Text.literal("PASS TIER " + after).formatted(Formatting.GOLD, Formatting.BOLD),
                 Text.literal("Rewards ready: Pause menu → Battle Pass").formatted(Formatting.YELLOW), 5, 50, 15);

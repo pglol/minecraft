@@ -72,6 +72,7 @@ public final class AotRpg implements ModInitializer {
     public static final Furniture FURNITURE = new Furniture();
     public static final HomeRaids RAIDS = new HomeRaids();
     public static final TitanCrowd CROWD = new TitanCrowd();
+    public static final Tasks TASKS = new Tasks();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -169,6 +170,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.FurnitureAction.ID, (payload, ctx) ->
             FURNITURE.action(ctx.player(), payload.action(), payload.piece(), payload.action().equals("place") ? net.minecraft.util.math.BlockPos.fromLong(payload.at()) : null));
+        ServerPlayNetworking.registerGlobalReceiver(Net.TaskAction.ID, (payload, ctx) -> TASKS.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.PassAction.ID, (payload, ctx) -> SEASON.action(ctx.player(), payload.action(), payload.tier()));
         ServerPlayNetworking.registerGlobalReceiver(Net.EventAction.ID, (payload, ctx) -> EVENTS.action(ctx.player(), payload.action(), payload.item()));
         ServerPlayNetworking.registerGlobalReceiver(Net.SocialAction.ID, (payload, ctx) -> SOCIAL.action(ctx.player(), payload.action(), payload.target()));
@@ -456,6 +458,7 @@ public final class AotRpg implements ModInitializer {
             if (PROFILES.get(p.getUuid()).created) ROLES.tick(p, ticks);
             GRAB.tick(p, ticks);
             FURNITURE.tick(p, ticks);
+            if (ticks % 1200 == 0 && !CROWD.afk(p)) TASKS.count(p, Tasks.MINUTES, 1);
             if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {
                 SATCHEL.tickSupplies(p);
                 HEAL.sync(p, ticks % 40 == 0);
@@ -496,6 +499,7 @@ public final class AotRpg implements ModInitializer {
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());
         SEASON.xp(killer, Season.XP_TITAN);
+        TASKS.count(killer, Tasks.TITANS, 1);
         EVENTS.onTitanKill(killer);
         // Party members within 64 blocks share 60%; anyone else within 32 blocks gets an assist.
         for (ServerPlayerEntity p : killer.getServerWorld().getPlayers()) {

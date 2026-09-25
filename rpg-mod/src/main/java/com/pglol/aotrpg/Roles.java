@@ -56,11 +56,14 @@ public final class Roles {
     /** The tag shown by the name: an operator role, or the RP rank, or nothing. */
     public static String tag(Profile pr) {
         if (pr.role != null && !pr.role.isEmpty()) return pr.role;
-        return pr.rp ? rank(pr).title() : "";
+        if (pr.rp) return rank(pr).title();
+        Tasks.Achievement a = Tasks.worn(pr);
+        return a == null ? "" : a.title();
     }
 
     public static int tagColor(Profile pr) {
         if (pr.role != null && !pr.role.isEmpty()) return pr.roleColor == 0 ? 0xE04A3A : pr.roleColor;
+        if (!pr.rp && Tasks.worn(pr) != null) return Tasks.worn(pr).color();
         return rank(pr).color();
     }
 
@@ -69,7 +72,7 @@ public final class Roles {
         MutableText name = Text.literal(pr.name).setStyle(Style.EMPTY.withColor(0xEDE3C8));
         String t = tag(pr);
         if (t.isEmpty()) return name;
-        MutableText tag = Text.literal((pr.role != null && !pr.role.isEmpty() ? "" : "RP · ") + t)
+        MutableText tag = Text.literal((pr.role != null && !pr.role.isEmpty() || !pr.rp ? "" : "RP · ") + t)
             .setStyle(Style.EMPTY.withColor(tagColor(pr)).withFont(HEADING));
         return Text.literal("[").formatted(Formatting.DARK_GRAY).append(tag).append(Text.literal("] ").formatted(Formatting.DARK_GRAY)).append(name);
     }

@@ -279,6 +279,7 @@ public final class Furniture {
         pl.z = at.getZ();
         pl.rot = rot.ordinal();
         data.placed.add(pl);
+        AotRpg.TASKS.count(p, Tasks.FURNITURE, 1);
         indexPiece(pl, true);
         if (crate.merge(id, -1, Integer::sum) <= 0) crate.remove(id);
         save();

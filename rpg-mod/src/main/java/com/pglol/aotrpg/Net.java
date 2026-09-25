@@ -942,6 +942,56 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** A task on a board: period 0 daily, 1 weekly, 2 monthly, 3 season. */
+    public record TaskEntry(String id, int period, String text, int progress, int goal, String reward, String icon, boolean claimed) { }
+
+    public record AchievementEntry(String id, String title, String desc, long progress, long goal, String reward, int color, boolean earned) { }
+
+    /** Server -> client: task boards, achievements, the worn title and seconds left per period. */
+    public record TasksView(java.util.List<TaskEntry> tasks, java.util.List<AchievementEntry> achievements, String title, long[] left,
+                            boolean open) implements CustomPayload {
+        public static final Id<TasksView> ID = id("tasks");
+        public static final PacketCodec<RegistryByteBuf, TasksView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.tasks.size());
+            for (TaskEntry t : v.tasks) {
+                b.writeString(t.id()); b.writeVarInt(t.period()); b.writeString(t.text()); b.writeVarInt(t.progress()); b.writeVarInt(t.goal());
+                b.writeString(t.reward()); b.writeString(t.icon()); b.writeBoolean(t.claimed());
+            }
+            b.writeVarInt(v.achievements.size());
+            for (AchievementEntry a : v.achievements) {
+                b.writeString(a.id()); b.writeString(a.title()); b.writeString(a.desc()); b.writeVarLong(a.progress()); b.writeVarLong(a.goal());
+                b.writeString(a.reward()); b.writeInt(a.color()); b.writeBoolean(a.earned());
+            }
+            b.writeString(v.title);
+            b.writeVarInt(v.left.length);
+            for (long l : v.left) b.writeLong(l);
+            b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 100);
+            java.util.List<TaskEntry> t = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) t.add(new TaskEntry(b.readString(), b.readVarInt(), b.readString(), b.readVarInt(), b.readVarInt(),
+                b.readString(), b.readString(), b.readBoolean()));
+            int m = Math.min(b.readVarInt(), 200);
+            java.util.List<AchievementEntry> a = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) a.add(new AchievementEntry(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readVarLong(),
+                b.readString(), b.readInt(), b.readBoolean()));
+            String title = b.readString();
+            int k = Math.min(b.readVarInt(), 8);
+            long[] left = new long[k];
+            for (int i = 0; i < k; i++) left[i] = b.readLong();
+            return new TasksView(t, a, title, left, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open, claim (task id), claimall, title (achievement id or ""). */
+    public record TaskAction(String action, String arg) implements CustomPayload {
+        public static final Id<TaskAction> ID = id("task_action");
+        public static final PacketCodec<RegistryByteBuf, TaskAction> CODEC =
+            PacketCodec.of((v, b) -> { b.writeString(v.action); b.writeString(v.arg); }, b -> new TaskAction(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the game modes and which are unlocked. */
     public record ModeView(java.util.List<ModeEntry> modes, int chapter, boolean open) implements CustomPayload {
         public static final Id<ModeView> ID = id("modes");
@@ -971,6 +1021,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playS2C().register(TasksView.ID, TasksView.CODEC);
+        PayloadTypeRegistry.playC2S().register(TaskAction.ID, TaskAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PropertyState.ID, PropertyState.CODEC);
         PayloadTypeRegistry.playS2C().register(FurnitureView.ID, FurnitureView.CODEC);
         PayloadTypeRegistry.playC2S().register(FurnitureAction.ID, FurnitureAction.CODEC);

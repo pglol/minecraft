@@ -48,6 +48,15 @@ public final class Profile {
     public java.util.Set<String> unlockedModes = new java.util.HashSet<>();
     /** Lifestyle skills (smithing, fishing, cooking): skill -> xp. */
     public java.util.Map<String, Long> lifestyle = new java.util.HashMap<>();
+    /** Lifetime counters for tasks and achievements (Tasks.TITANS, ...). */
+    public java.util.Map<String, Long> counters = new java.util.HashMap<>();
+    /** Task boards: period -> the period key they belong to; progress and claims by "PERIOD:task". */
+    public java.util.Map<String, String> taskKeys = new java.util.HashMap<>();
+    public java.util.Map<String, Long> taskProgress = new java.util.HashMap<>();
+    public java.util.Set<String> taskClaimed = new java.util.HashSet<>();
+    /** Achievements earned, and the one whose title is worn by the name ("" for none). */
+    public java.util.Set<String> achievements = new java.util.HashSet<>();
+    public String title = "";
 
     public int stat(Stat s) {
         return stats.getOrDefault(s, 0);

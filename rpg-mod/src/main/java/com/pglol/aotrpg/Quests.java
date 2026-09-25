@@ -188,6 +188,7 @@ public final class Quests {
         AotRpg.ROLES.addPoints(p, 5);
         AotRpg.SEASON.xp(p, d.kills() > 0 ? Season.XP_QUEST : Season.XP_QUEST / 2);
         AotRpg.EVENTS.onQuest(p);
+        AotRpg.TASKS.count(p, Tasks.QUESTS, 1);
         AotRpg.PROFILES.save(p.getUuid());
         send(p);
         sendObjective(p);

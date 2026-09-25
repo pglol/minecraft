@@ -106,6 +106,7 @@ public final class Forge {
             p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_ANVIL_DESTROY, SoundCategory.BLOCKS, 0.6f, 1.1f);
         }
         Lifestyle.add(p, Lifestyle.SMITHING, 8 + Math.round(quality * 12));
+        AotRpg.TASKS.count(p, Tasks.FORGE, 1);
         send(p, false);
     }
 
@@ -141,6 +142,7 @@ public final class Forge {
         p.sendMessage(Text.literal("Forged: ").formatted(Formatting.GRAY).append(out.getName().copy()), false);
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_SMITHING_TABLE_USE, SoundCategory.BLOCKS, 0.9f, 1f);
         Lifestyle.add(p, Lifestyle.SMITHING, 15 + Math.round(quality * 20));
+        AotRpg.TASKS.count(p, Tasks.FORGE, 1);
         send(p, false);
     }
 

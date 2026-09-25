@@ -100,6 +100,7 @@ public final class Fishing {
         p.sendMessage(Text.literal(q >= 0.85f ? "Perfect catch!" : q >= 0.5f ? "Landed it" : "Barely landed it")
             .formatted(Formatting.AQUA).append(extra > 0 ? Text.literal("  +1 fish to your satchel").formatted(Formatting.GRAY) : Text.empty()), true);
         Lifestyle.add(p, Lifestyle.FISHING, Math.round(8 + 22 * q));
+        AotRpg.TASKS.count(p, Tasks.FISH, 1);
     }
 
     public void forget(UUID id) {

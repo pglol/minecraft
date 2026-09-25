@@ -111,6 +111,7 @@ public final class HomeRaids {
                         Text.literal("The titans are gone").formatted(Formatting.GRAY), 10, 50, 20);
                     AotRpg.WALLET.earn(owner, 150, "for defending your home");
                     AotRpg.SEASON.xp(owner, 200);
+                    AotRpg.TASKS.count(owner, Tasks.DEFEND, 1);
                 }
             } else {
                 for (UUID id : r.titans()) {

@@ -37,6 +37,7 @@ public final class ClientState {
     public static Net.ForgeView forge;
     public static Net.ModeView modes;
     public static Net.PassView pass;
+    public static Net.TasksView tasks;
     /** "Your home" / "Your property" while standing on it, else "". */
     public static String property = "";
     public static Net.FurnitureView furniture;

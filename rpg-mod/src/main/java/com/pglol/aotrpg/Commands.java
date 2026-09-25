@@ -315,6 +315,10 @@ final class Commands {
 
     /** /wallet, /pay, /characters and the operator money commands. */
     private static void economy(CommandDispatcher<ServerCommandSource> d) {
+        d.register(CommandManager.literal("tasks").executes(c -> {
+            AotRpg.TASKS.send(c.getSource().getPlayerOrThrow(), true);
+            return 1;
+        }));
         d.register(CommandManager.literal("furniture").executes(c -> {
             AotRpg.FURNITURE.send(c.getSource().getPlayerOrThrow(), true);
             return 1;

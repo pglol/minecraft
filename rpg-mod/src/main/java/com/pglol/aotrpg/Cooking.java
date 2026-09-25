@@ -180,6 +180,7 @@ public final class Cooking {
         for (int k = 0; k < n; k++) if (p.getRandom().nextFloat() < q * 0.3f) extra++;
         for (int k = 0; k < n + extra; k++) AotRpg.SATCHEL.add(p, r.make(q));
         Lifestyle.add(p, Lifestyle.COOKING, Math.round(n * (6 + 14 * q)));
+        AotRpg.TASKS.count(p, Tasks.COOK, n);
         w.playSound(null, fire, SoundEvents.BLOCK_SMOKER_SMOKE, SoundCategory.BLOCKS, 1f, 1f);
         w.playSound(null, fire, SoundEvents.BLOCK_CAMPFIRE_CRACKLE, SoundCategory.BLOCKS, 1f, 1.2f);
         w.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, fire.getX() + 0.5, fire.getY() + 0.8, fire.getZ() + 0.5, 6, 0.2, 0.3, 0.2, 0.01);

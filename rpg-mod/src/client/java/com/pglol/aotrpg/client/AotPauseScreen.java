@@ -45,10 +45,11 @@ public class AotPauseScreen extends Screen {
         y += bh + gap;
         add(x, y, bw, bh, Text.literal("Home"), () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))).active = hasChar;
         y += bh + gap;
-        int tw = (bw - 8) / 3;
-        add(x, y, tw, bh, Text.literal("Social"), () -> ClientPlayNetworking.send(new Net.SocialAction("open", null))).active = hasChar;
-        add(x + tw + 4, y, tw, bh, Text.literal("Pass"), () -> ClientPlayNetworking.send(new Net.PassAction("open", 0))).active = hasChar;
-        add(x + 2 * (tw + 4), y, bw - 2 * (tw + 4), bh, Text.literal("Event"), () -> ClientPlayNetworking.send(new Net.EventAction("open", ""))).active = hasChar;
+        int tw = (bw - 12) / 4;
+        add(x, y, tw, bh, Text.literal("Tasks"), () -> ClientPlayNetworking.send(new Net.TaskAction("open", ""))).active = hasChar;
+        add(x + tw + 4, y, tw, bh, Text.literal("Social"), () -> ClientPlayNetworking.send(new Net.SocialAction("open", null))).active = hasChar;
+        add(x + 2 * (tw + 4), y, tw, bh, Text.literal("Pass"), () -> ClientPlayNetworking.send(new Net.PassAction("open", 0))).active = hasChar;
+        add(x + 3 * (tw + 4), y, bw - 3 * (tw + 4), bh, Text.literal("Event"), () -> ClientPlayNetworking.send(new Net.EventAction("open", ""))).active = hasChar;
         if (op) {
             y += bh + gap;
             add(x, y, bw, bh, Text.literal("Property Office (op)"), () -> ClientPlayNetworking.send(new Net.HomeAction("admin_list", 0, "")));
