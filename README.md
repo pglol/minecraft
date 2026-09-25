@@ -266,7 +266,7 @@ On Linux or macOS: `./create-server.sh <mods folder> [world folder] [ram]`.
 
 ## AoT RPG server mod (`rpg-mod/`)
 
-A Fabric 1.21.1 mod that runs on the server. It also works in single-player if it's in your mods folder. It is built by GitHub Actions and saved as `dist/aot-rpg.jar`. Put it in the server's `mods` folder. Adding it to the client modpack is optional.
+A Fabric 1.21.1 mod that runs on the server. It also works in single-player if it's in your mods folder. It is built by GitHub Actions and saved as `dist/aot-rpg.jar`. Put it in the server's `mods` folder. Also add it to the client modpack: with it players get the full AoT creator screen, the Character & Skills screen (K) and the RPG HUD (name, level, HP, stamina, XP in the top right). Players without it still work, with chest menus and an XP boss bar.
 
 Character creation starts on a player's first join. The player is frozen and protected until they finish:
 1. **Origin**: Shiganshina, Trost, Ragako, Stohess, Mitras or the Underground. Each gives a small bonus and sets where the character starts.
@@ -283,7 +283,11 @@ Progression:
 Every player has a floating name tag showing their character name, level and discipline, visible within about 20 blocks. It replaces the username tag.
 
 Commands:
-- `/character`: character sheet; spend stat points here.
+- `/character` or **K**: character sheet and skill tree. Spend stat points and skill points here.
+
+Skills: three branches (Blade, Mobility, Survival) of four skills, unlocked at levels 1/10/20/35. You get 1 skill point at enlistment and 1 more every 5 levels.
+
+Stamina: sprinting and attacking drain it and resting refills it. At zero you are exhausted: no sprinting and slowed until it recovers. Endurance and some skills raise it.
 - `/aotrpg reset <player>`, `/aotrpg setlevel <player> <level>`, `/aotrpg xp <player> <amount>`, `/aotrpg reload` (operators).
 
 Character data is saved in `<world>/aot_rpg/players/`. Place coordinates come from `<world>/aot-rpg.json`, which the generator writes. Running `add-titans.bat` on an older world adds it.
