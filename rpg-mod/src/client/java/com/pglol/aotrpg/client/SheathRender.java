@@ -58,19 +58,14 @@ public final class SheathRender {
             for (int i = 0; i < grips.length; i++) {
                 ItemStack stack = grips[i];
                 ms.push();
-                // An even X: handles up over each shoulder, blades crossing down the back at the
-                // same angle either side. Danny's grips are upright 3D models; flat item sprites
-                // are drawn diagonally, so they need 45 degrees less.
-                boolean upright = Registries.ITEM.getId(stack.getItem()).getNamespace().equals("dannys-aot");
-                float tilt = grips.length == 1 ? 30 : (i == 0 ? 38 : -38);
-                float angle = (upright ? 180 : 225) + tilt;
-                ms.translate(0, -0.05, 0.02 * i);
+                // Drawn as their inventory icons (flat, the blade on the diagonal) so every grip
+                // model lies the same way: flat against the back. Turned 180 and 270 degrees, the
+                // two blades cross in an even X, handles up over each shoulder.
+                float angle = grips.length == 1 ? 225 : (i == 0 ? 180 : 270);
+                ms.translate(0, -0.05, 0.012 * i);
                 ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle));
-                ms.scale(0.95f, 0.95f, 0.95f);
-                // Turn about the model's middle, not its corner (an upright grip's origin is its
-                // pommel, so it also slides back half its length to cross at the middle).
-                ms.translate(-0.5, upright ? -1.1 : -0.5, -0.5);
-                mc.getItemRenderer().renderItem(stack, ModelTransformationMode.NONE, light, OverlayTexture.DEFAULT_UV, ms, vc, mc.world,
+                ms.scale(0.85f, 0.85f, 0.85f);
+                mc.getItemRenderer().renderItem(stack, ModelTransformationMode.GUI, light, OverlayTexture.DEFAULT_UV, ms, vc, mc.world,
                     pl.getId() * 7 + i);
                 ms.pop();
             }

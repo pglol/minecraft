@@ -1035,6 +1035,18 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: a slide-in notification (key: an update to an earlier one with the same key). */
+    public record Toast(net.minecraft.text.Text title, net.minecraft.text.Text sub, int color, String icon, String key) implements CustomPayload {
+        public static final Id<Toast> ID = id("toast");
+        public static final PacketCodec<RegistryByteBuf, Toast> CODEC = PacketCodec.of((v, b) -> {
+            net.minecraft.text.TextCodecs.REGISTRY_PACKET_CODEC.encode(b, v.title);
+            net.minecraft.text.TextCodecs.REGISTRY_PACKET_CODEC.encode(b, v.sub);
+            b.writeInt(v.color); b.writeString(v.icon); b.writeString(v.key);
+        }, b -> new Toast(net.minecraft.text.TextCodecs.REGISTRY_PACKET_CODEC.decode(b), net.minecraft.text.TextCodecs.REGISTRY_PACKET_CODEC.decode(b),
+            b.readInt(), b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the game modes and which are unlocked. */
     public record ModeView(java.util.List<ModeEntry> modes, int chapter, boolean open) implements CustomPayload {
         public static final Id<ModeView> ID = id("modes");
@@ -1064,6 +1076,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playS2C().register(Toast.ID, Toast.CODEC);
         PayloadTypeRegistry.playS2C().register(CosmeticsOf.ID, CosmeticsOf.CODEC);
         PayloadTypeRegistry.playS2C().register(SlashFx.ID, SlashFx.CODEC);
         PayloadTypeRegistry.playC2S().register(GuardKey.ID, GuardKey.CODEC);

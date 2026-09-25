@@ -24,6 +24,19 @@ public abstract class InGameHudMixin {
         }
     }
 
+    /** Titles become slide-in notifications (areas, waves, level ups...). */
+    @Inject(method = "setTitle", at = @At("HEAD"), cancellable = true)
+    private void aotrpg$title(net.minecraft.text.Text title, CallbackInfo ci) {
+        com.pglol.aotrpg.client.Toasts.title(title);
+        ci.cancel();
+    }
+
+    @Inject(method = "setSubtitle", at = @At("HEAD"), cancellable = true)
+    private void aotrpg$subtitle(net.minecraft.text.Text subtitle, CallbackInfo ci) {
+        com.pglol.aotrpg.client.Toasts.subtitle(subtitle);
+        ci.cancel();
+    }
+
     @Inject(method = "renderExperienceBar", at = @At("HEAD"), cancellable = true)
     private void aotrpg$xpBar(CallbackInfo ci) {
         if (RpgHud.active()) ci.cancel();

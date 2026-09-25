@@ -78,7 +78,8 @@ public final class Coins {
         long[] t = tally.get(p.getUuid());
         if (t != null && t[0] > 0 && ticks - t[1] >= 12) {
             AotRpg.WALLET.earn(p, t[0], null);
-            p.sendMessage(Text.literal("+ ").formatted(Formatting.GREEN).append(Wallet.marks(Math.round(t[0] * (1 + Roles.bonus(AotRpg.PROFILES.get(p.getUuid())))))), true);
+            Notify.toast(p, Text.literal("+ ").formatted(Formatting.GREEN).append(Wallet.marks(Math.round(t[0] * (1 + Roles.bonus(AotRpg.PROFILES.get(p.getUuid())))))),
+                Text.literal("Titan bounty"), 0xE0B96A, "minecraft:gold_nugget", "coins");
             tally.remove(p.getUuid());
         }
     }

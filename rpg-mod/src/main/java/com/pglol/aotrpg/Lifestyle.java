@@ -22,8 +22,8 @@ public final class Lifestyle {
         pr.lifestyle.merge(skill, xp, Long::sum);
         int after = level(pr, skill);
         if (after > before) {
-            p.sendMessage(Text.literal(Character.toUpperCase(skill.charAt(0)) + skill.substring(1) + " " + after).formatted(Formatting.GOLD, Formatting.BOLD)
-                .append(Text.literal("  ·  your craft improves").formatted(Formatting.GRAY)), false);
+            Notify.toast(p, Text.literal(Character.toUpperCase(skill.charAt(0)) + skill.substring(1) + " " + after).formatted(Formatting.GOLD),
+                Text.literal("Your craft improves"), 0xE0B96A, skill.equals(FISHING) ? "minecraft:fishing_rod" : skill.equals(COOKING) ? "minecraft:campfire" : "minecraft:anvil", null);
             p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.5f, 1.6f);
         }
         AotRpg.PROFILES.save(p.getUuid());

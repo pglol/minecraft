@@ -65,6 +65,12 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.CosmeticsOf.ID, (payload, ctx) -> CosmeticFx.onWorn(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.SlashFx.ID, (payload, ctx) -> CosmeticFx.slash(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(CosmeticFx::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.Toast.ID, (payload, ctx) -> {
+            net.minecraft.item.ItemStack icon = payload.icon().isEmpty() ? net.minecraft.item.ItemStack.EMPTY : BattlePassScreen.icon(payload.icon());
+            Toasts.push(payload.title(), payload.sub().getString().isEmpty() ? null : payload.sub(), payload.color(), icon,
+                payload.key().isEmpty() ? null : payload.key());
+        });
+        HudRenderCallback.EVENT.register(Toasts::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.GuardFx.ID, (payload, ctx) -> CombatUi.onGuardFx(payload));
         Property.key = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.property",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, "category.aot_rpg"));
@@ -252,6 +258,7 @@ public final class AotRpgClient implements ClientModInitializer {
             while (LockOn.key.wasPressed()) if (client.currentScreen == null) LockOn.pressed(client);
             CombatUi.tick(client);
             CosmeticFx.tick(client);
+            Toasts.tickLoot(client);
             while (socialKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());
             }

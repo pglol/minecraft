@@ -161,9 +161,8 @@ public final class Tasks {
                 long after = t.stat().equals(PASS) ? Math.min(t.goal(), pr.counters.getOrDefault(stat, 0L)) : Math.min(t.goal(), before + n);
                 pr.taskProgress.put(id, after);
                 if (after >= t.goal()) {
-                    p.sendMessage(Text.literal("Task complete: ").formatted(Formatting.GOLD)
-                        .append(Text.literal(String.format(t.text(), t.goal())).formatted(Formatting.YELLOW))
-                        .append(Text.literal("  · claim it in Tasks").formatted(Formatting.GRAY)), false);
+                    Notify.toast(p, Text.literal("Task complete").formatted(Formatting.GOLD),
+                        Text.literal(String.format(t.text(), t.goal()) + " · claim it in Tasks"), 0x6FCF5A, Rewards.icon(t.reward()), null);
                     p.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.MASTER, 0.5f, 1.4f);
                 }
             }
@@ -175,8 +174,8 @@ public final class Tasks {
             Titles.show(p, Text.literal("ACHIEVEMENT").formatted(Formatting.GOLD, Formatting.BOLD),
                 Text.literal(a.title() + "  ·  " + a.desc()).withColor(a.color()), 10, 60, 20);
             p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1f);
-            p.sendMessage(Text.literal("New title unlocked: ").formatted(Formatting.GRAY).append(Text.literal(a.title()).withColor(a.color()))
-                .append(Text.literal("  (wear it from Tasks → Achievements)").formatted(Formatting.DARK_GRAY)), false);
+            Notify.toast(p, Text.literal("Title unlocked: " + a.title()).withColor(a.color()), Text.literal("Wear it from Tasks → Achievements"),
+                a.color(), "minecraft:name_tag", null);
         }
     }
 

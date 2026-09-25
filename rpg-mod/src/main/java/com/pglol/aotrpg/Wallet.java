@@ -30,8 +30,8 @@ public final class Wallet {
         AotRpg.PROFILES.save(p.getUuid());
         sync(p);
         if (why != null && n != 0) {
-            p.sendMessage(Text.literal(n > 0 ? "+ " : "- ").formatted(n > 0 ? Formatting.GREEN : Formatting.RED)
-                .append(marks(Math.abs(n))).append(Text.literal("  " + why).formatted(Formatting.GRAY)), false);
+            Notify.toast(p, Text.literal(n > 0 ? "+ " : "- ").formatted(n > 0 ? Formatting.GREEN : Formatting.RED).append(marks(Math.abs(n))),
+                Text.literal(why), 0xE0B96A, "minecraft:gold_nugget", null);
         }
     }
 
