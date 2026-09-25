@@ -475,7 +475,56 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: Marks (this character) and Gold (account). */
+    public record WalletSync(long marks, long gold) implements CustomPayload {
+        public static final Id<WalletSync> ID = id("wallet");
+        public static final PacketCodec<RegistryByteBuf, WalletSync> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarLong(v.marks); b.writeVarLong(v.gold);
+        }, b -> new WalletSync(b.readVarLong(), b.readVarLong()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record CharacterEntry(int slot, boolean created, String name, int level, int discipline, int origin,
+                                 long marks, int rerolls, long lastPlayed) {
+        void write(PacketByteBuf b) {
+            b.writeVarInt(slot); b.writeBoolean(created); b.writeString(name); b.writeVarInt(level);
+            b.writeVarInt(discipline); b.writeVarInt(origin); b.writeVarLong(marks); b.writeVarInt(rerolls); b.writeLong(lastPlayed);
+        }
+
+        static CharacterEntry read(PacketByteBuf b) {
+            return new CharacterEntry(b.readVarInt(), b.readBoolean(), b.readString(), b.readVarInt(), b.readVarInt(),
+                b.readVarInt(), b.readVarLong(), b.readVarInt(), b.readLong());
+        }
+    }
+
+    /** Server -> client: the player's characters; open = show the select screen. */
+    public record CharacterList(java.util.List<CharacterEntry> list, int active, int max, int maxRerolls, boolean open) implements CustomPayload {
+        public static final Id<CharacterList> ID = id("characters");
+        public static final PacketCodec<RegistryByteBuf, CharacterList> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.list.size());
+            for (CharacterEntry e : v.list) e.write(b);
+            b.writeVarInt(v.active); b.writeVarInt(v.max); b.writeVarInt(v.maxRerolls); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 16);
+            java.util.List<CharacterEntry> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(CharacterEntry.read(b));
+            return new CharacterList(l, b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: play / new / delete / list. */
+    public record CharacterAction(String action, int slot) implements CustomPayload {
+        public static final Id<CharacterAction> ID = id("character_action");
+        public static final PacketCodec<RegistryByteBuf, CharacterAction> CODEC =
+            PacketCodec.of((v, b) -> { b.writeString(v.action); b.writeVarInt(v.slot); }, b -> new CharacterAction(b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playS2C().register(WalletSync.ID, WalletSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(CharacterList.ID, CharacterList.CODEC);
+        PayloadTypeRegistry.playC2S().register(CharacterAction.ID, CharacterAction.CODEC);
         PayloadTypeRegistry.playC2S().register(Struggle.ID, Struggle.CODEC);
         PayloadTypeRegistry.playC2S().register(ToggleSheath.ID, ToggleSheath.CODEC);
         PayloadTypeRegistry.playS2C().register(SheathState.ID, SheathState.CODEC);

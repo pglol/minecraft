@@ -175,13 +175,14 @@ public final class Quests {
         Titles.show(p, Text.literal("QUEST COMPLETE").formatted(Formatting.GOLD, Formatting.BOLD),
             Text.literal(d.title() + "  ·  +" + d.xp() + " XP").formatted(Formatting.YELLOW), 10, 60, 20);
         p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1f);
-        // Rewards: supplies from the AoT mod for fights, emeralds for exploring.
+        // Rewards: supplies from the AoT mod for fights, Marks for everything, gear for fights.
         if (d.kills() > 0) {
             ItemStack gas = AotItems.bestStack(4 + d.level() / 10, AotItems.GAS);
             if (!gas.isEmpty()) p.giveItemStack(gas);
-            p.giveItemStack(new ItemStack(Items.EMERALD, 3 + d.level() / 8));
+            AotRpg.WALLET.addMarks(p, 30 + d.level() * 6L, d.title());
+            AotRpg.GEAR.reward(p, d.level(), d.kills() >= 8 ? 1 : 0);
         } else {
-            p.giveItemStack(new ItemStack(Items.EMERALD, 1 + d.level() / 12));
+            AotRpg.WALLET.addMarks(p, 10 + d.level() * 2L, d.title());
         }
         AotRpg.PROGRESSION.addXp(p, pr, d.xp());
         AotRpg.PROFILES.save(p.getUuid());

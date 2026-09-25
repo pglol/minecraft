@@ -137,6 +137,20 @@ public final class Places {
         return areas;
     }
 
+    /** The level of the nearest area (the middle of its range), 1 when unknown. */
+    public int levelAt(double x, double z) {
+        Net.Area best = null;
+        double bd = Double.MAX_VALUE;
+        for (Net.Area a : areas()) {
+            double d = (a.x() - x) * (a.x() - x) + (a.z() - z) * (a.z() - z);
+            if (d < bd) {
+                bd = d;
+                best = a;
+            }
+        }
+        return best == null ? 1 : Math.max(1, (best.min() + best.max()) / 2);
+    }
+
     public Net.Area area(String id) {
         for (Net.Area a : areas) if (a.id().equals(id)) return a;
         return null;

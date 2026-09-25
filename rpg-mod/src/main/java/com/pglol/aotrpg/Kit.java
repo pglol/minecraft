@@ -97,8 +97,9 @@ public final class Kit {
                 p.giveItemStack(named(Items.GLISTERING_MELON_SLICE, 6, "Medicinal Herbs", Formatting.GREEN));
             }
         }
-        if (pr.origin == Origin.MITRAS) p.giveItemStack(new ItemStack(Items.EMERALD, 15));
-        p.giveItemStack(new ItemStack(Items.EMERALD, 5));
+        // Starting purse (Mitras nobility start richer).
+        pr.marks += pr.origin == Origin.MITRAS ? 200 : 50;
+        AotRpg.WALLET.sync(p);
         String where = camp == null ? "the Cadet Training Camp inside Wall Rose" : "the Cadet Training Camp (x " + camp[0] + ", z " + camp[2] + ")";
         AotRpg.SATCHEL.add(p, Satchel.markStory(named(Items.PAPER, 1, "Recruitment Letter", Formatting.YELLOW,
             "To: " + pr.name,

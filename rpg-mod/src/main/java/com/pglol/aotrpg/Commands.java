@@ -19,6 +19,7 @@ final class Commands {
     private Commands() {}
 
     static void register(CommandDispatcher<ServerCommandSource> d) {
+        economy(d);
         d.register(CommandManager.literal("character")
             .then(CommandManager.literal("reset")
                 .executes(c -> {
@@ -255,6 +256,59 @@ final class Commands {
                     AotRpg.QUESTS.send(o);
                 }
                 c.getSource().sendFeedback(() -> Text.literal("Reloaded aot-rpg.json."), true);
+                return 1;
+            })));
+    }
+
+    /** /wallet, /pay, /characters and the operator money commands. */
+    private static void economy(CommandDispatcher<ServerCommandSource> d) {
+        d.register(CommandManager.literal("wallet").executes(c -> {
+            ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+            p.sendMessage(Text.literal("Wallet: ").formatted(Formatting.GRAY).append(Wallet.marks(AotRpg.WALLET.marks(p)))
+                .append(Text.literal("  ·  ").formatted(Formatting.DARK_GRAY)).append(Wallet.gold(AotRpg.WALLET.gold(p))), false);
+            return 1;
+        }));
+        d.register(CommandManager.literal("pay").then(CommandManager.argument("player", EntityArgumentType.player())
+            .then(CommandManager.argument("marks", com.mojang.brigadier.arguments.LongArgumentType.longArg(1)).executes(c -> {
+                ServerPlayerEntity from = c.getSource().getPlayerOrThrow();
+                ServerPlayerEntity to = EntityArgumentType.getPlayer(c, "player");
+                long n = com.mojang.brigadier.arguments.LongArgumentType.getLong(c, "marks");
+                if (to == from || !AotRpg.PROFILES.get(to.getUuid()).created) {
+                    c.getSource().sendError(Text.literal("You can't pay them."));
+                    return 0;
+                }
+                if (!AotRpg.WALLET.spendMarks(from, n)) {
+                    c.getSource().sendError(Text.literal("You don't have that many Marks."));
+                    return 0;
+                }
+                AotRpg.WALLET.addMarks(to, n, "from " + AotRpg.PROFILES.get(from.getUuid()).name);
+                from.sendMessage(Text.literal("Paid ").formatted(Formatting.GRAY).append(Wallet.marks(n))
+                    .append(Text.literal(" to " + AotRpg.PROFILES.get(to.getUuid()).name).formatted(Formatting.GRAY)), false);
+                return 1;
+            }))));
+        d.register(CommandManager.literal("characters").executes(c -> {
+            AotRpg.CHARACTERS.send(c.getSource().getPlayerOrThrow(), true);
+            return 1;
+        }));
+        for (String cur : new String[] {"marks", "gold"}) {
+            boolean gold = cur.equals("gold");
+            d.register(CommandManager.literal("aotrpg").requires(s -> s.hasPermissionLevel(2)).then(CommandManager.literal(cur)
+                .then(money("give", gold, 1)).then(money("take", gold, -1)).then(money("set", gold, 0))));
+        }
+    }
+
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<ServerCommandSource> money(String verb, boolean gold, int sign) {
+        return CommandManager.literal(verb).then(CommandManager.argument("player", EntityArgumentType.player())
+            .then(CommandManager.argument("amount", com.mojang.brigadier.arguments.LongArgumentType.longArg(0)).executes(c -> {
+                ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                long n = com.mojang.brigadier.arguments.LongArgumentType.getLong(c, "amount");
+                long now = gold ? AotRpg.WALLET.gold(p) : AotRpg.WALLET.marks(p);
+                long delta = sign == 0 ? n - now : sign * n;
+                if (gold) AotRpg.WALLET.addGold(p, delta);
+                else AotRpg.WALLET.addMarks(p, delta, null);
+                long after = gold ? AotRpg.WALLET.gold(p) : AotRpg.WALLET.marks(p);
+                c.getSource().sendFeedback(() -> Text.literal(p.getName().getString() + " now has ")
+                    .append(gold ? Wallet.gold(after) : Wallet.marks(after)), true);
                 return 1;
             })));
     }

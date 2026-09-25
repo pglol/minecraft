@@ -27,6 +27,8 @@ public final class ClientState {
     public static java.util.List<String> cosmetics = java.util.List.of("trail_tracer");
     public static String trail = "trail_tracer";
     public static boolean cosmeticsAll;
+    public static long marks, gold;
+    public static Net.CharacterList characters;
     public static java.util.Map<java.util.UUID, Net.SheathState> sheaths = new java.util.HashMap<>();
 
     public static Net.PartyMember partyMember(java.util.UUID id) {

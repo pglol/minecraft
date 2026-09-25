@@ -135,6 +135,12 @@ public class RpgInventoryScreen extends InventoryScreen {
         Ui.panel(c, tabX, y - 17, tabW, 15);
         Text head = Ui.heading(p != null ? p.name() + "  ·  Inventory" : "Inventory");
         c.drawTextWithShadow(textRenderer, head, tabX + (tabW - textRenderer.getWidth(head)) / 2, y - 13, Ui.GOLD);
+        // Purse on the right of the header.
+        Text purse = Text.literal(String.format(Locale.ROOT, "%,d", ClientState.marks)).withColor(0xFFE0B96A)
+            .append(Text.literal(" Marks").withColor(Ui.MUTED));
+        int pw = textRenderer.getWidth(purse) + 12;
+        Ui.panel(c, right - pw, y - 17, pw, 15);
+        c.drawTextWithShadow(textRenderer, purse, right - pw + 6, y - 13, Ui.GOLD);
 
         if (side) drawCharacterPanel(c, x - PANEL_W - 4, y);
 

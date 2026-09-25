@@ -47,6 +47,13 @@ public final class TitanGuard {
         return false;
     }
 
+    /** One of the Nine: a shifter titan. */
+    public static boolean isShifter(Entity e) {
+        String path = Registries.ENTITY_TYPE.getId(e.getType()).getPath();
+        for (String s : SHIFTERS) if (path.contains(s)) return true;
+        return false;
+    }
+
     private static boolean wanderingTitan(Entity e) {
         if (!(e instanceof LivingEntity) || !AotRpg.isTitan(e)) return false;
         String path = Registries.ENTITY_TYPE.getId(e.getType()).getPath();

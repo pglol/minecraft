@@ -52,6 +52,9 @@ public final class AotRpg implements ModInitializer {
     public static final Cosmetics COSMETICS = new Cosmetics();
     public static final WorldCare CARE = new WorldCare();
     public static final Loadout LOADOUT = new Loadout();
+    public static final Characters CHARACTERS = new Characters();
+    public static final Wallet WALLET = new Wallet();
+    public static final Gear GEAR = new Gear();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
@@ -83,6 +86,18 @@ public final class AotRpg implements ModInitializer {
     public void onInitialize() {
         Net.register();
         SatchelHandler.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.CharacterAction.ID, (payload, ctx) -> {
+            if (payload.action().equals("list")) CHARACTERS.send(ctx.player(), true);
+            else CHARACTERS.action(ctx.player(), payload.action(), payload.slot());
+        });
+        // Danny's AoT bloodline reroll: two per character.
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            var stack = player.getStackInHand(hand);
+            if (!world.isClient && player instanceof ServerPlayerEntity sp && Characters.isRerollItem(stack) && !CHARACTERS.allowReroll(sp)) {
+                return net.minecraft.util.TypedActionResult.fail(stack);
+            }
+            return net.minecraft.util.TypedActionResult.pass(stack);
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.ToggleSheath.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) LOADOUT.toggle(ctx.player());
@@ -258,8 +273,12 @@ public final class AotRpg implements ModInitializer {
             sendWorldData(p);
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
+                WALLET.sync(p);
+                boolean several = PROFILES.account(p.getUuid()).slots.size() > 1;
+                // Returning players choose their character (the last one played is ready to continue).
+                if (pr.created || several) CHARACTERS.send(p, true);
                 if (!pr.created) {
-                    CREATION.begin(p);
+                    if (!several || !hasClient(p)) CREATION.begin(p);
                 } else {
                     PROGRESSION.apply(p, pr);
                     sync(p, pr);
@@ -287,7 +306,7 @@ public final class AotRpg implements ModInitializer {
             GRAB.forget(p);
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
-            PROFILES.save(p.getUuid());
+            PROFILES.unload(p.getUuid());
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
@@ -369,6 +388,9 @@ public final class AotRpg implements ModInitializer {
         long xp = Math.max(15, Math.round(10 + dead.getMaxHealth() / 4));
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);
         reward(killer, xp, true, "Titan slain");
+        // A bounty in Marks, and maybe gear (bosses and shifters always drop).
+        WALLET.addMarks(killer, 4 + Math.round(dead.getMaxHealth() / 40), null);
+        GEAR.titanDrop(killer, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         // Party members within 64 blocks share 60%; anyone else within 32 blocks gets an assist.
         for (ServerPlayerEntity p : killer.getServerWorld().getPlayers()) {

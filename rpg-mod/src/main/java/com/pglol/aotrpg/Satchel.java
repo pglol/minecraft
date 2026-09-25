@@ -79,7 +79,7 @@ public final class Satchel {
 
     private SimpleInventory load(UUID id) {
         SimpleInventory inv = new SimpleInventory(SIZE);
-        Path f = dir.resolve(id + ".dat");
+        Path f = dir.resolve(AotRpg.PROFILES.activeStem(id) + ".dat");
         if (Files.exists(f)) {
             try {
                 NbtCompound n = NbtIo.readCompressed(f, NbtSizeTracker.ofUnlimitedBytes());
@@ -108,10 +108,15 @@ public final class Satchel {
                 net.minecraft.inventory.Inventories.writeNbt(gn, g.getHeldStacks(), server.getRegistryManager());
                 n.put("Gear", gn);
             }
-            NbtIo.writeCompressed(n, dir.resolve(id + ".dat"));
+            NbtIo.writeCompressed(n, dir.resolve(AotRpg.PROFILES.activeStem(id) + ".dat"));
         } catch (Exception e) {
             AotRpg.LOG.error("Could not save satchel {}", id, e);
         }
+    }
+
+    /** A character's satchel file by stem (see ProfileStore.stem). */
+    public Path fileFor(String stem) {
+        return dir.resolve(stem + ".dat");
     }
 
     public void unload(UUID id) {

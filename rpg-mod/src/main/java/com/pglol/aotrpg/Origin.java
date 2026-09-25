@@ -14,7 +14,7 @@ public enum Origin {
     STOHESS("Stohess", "stohess-district", Items.IRON_BARS, Stat.STRENGTH,
         "A wealthy trade district of Wall Sina.", "Well fed and strong. +1 Strength"),
     MITRAS("Mitras", "mitras", Items.GOLD_INGOT, null,
-        "The royal capital, home of the nobility.", "Born to privilege. Start with 15 emeralds"),
+        "The royal capital, home of the nobility.", "Born to privilege. Start with 200 Marks"),
     UNDERGROUND("The Underground", "underground-city", Items.LANTERN, Stat.AGILITY,
         "The lawless city beneath Mitras.", "Survived by wits alone. +1 Agility, +1 Strength");
 

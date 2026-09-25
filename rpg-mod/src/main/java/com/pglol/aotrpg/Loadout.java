@@ -158,6 +158,7 @@ public final class Loadout {
     public void tick(ServerPlayerEntity p, int ticks) {
         if (!enforced(p)) return;
         boolean calm = p.currentScreenHandler == p.playerScreenHandler && p.currentScreenHandler.getCursorStack().isEmpty();
+        if (calm) autoSheath(p);
         if (ticks % 5 == 0) {
             Provisions.convertAll(p.getInventory());
             if (ticks % 20 == 0) Provisions.convertAll(AotRpg.SATCHEL.get(p.getUuid()));
@@ -210,16 +211,40 @@ public final class Loadout {
         return true;
     }
 
+    /** Players who sheathed by hand on slot 1: no auto-draw until they move off slot 1. */
+    private final java.util.Set<UUID> hold = new java.util.HashSet<>();
+
+    /** Moving off slot 1 sheathes the pair; coming back to an empty slot 1 draws them again. */
+    private void autoSheath(ServerPlayerEntity p) {
+        PlayerInventory inv = p.getInventory();
+        SimpleInventory g = gear(p);
+        if (inv.selectedSlot != 0) {
+            hold.remove(p.getUuid());
+            if (isGrip(inv.main.get(0)) && isGrip(inv.offHand.get(0))) {
+                sheatheHeld(p, g, true, true);
+                broadcast(p, true);
+            }
+        } else if (!hold.contains(p.getUuid()) && inv.main.get(0).isEmpty() && sheathed(g)) {
+            draw(p, g, true);
+            broadcast(p, true);
+        }
+    }
+
     /** The sheath key: draw both grips (slot 1 and the off hand) or put them on your back. */
     public void toggle(ServerPlayerEntity p) {
         if (!enforced(p)) return;
         SimpleInventory g = gear(p);
-        if (sheathed(g)) draw(p, g);
-        else sheatheHeld(p, g);
+        if (sheathed(g)) {
+            draw(p, g, false);
+            hold.remove(p.getUuid());
+        } else {
+            sheatheHeld(p, g, false, false);
+            if (p.getInventory().selectedSlot == 0) hold.add(p.getUuid());
+        }
         broadcast(p, true);
     }
 
-    private void draw(ServerPlayerEntity p, SimpleInventory g) {
+    private void draw(ServerPlayerEntity p, SimpleInventory g, boolean quiet) {
         PlayerInventory inv = p.getInventory();
         ItemStack a = g.getStack(SHEATH_A), b = g.getStack(SHEATH_B);
         int aSlot = SHEATH_A, bSlot = SHEATH_B;
@@ -259,19 +284,22 @@ public final class Loadout {
                 g.setStack(bSlot, ItemStack.EMPTY);
             }
         }
-        inv.selectedSlot = 0;
-        p.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(0));
+        if (inv.selectedSlot != 0) {
+            inv.selectedSlot = 0;
+            p.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(0));
+        }
         inv.markDirty();
         g.markDirty();
-        p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_IRON.value(), SoundCategory.PLAYERS, 0.8f, 1.2f);
-        p.sendMessage(Text.literal("Grips drawn").formatted(Formatting.GOLD), true);
+        p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_IRON.value(), SoundCategory.PLAYERS, quiet ? 0.4f : 0.8f, 1.2f);
+        if (!quiet) p.sendMessage(Text.literal("Grips drawn").formatted(Formatting.GOLD), true);
     }
 
-    private void sheatheHeld(ServerPlayerEntity p, SimpleInventory g) {
+    private void sheatheHeld(ServerPlayerEntity p, SimpleInventory g, boolean quiet, boolean slot0) {
         PlayerInventory inv = p.getInventory();
         int n = 0;
         // The grip in your hand, or the one in slot 1.
-        int mainSlot = isGrip(inv.main.get(inv.selectedSlot)) ? inv.selectedSlot : isGrip(inv.main.get(0)) ? 0 : -1;
+        int mainSlot = slot0 ? (isGrip(inv.main.get(0)) ? 0 : -1)
+            : isGrip(inv.main.get(inv.selectedSlot)) ? inv.selectedSlot : isGrip(inv.main.get(0)) ? 0 : -1;
         if (mainSlot >= 0) {
             g.setStack(SHEATH_A, inv.main.get(mainSlot).split(1));
             n++;
@@ -293,13 +321,13 @@ public final class Loadout {
             g.setStack(STASH, ItemStack.EMPTY);
         }
         if (n == 0) {
-            p.sendMessage(Text.literal("No ODM grips in hand or in slot 1 to sheathe.").formatted(Formatting.GRAY), true);
+            if (!quiet) p.sendMessage(Text.literal("No ODM grips in hand or in slot 1 to sheathe.").formatted(Formatting.GRAY), true);
             return;
         }
         inv.markDirty();
         g.markDirty();
-        p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_LEATHER.value(), SoundCategory.PLAYERS, 0.8f, 1.0f);
-        p.sendMessage(Text.literal("Grips sheathed").formatted(Formatting.GRAY), true);
+        p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_LEATHER.value(), SoundCategory.PLAYERS, quiet ? 0.4f : 0.8f, 1.0f);
+        if (!quiet) p.sendMessage(Text.literal("Grips sheathed").formatted(Formatting.GRAY), true);
     }
 
     /** Everything in the sheath and stash back to the inventory (death, reset). */

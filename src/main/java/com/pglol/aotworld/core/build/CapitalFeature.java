@@ -158,10 +158,22 @@ public final class CapitalFeature extends TownFeature {
         }
     }
 
+    /**
+     * Cavern roof height. Over the city it stays at least 32 blocks above the floor so no house or
+     * chimney ever reaches the rock; past the city edge it slopes down to the cave wall.
+     */
+    private static int ceiling(double d) {
+        int dome = (int) (48 - (d / CAVE_R) * (d / CAVE_R) * 30);
+        int town = CAVE_FLOOR + 32;
+        if (d <= CAVE_TOWN_R + 8) return Math.max(dome, town);
+        double t = Math.min(1, (d - CAVE_TOWN_R - 8) / 24);
+        return Math.max(dome, (int) Math.round(town + (dome - town) * t));
+    }
+
     private void underground(ChunkBuffer buf, int x, int z) {
         double d = Math.hypot(x, z);
         if (d >= CAVE_R) return;
-        int ceiling = (int) (48 - (d / CAVE_R) * (d / CAVE_R) * 30);
+        int ceiling = ceiling(d);
         buf.set(x, CAVE_FLOOR, z, Blocks.STONE);
         buf.fill(x, CAVE_FLOOR + 1, ceiling - 1, z, Blocks.AIR);
         long h = Hash.of(seed, x, z, 5);

@@ -22,7 +22,7 @@ public class AotPauseScreen extends Screen {
         int bw = 170, bh = 20, gap = 4;
         int x = Math.max(20, width / 2 - bw - 30);
         boolean mods = FabricLoader.getInstance().isModLoaded("modmenu");
-        int n = mods ? 9 : 8;
+        int n = mods ? 10 : 9;
         int y = Math.max(50, height / 2 - (n * (bh + gap)) / 2 + 10);
         boolean hasChar = ClientState.profile != null;
         add(x, y, bw, bh, Ui.title("RESUME"), () -> client.setScreen(null)).textScale = 1.2f;
@@ -37,6 +37,8 @@ public class AotPauseScreen extends Screen {
             client.setScreen(null);
             ClientPlayNetworking.send(new Net.OpenSatchel());
         }).active = hasChar;
+        y += bh + gap;
+        add(x, y, bw, bh, Text.literal("Characters"), () -> ClientPlayNetworking.send(new Net.CharacterAction("list", 0)));
         y += bh + gap + 4;
         add(x, y, bw, bh, Text.literal("Options"), () -> client.setScreen(new OptionsScreen(this, client.options)));
         y += bh + gap;

@@ -29,6 +29,12 @@ public final class Profile {
     /** "story" (gear protected on death) or "extraction" (items drop). */
     public String mode = "story";
     public int titanKills;
+    /** Wallet: Marks, the in-game currency earned by playing. */
+    public long marks;
+    /** Times this character used a bloodline reroll (at most Characters.MAX_REROLLS). */
+    public int bloodlineRerolls;
+    /** Lifestyle skills (smithing, fishing, cooking): skill -> xp. */
+    public java.util.Map<String, Long> lifestyle = new java.util.HashMap<>();
 
     public int stat(Stat s) {
         return stats.getOrDefault(s, 0);
