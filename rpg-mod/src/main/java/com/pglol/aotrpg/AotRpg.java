@@ -43,6 +43,8 @@ public final class AotRpg implements ModInitializer {
     public static final Satchel SATCHEL = new Satchel();
     public static final Cooking COOKING = new Cooking();
     public static final DeathCare DEATH = new DeathCare();
+    public static final Quests QUESTS = new Quests();
+    public static final TitanGuard GUARD = new TitanGuard();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
     public static boolean hasClient(ServerPlayerEntity p) {
@@ -62,6 +64,17 @@ public final class AotRpg implements ModInitializer {
     public void onInitialize() {
         Net.register();
         SatchelHandler.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.QuestAction.ID, (payload, ctx) -> QUESTS.action(ctx.player(), payload.quest(), payload.action()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.SetWaypoint.ID, (payload, ctx) -> QUESTS.setWaypoint(ctx.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(Net.MapRequest.ID, (payload, ctx) -> {
+            byte[] data = PLACES.mapBytes();
+            if (data == null) return;
+            int size = 512 * 1024, total = (data.length + size - 1) / size;
+            for (int i = 0; i < total; i++) {
+                byte[] part = java.util.Arrays.copyOfRange(data, i * size, Math.min(data.length, (i + 1) * size));
+                ServerPlayNetworking.send(ctx.player(), new Net.MapChunk(i, total, part));
+            }
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.openScreen(ctx.player());
         });
@@ -116,6 +129,8 @@ public final class AotRpg implements ModInitializer {
             PROFILES.open(server);
             PLACES.load(server);
             SATCHEL.open(server);
+            QUESTS.load(server);
+            AotItems.scan(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
@@ -127,7 +142,12 @@ public final class AotRpg implements ModInitializer {
             ServerPlayerEntity p = handler.getPlayer();
             Profile pr = PROFILES.get(p.getUuid());
             PARTIES.joined(p);
-            if (ServerPlayNetworking.canSend(p, Net.Campfires.ID)) ServerPlayNetworking.send(p, new Net.Campfires(PLACES.campfireArray()));
+            if (ServerPlayNetworking.canSend(p, Net.Campfires.ID)) {
+                ServerPlayNetworking.send(p, new Net.Campfires(PLACES.campfireArray()));
+                ServerPlayNetworking.send(p, new Net.Areas(PLACES.areas()));
+                Net.MapInfo mi = PLACES.mapInfo();
+                if (mi != null) ServerPlayNetworking.send(p, mi);
+            }
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
                 if (!pr.created) {
@@ -152,6 +172,7 @@ public final class AotRpg implements ModInitializer {
             NAMETAGS.remove(p);
             STAMINA.remove(p);
             SATCHEL.unload(p.getUuid());
+            QUESTS.forget(p);
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
             PROFILES.save(p.getUuid());
@@ -199,9 +220,11 @@ public final class AotRpg implements ModInitializer {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
             STORY.tick(p, PROFILES.get(p.getUuid()), ticks);
+            QUESTS.tick(p, PROFILES.get(p.getUuid()), ticks);
             if (ticks % 20 == 0 && PROFILES.get(p.getUuid()).created) PROGRESSION.hunger(p);
         }
         PARTIES.tick(server, ticks);
+        GUARD.tick(server, ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {
             PROFILES.saveAll();
@@ -226,11 +249,15 @@ public final class AotRpg implements ModInitializer {
         long xp = Math.max(15, Math.round(10 + dead.getMaxHealth() / 4));
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);
         reward(killer, xp, true, "Titan slain");
+        QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         // Party members within 64 blocks share 60%; anyone else within 32 blocks gets an assist.
         for (ServerPlayerEntity p : killer.getServerWorld().getPlayers()) {
             if (p == killer) continue;
             double d2 = p.squaredDistanceTo(dead);
-            if (PARTIES.same(killer.getUuid(), p.getUuid()) && d2 < 64 * 64) reward(p, Math.round(xp * 0.6), false, "Party kill");
+            if (PARTIES.same(killer.getUuid(), p.getUuid()) && d2 < 64 * 64) {
+                reward(p, Math.round(xp * 0.6), false, "Party kill");
+                QUESTS.onTitanKill(p, dead.getX(), dead.getZ());
+            }
             else if (d2 < 32 * 32) reward(p, xp / 2, false, "Assist");
         }
     }

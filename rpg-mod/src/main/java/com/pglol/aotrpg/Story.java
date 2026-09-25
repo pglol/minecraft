@@ -43,7 +43,7 @@ public final class Story {
             done = pr.titanKills - pr.questBase >= s.kills;
         }
         if (done && pr.chapter < STEPS.length - 1) complete(p, pr, s);
-        else if (ticks % 40 == 0) send(p, pr);
+        else if (ticks % 40 == 0) AotRpg.QUESTS.sendObjective(p);
     }
 
     private void complete(ServerPlayerEntity p, Profile pr, Step s) {
@@ -60,12 +60,19 @@ public final class Story {
         send(p, pr);
     }
 
-    public void send(ServerPlayerEntity p, Profile pr) {
-        if (!pr.created || !ServerPlayNetworking.canSend(p, Net.Objective.ID)) return;
+    public record View(String chapter, String text, String progress, boolean hasTarget, int x, int y, int z, long xp) { }
+
+    public View view(Profile pr) {
         Step s = step(pr);
         String progress = s.kills > 0 ? Math.min(s.kills, pr.titanKills - pr.questBase) + " / " + s.kills : "";
         int[] at = s.place == null ? null : AotRpg.PLACES.get(s.place);
-        ServerPlayNetworking.send(p, new Net.Objective(s.chapter, s.text, progress, at != null,
-            at == null ? 0 : at[0], at == null ? 0 : at[1], at == null ? 0 : at[2]));
+        return new View(s.chapter, s.text, progress, at != null, at == null ? 0 : at[0], at == null ? 0 : at[1], at == null ? 0 : at[2], s.xp);
+    }
+
+    public void send(ServerPlayerEntity p, Profile pr) {
+        if (!pr.created) return;
+        AotRpg.QUESTS.sendObjective(p);
+        AotRpg.QUESTS.send(p);
+        AotRpg.QUESTS.markers(p, true);
     }
 }

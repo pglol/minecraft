@@ -79,7 +79,21 @@ public final class Minimap {
         return w.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
     }
 
+    /** Slightly muted colours so markers stand out (ABGR). */
+    private static int mute(int abgr) {
+        int r = abgr & 255, g = (abgr >> 8) & 255, b = (abgr >> 16) & 255;
+        int l = (r * 3 + g * 6 + b) / 10;
+        r = (r * 7 + l * 3) / 10 * 85 / 100;
+        g = (g * 7 + l * 3) / 10 * 85 / 100;
+        b = (b * 7 + l * 3) / 10 * 85 / 100;
+        return 0xFF000000 | (b << 16) | (g << 8) | r;
+    }
+
     private static int color(ClientWorld w, int x, int z, BlockPos.Mutable pos) {
+        return mute(rawColor(w, x, z, pos));
+    }
+
+    private static int rawColor(ClientWorld w, int x, int z, BlockPos.Mutable pos) {
         if (!w.getChunkManager().isChunkLoaded(x >> 4, z >> 4)) return 0xFF0E0F0E;
         int y = height(w, x, z);
         if (y <= w.getBottomY()) return 0xFF0E0F0E;
@@ -129,21 +143,22 @@ public final class Minimap {
             c.fill(fx - 2, fy - 2, fx + 2, fy + 2, 0xFF2A1406);
             c.fill(fx - 1, fy - 1, fx + 1, fy + 1, 0xFFFF9A2E);
         }
-        // Entities
+        // Entities: one marker per creature (titan hitbox parts are not mobs), diamonds so they never look like roofs.
+        java.util.List<int[]> placed = new java.util.ArrayList<>();
         for (Entity e : mc.world.getEntities()) {
-            if (e == pl || !(e instanceof LivingEntity le) || !le.isAlive()) continue;
+            if (e == pl || !(e instanceof net.minecraft.entity.mob.MobEntity le) || !le.isAlive()) continue;
             double sx = e.getX() - ox, sz = e.getZ() - oz;
-            if (sx < 1 || sz < 1 || sx > s - 1 || sz > s - 1) continue;
+            if (sx < 3 || sz < 3 || sx > s - 3 || sz > s - 3) continue;
             int ex = x + (int) sx, ey = y + (int) sz;
             String type = Registries.ENTITY_TYPE.getId(e.getType()).getPath();
-            if (type.contains("titan")) {
-                c.fill(ex - 3, ey - 3, ex + 3, ey + 3, 0xFF2A0806);
-                c.fill(ex - 2, ey - 2, ex + 2, ey + 2, 0xFFE0442F);
-            } else if (e instanceof Monster) {
-                c.fill(ex - 1, ey - 1, ex + 1, ey + 1, 0xFFD04A3A);
-            } else if (e instanceof PlayerEntity && ClientState.partyMember(e.getUuid()) == null) {
-                c.fill(ex - 1, ey - 1, ex + 1, ey + 1, 0xFFEDE3C8);
-            }
+            boolean titan = type.contains("titan");
+            if (!titan && !(e instanceof Monster)) continue;
+            boolean dup = false;
+            for (int[] p : placed) if (Math.abs(p[0] - ex) <= 3 && Math.abs(p[1] - ey) <= 3) dup = true;
+            if (dup) continue;
+            placed.add(new int[] {ex, ey});
+            if (titan) diamond(c, ex, ey, 4, 0xFFFFFFFF, 0xFFE0302A);
+            else diamond(c, ex, ey, 2, 0xFF200808, 0xFFD06050);
         }
         // Party members (also far away: clamped to the edge)
         for (Net.PartyMember m : ClientState.party) {
@@ -153,18 +168,12 @@ public final class Minimap {
             c.fill(x + p[0] - 2, y + p[1] - 2, x + p[0] + 3, y + p[1] + 3, 0xFF0B0F0C);
             c.fill(x + p[0] - 1, y + p[1] - 1, x + p[0] + 2, y + p[1] + 2, col);
         }
-        // Objective marker
-        Net.Objective obj = ClientState.objective;
-        if (obj != null && obj.hasTarget()) {
-            int[] p = clamp(obj.x() + 0.5 - ox, obj.z() + 0.5 - oz, s);
-            int mx = x + p[0], my = y + p[1];
-            long t = net.minecraft.util.Util.getMeasuringTimeMs();
-            int pulse = (int) (1 + Math.sin(t / 200.0));
-            c.fill(mx - 1, my - 3 - pulse, mx + 2, my + 4 + pulse, 0xFF3A2A0A);
-            c.fill(mx - 3 - pulse, my - 1, mx + 4 + pulse, my + 2, 0xFF3A2A0A);
-            c.fill(mx, my - 2 - pulse, mx + 1, my + 3 + pulse, Ui.GOLD);
-            c.fill(mx - 2 - pulse, my, mx + 3 + pulse, my + 1, Ui.GOLD);
+        // Quest targets, map marks and party highlights (pinned to the edge when far away).
+        for (Net.Marker m : ClientState.markers) {
+            int[] p = clamp(m.x() + 0.5 - ox, m.z() + 0.5 - oz, s);
+            diamond(c, x + p[0], y + p[1], 3, 0xFF101010, 0xFF000000 | m.color());
         }
+        Net.Objective obj = ClientState.objective;
         // You
         MatrixStack ms = c.getMatrices();
         ms.push();
@@ -191,6 +200,17 @@ public final class Minimap {
             ty = Ui.wrapped(c, Text.literal(line), x - 1, ty, 150, Ui.CREAM);
         }
         bottom = ty + 4;
+    }
+
+    private static void diamond(DrawContext c, int x, int y, int r, int outline, int fill) {
+        for (int i = -r; i <= r; i++) {
+            int w = r - Math.abs(i);
+            c.fill(x - w - 1, y + i, x + w + 2, y + i + 1, outline);
+        }
+        for (int i = -r + 1; i <= r - 1; i++) {
+            int w = r - 1 - Math.abs(i);
+            c.fill(x - w, y + i, x + w + 1, y + i + 1, fill);
+        }
     }
 
     private static int[] clamp(double sx, double sz, int s) {

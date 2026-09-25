@@ -22,6 +22,10 @@ public final class Profile {
     public int questBase;
     /** Set when a self-reset should not hand out another starter kit. */
     public boolean kitGiven;
+    /** Side quest progress: id -> {state (1 active, 2 done), progress}. */
+    public java.util.Map<String, int[]> quests = new java.util.HashMap<>();
+    /** The quest shown under the minimap and marked on the map ("main" = the story). */
+    public String tracked = "main";
     /** "story" (gear protected on death) or "extraction" (items drop). */
     public String mode = "story";
     public int titanKills;

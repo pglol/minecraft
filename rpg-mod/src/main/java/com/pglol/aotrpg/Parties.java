@@ -37,6 +37,8 @@ public final class Parties {
     public static final class Party {
         public UUID leader;
         public final LinkedHashSet<UUID> members = new LinkedHashSet<>();
+        /** Quests highlighted for the whole party: quest id -> who highlighted it. */
+        public final Map<String, UUID> highlights = new LinkedHashMap<>();
     }
 
     private final Map<UUID, Party> byPlayer = new HashMap<>();
@@ -155,6 +157,7 @@ public final class Parties {
         invites.remove(p.getUuid());
         tell(party, who(p.getUuid()).append(Text.literal(" joined the party.").formatted(Formatting.GREEN)));
         sync(party);
+        refreshQuests(party);
     }
 
     public void decline(ServerPlayerEntity p) {
@@ -254,10 +257,27 @@ public final class Parties {
         }
     }
 
+    private void refreshQuests(Party party) {
+        for (UUID id : party.members) {
+            ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+            if (m != null) {
+                AotRpg.QUESTS.send(m);
+                AotRpg.QUESTS.markers(m, true);
+            }
+        }
+    }
+
     private void remove(Party party, UUID id) {
         party.members.remove(id);
         byPlayer.remove(id);
         clear(id);
+        ServerPlayerEntity left = server.getPlayerManager().getPlayer(id);
+        if (left != null) {
+            AotRpg.QUESTS.send(left);
+            AotRpg.QUESTS.markers(left, true);
+        }
+        party.highlights.values().removeIf(id::equals);
+        refreshQuests(party);
         if (party.members.size() <= 1) {
             for (UUID rest : party.members) {
                 byPlayer.remove(rest);

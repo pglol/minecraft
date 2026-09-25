@@ -20,6 +20,9 @@ public final class ClientState {
     /** Cooking fire positions as x,y,z triples. */
     public static int[] campfires = new int[0];
     public static Net.DeathInfo death;
+    public static java.util.List<Net.Area> areas = java.util.List.of();
+    public static java.util.List<Net.Marker> markers = java.util.List.of();
+    public static java.util.List<Net.QuestView> quests = java.util.List.of();
 
     public static Net.PartyMember partyMember(java.util.UUID id) {
         for (Net.PartyMember m : party) if (m.id().equals(id)) return m;
@@ -36,5 +39,8 @@ public final class ClientState {
         objective = null;
         campfires = new int[0];
         death = null;
+        areas = java.util.List.of();
+        markers = java.util.List.of();
+        quests = java.util.List.of();
     }
 }

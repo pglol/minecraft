@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import com.pglol.aotrpg.SatchelHandler;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.option.KeyBinding;
@@ -15,7 +16,15 @@ import org.lwjgl.glfw.GLFW;
 
 /** Client side: creator and character screens, the RPG HUD, the K key. */
 public final class AotRpgClient implements ClientModInitializer {
-    private static KeyBinding characterKey, mapKey, satchelKey;
+    private static KeyBinding characterKey, mapKey, minimapKey, journalKey, satchelKey;
+
+    public static KeyBinding mapKey() {
+        return mapKey;
+    }
+
+    public static KeyBinding journalKey() {
+        return journalKey;
+    }
 
     @Override
     public void onInitializeClient() {
@@ -24,8 +33,13 @@ public final class AotRpgClient implements ClientModInitializer {
         satchelKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.satchel",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_B, "category.aot_rpg"));
         HandledScreens.register(SatchelHandler.TYPE, SatchelScreen::new);
-        mapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.minimap",
+        mapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.map",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, "category.aot_rpg"));
+        minimapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.minimap",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_N, "category.aot_rpg"));
+        journalKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.journal",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_J, "category.aot_rpg"));
+        WorldRenderEvents.AFTER_ENTITIES.register(Beams::render);
 
         ClientPlayNetworking.registerGlobalReceiver(Net.OpenCreator.ID, (payload, ctx) -> {
             // A fresh creator (not a rejected attempt) means the character was reset.
@@ -61,7 +75,19 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof CookingScreen s) s.update(payload.recipes());
             else if (payload.open()) ctx.client().setScreen(new CookingScreen(payload.recipes()));
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClientState.reset());
+        ClientPlayNetworking.registerGlobalReceiver(Net.Areas.ID, (payload, ctx) -> ClientState.areas = payload.areas());
+        ClientPlayNetworking.registerGlobalReceiver(Net.MapInfo.ID, (payload, ctx) -> MapData.onInfo(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.MapChunk.ID, (payload, ctx) -> MapData.onChunk(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.Markers.ID, (payload, ctx) -> ClientState.markers = payload.markers());
+        ClientPlayNetworking.registerGlobalReceiver(Net.Quests.ID, (payload, ctx) -> {
+            ClientState.quests = payload.quests();
+            if (ctx.client().currentScreen instanceof JournalScreen j) j.refresh();
+            if (ctx.client().currentScreen instanceof WorldMapScreen m) m.refresh();
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            ClientState.reset();
+            MapData.reset();
+        });
 
         HudRenderCallback.EVENT.register(RpgHud::render);
         HudRenderCallback.EVENT.register(Minimap::render);
@@ -71,7 +97,13 @@ public final class AotRpgClient implements ClientModInitializer {
             while (characterKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new CharacterScreen(0));
             }
-            while (mapKey.wasPressed()) ClientState.minimap = !ClientState.minimap;
+            while (minimapKey.wasPressed()) ClientState.minimap = !ClientState.minimap;
+            while (mapKey.wasPressed()) {
+                if (client.currentScreen == null) client.setScreen(new WorldMapScreen());
+            }
+            while (journalKey.wasPressed()) {
+                if (client.currentScreen == null && ClientState.profile != null) client.setScreen(new JournalScreen());
+            }
             while (satchelKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) ClientPlayNetworking.send(new Net.OpenSatchel());
             }

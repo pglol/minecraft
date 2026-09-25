@@ -31,9 +31,8 @@ public class SatchelScreen extends HandledScreen<SatchelHandler> {
             Slot s = handler.slots.get(i);
             int sx = x + s.x - 1, sy = y + s.y - 1;
             boolean bag = i < Satchel.SIZE;
-            c.fill(sx, sy, sx + 18, sy + 18, bag ? 0xFF1B1812 : 0xFF161A16);
-            boolean story = bag && Satchel.isStory(s.getStack());
-            c.drawBorder(sx, sy, 18, 18, story ? Ui.GOLD : bag ? 0xFF5A4630 : 0xFF3E3527);
+            Ui.slot(c, sx, sy);
+            if (bag && Satchel.isStory(s.getStack())) c.drawBorder(sx, sy, 18, 18, Ui.GOLD);
         }
     }
 

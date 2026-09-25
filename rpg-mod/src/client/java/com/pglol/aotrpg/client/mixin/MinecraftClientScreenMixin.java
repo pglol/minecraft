@@ -5,6 +5,8 @@ import com.pglol.aotrpg.client.RpgInventoryScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.DeathScreen;
+import net.minecraft.client.gui.screen.GameMenuScreen;
+import com.pglol.aotrpg.client.AotPauseScreen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import com.pglol.aotrpg.client.AotDeathScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,6 +23,11 @@ public abstract class MinecraftClientScreenMixin {
         if (screen != null && screen.getClass() == InventoryScreen.class && mc.player != null && ClientState.profile != null) {
             ci.cancel();
             mc.setScreen(new RpgInventoryScreen(mc.player));
+            return;
+        }
+        if (screen != null && screen.getClass() == GameMenuScreen.class) {
+            ci.cancel();
+            mc.setScreen(new AotPauseScreen());
             return;
         }
         // The death screen (also when something closes it while still dead).

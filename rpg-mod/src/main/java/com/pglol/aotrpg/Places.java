@@ -20,10 +20,18 @@ public final class Places {
     private final Map<String, int[]> places = new HashMap<>();
     private final java.util.List<int[]> campfires = new java.util.ArrayList<>();
     private Path extraFile;
+    private final java.util.List<Net.Area> areas = new java.util.ArrayList<>();
+    private Path mapFile;
+    private int mapX0, mapZ0, mapBpp;
+    private byte[] mapBytes;
+    private String mapHash = "";
 
     public void load(MinecraftServer server) {
         places.clear();
         campfires.clear();
+        areas.clear();
+        mapBytes = null;
+        mapHash = "";
         extraFile = server.getSavePath(WorldSavePath.ROOT).resolve("aot_rpg").resolve("campfires.json");
         loadExtra();
         Path f = server.getSavePath(WorldSavePath.ROOT).resolve("aot-rpg.json");
@@ -44,7 +52,39 @@ public final class Places {
                     campfires.add(new int[] {a.get(0).getAsInt(), a.get(1).getAsInt(), a.get(2).getAsInt()});
                 }
             }
-            AotRpg.LOG.info("Loaded {} map places and {} campfires", places.size(), campfires.size());
+            if (root.has("areas")) {
+                for (JsonElement e : root.getAsJsonArray("areas")) {
+                    JsonObject o = e.getAsJsonObject();
+                    areas.add(new Net.Area(o.get("id").getAsString(), o.get("name").getAsString(), o.get("sub").getAsString(),
+                        o.get("min").getAsInt(), o.get("max").getAsInt(), o.get("titans").getAsInt(), o.get("look").getAsString(),
+                        o.get("prio").getAsInt(), o.get("x").getAsInt(), o.get("y").getAsInt(), o.get("z").getAsInt()));
+                }
+            }
+            if (root.has("safe")) {
+                JsonObject sf = root.getAsJsonObject("safe");
+                java.util.List<int[]> zones = new java.util.ArrayList<>();
+                for (JsonElement e : sf.getAsJsonArray("zones")) {
+                    var a = e.getAsJsonArray();
+                    zones.add(new int[] {a.get(0).getAsInt(), a.get(1).getAsInt(), a.get(2).getAsInt()});
+                }
+                AotRpg.GUARD.set(sf.get("rose").getAsInt(), zones);
+            }
+            if (root.has("map")) {
+                JsonObject m = root.getAsJsonObject("map");
+                mapFile = f.getParent().resolve(m.get("file").getAsString());
+                mapX0 = m.get("x0").getAsInt();
+                mapZ0 = m.get("z0").getAsInt();
+                mapBpp = m.get("bpp").getAsInt();
+                if (Files.exists(mapFile)) {
+                    mapBytes = Files.readAllBytes(mapFile);
+                    var md = java.security.MessageDigest.getInstance("SHA-1").digest(mapBytes);
+                    StringBuilder hx = new StringBuilder();
+                    for (int i = 0; i < 10; i++) hx.append(String.format("%02x", md[i]));
+                    mapHash = hx.toString();
+                }
+            }
+            AotRpg.LOG.info("Loaded {} places, {} areas, {} campfires, map {}", places.size(), areas.size(), campfires.size(),
+                mapBytes == null ? "missing" : (mapBytes.length / 1024) + " KB");
         } catch (Exception e) {
             AotRpg.LOG.error("Could not read {}", f, e);
         }
@@ -90,6 +130,23 @@ public final class Places {
         int[] out = new int[campfires.size() * 3];
         for (int i = 0; i < campfires.size(); i++) System.arraycopy(campfires.get(i), 0, out, i * 3, 3);
         return out;
+    }
+
+    public java.util.List<Net.Area> areas() {
+        return areas;
+    }
+
+    public Net.Area area(String id) {
+        for (Net.Area a : areas) if (a.id().equals(id)) return a;
+        return null;
+    }
+
+    public Net.MapInfo mapInfo() {
+        return mapBytes == null ? null : new Net.MapInfo(mapHash, mapX0, mapZ0, mapBpp, mapBytes.length);
+    }
+
+    public byte[] mapBytes() {
+        return mapBytes;
     }
 
     public int[] get(String id) {

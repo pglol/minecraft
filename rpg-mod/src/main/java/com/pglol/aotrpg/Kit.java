@@ -40,7 +40,17 @@ public final class Kit {
         p.giveItemStack(uniform(Items.LEATHER_CHESTPLATE, 0x6B4F2A, "Cadet Jacket", "Standard issue, 104th Cadet Corps"));
         p.giveItemStack(uniform(Items.LEATHER_LEGGINGS, 0xE8E0C8, "Training Trousers", "Standard issue, 104th Cadet Corps"));
         p.giveItemStack(uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "Riding Boots", "Standard issue, 104th Cadet Corps"));
-        p.giveItemStack(named(Items.IRON_SWORD, 1, "Training Blade", Formatting.WHITE, "Dull, but it will do."));
+        // Gear from the AoT mod when it is installed (ODM gear, blades, gas), otherwise a training sword.
+        if (AotItems.present()) {
+            ItemStack odm = AotItems.stack(1, null, "odm", "maneuver", "3dmg");
+            if (!odm.isEmpty()) p.giveItemStack(odm);
+            ItemStack blade = AotItems.stack(1, Items.IRON_SWORD, "blade", "sword");
+            p.giveItemStack(blade);
+            ItemStack gas = AotItems.stack(8, null, "gas", "canister");
+            if (!gas.isEmpty()) p.giveItemStack(gas);
+        } else {
+            p.giveItemStack(named(Items.IRON_SWORD, 1, "Training Blade", Formatting.WHITE, "Dull, but it will do."));
+        }
         p.giveItemStack(new ItemStack(Items.BREAD, 12));
         switch (pr.discipline) {
             case SCOUT -> p.giveItemStack(named(Items.FIREWORK_ROCKET, 4, "Signal Flare", Formatting.GREEN, "Fire to signal your squad."));

@@ -89,8 +89,26 @@ final class Datapack {
                 r.warpX, y, r.warpZ));
             firstArea = false;
         }
+        // Places titans may not enter (the RPG mod removes them): everything inside Wall Rose,
+        // plus districts, the capital and the story sites.
+        com.pglol.aotworld.core.Atlas at = w.atlas;
+        json.append("\n  ],\n  \"safe\": {\"rose\": ").append((int) at.rose.radius).append(", \"zones\": [");
+        List<String> zones = new ArrayList<>();
+        for (com.pglol.aotworld.core.Atlas.District d : at.districts) {
+            zones.add(String.format(Locale.ROOT, "[%d, %d, %d]", (int) d.cx, (int) d.cz, (int) d.radius + 40));
+        }
+        zones.add(String.format(Locale.ROOT, "[0, 0, %d]", (int) at.capitalRadius + 40));
+        for (com.pglol.aotworld.core.Atlas.Site site : at.sites) {
+            switch (site.kind) {
+                case TRAINING_CAMP: case SURVEY_HQ: case NAMED_VILLAGE: case PARADIS_PORT: case REISS_CHAPEL:
+                    zones.add(String.format(Locale.ROOT, "[%d, %d, %d]", site.x, site.z, site.radius + 40));
+                    break;
+                default: break;
+            }
+        }
+        json.append(String.join(", ", zones)).append("]}");
         int bpp = Math.max(4, (w.atlas.maxX - w.atlas.minX) / 2048);
-        json.append(String.format(Locale.ROOT, "\n  ],\n  \"map\": {\"file\": \"aot-map.png\", \"x0\": %d, \"z0\": %d, \"bpp\": %d}\n}\n",
+        json.append(String.format(Locale.ROOT, ",\n  \"map\": {\"file\": \"aot-map.png\", \"x0\": %d, \"z0\": %d, \"bpp\": %d}\n}\n",
             w.atlas.minX, w.atlas.minZ, bpp));
         System.out.println("Drawing the in-game world map...");
         javax.imageio.ImageIO.write(com.pglol.aotworld.preview.MapPreview.overview(w, bpp, true), "png", world.resolve("aot-map.png").toFile());

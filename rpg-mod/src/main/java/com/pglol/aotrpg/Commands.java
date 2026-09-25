@@ -105,8 +105,14 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Placed a cooking campfire here."), true);
                 return 1;
             }))
+            .then(CommandManager.literal("items").executes(c -> {
+                AotItems.scan(c.getSource().getServer());
+                c.getSource().sendFeedback(() -> Text.literal(AotItems.all().size() + " AoT mod items listed in <world>/aot_rpg/aot-items.txt"), false);
+                return 1;
+            }))
             .then(CommandManager.literal("reload").executes(c -> {
                 AotRpg.PLACES.load(c.getSource().getServer());
+                AotRpg.QUESTS.load(c.getSource().getServer());
                 c.getSource().sendFeedback(() -> Text.literal("Reloaded aot-rpg.json."), true);
                 return 1;
             })));

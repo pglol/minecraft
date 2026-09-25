@@ -40,6 +40,9 @@ public final class ProfileStore {
                 Profile p = GSON.fromJson(Files.readString(f, StandardCharsets.UTF_8), Profile.class);
                 if (p != null) {
                     if (p.stats == null) p.stats = new java.util.EnumMap<>(Stat.class);
+                    if (p.quests == null) p.quests = new java.util.HashMap<>();
+                    if (p.tracked == null) p.tracked = "main";
+                    if (p.mode == null) p.mode = "story";
                     if (p.skills == null) {
                         // Profile from before skills existed: grant the points they would have earned.
                         p.skills = new java.util.HashSet<>();

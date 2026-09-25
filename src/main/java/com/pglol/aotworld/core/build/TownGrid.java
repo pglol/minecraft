@@ -295,24 +295,41 @@ public final class TownGrid {
             if (ea && eb) buf.set(x, baseY + 2, z, Blocks.TORCH);
             return;
         }
-        int ra = a - la0, rb = b - lb0;
-        if (ra >= 7) {
-            // Shelter along the back of the lot.
-            boolean post = (ra == 7 || ra == 10) && (rb == 1 || rb == 10);
-            if (post) buf.fill(x, baseY + 1, baseY + 3, z, Blocks.SPRUCE_FENCE);
-            buf.set(x, baseY + 4, z, Blocks.id("spruce_slab[type=bottom]"));
-            if (ra == 10 && rb >= 3 && rb <= 8 && rb % 2 == 1) buf.set(x, baseY + 1, z, Blocks.HAY);
+        int ra = a - la0, rb = b - lb0, rbEnd = lb1 - lb0 - 1;
+        if (ra >= 6) {
+            // Stable barn along the back of the lot: walls on three sides, open stalls facing the paddock.
+            int y = baseY;
+            buf.set(x, y, z, Blocks.SPRUCE_PLANKS);
+            boolean end = rb == 1 || rb == rbEnd;
+            if (ra == 6) {
+                // Roof overhang over the stall fronts.
+                buf.set(x, y + 4, z, Blocks.id("spruce_slab[type=top]"));
+                return;
+            }
+            boolean back = ra == la1 - la0 - 1;
+            boolean front = ra == 7;
+            if (back || end) {
+                boolean corner = (back || front) && end;
+                buf.fill(x, y + 1, y + 3, z, corner ? Blocks.id("spruce_log[axis=y]") : Blocks.SPRUCE_PLANKS);
+            } else if (front) {
+                if (rb % 3 == 1) buf.fill(x, y + 1, y + 3, z, Blocks.id("spruce_log[axis=y]"));
+            } else {
+                // Inside: stall dividers, hay at the back, a lantern per stall.
+                if (rb % 3 == 1 && ra <= 9) buf.set(x, y + 1, z, (ux != 0) ? Blocks.SPRUCE_FENCE_X : Blocks.SPRUCE_FENCE_Z);
+                else if (ra == 9 && rb % 3 == 2) buf.set(x, y + 1, z, Blocks.HAY);
+                if (ra == 8 && rb % 3 == 0) buf.set(x, y + 3, z, Blocks.id("lantern[hanging=true]"));
+            }
+            buf.set(x, y + 4, z, Blocks.SPRUCE_PLANKS);
+            if (!front && !back) buf.set(x, y + 5, z, Blocks.id("spruce_slab[type=bottom]"));
+            if (ra == 8 && rb == 3) buf.mob(x, y + 1, z, "horse");
+            if (vendor && ra == 8 && rb == 2) buf.mob(x, y + 1, z, "aot:stable_master");
+            return;
         } else if (ra == 2 && rb >= 4 && rb <= 7) {
             buf.set(x, baseY, z, Blocks.WATER);
         }
         if ((ra == 4 && rb == 3) || (ra == 5 && rb == 8)) buf.mob(x, baseY + 1, z, "horse");
-        long sh = Hash.mix(seed + la0 * 31L + lb0);
-        if (ra == 8 && rb == 5 && Hash.unit(sh) < 0.5) buf.mob(x, baseY + 1, z, "horse");
-        // Many stables have a Stable Master selling horses.
-        if (vendor) {
-            if (ra == 8 && rb == 2) buf.mob(x, baseY + 1, z, "aot:stable_master");
-            if (ra == 1 && rb == 2) buf.sign(x, baseY + 1, z, SIGN_ROT[0], "Stables", "Horses for sale", "", "");
-        }
+        // Many stables have a Stable Master selling horses (inside the barn, see above).
+        if (vendor && ra == 1 && rb == 2) buf.sign(x, baseY + 1, z, SIGN_ROT[0], "Stables", "Horses for sale", "", "");
     }
 
     private void garden(ChunkBuffer buf, int x, int z, int a, int b, int la0, int lb0, int la1, int lb1, long h) {
