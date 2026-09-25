@@ -992,6 +992,23 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: the guard (block) key held or released. */
+    public record GuardKey(boolean on) implements CustomPayload {
+        public static final Id<GuardKey> ID = id("guard_key");
+        public static final PacketCodec<RegistryByteBuf, GuardKey> CODEC =
+            PacketCodec.of((v, b) -> b.writeBoolean(v.on), b -> new GuardKey(b.readBoolean()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> nearby clients: a block (0), clash (1) or broken guard (2) at a point, in someone's cosmetic style. */
+    public record GuardFx(int kind, double x, double y, double z, String style) implements CustomPayload {
+        public static final Id<GuardFx> ID = id("guard_fx");
+        public static final PacketCodec<RegistryByteBuf, GuardFx> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.kind); b.writeDouble(v.x); b.writeDouble(v.y); b.writeDouble(v.z); b.writeString(v.style);
+        }, b -> new GuardFx(b.readVarInt(), b.readDouble(), b.readDouble(), b.readDouble(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the game modes and which are unlocked. */
     public record ModeView(java.util.List<ModeEntry> modes, int chapter, boolean open) implements CustomPayload {
         public static final Id<ModeView> ID = id("modes");
@@ -1021,6 +1038,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playC2S().register(GuardKey.ID, GuardKey.CODEC);
+        PayloadTypeRegistry.playS2C().register(GuardFx.ID, GuardFx.CODEC);
         PayloadTypeRegistry.playS2C().register(TasksView.ID, TasksView.CODEC);
         PayloadTypeRegistry.playC2S().register(TaskAction.ID, TaskAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PropertyState.ID, PropertyState.CODEC);

@@ -73,6 +73,8 @@ public final class AotRpg implements ModInitializer {
     public static final HomeRaids RAIDS = new HomeRaids();
     public static final TitanCrowd CROWD = new TitanCrowd();
     public static final Tasks TASKS = new Tasks();
+    public static final Guard GUARD_FIGHT = new Guard();
+    public static final Coins COINS = new Coins();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -170,6 +172,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.FurnitureAction.ID, (payload, ctx) ->
             FURNITURE.action(ctx.player(), payload.action(), payload.piece(), payload.action().equals("place") ? net.minecraft.util.math.BlockPos.fromLong(payload.at()) : null));
+        ServerPlayNetworking.registerGlobalReceiver(Net.GuardKey.ID, (payload, ctx) -> GUARD_FIGHT.set(ctx.player(), payload.on()));
         ServerPlayNetworking.registerGlobalReceiver(Net.TaskAction.ID, (payload, ctx) -> TASKS.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.PassAction.ID, (payload, ctx) -> SEASON.action(ctx.player(), payload.action(), payload.tier()));
         ServerPlayNetworking.registerGlobalReceiver(Net.EventAction.ID, (payload, ctx) -> EVENTS.action(ctx.player(), payload.action(), payload.item()));
@@ -403,6 +406,8 @@ public final class AotRpg implements ModInitializer {
             FISHING.forget(p.getUuid());
             FURNITURE.forget(p.getUuid());
             CROWD.forget(p.getUuid());
+            GUARD_FIGHT.forget(p.getUuid());
+            COINS.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
         });
 
@@ -439,6 +444,7 @@ public final class AotRpg implements ModInitializer {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
             !(entity instanceof ServerPlayerEntity victim && source.getAttacker() instanceof ServerPlayerEntity attacker
                 && PARTIES.same(attacker.getUuid(), victim.getUuid())));
+        GUARD_FIGHT.register();
         COMBAT.register();
     }
 
@@ -458,6 +464,8 @@ public final class AotRpg implements ModInitializer {
             if (PROFILES.get(p.getUuid()).created) ROLES.tick(p, ticks);
             GRAB.tick(p, ticks);
             FURNITURE.tick(p, ticks);
+            GUARD_FIGHT.tick(p, ticks);
+            COINS.tick(p, ticks);
             if (ticks % 1200 == 0 && !CROWD.afk(p)) TASKS.count(p, Tasks.MINUTES, 1);
             if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {
                 SATCHEL.tickSupplies(p);
@@ -494,7 +502,7 @@ public final class AotRpg implements ModInitializer {
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);
         reward(killer, xp, true, "Titan slain");
         // A bounty in Marks, and maybe gear (bosses and shifters always drop).
-        WALLET.earn(killer, 4 + Math.round(dead.getMaxHealth() / 40), null);
+        Coins.drop(dead, 4 + Math.round(dead.getMaxHealth() / 40));
         GEAR.titanDrop(killer, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());

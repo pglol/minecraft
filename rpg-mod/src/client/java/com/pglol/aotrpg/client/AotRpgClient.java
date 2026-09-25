@@ -55,6 +55,14 @@ public final class AotRpgClient implements ClientModInitializer {
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_G, "category.aot_rpg"));
         socialKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.social",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, "category.aot_rpg"));
+        LockOn.key = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.lockon",
+            InputUtil.Type.MOUSE, GLFW.GLFW_MOUSE_BUTTON_MIDDLE, "category.aot_rpg"));
+        CombatUi.guardKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.guard",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.aot_rpg"));
+        WorldRenderEvents.START.register(LockOn::frame);
+        WorldRenderEvents.AFTER_ENTITIES.register(LockOn::render);
+        WorldRenderEvents.AFTER_ENTITIES.register(CombatUi::renderWorld);
+        ClientPlayNetworking.registerGlobalReceiver(Net.GuardFx.ID, (payload, ctx) -> CombatUi.onGuardFx(payload));
         Property.key = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.property",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, "category.aot_rpg"));
         WorldRenderEvents.AFTER_ENTITIES.register(Property::render);
@@ -138,7 +146,10 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof GameModeScreen s) s.refresh();
             else if (payload.open()) ctx.client().setScreen(new GameModeScreen());
         });
-        ClientPlayNetworking.registerGlobalReceiver(Net.HitMarker.ID, (payload, ctx) -> HitFx.onHit(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.HitMarker.ID, (payload, ctx) -> {
+            HitFx.onHit(payload);
+            CombatUi.onHit(payload);
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.WalletSync.ID, (payload, ctx) -> {
             ClientState.marks = payload.marks();
             ClientState.gold = payload.gold();
@@ -206,6 +217,7 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(TitanState::renderHud);
         HudRenderCallback.EVENT.register(HitFx::render);
         HudRenderCallback.EVENT.register(Property::renderHud);
+        HudRenderCallback.EVENT.register(CombatUi::renderHud);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (characterKey.wasPressed()) {
@@ -229,6 +241,8 @@ public final class AotRpgClient implements ClientModInitializer {
                 if (ClientState.profile != null && client.currentScreen == null) ClientPlayNetworking.send(new Net.ToggleSheath());
             }
             while (Property.key.wasPressed()) Property.keyPressed(client);
+            while (LockOn.key.wasPressed()) if (client.currentScreen == null) LockOn.pressed(client);
+            CombatUi.tick(client);
             while (socialKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());
             }

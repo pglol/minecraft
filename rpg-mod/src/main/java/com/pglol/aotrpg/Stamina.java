@@ -63,6 +63,38 @@ public final class Stamina {
         s.rest = 20;
     }
 
+    /** Spends stamina if there is enough; false (and nothing spent) otherwise. */
+    public boolean spend(ServerPlayerEntity p, float amount) {
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (!pr.created) return true;
+        State s = state(p, pr);
+        s.rest = 25;
+        if (s.value < amount) return false;
+        s.value -= amount;
+        return true;
+    }
+
+    /** Empties stamina (a broken guard). */
+    public void drain(ServerPlayerEntity p) {
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (!pr.created) return;
+        State s = state(p, pr);
+        s.value = 0;
+        s.exhausted = true;
+        s.rest = 40;
+    }
+
+    /** Holding a guard: no regeneration meanwhile. */
+    public void hold(ServerPlayerEntity p) {
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (pr.created) state(p, pr).rest = Math.max(state(p, pr).rest, 5);
+    }
+
+    public boolean exhausted(ServerPlayerEntity p) {
+        State s = states.get(p.getUuid());
+        return s != null && s.exhausted;
+    }
+
     /** Current stamina as 0..1 (1 if unknown). */
     public float fraction(UUID id) {
         State s = states.get(id);
