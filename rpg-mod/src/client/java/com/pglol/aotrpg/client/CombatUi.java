@@ -44,8 +44,11 @@ public final class CombatUi {
         }
     }
 
+    /** Guarding: right click held with a blade raised (or the optional guard key). */
     public static boolean guarding() {
-        return guardSent;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        boolean raising = mc.player != null && mc.player.isUsingItem() && com.pglol.aotrpg.Guard.melee(mc.player.getActiveItem());
+        return raising || guardSent;
     }
 
     // ------------------------------------------------------------------ damage numbers

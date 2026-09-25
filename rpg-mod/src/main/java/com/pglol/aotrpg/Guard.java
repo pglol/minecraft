@@ -54,29 +54,40 @@ public final class Guard {
     }
 
     /** The guard key, pressed or released. */
+    /** The optional guard key (unbound by default): held or released. */
     public void set(ServerPlayerEntity p, boolean on) {
-        if (!on) {
-            guarding.remove(p.getUuid());
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (brokenUntil.getOrDefault(p.getUuid(), 0L) > now || AotRpg.STAMINA.exhausted(p) || !melee(p.getMainHandStack())) return;
-        guarding.put(p.getUuid(), now);
+        if (on) keyHeld.add(p.getUuid());
+        else keyHeld.remove(p.getUuid());
+    }
+
+    private final java.util.Set<UUID> keyHeld = new java.util.HashSet<>();
+
+    /** Holding right click with a blade (its block animation) is the guard. */
+    private static boolean raisingBlade(ServerPlayerEntity p) {
+        return p.isUsingItem() && melee(p.getActiveItem());
     }
 
     public void tick(ServerPlayerEntity p, int ticks) {
-        if (!guarding(p)) return;
-        if (!melee(p.getMainHandStack()) || AotRpg.STAMINA.exhausted(p) || p.isDead()) {
+        boolean raising = raisingBlade(p);
+        boolean want = (raising || keyHeld.contains(p.getUuid())) && melee(p.getMainHandStack()) && !p.isDead();
+        long now = System.currentTimeMillis();
+        if (want && !guarding(p) && brokenUntil.getOrDefault(p.getUuid(), 0L) <= now && !AotRpg.STAMINA.exhausted(p)) {
+            guarding.put(p.getUuid(), now);
+        }
+        if (!want || AotRpg.STAMINA.exhausted(p)) {
             guarding.remove(p.getUuid());
             return;
         }
+        if (!guarding(p)) return;
         AotRpg.STAMINA.hold(p);
         if (p.isSprinting()) p.setSprinting(false);
-        if (ticks % 10 == 0) p.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 14, 1, false, false, false));
+        // Raising the blade already slows you like any held use; the key guard needs its own slow.
+        if (!raising && ticks % 10 == 0) p.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 14, 1, false, false, false));
     }
 
     public void forget(UUID id) {
         guarding.remove(id);
+        keyHeld.remove(id);
         brokenUntil.remove(id);
         swings.remove(id);
     }
@@ -167,6 +178,7 @@ public final class Guard {
             // Out of stamina: the guard breaks and the hit lands at half strength.
             AotRpg.STAMINA.drain(def);
             guarding.remove(def.getUuid());
+            def.stopUsingItem();
             brokenUntil.put(def.getUuid(), now + 2500);
             def.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 50, 2, false, false, false));
             def.sendMessage(Text.literal("Guard broken!").formatted(Formatting.RED, Formatting.BOLD), true);
