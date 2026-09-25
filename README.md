@@ -282,7 +282,19 @@ Progression:
 
 Name plates: with the client mod, players show an AoT-styled plate (character name, level, discipline) instead of the username tag, fading out beyond about 20 blocks. Party members' plates have a green trim (gold for the leader) and a health bar.
 
-Minimap (top left, **M** toggles it): terrain around you (north up), your arrow, party members (green, gold for the leader; they stay pinned to the edge when far away), titans (large red) and hostile mobs (small red), and a gold marker for your current story objective. The objective text and distance sit under the map; party frames sit below that.
+Minimap (top left, **N** toggles it): terrain around you (north up), your arrow, party members (green, gold for the leader; they stay pinned to the edge when far away), titans (large red) and hostile mobs (small red), and a gold marker for your current story objective. The objective text and distance sit under the map; party frames sit below that.
+
+World map (**M**): a parchment map of the whole world with every area's name in its title colour and its level range above it; your position, party, quest markers and (zoomed in) campfires. Drag to pan, scroll to zoom, right-click to mark a spot (your party sees it; right-click it again to remove). The side panel tracks quests and highlights them for your whole party. The map image is made by the generator (`aot-map.png`) and sent to each player once, then cached.
+
+Quest Journal (**J**): the main story plus side quests built from the map: explore towns and landmarks, report to Survey Corps camps, clear titan caves (5 titans), titan hunts (8 titans). Accept, abandon, track (shown under the minimap), highlight for the party, or show on the map. Rewards: XP, emeralds, and gas canisters from Danny's AoT mod for fights.
+
+Waypoints: the tracked quest, your mark, party marks and party-highlighted quests show as thin light beams in the world (fading when you are close) and small diamonds on the minimap, pinned to the edge when far away.
+
+Pause menu: AoT style, with shortcuts to Character & Skills, Journal, Map, Satchel, Options and Mods.
+
+Safe areas: titans that wander inside Wall Rose, into a district, Mitras, the Training Camp, Survey Corps HQ, Ragako, Reiss Chapel or the port are removed (not during a wall breach event; the Nine Titans are never touched).
+
+Danny's AoT items: the mod finds the AoT mod's items when the server starts (ODM gear, blades and gas go into the starter kit) and lists them all in `<world>/aot_rpg/aot-items.txt` (`/aotrpg items` refreshes it).
 
 Inventory: the survival inventory uses the AoT style, with a character panel on the left (large player viewer, health, armor, damage, speed, stamina).
 
