@@ -78,7 +78,17 @@ public final class CombatUi {
 
     public static void tick(MinecraftClient mc) {
         tickSwing(mc);
-        boolean want = guardKey != null && guardKey.isPressed() && mc.currentScreen == null && mc.player != null;
+        // Right click held with a blade is the guard (Danny's blades play their own block animation for it).
+        // A guard key bound to the same button would steal right click from the blade, so it is unbound.
+        if (guardKey != null && !guardKey.isUnbound() && guardKey.equals(mc.options.useKey)) {
+            guardKey.setBoundKey(net.minecraft.client.util.InputUtil.UNKNOWN_KEY);
+            net.minecraft.client.option.KeyBinding.updateKeysByCode();
+            mc.options.write();
+        }
+        boolean blade = mc.player != null && com.pglol.aotrpg.Guard.melee(mc.player.getMainHandStack())
+            && !com.pglol.aotrpg.AotItems.isApgGun(mc.player.getMainHandStack());
+        boolean want = mc.currentScreen == null && mc.player != null
+            && ((guardKey != null && guardKey.isPressed()) || (blade && mc.options.useKey.isPressed()));
         if (want != guardSent) {
             guardSent = want;
             ClientPlayNetworking.send(new Net.GuardKey(want));

@@ -82,6 +82,7 @@ public final class Combat {
         double reach = 7;
         if (target.getBoundingBox().expand(reach).contains(p.getEyePos()) == false) return;
         lastSlash.put(p.getUuid(), now);
+        AotRpg.GUARD_FIGHT.swung(p, target);
         double y = Math.min(p.getEyeY(), target.getBoundingBox().maxY - 0.2);
         net.minecraft.util.math.Vec3d at = target.getBoundingBox().getCenter();
         Net.SlashFx fx = new Net.SlashFx(AotRpg.COSMETICS.selected(p, "slash"), at.x, Math.max(target.getY() + 0.3, y - 0.2), at.z, p.getYaw());

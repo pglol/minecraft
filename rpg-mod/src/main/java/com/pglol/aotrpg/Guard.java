@@ -33,8 +33,8 @@ import java.util.UUID;
  */
 public final class Guard {
     public static final int FX_BLOCK = 0, FX_CLASH = 1, FX_BREAK = 2;
-    private static final long CLASH_WINDOW_MS = 420;
-    private static final float CLASH_CHANCE = 0.6f;
+    private static final long CLASH_WINDOW_MS = 500;
+    private static final float CLASH_CHANCE = 0.7f;
 
     private record Swing(int target, long at) { }
 
@@ -47,6 +47,11 @@ public final class Guard {
         if (s.getItem() instanceof SwordItem || s.getItem() instanceof AxeItem) return true;
         String path = Registries.ITEM.getId(s.getItem()).getPath();
         return Loadout.isGrip(s) || path.contains("sword") || path.contains("blade") || path.contains("katana");
+    }
+
+    /** A blade swing reported by the client (Danny's blades hit through their own packets, not the vanilla attack). */
+    public void swung(ServerPlayerEntity p, Entity target) {
+        swings.put(p.getUuid(), new Swing(target.getId(), System.currentTimeMillis()));
     }
 
     public boolean guarding(ServerPlayerEntity p) {
@@ -82,7 +87,7 @@ public final class Guard {
         AotRpg.STAMINA.hold(p);
         if (p.isSprinting()) p.setSprinting(false);
         // Raising the blade already slows you like any held use; the key guard needs its own slow.
-        if (!raising && ticks % 10 == 0) p.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 14, 1, false, false, false));
+        if (!raising && ticks % 10 == 0) p.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 14, 0, false, false, false));
     }
 
     public void forget(UUID id) {
