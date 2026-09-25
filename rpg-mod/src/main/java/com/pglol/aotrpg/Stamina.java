@@ -63,6 +63,14 @@ public final class Stamina {
         s.rest = 20;
     }
 
+    /** Current stamina as 0..1 (1 if unknown). */
+    public float fraction(UUID id) {
+        State s = states.get(id);
+        if (s == null || s.value < 0) return 1f;
+        Profile pr = AotRpg.PROFILES.get(id);
+        return Math.min(1f, s.value / pr.maxStamina());
+    }
+
     public void refill(ServerPlayerEntity p) {
         State s = states.get(p.getUuid());
         if (s != null) {

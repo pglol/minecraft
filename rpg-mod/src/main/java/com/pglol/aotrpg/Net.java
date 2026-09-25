@@ -118,7 +118,48 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** One party member as seen by another. */
+    public record PartyMember(java.util.UUID id, String name, int level, int discipline, float health, float maxHealth,
+                              float stamina, boolean online, boolean leader, double x, double y, double z, boolean sameWorld) {
+        void write(PacketByteBuf b) {
+            b.writeUuid(id);
+            b.writeString(name);
+            b.writeVarInt(level);
+            b.writeVarInt(discipline);
+            b.writeFloat(health);
+            b.writeFloat(maxHealth);
+            b.writeFloat(stamina);
+            b.writeBoolean(online);
+            b.writeBoolean(leader);
+            b.writeDouble(x);
+            b.writeDouble(y);
+            b.writeDouble(z);
+            b.writeBoolean(sameWorld);
+        }
+
+        static PartyMember read(PacketByteBuf b) {
+            return new PartyMember(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readFloat(), b.readFloat(),
+                b.readFloat(), b.readBoolean(), b.readBoolean(), b.readDouble(), b.readDouble(), b.readDouble(), b.readBoolean());
+        }
+    }
+
+    /** Server -> client: the other members of your party (empty = no party). */
+    public record PartySync(java.util.List<PartyMember> members) implements CustomPayload {
+        public static final Id<PartySync> ID = id("party");
+        public static final PacketCodec<RegistryByteBuf, PartySync> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.members.size());
+            for (PartyMember m : v.members) m.write(b);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 16);
+            java.util.List<PartyMember> l = new java.util.ArrayList<>(n);
+            for (int i = 0; i < n; i++) l.add(PartyMember.read(b));
+            return new PartySync(l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playS2C().register(PartySync.ID, PartySync.CODEC);
         PayloadTypeRegistry.playS2C().register(OpenCreator.ID, OpenCreator.CODEC);
         PayloadTypeRegistry.playS2C().register(Sync.ID, Sync.CODEC);
         PayloadTypeRegistry.playS2C().register(StaminaSync.ID, StaminaSync.CODEC);

@@ -36,6 +36,7 @@ public final class AotRpg implements ModInitializer {
     public static final CharacterCreation CREATION = new CharacterCreation();
     public static final Nametags NAMETAGS = new Nametags();
     public static final Stamina STAMINA = new Stamina();
+    public static final Parties PARTIES = new Parties();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
     public static boolean hasClient(ServerPlayerEntity p) {
@@ -99,6 +100,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity p = handler.getPlayer();
             Profile pr = PROFILES.get(p.getUuid());
+            PARTIES.joined(p);
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
                 if (!pr.created) {
@@ -148,7 +150,15 @@ public final class AotRpg implements ModInitializer {
 
         ServerLivingEntityEvents.AFTER_DEATH.register(this::onDeath);
 
-        CommandRegistrationCallback.EVENT.register((dispatcher, registry, env) -> Commands.register(dispatcher));
+        CommandRegistrationCallback.EVENT.register((dispatcher, registry, env) -> {
+            Commands.register(dispatcher);
+            PARTIES.register(dispatcher);
+        });
+
+        // No friendly fire inside a party.
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
+            !(entity instanceof ServerPlayerEntity victim && source.getAttacker() instanceof ServerPlayerEntity attacker
+                && PARTIES.same(attacker.getUuid(), victim.getUuid())));
     }
 
     private void tick(MinecraftServer server) {
@@ -163,6 +173,7 @@ public final class AotRpg implements ModInitializer {
                 if (pr.created && p.isAlive()) NAMETAGS.update(p, pr);
             }
         }
+        PARTIES.tick(server, ticks);
         if (ticks % (20 * 300) == 0) PROFILES.saveAll();
     }
 
@@ -178,19 +189,22 @@ public final class AotRpg implements ModInitializer {
         if (!(attacker instanceof ServerPlayerEntity killer)) return;
         long xp = Math.max(15, Math.round(10 + dead.getMaxHealth() / 4));
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);
-        reward(killer, xp, true);
-        // Squadmates close by share the kill.
+        reward(killer, xp, true, "Titan slain");
+        // Party members within 64 blocks share 60%; anyone else within 32 blocks gets an assist.
         for (ServerPlayerEntity p : killer.getServerWorld().getPlayers()) {
-            if (p != killer && p.squaredDistanceTo(dead) < 32 * 32) reward(p, xp / 2, false);
+            if (p == killer) continue;
+            double d2 = p.squaredDistanceTo(dead);
+            if (PARTIES.same(killer.getUuid(), p.getUuid()) && d2 < 64 * 64) reward(p, Math.round(xp * 0.6), false, "Party kill");
+            else if (d2 < 32 * 32) reward(p, xp / 2, false, "Assist");
         }
     }
 
-    private void reward(ServerPlayerEntity p, long xp, boolean killer) {
+    private void reward(ServerPlayerEntity p, long xp, boolean killer, String label) {
         Profile pr = PROFILES.get(p.getUuid());
         if (!pr.created) return;
         if (killer) pr.titanKills++;
         p.sendMessage(Text.literal("+" + xp + " XP  ").formatted(Formatting.GOLD, Formatting.BOLD)
-            .append(Text.literal(killer ? "Titan slain" : "Assist").formatted(Formatting.RED)), true);
+            .append(Text.literal(label).formatted(Formatting.RED)), true);
         if (killer) p.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.5f, 1.4f);
         PROGRESSION.addXp(p, pr, xp);
     }

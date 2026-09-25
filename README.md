@@ -291,6 +291,15 @@ Stamina: sprinting and attacking drain it and resting refills it. At zero you ar
 - `/character reset`: delete your own character and create a new one (asks you to confirm; no second starter kit).
 - `/aotrpg reset [player]` (no name = yourself), `/aotrpg setlevel <player> <level>`, `/aotrpg xp <player> <amount>`, `/aotrpg reload` (operators).
 
+Parties (up to 6 players):
+- `/party invite <player>` sends an invite with clickable [Accept] and [Decline] buttons; it expires after 60 seconds.
+- `/party accept [player]`, `/party decline`, `/party leave`, `/party list` (or just `/party`).
+- The leader can use `/party kick <player>`, `/party leader <player>` and `/party disband`.
+- `/pc <message>` (or `/party chat <message>`) talks to your party only.
+- Party members can't hurt each other. They share 60% of titan XP within 64 blocks; other players within 32 blocks get an assist.
+- With the client mod, party frames appear on the left of the screen: name, level, discipline, HP, stamina, and distance with a direction arrow. Party members are outlined through walls, green (gold for the leader). Only you see your party's outlines.
+- Parties are kept in memory and end when the server restarts.
+
 Character data is saved in `<world>/aot_rpg/players/`. Place coordinates come from `<world>/aot-rpg.json`, which the generator writes. Running `add-titans.bat` on an older world adds it.
 
 ## Previews without Minecraft

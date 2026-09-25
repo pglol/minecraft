@@ -41,9 +41,11 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.OpenCharacter.ID, (payload, ctx) -> {
             if (ClientState.profile != null) ctx.client().setScreen(new CharacterScreen(payload.tab()));
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.PartySync.ID, (payload, ctx) -> ClientState.party = payload.members());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClientState.reset());
 
         HudRenderCallback.EVENT.register(RpgHud::render);
+        HudRenderCallback.EVENT.register(PartyHud::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (characterKey.wasPressed()) {

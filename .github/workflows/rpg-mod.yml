@@ -34,6 +34,8 @@ jobs:
             if unzip -l "$j" | grep -q 'net/minecraft/client/gui/hud/InGameHud.class'; then
               echo "jar: $j"
               javap -p -cp "$j" net.minecraft.client.gui.hud.InGameHud | grep -iE "render(StatusBars|ExperienceBar|ExperienceLevel)"
+              javap -p -cp "$j" net.minecraft.client.MinecraftClient | grep -E " hasOutline"
+              javap -p -cp "$j" net.minecraft.entity.Entity | grep -E " getTeamColorValue"
               break
             fi
           done
