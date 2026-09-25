@@ -21,17 +21,18 @@ public final class Places {
     private final java.util.List<int[]> campfires = new java.util.ArrayList<>();
     private Path extraFile;
     private final java.util.List<Net.Area> areas = new java.util.ArrayList<>();
-    private Path mapFile;
-    private int mapX0, mapZ0, mapBpp;
-    private byte[] mapBytes;
-    private String mapHash = "";
+    /** Map images: "world" plus town plan tiles. */
+    private final java.util.Map<String, byte[]> mapBytes = new java.util.LinkedHashMap<>();
+    private final java.util.List<Net.MapFile> mapFiles = new java.util.ArrayList<>();
+    private boolean mapOutdated;
 
     public void load(MinecraftServer server) {
         places.clear();
         campfires.clear();
         areas.clear();
-        mapBytes = null;
-        mapHash = "";
+        mapBytes.clear();
+        mapFiles.clear();
+        mapOutdated = false;
         extraFile = server.getSavePath(WorldSavePath.ROOT).resolve("aot_rpg").resolve("campfires.json");
         loadExtra();
         Path f = server.getSavePath(WorldSavePath.ROOT).resolve("aot-rpg.json");
@@ -71,20 +72,20 @@ public final class Places {
             }
             if (root.has("map")) {
                 JsonObject m = root.getAsJsonObject("map");
-                mapFile = f.getParent().resolve(m.get("file").getAsString());
-                mapX0 = m.get("x0").getAsInt();
-                mapZ0 = m.get("z0").getAsInt();
-                mapBpp = m.get("bpp").getAsInt();
-                if (Files.exists(mapFile)) {
-                    mapBytes = Files.readAllBytes(mapFile);
-                    var md = java.security.MessageDigest.getInstance("SHA-1").digest(mapBytes);
-                    StringBuilder hx = new StringBuilder();
-                    for (int i = 0; i < 10; i++) hx.append(String.format("%02x", md[i]));
-                    mapHash = hx.toString();
+                mapOutdated = !m.has("version") || m.get("version").getAsInt() < 2;
+                addMap("world", f.getParent().resolve(m.get("file").getAsString()), m.get("x0").getAsInt(), m.get("z0").getAsInt(), m.get("bpp").getAsInt());
+            }
+            if (root.has("tiles")) {
+                int i = 0;
+                for (JsonElement e : root.getAsJsonArray("tiles")) {
+                    JsonObject t = e.getAsJsonObject();
+                    addMap("t" + i++, f.getParent().resolve(t.get("file").getAsString()), t.get("x0").getAsInt(), t.get("z0").getAsInt(), t.get("bpp").getAsInt());
                 }
             }
-            AotRpg.LOG.info("Loaded {} places, {} areas, {} campfires, map {}", places.size(), areas.size(), campfires.size(),
-                mapBytes == null ? "missing" : (mapBytes.length / 1024) + " KB");
+            long kb = 0;
+            for (byte[] bb : mapBytes.values()) kb += bb.length / 1024;
+            AotRpg.LOG.info("Loaded {} places, {} areas, {} campfires, {} map images ({} KB){}", places.size(), areas.size(),
+                campfires.size(), mapBytes.size(), kb, mapOutdated ? " - OUTDATED map: run the new add-titans.bat" : "");
         } catch (Exception e) {
             AotRpg.LOG.error("Could not read {}", f, e);
         }
@@ -141,12 +142,22 @@ public final class Places {
         return null;
     }
 
-    public Net.MapInfo mapInfo() {
-        return mapBytes == null ? null : new Net.MapInfo(mapHash, mapX0, mapZ0, mapBpp, mapBytes.length);
+    private void addMap(String name, Path file, int x0, int z0, int bpp) throws Exception {
+        if (!Files.exists(file)) return;
+        byte[] data = Files.readAllBytes(file);
+        var md = java.security.MessageDigest.getInstance("SHA-1").digest(data);
+        StringBuilder hx = new StringBuilder();
+        for (int i = 0; i < 10; i++) hx.append(String.format("%02x", md[i]));
+        mapBytes.put(name, data);
+        mapFiles.add(new Net.MapFile(name, hx.toString(), x0, z0, bpp, data.length));
     }
 
-    public byte[] mapBytes() {
-        return mapBytes;
+    public Net.MapFiles mapInfo() {
+        return mapFiles.isEmpty() ? null : new Net.MapFiles(mapOutdated, new java.util.ArrayList<>(mapFiles));
+    }
+
+    public byte[] mapBytes(String name) {
+        return mapBytes.get(name);
     }
 
     public int[] get(String id) {

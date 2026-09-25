@@ -74,7 +74,7 @@ public final class AotRpgClient implements ClientModInitializer {
             else if (payload.open()) ctx.client().setScreen(new CookingScreen(payload.recipes()));
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.Areas.ID, (payload, ctx) -> ClientState.areas = payload.areas());
-        ClientPlayNetworking.registerGlobalReceiver(Net.MapInfo.ID, (payload, ctx) -> MapData.onInfo(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.MapFiles.ID, (payload, ctx) -> MapData.onFiles(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.MapChunk.ID, (payload, ctx) -> MapData.onChunk(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.Markers.ID, (payload, ctx) -> ClientState.markers = payload.markers());
         ClientPlayNetworking.registerGlobalReceiver(Net.Quests.ID, (payload, ctx) -> {

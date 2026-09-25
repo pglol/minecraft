@@ -123,7 +123,10 @@ public final class Ui {
         int dx = center ? -font().getWidth(t) / 2 : 0;
         Text plain = Text.literal(t.getString()).setStyle(t.getStyle().withColor((net.minecraft.text.TextColor) null));
         int ink = 0xE0201408;
-        for (int[] o : new int[][] {{-1, 0}, {1, 0}, {0, -1}, {0, 1}}) c.drawText(font(), plain, dx + o[0], o[1], ink, false);
+        // A full 8-way ink outline so the lettering reads as solid, heavy type.
+        for (int[] o : new int[][] {{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}}) {
+            c.drawText(font(), plain, dx + o[0], o[1], ink, false);
+        }
         c.drawText(font(), t, dx, 0, color, false);
         m.pop();
     }

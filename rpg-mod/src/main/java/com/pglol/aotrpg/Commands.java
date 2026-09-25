@@ -112,6 +112,29 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Gave " + pr.name + " the starter kit."), true);
                 return 1;
             })))
+            .then(CommandManager.literal("patch").then(CommandManager.literal("underground").executes(c -> {
+                // Closes the open trench over the Underground City stairway in worlds made before the fix:
+                // roof over the tunnel, stone up to street level, paving on top. Matches the generator layout.
+                var w = c.getSource().getServer().getOverworld();
+                int base = 72, caveFloor = 10, x0 = 258, zc = 20, changed = 0;
+                var roof = net.minecraft.block.Blocks.STONE_BRICKS.getDefaultState();
+                var paving = net.minecraft.block.Blocks.POLISHED_ANDESITE.getDefaultState();
+                for (int x = x0; x <= 312; x++) {
+                    int floor = caveFloor + (x - x0);
+                    for (int dz = -3; dz <= 3; dz++) {
+                        for (int y = floor + 6; y <= base; y++) {
+                            w.setBlockState(new net.minecraft.util.math.BlockPos(x, y, zc + dz), y == base ? paving : roof);
+                            changed++;
+                        }
+                        for (int y = base + 1; y <= base + 3; y++) {
+                            w.setBlockState(new net.minecraft.util.math.BlockPos(x, y, zc + dz), net.minecraft.block.Blocks.AIR.getDefaultState());
+                        }
+                    }
+                }
+                int n = changed;
+                c.getSource().sendFeedback(() -> Text.literal("Closed the Underground stairway trench (" + n + " blocks). The stairs below are untouched."), true);
+                return 1;
+            })))
             .then(CommandManager.literal("items").executes(c -> {
                 AotItems.scan(c.getSource().getServer());
                 c.getSource().sendFeedback(() -> Text.literal(AotItems.all().size() + " AoT mod items listed in <world>/aot_rpg/aot-items.txt"), false);

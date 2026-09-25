@@ -56,7 +56,7 @@ public final class AotRpg implements ModInitializer {
         if (!ServerPlayNetworking.canSend(p, Net.Campfires.ID)) return;
         ServerPlayNetworking.send(p, new Net.Campfires(PLACES.campfireArray()));
         ServerPlayNetworking.send(p, new Net.Areas(PLACES.areas()));
-        Net.MapInfo mi = PLACES.mapInfo();
+        Net.MapFiles mi = PLACES.mapInfo();
         if (mi != null) ServerPlayNetworking.send(p, mi);
     }
 
@@ -81,12 +81,12 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.QuestAction.ID, (payload, ctx) -> QUESTS.action(ctx.player(), payload.quest(), payload.action()));
         ServerPlayNetworking.registerGlobalReceiver(Net.SetWaypoint.ID, (payload, ctx) -> QUESTS.setWaypoint(ctx.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(Net.MapRequest.ID, (payload, ctx) -> {
-            byte[] data = PLACES.mapBytes();
+            byte[] data = PLACES.mapBytes(payload.name());
             if (data == null) return;
             int size = 512 * 1024, total = (data.length + size - 1) / size;
             for (int i = 0; i < total; i++) {
                 byte[] part = java.util.Arrays.copyOfRange(data, i * size, Math.min(data.length, (i + 1) * size));
-                ServerPlayNetworking.send(ctx.player(), new Net.MapChunk(i, total, part));
+                ServerPlayNetworking.send(ctx.player(), new Net.MapChunk(payload.name(), i, total, part));
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {

@@ -278,28 +278,43 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Server -> client: the world map image (hash lets the client use its cached copy). */
-    public record MapInfo(String hash, int x0, int z0, int bpp, int size) implements CustomPayload {
-        public static final Id<MapInfo> ID = id("map_info");
-        public static final PacketCodec<RegistryByteBuf, MapInfo> CODEC = PacketCodec.of((v, b) -> {
-            b.writeString(v.hash); b.writeVarInt(v.x0); b.writeVarInt(v.z0); b.writeVarInt(v.bpp); b.writeVarInt(v.size);
-        }, b -> new MapInfo(b.readString(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+    /** One map image: the world map ("world") or a town plan tile. */
+    public record MapFile(String name, String hash, int x0, int z0, int bpp, int size) { }
+
+    /** Server -> client: the map images (hashes let the client use cached copies). */
+    public record MapFiles(boolean outdated, java.util.List<MapFile> files) implements CustomPayload {
+        public static final Id<MapFiles> ID = id("map_files");
+        public static final PacketCodec<RegistryByteBuf, MapFiles> CODEC = PacketCodec.of((v, b) -> {
+            b.writeBoolean(v.outdated);
+            b.writeVarInt(v.files.size());
+            for (MapFile f : v.files) {
+                b.writeString(f.name()); b.writeString(f.hash()); b.writeVarInt(f.x0()); b.writeVarInt(f.z0());
+                b.writeVarInt(f.bpp()); b.writeVarInt(f.size());
+            }
+        }, b -> {
+            boolean outdated = b.readBoolean();
+            int n = Math.min(b.readVarInt(), 4096);
+            java.util.List<MapFile> l = new java.util.ArrayList<>(n);
+            for (int i = 0; i < n; i++) l.add(new MapFile(b.readString(), b.readString(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+            return new MapFiles(outdated, l);
+        });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Client -> server: please send the map image. */
-    public record MapRequest() implements CustomPayload {
+    /** Client -> server: please send this map image. */
+    public record MapRequest(String name) implements CustomPayload {
         public static final Id<MapRequest> ID = id("map_request");
-        public static final PacketCodec<RegistryByteBuf, MapRequest> CODEC = PacketCodec.unit(new MapRequest());
+        public static final PacketCodec<RegistryByteBuf, MapRequest> CODEC =
+            PacketCodec.of((v, b) -> b.writeString(v.name), b -> new MapRequest(b.readString()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Server -> client: one piece of the map image. */
-    public record MapChunk(int index, int total, byte[] data) implements CustomPayload {
+    /** Server -> client: one piece of a map image. */
+    public record MapChunk(String name, int index, int total, byte[] data) implements CustomPayload {
         public static final Id<MapChunk> ID = id("map_chunk");
         public static final PacketCodec<RegistryByteBuf, MapChunk> CODEC = PacketCodec.of((v, b) -> {
-            b.writeVarInt(v.index); b.writeVarInt(v.total); b.writeByteArray(v.data);
-        }, b -> new MapChunk(b.readVarInt(), b.readVarInt(), b.readByteArray(1 << 20)));
+            b.writeString(v.name); b.writeVarInt(v.index); b.writeVarInt(v.total); b.writeByteArray(v.data);
+        }, b -> new MapChunk(b.readString(), b.readVarInt(), b.readVarInt(), b.readByteArray(1 << 20)));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
@@ -377,7 +392,7 @@ public final class Net {
     static void register() {
         PayloadTypeRegistry.playC2S().register(WorldDataRequest.ID, WorldDataRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(Areas.ID, Areas.CODEC);
-        PayloadTypeRegistry.playS2C().register(MapInfo.ID, MapInfo.CODEC);
+        PayloadTypeRegistry.playS2C().register(MapFiles.ID, MapFiles.CODEC);
         PayloadTypeRegistry.playC2S().register(MapRequest.ID, MapRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(MapChunk.ID, MapChunk.CODEC);
         PayloadTypeRegistry.playS2C().register(Quests.ID, Quests.CODEC);

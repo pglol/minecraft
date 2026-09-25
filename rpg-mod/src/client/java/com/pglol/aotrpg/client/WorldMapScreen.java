@@ -49,7 +49,7 @@ public class WorldMapScreen extends Screen {
     /** Ask the server again if the map or area names never arrived. */
     static void requestIfMissing() {
         long now = net.minecraft.util.Util.getMeasuringTimeMs();
-        if ((ClientState.areas.isEmpty() || MapData.info == null) && now - lastRequest > 5000) {
+        if ((ClientState.areas.isEmpty() || !MapData.received) && now - lastRequest > 5000) {
             lastRequest = now;
             ClientPlayNetworking.send(new Net.WorldDataRequest());
         }
@@ -197,24 +197,27 @@ public class WorldMapScreen extends Screen {
 
         c.enableScissor(mapL, mapT, mapR, mapB);
         c.fill(mapL, mapT, mapR, mapB, 0xFF3A3020);
-        Net.MapInfo info = MapData.info;
-        if (MapData.ready && info != null) {
-            MatrixStack m = c.getMatrices();
-            m.push();
-            m.translate(sx(info.x0()), sy(info.z0()), 0);
-            float s = (float) (info.bpp() * zoom);
-            m.scale(s, s, 1);
-            c.drawTexture(MapData.TEXTURE, 0, 0, 0, 0, MapData.width, MapData.height, MapData.width, MapData.height);
-            m.pop();
+        MapData.Image world = MapData.world();
+        if (world != null && world.ready) {
+            drawImage(c, world, 1f);
+            // Town plans fade in as you zoom in.
+            float alpha = (float) MathHelper.clamp((zoom - 0.09) / 0.12, 0, 1);
+            if (alpha > 0) {
+                for (MapData.Image t : MapData.tiles()) {
+                    double x0 = sx(t.info.x0()), z0 = sy(t.info.z0());
+                    double size = t.width * t.info.bpp() * zoom;
+                    if (x0 > mapR || z0 > mapB || x0 + size < mapL || z0 + size < mapT) continue;
+                    drawImage(c, t, alpha);
+                }
+            }
         } else {
-            if (info == null) {
-                c.drawCenteredTextWithShadow(textRenderer, Ui.heading("No map for this world yet"), (int) cx(), (int) cy() - 20, Ui.GOLD);
+            String msg = !MapData.received ? "No map for this world yet" : "Loading map...";
+            c.drawCenteredTextWithShadow(textRenderer, Ui.heading(msg), (int) cx(), (int) cy() - 20, Ui.GOLD);
+            if (!MapData.received) {
                 c.drawCenteredTextWithShadow(textRenderer, Text.literal("The server needs the map made by the world generator:"),
                     (int) cx(), (int) cy() - 6, Ui.CREAM);
                 c.drawCenteredTextWithShadow(textRenderer, Text.literal("run add-titans.bat on the server's world folder, then /aotrpg reload."),
                     (int) cx(), (int) cy() + 5, Ui.CREAM);
-            } else {
-                c.drawCenteredTextWithShadow(textRenderer, Text.literal("Loading map..."), (int) cx(), (int) cy(), Ui.MUTED);
             }
         }
         drawFires(c);
@@ -222,6 +225,12 @@ public class WorldMapScreen extends Screen {
         drawMarkers(c, mouseX, mouseY);
         drawParty(c);
         drawPlayer(c, delta);
+        if (MapData.outdated) {
+            c.fill(mapL, mapT, mapR, mapT + 24, 0xD0301008);
+            c.drawCenteredTextWithShadow(textRenderer, Text.literal("This map was made by an older world generator."), (int) cx(), mapT + 3, 0xFFFFD27A);
+            c.drawCenteredTextWithShadow(textRenderer, Text.literal("Download the new aot-world.jar, run add-titans.bat on the server world, then /aotrpg reload."),
+                (int) cx(), mapT + 13, Ui.CREAM);
+        }
         c.disableScissor();
         Ui.border(c, mapL - 2, mapT - 2, mapR - mapL + 4, mapB - mapT + 4);
 
@@ -244,6 +253,20 @@ public class WorldMapScreen extends Screen {
             mapL, height - 14, Ui.MUTED);
     }
 
+    private void drawImage(DrawContext c, MapData.Image img, float alpha) {
+        MatrixStack m = c.getMatrices();
+        m.push();
+        m.translate(sx(img.info.x0()), sy(img.info.z0()), 0);
+        float s = (float) (img.info.bpp() * zoom);
+        m.scale(s, s, 1);
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        c.setShaderColor(1f, 1f, 1f, alpha);
+        c.drawTexture(img.texture, 0, 0, 0, 0, img.width, img.height, img.width, img.height);
+        c.setShaderColor(1f, 1f, 1f, 1f);
+        com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+        m.pop();
+    }
+
     private void drawFires(DrawContext c) {
         if (zoom < 0.12) return;
         int[] f = ClientState.campfires;
@@ -255,40 +278,60 @@ public class WorldMapScreen extends Screen {
         }
     }
 
-    private boolean labelVisible(Net.Area a) {
-        if (a.look().equals("sea")) return true;
-        if (a.prio() <= 40) return zoom < 0.2;
+    private static final net.minecraft.util.Identifier TITLE_FONT = net.minecraft.util.Identifier.of("aot_rpg", "maptitle"),
+        LEVEL_FONT = net.minecraft.util.Identifier.of("aot_rpg", "maplevel");
+
+    /** Higher shows first; lower ones only where there is room. */
+    private int importance(Net.Area a) {
         return switch (a.look()) {
-            case "town" -> zoom >= 0.035;
-            case "cave", "camp" -> zoom >= 0.06;
-            default -> zoom >= 0.05;
+            case "marley", "sea" -> 9;
+            case "town" -> a.name().equals("Mitras") ? 8 : 7;
+            case "safe", "danger" -> a.prio() <= 40 ? (zoom < 0.05 ? 6 : 2) : 5;
+            case "camp", "cave" -> 4;
+            default -> 3;
+        };
+    }
+
+    private boolean labelVisible(Net.Area a) {
+        return switch (a.look()) {
+            case "sea", "marley" -> true;
+            case "town" -> zoom >= 0.014;
+            case "cave", "camp", "landmark" -> zoom >= 0.03;
+            default -> a.prio() <= 40 ? zoom < 0.12 : zoom >= 0.02;
         };
     }
 
     private void drawAreas(DrawContext c, int mouseX, int mouseY) {
+        List<Net.Area> order = new ArrayList<>();
+        for (Net.Area a : ClientState.areas) if (labelVisible(a)) order.add(a);
+        order.sort((p, q) -> importance(q) != importance(p) ? importance(q) - importance(p) : q.prio() - p.prio());
+        List<int[]> placed = new ArrayList<>();
         Net.Area hover = null;
-        for (Net.Area a : ClientState.areas) {
-            if (!labelVisible(a)) continue;
-            int x = (int) sx(a.x()), y = (int) sy(a.z());
+        for (Net.Area a : order) {
+            int x = (int) Math.round(sx(a.x())), y = (int) Math.round(sy(a.z()));
             if (!inMap(x, y)) continue;
             int col = Ui.lookColor(a.look());
             boolean big = a.prio() <= 40;
-            // icon
-            if (a.look().equals("cave")) c.drawCenteredTextWithShadow(textRenderer, Text.literal("☠"), x, y - 4, col);
-            else if (a.look().equals("camp")) c.drawCenteredTextWithShadow(textRenderer, Text.literal("▲"), x, y - 4, col);
+            Text lv = Text.literal(a.min() == a.max() ? "Lv " + a.min() : "Lv " + a.min() + "-" + a.max())
+                .styled(st -> st.withFont(LEVEL_FONT));
+            Text name = Text.literal(big ? a.name().toUpperCase() : a.name()).styled(st -> st.withFont(TITLE_FONT));
+            int w = Math.max(textRenderer.getWidth(name), textRenderer.getWidth(lv));
+            int ty = big ? y - 10 : y - 24;
+            int[] r = {x - w / 2 - 3, ty - 2, x + w / 2 + 3, ty + 21};
+            boolean clash = false;
+            for (int[] o : placed) if (r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1]) { clash = true; break; }
+            // The icon always shows; the label only where it fits.
+            if (a.look().equals("cave")) c.drawCenteredTextWithShadow(textRenderer, Text.literal("\u2620"), x, y - 4, col);
+            else if (a.look().equals("camp")) c.drawCenteredTextWithShadow(textRenderer, Text.literal("\u25b2"), x, y - 4, col);
             else if (!big) {
-                c.fill(x - 2, y - 2, x + 3, y + 3, 0xFF1A140A);
-                c.fill(x - 1, y - 1, x + 2, y + 2, col);
+                c.fill(x - 3, y - 3, x + 4, y + 4, 0xFF1A140A);
+                c.fill(x - 2, y - 2, x + 3, y + 3, col);
             }
-            // level over the name
-            Text lv = Text.literal(a.min() == a.max() ? "Lv " + a.min() : "Lv " + a.min() + "-" + a.max());
-            Text name = Ui.heading(big ? a.name().toUpperCase() : a.name());
-            float ns = big ? 1.0f : 0.85f;
-            int ty = big ? y - 8 : y - 22;
-            Ui.inked(c, lv, x, ty, 0.7f, 0xFFF0E6CC, true);
-            Ui.inked(c, name, x, ty + 7, ns, col, true);
-            int w = (int) (textRenderer.getWidth(name) * ns / 2) + 2;
-            if (mouseX >= x - w && mouseX <= x + w && mouseY >= ty - 2 && mouseY <= ty + 16) hover = a;
+            if (clash) continue;
+            placed.add(r);
+            Ui.inked(c, lv, x, ty, 1f, 0xFFF4EAD2, true);
+            Ui.inked(c, name, x, ty + 9, 1f, col, true);
+            if (mouseX >= r[0] && mouseX <= r[2] && mouseY >= r[1] && mouseY <= r[3]) hover = a;
         }
         if (hover != null) {
             List<Text> tip = new ArrayList<>();
