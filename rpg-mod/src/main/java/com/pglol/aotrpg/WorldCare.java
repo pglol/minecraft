@@ -156,9 +156,14 @@ public final class WorldCare {
 
     /** Can this player change blocks here? */
     public boolean canBuild(PlayerEntity p, BlockPos pos) {
+        if (p.getWorld().getRegistryKey() == Homes.WORLD) {
+            // In the home world you build only in your own home and yard.
+            if (p instanceof ServerPlayerEntity sp && sp.interactionManager.getGameMode() == GameMode.CREATIVE && sp.hasPermissionLevel(2)) return true;
+            return p instanceof ServerPlayerEntity sp && AotRpg.HOMES.canBuild(sp, pos);
+        }
         if (!config.protect || p.getWorld().getRegistryKey() != World.OVERWORLD) return true;
         if (p instanceof ServerPlayerEntity sp && sp.interactionManager.getGameMode() == GameMode.CREATIVE && sp.hasPermissionLevel(2)) return true;
-        return inBuildZone(pos.getX(), pos.getZ());
+        return inBuildZone(pos.getX(), pos.getZ()) || (p instanceof ServerPlayerEntity sp && AotRpg.HOMES.ownsPlotAt(sp, pos));
     }
 
     public void deny(PlayerEntity p) {

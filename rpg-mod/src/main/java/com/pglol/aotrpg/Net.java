@@ -659,7 +659,145 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    public record HomeUpgrade(String id, String title, String desc, int price, boolean owned) { }
+
+    /** Server -> client: a house deed (to buy) or your home (upgrades). */
+    public record HomeView(int home, String town, String size, long price, boolean owned, int homes, int maxHomes,
+                           java.util.List<HomeUpgrade> upgrades, java.util.List<String> visits, boolean open,
+                           String kind, long offer, String owner) implements CustomPayload {
+        public static final Id<HomeView> ID = id("home");
+        public static final PacketCodec<RegistryByteBuf, HomeView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.home); b.writeString(v.town); b.writeString(v.size); b.writeVarLong(v.price); b.writeBoolean(v.owned);
+            b.writeVarInt(v.homes); b.writeVarInt(v.maxHomes);
+            b.writeVarInt(v.upgrades.size());
+            for (HomeUpgrade u : v.upgrades) { b.writeString(u.id()); b.writeString(u.title()); b.writeString(u.desc()); b.writeVarInt(u.price()); b.writeBoolean(u.owned()); }
+            b.writeVarInt(v.visits.size());
+            for (String s : v.visits) b.writeString(s);
+            b.writeBoolean(v.open);
+            b.writeString(v.kind); b.writeVarLong(v.offer + 1); b.writeString(v.owner);
+        }, b -> {
+            int home = b.readVarInt();
+            String town = b.readString(), size = b.readString();
+            long price = b.readVarLong();
+            boolean owned = b.readBoolean();
+            int homes = b.readVarInt(), max = b.readVarInt();
+            int n = Math.min(b.readVarInt(), 32);
+            java.util.List<HomeUpgrade> ups = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) ups.add(new HomeUpgrade(b.readString(), b.readString(), b.readString(), b.readVarInt(), b.readBoolean()));
+            int m = Math.min(b.readVarInt(), 16);
+            java.util.List<String> visits = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) visits.add(b.readString());
+            boolean open = b.readBoolean();
+            return new HomeView(home, town, size, price, owned, homes, max, ups, visits, open, b.readString(), b.readVarLong() - 1, b.readString());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record AdminRow(int index, String label, String size, long price, String owners) { }
+
+    /** Server -> client: the operator's property list (one page). */
+    public record HomeAdminView(java.util.List<AdminRow> rows, int page, int pages, int total, java.util.List<String> players, boolean open)
+            implements CustomPayload {
+        public static final Id<HomeAdminView> ID = id("home_admin");
+        public static final PacketCodec<RegistryByteBuf, HomeAdminView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.rows.size());
+            for (AdminRow r : v.rows) { b.writeVarInt(r.index()); b.writeString(r.label()); b.writeString(r.size()); b.writeVarLong(r.price()); b.writeString(r.owners()); }
+            b.writeVarInt(v.page); b.writeVarInt(v.pages); b.writeVarInt(v.total);
+            b.writeVarInt(v.players.size());
+            for (String s : v.players) b.writeString(s);
+            b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 200);
+            java.util.List<AdminRow> rows = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) rows.add(new AdminRow(b.readVarInt(), b.readString(), b.readString(), b.readVarLong(), b.readString()));
+            int page = b.readVarInt(), pages = b.readVarInt(), total = b.readVarInt();
+            int m = Math.min(b.readVarInt(), 200);
+            java.util.List<String> players = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) players.add(b.readString());
+            return new HomeAdminView(rows, page, pages, total, players, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: buy / enter / visit / upgrade / sell / manage / offers / acceptoffer / admin_*. */
+    public record HomeAction(String action, int home, String arg) implements CustomPayload {
+        public static final Id<HomeAction> ID = id("home_action");
+        public static final PacketCodec<RegistryByteBuf, HomeAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeVarInt(v.home); b.writeString(v.arg);
+        }, b -> new HomeAction(b.readString(), b.readVarInt(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record ForgeGear(int slot, int up, long marks, int iron, int steel, float chance) { }
+
+    public record ForgeRecipe(String id, String title, String materials, long marks, boolean ready) { }
+
+    /** Server -> client: the forge: your gear with upgrade costs, and recipes. */
+    public record ForgeView(java.util.List<ForgeGear> gear, java.util.List<ForgeRecipe> recipes, int smithing, int iron, int steel, boolean open)
+            implements CustomPayload {
+        public static final Id<ForgeView> ID = id("forge");
+        public static final PacketCodec<RegistryByteBuf, ForgeView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.gear.size());
+            for (ForgeGear g : v.gear) { b.writeVarInt(g.slot()); b.writeVarInt(g.up()); b.writeVarLong(g.marks()); b.writeVarInt(g.iron()); b.writeVarInt(g.steel()); b.writeFloat(g.chance()); }
+            b.writeVarInt(v.recipes.size());
+            for (ForgeRecipe r : v.recipes) { b.writeString(r.id()); b.writeString(r.title()); b.writeString(r.materials()); b.writeVarLong(r.marks()); b.writeBoolean(r.ready()); }
+            b.writeVarInt(v.smithing); b.writeVarInt(v.iron); b.writeVarInt(v.steel); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<ForgeGear> g = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) g.add(new ForgeGear(b.readVarInt(), b.readVarInt(), b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readFloat()));
+            int m = Math.min(b.readVarInt(), 64);
+            java.util.List<ForgeRecipe> r = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) r.add(new ForgeRecipe(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readBoolean()));
+            return new ForgeView(g, r, b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: forge upgrade (slot) or craft (recipe), with the minigame quality 0..1. */
+    public record ForgeAction(String action, int slot, String recipe, float quality) implements CustomPayload {
+        public static final Id<ForgeAction> ID = id("forge_action");
+        public static final PacketCodec<RegistryByteBuf, ForgeAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeVarInt(v.slot); b.writeString(v.recipe); b.writeFloat(v.quality);
+        }, b -> new ForgeAction(b.readString(), b.readVarInt(), b.readString(), b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record ModeEntry(String id, String title, String desc, boolean unlocked, boolean active, String requirement) { }
+
+    /** Server -> client: the game modes and which are unlocked. */
+    public record ModeView(java.util.List<ModeEntry> modes, int chapter, boolean open) implements CustomPayload {
+        public static final Id<ModeView> ID = id("modes");
+        public static final PacketCodec<RegistryByteBuf, ModeView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.modes.size());
+            for (ModeEntry m : v.modes) {
+                b.writeString(m.id()); b.writeString(m.title()); b.writeString(m.desc()); b.writeBoolean(m.unlocked()); b.writeBoolean(m.active()); b.writeString(m.requirement());
+            }
+            b.writeVarInt(v.chapter); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 32);
+            java.util.List<ModeEntry> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new ModeEntry(b.readString(), b.readString(), b.readString(), b.readBoolean(), b.readBoolean(), b.readString()));
+            return new ModeView(l, b.readVarInt(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open, or choose a mode by id. */
+    public record ModeAction(String id) implements CustomPayload {
+        public static final Id<ModeAction> ID = id("mode_action");
+        public static final PacketCodec<RegistryByteBuf, ModeAction> CODEC = PacketCodec.of((v, b) -> b.writeString(v.id), b -> new ModeAction(b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
+        PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(ForgeView.ID, ForgeView.CODEC);
+        PayloadTypeRegistry.playC2S().register(ForgeAction.ID, ForgeAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(HomeView.ID, HomeView.CODEC);
+        PayloadTypeRegistry.playS2C().register(HomeAdminView.ID, HomeAdminView.CODEC);
+        PayloadTypeRegistry.playC2S().register(HomeAction.ID, HomeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(MarketView.ID, MarketView.CODEC);
         PayloadTypeRegistry.playS2C().register(ExchangeView.ID, ExchangeView.CODEC);
         PayloadTypeRegistry.playC2S().register(MarketAction.ID, MarketAction.CODEC);

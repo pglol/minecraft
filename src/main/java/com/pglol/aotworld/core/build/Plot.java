@@ -6,9 +6,9 @@ import com.pglol.aotworld.core.Column;
 import com.pglol.aotworld.core.Feature;
 
 /**
- * An empty, fenced and levelled property plot waiting for a player house. The
- * fence rectangle is (x0,z0)-(x1,z1) inclusive; the buildable interior is one
- * block in from the fence. A gate and a numbered sign face the driveway.
+ * An empty, levelled property plot waiting for a player house, marked only by a
+ * "For sale" sign by the driveway. The plot is (x0,z0)-(x1,z1) inclusive; the
+ * buildable interior is one block in from the edge.
  */
 public final class Plot extends Feature {
     public enum Kind { TOWN, VILLAGE, MEADOW, FOREST, LAKESIDE, COAST, HILLTOP, MOUNTAIN, TREEHOUSE }
@@ -88,28 +88,13 @@ public final class Plot extends Feature {
         // Sign beside the gate, facing the visitor.
         int lx = (gate == Style.N || gate == Style.S) ? 2 : 0, lz = (gate == Style.W || gate == Style.E) ? 2 : 0;
         if (x == sx + lx && z == sz + lz && !col.underwater()) {
-            buf.sign(x, col.height + 1, z, SIGN_ROT[gate], "Property", "#" + id, width() + " x " + depth(), sizeName());
+            buf.sign(x, col.height + 1, z, SIGN_ROT[gate], "For sale", "Property #" + id, width() + " x " + depth(), sizeName());
         }
         if (x < x0 || x > x1 || z < z0 || z > z1 || col.underwater()) return;
+        // Unsold plots are plain levelled ground; the RPG mod builds on them when bought.
         int h = col.height;
         buf.fill(x, h + 1, h + 4, z, Blocks.AIR);
         int top = buf.get(x, h, z);
         if (top != Blocks.GRASS && top != Blocks.SNOW_BLOCK) buf.set(x, h, z, Blocks.GRASS);
-        boolean ex = x == x0 || x == x1, ez = z == z0 || z == z1;
-        if (ex && ez) {
-            buf.set(x, h + 1, z, Blocks.COBBLE_WALL);
-            buf.set(x, h + 2, z, Blocks.LANTERN);
-            return;
-        }
-        if (!ex && !ez) return;
-        boolean onGateSide = (gate == Style.N && z == z0) || (gate == Style.S && z == z1)
-            || (gate == Style.W && x == x0) || (gate == Style.E && x == x1);
-        int along = ez ? x - cx() : z - cz();
-        if (onGateSide && Math.abs(along) <= 1) {
-            buf.set(x, h + 1, z, along == 0 ? GATE[gate] : Blocks.AIR);
-            if (along == 0) buf.set(x, h, z, Blocks.DIRT_PATH);
-            return;
-        }
-        buf.set(x, h + 1, z, ez ? FENCE_X : FENCE_Z);
     }
 }

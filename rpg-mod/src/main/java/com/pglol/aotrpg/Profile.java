@@ -44,6 +44,8 @@ public final class Profile {
     public long rpPoints;
     public String role = "";
     public int roleColor;
+    /** Game modes unlocked by an operator (beyond what the story unlocks). */
+    public java.util.Set<String> unlockedModes = new java.util.HashSet<>();
     /** Lifestyle skills (smithing, fishing, cooking): skill -> xp. */
     public java.util.Map<String, Long> lifestyle = new java.util.HashMap<>();
 

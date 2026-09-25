@@ -404,6 +404,23 @@ Factions (`/faction`): Survey Corps, Garrison or Military Police (you can change
 
 Roleplay ranks (`/rp on|off`, or the social wheel): taking part earns rank points (1 a minute while active, 5 per quest, 10 per work order), from Recruit up to Commander. Each rank adds 3% XP and Marks, but only while you're taking part. The tag shows on name plates (a small badge), in chat and in the player list. Operators: `/aotrpg role set <player> <hexcolour> <title>` (a custom role such as Staff), `/aotrpg role clear <player>`, `/aotrpg role points <player> <n>`.
 
+Homes: every town house (and the Underground City's) can be bought by any number of players. The house in town stays as it is. The deed's door leads each owner to their own private copy of the house in the home world, with a fenced yard. Use your house's door to go in, the front door inside to come back out, or `/home` from anywhere out of combat. Sneak + use any house door to see its deed and price. Inside your home you can build, break and store anything (chests stay put). A character can own 2 homes. Yard upgrades, bought from the home screen (pause menu > Home):
+- **Stable**: paddock, stable and a saddled horse.
+- **Forge**: its anvil opens the forge.
+- **Garden**: beds with water.
+- **Fishing Pond**.
+- **Storage Shed**: four double chests.
+
+Party members can visit your copy from the same door. Selling a home returns half its price and upgrades, and anything inside is lost.
+
+Property plots: unique land with one owner. Unsold plots are plain ground with a "For sale" sign; use the sign or sneak + use on the plot to see the deed. Buying one builds a house on the plot in the real world (a copy of a fitting town house, door towards the road), and the owner can build inside the plot. `/aotrpg patch plots` clears the old fences around unsold plots in worlds generated before this.
+
+Property Office (operators: pause menu > Property Office, or `/home admin`): every home and plot with its owners. Search and page through them, teleport to view one, give it to a known or recent player, take it back, or send a player a private offer at any price. The player gets a clickable message (`/home offers`) to accept it.
+
+Forge (the anvil of your home's Forge upgrade): upgrade gear +1 to +10 with Marks, iron and (from +5) ultrahard steel, or forge new ODM blades, APG guns, swords, armor and blade components. Each job is a quick strike minigame (Space or click in the bright zone, three strikes). Better strikes and a higher smithing level mean better odds and rarer gear. Failing only spends the materials.
+
+Game modes (pause menu > Game Mode): Story, and Extraction (you drop your gear on death, and titans drop rarer loot). Expedition and Ironblood are listed as coming soon. Modes unlock by story chapter (`<world>/aot_rpg/modes.json`); operators can unlock one early with `/aotrpg mode <player> unlock <mode>`.
+
 Look: a book-style serif (Spectral) replaces Minecraft's font everywhere, and Cinzel is used for titles.
 
 ## Previews without Minecraft

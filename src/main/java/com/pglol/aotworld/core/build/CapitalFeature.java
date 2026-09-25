@@ -36,6 +36,11 @@ public final class CapitalFeature extends TownFeature {
             new int[] {Blocks.COBBLE, Blocks.GRAVEL, Blocks.MOSSY_COBBLE, Blocks.ANDESITE}).noStables();
     }
 
+    /** The Underground City's street grid (for the home list). */
+    public TownGrid undergroundGrid() {
+        return underground;
+    }
+
     @Override
     protected void extra(ChunkBuffer buf, int x, int z, Column col) {
         if (palace.covers(x, z)) palace.column(buf, x, z, BASE);

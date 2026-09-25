@@ -92,7 +92,14 @@ final class Commands {
                 }))))
             .then(CommandManager.literal("mode").then(CommandManager.argument("player", EntityArgumentType.player())
                 .then(CommandManager.literal("story").executes(c -> setMode(c.getSource(), EntityArgumentType.getPlayer(c, "player"), DeathCare.STORY)))
-                .then(CommandManager.literal("extraction").executes(c -> setMode(c.getSource(), EntityArgumentType.getPlayer(c, "player"), DeathCare.EXTRACTION)))))
+                .then(CommandManager.literal("extraction").executes(c -> setMode(c.getSource(), EntityArgumentType.getPlayer(c, "player"), DeathCare.EXTRACTION)))
+                .then(CommandManager.literal("unlock").then(CommandManager.argument("mode", com.mojang.brigadier.arguments.StringArgumentType.word()).executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    String m = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "mode");
+                    AotRpg.MODES.unlock(p, m);
+                    c.getSource().sendFeedback(() -> Text.literal("Unlocked " + m + " for " + p.getName().getString()), true);
+                    return 1;
+                })))))
             .then(CommandManager.literal("campfire").executes(c -> {
                 ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
                 var pos = p.getBlockPos();
@@ -113,7 +120,11 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Gave " + pr.name + " the starter kit."), true);
                 return 1;
             })))
-            .then(CommandManager.literal("patch").then(CommandManager.literal("underground").executes(c -> {
+            .then(CommandManager.literal("patch").then(CommandManager.literal("plots").executes(c -> {
+                int n = HomePlots.patchAll(c.getSource().getServer().getOverworld());
+                c.getSource().sendFeedback(() -> Text.literal("Cleared " + n + " old fence blocks around unsold plots."), true);
+                return 1;
+            })).then(CommandManager.literal("underground").executes(c -> {
                 // Closes the open trench over the Underground City stairway in worlds made before the fix:
                 // roof over the tunnel, stone up to street level, paving on top. Matches the generator layout.
                 var w = c.getSource().getServer().getOverworld();
@@ -337,6 +348,19 @@ final class Commands {
                     c.getSource().sendFeedback(() -> Text.literal(p.getName().getString() + " is now " + Roles.rank(pr).title()), true);
                     return 1;
                 }))))));
+        d.register(CommandManager.literal("home").executes(c -> {
+            AotRpg.HOMES.command(c.getSource().getPlayerOrThrow());
+            return 1;
+        }).then(CommandManager.literal("offers").executes(c -> {
+            AotRpg.HOMES.action(c.getSource().getPlayerOrThrow(), "offers", -1, "");
+            return 1;
+        })).then(CommandManager.literal("admin").requires(s -> s.hasPermissionLevel(2)).executes(c -> {
+            HomeAdmin.send(c.getSource().getPlayerOrThrow(), "");
+            return 1;
+        })).then(CommandManager.literal("manage").executes(c -> {
+            AotRpg.HOMES.action(c.getSource().getPlayerOrThrow(), "manage", -1, "");
+            return 1;
+        })));
         d.register(CommandManager.literal("market").executes(c -> {
             AotRpg.MARKET.open(c.getSource().getPlayerOrThrow());
             return 1;

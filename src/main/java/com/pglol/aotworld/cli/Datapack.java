@@ -112,6 +112,21 @@ final class Datapack {
             }
         }
         json.append(String.join(", ", zones)).append("]}");
+        // Every town house, for the RPG mod's homes: [x0, z0, x1, z1, floorY, roofY, doorX, doorZ].
+        json.append(",\n  \"homes\": [");
+        int homes = 0;
+        for (com.pglol.aotworld.core.Feature f : w.features()) {
+            List<com.pglol.aotworld.core.build.House> houses = new ArrayList<>();
+            if (f instanceof com.pglol.aotworld.core.build.TownFeature tf) houses.addAll(tf.grid().houseList(f.minX, f.minZ, f.maxX, f.maxZ));
+            if (f instanceof com.pglol.aotworld.core.build.CapitalFeature cf) houses.addAll(cf.undergroundGrid().houseList(f.minX, f.minZ, f.maxX, f.maxZ));
+            for (com.pglol.aotworld.core.build.House hs : houses) {
+                int[] door = hs.doorstep();
+                json.append(homes++ == 0 ? "\n    " : ",\n    ").append(String.format(Locale.ROOT, "[%d, %d, %d, %d, %d, %d, %d, %d]",
+                    hs.x0, hs.z0, hs.x1, hs.z1, hs.baseY, hs.roofTop(), door[0], door[1]));
+            }
+        }
+        json.append("\n  ]");
+        System.out.println("  " + homes + " homes listed for the RPG mod");
         int bpp = com.pglol.aotworld.preview.MapPreview.gameMapBpp(w);
         json.append(String.format(Locale.ROOT, ",\n  \"map\": {\"file\": \"aot-map.png\", \"x0\": %d, \"z0\": %d, \"bpp\": %d, \"version\": 2}",
             w.atlas.minX - com.pglol.aotworld.preview.MapPreview.GAME_MAP_PAD, w.atlas.minZ, bpp));

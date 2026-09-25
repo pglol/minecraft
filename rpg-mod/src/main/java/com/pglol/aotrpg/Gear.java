@@ -156,6 +156,33 @@ public final class Gear {
         return s;
     }
 
+    /** A new piece on a given base item (the forge). */
+    public static ItemStack rollAs(Random r, Rarity rarity, int ilvl, Item base) {
+        return finish(r, new ItemStack(base), rarity, ilvl);
+    }
+
+    /** A new armor piece (the forge). */
+    public static ItemStack rollArmor(Random r, Rarity rarity, int ilvl) {
+        int reach = Math.min(ARMORS.length, 4 + ilvl / 12 + rarity.ordinal());
+        return finish(r, new ItemStack(ARMORS[r.nextInt(reach)]), rarity, ilvl);
+    }
+
+    private static ItemStack finish(Random r, ItemStack s, Rarity rarity, int ilvl) {
+        NbtCompound g = new NbtCompound();
+        g.putString("rarity", rarity.name());
+        g.putInt("ilvl", ilvl);
+        g.putInt("up", 0);
+        g.putLong("seed", r.nextLong());
+        NbtCompound tag = new NbtCompound();
+        tag.put("aot_gear", g);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
+        String[] names = PREFIX[rarity.ordinal()];
+        s.set(DataComponentTypes.CUSTOM_NAME, Text.literal(names[r.nextInt(names.length)] + " " + s.getItem().getName().getString())
+            .formatted(rarity.color).styled(st -> st.withItalic(false)));
+        apply(s);
+        return s;
+    }
+
     /** Recomputes stats and tooltip from the gear data (after rolling or a forge upgrade). */
     public static void apply(ItemStack s) {
         NbtCompound g = data(s);
@@ -254,7 +281,7 @@ public final class Gear {
         boolean shifter = TitanGuard.isShifter(titan);
         float chance = shifter || boss ? 1f : Math.min(0.6f, 0.12f + size / 400f);
         if (r.nextFloat() >= chance) return;
-        int luck = shifter ? 2 : boss ? 1 : 0;
+        int luck = (shifter ? 2 : boss ? 1 : 0) + (DeathCare.EXTRACTION.equals(AotRpg.PROFILES.get(killer.getUuid()).mode) ? 1 : 0);
         Rarity rar = rollRarity(r, luck);
         int ilvl = Math.max(1, areaLevel + (shifter ? 10 : boss ? 5 : 0));
         ItemStack s = roll(r, rar, ilvl);

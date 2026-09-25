@@ -58,6 +58,9 @@ public final class AotRpg implements ModInitializer {
     public static final Combat COMBAT = new Combat();
     public static final Market MARKET = new Market();
     public static final Roles ROLES = new Roles();
+    public static final Homes HOMES = new Homes();
+    public static final Forge FORGE = new Forge();
+    public static final GameModes MODES = new GameModes();
     public static final Exchange EXCHANGE = new Exchange();
     public static final Factions FACTIONS = new Factions();
     public static final Waves WAVES = new Waves();
@@ -105,6 +108,39 @@ public final class AotRpg implements ModInitializer {
                 case "cancel" -> EXCHANGE.cancel(p, payload.number());
                 default -> { }
             }
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.ModeAction.ID, (payload, ctx) -> {
+            if (payload.id().equals("open")) MODES.send(ctx.player(), true);
+            else MODES.choose(ctx.player(), payload.id());
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.ForgeAction.ID, (payload, ctx) -> {
+            ServerPlayerEntity p = ctx.player();
+            // Only at your own home forge.
+            if (p.getWorld().getRegistryKey() != Homes.WORLD || !HOMES.canBuild(p, p.getBlockPos())) return;
+            if (payload.action().equals("upgrade")) FORGE.upgrade(p, payload.slot(), payload.quality());
+            else if (payload.action().equals("craft")) FORGE.craft(p, payload.recipe(), payload.quality());
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.HomeAction.ID, (payload, ctx) -> HOMES.action(ctx.player(), payload.action(), payload.home(), payload.arg()));
+        // Doors: into your home in town, back out inside; the anvil of a home forge opens the forge.
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (world.isClient || !(player instanceof ServerPlayerEntity sp) || hand != net.minecraft.util.Hand.MAIN_HAND) return ActionResult.PASS;
+            var state = world.getBlockState(hit.getBlockPos());
+            // Property plots: sneak + use on the plot, or use its "For sale" sign.
+            if (world.getRegistryKey() == net.minecraft.world.World.OVERWORLD && PROFILES.get(sp.getUuid()).created) {
+                boolean sign = state.getBlock() instanceof net.minecraft.block.AbstractSignBlock;
+                if ((sign || sp.isSneaking()) && !Homes.isDoor(state) && HOMES.usePlot(sp, hit.getBlockPos(), sign)) return ActionResult.SUCCESS;
+            }
+            if (Homes.isDoor(state)) {
+                if (world.getRegistryKey() == net.minecraft.world.World.OVERWORLD && PROFILES.get(sp.getUuid()).created
+                    && HOMES.useDoor(sp, hit.getBlockPos(), sp.isSneaking())) return ActionResult.SUCCESS;
+                if (world.getRegistryKey() == Homes.WORLD && HOMES.useHomeDoor(sp, hit.getBlockPos())) return ActionResult.SUCCESS;
+            }
+            if (world.getRegistryKey() == Homes.WORLD && state.isIn(net.minecraft.registry.tag.BlockTags.ANVIL)
+                && HOMES.hasUpgrade(sp, hit.getBlockPos(), Homes.Upgrade.FORGE)) {
+                FORGE.open(sp);
+                return ActionResult.SUCCESS;
+            }
+            return ActionResult.PASS;
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.FactionAction.ID, (payload, ctx) -> {
             if (payload.action().equals("open")) FACTIONS.send(ctx.player(), true);
@@ -283,6 +319,8 @@ public final class AotRpg implements ModInitializer {
             MARKET.open(server);
             EXCHANGE.open(server);
             FACTIONS.open(server);
+            HOMES.open(server);
+            MODES.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
@@ -298,6 +336,10 @@ public final class AotRpg implements ModInitializer {
             PARTIES.joined(p);
             COSMETICS.sync(p);
             LOADOUT.sendAll(p);
+            HomeAdmin.joined(p);
+            SCHEDULER.later(60, () -> {
+                if (!p.isDisconnected()) HomeAdmin.notify(p);
+            });
             sendWorldData(p);
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
@@ -332,6 +374,7 @@ public final class AotRpg implements ModInitializer {
             LOADOUT.forget(p);
             WAVES.forget(p);
             ROLES.forget(p);
+            HOMES.forget(p);
             GRAB.forget(p);
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);

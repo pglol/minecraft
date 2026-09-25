@@ -128,6 +128,8 @@ public final class ProfileStore {
                     if (p.lifestyle == null) p.lifestyle = new java.util.HashMap<>();
                     if (p.orders == null) p.orders = new java.util.HashMap<>();
                     if (p.faction == null) p.faction = "";
+                    if (p.unlockedModes == null) p.unlockedModes = new java.util.HashSet<>();
+                    if (p.role == null) p.role = "";
                     return p;
                 }
             } catch (Exception e) {

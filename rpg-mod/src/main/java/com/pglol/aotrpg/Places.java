@@ -61,6 +61,15 @@ public final class Places {
                         o.get("prio").getAsInt(), o.get("x").getAsInt(), o.get("y").getAsInt(), o.get("z").getAsInt()));
                 }
             }
+            homes.clear();
+            if (root.has("homes")) {
+                for (JsonElement e : root.getAsJsonArray("homes")) {
+                    var a = e.getAsJsonArray();
+                    int[] h = new int[a.size()];
+                    for (int i = 0; i < h.length; i++) h[i] = a.get(i).getAsInt();
+                    homes.add(h);
+                }
+            }
             if (root.has("walls")) {
                 JsonObject wl = root.getAsJsonObject("walls");
                 walls = new int[] {wl.get("sina").getAsInt(), wl.get("rose").getAsInt(), wl.get("maria").getAsInt()};
@@ -96,6 +105,29 @@ public final class Places {
                 campfires.size(), mapBytes.size(), kb, mapOutdated ? " - OUTDATED map: run the new add-titans.bat" : "");
         } catch (Exception e) {
             AotRpg.LOG.error("Could not read {}", f, e);
+        }
+        loadPlots(f.getParent().resolve("plots.json"));
+        AotRpg.HOMES.index();
+    }
+
+    /** A property plot: interior box, floor height, gate side (north/south/west/east), region. */
+    public record PlotInfo(int id, String kind, String size, int x0, int z0, int x1, int z1, int y, String gate, String region) { }
+
+    public final java.util.List<PlotInfo> plots = new java.util.ArrayList<>();
+
+    private void loadPlots(Path file) {
+        plots.clear();
+        if (!Files.exists(file)) return;
+        try {
+            for (JsonElement e : JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonArray()) {
+                JsonObject o = e.getAsJsonObject(), in = o.getAsJsonObject("interior");
+                plots.add(new PlotInfo(o.get("id").getAsInt(), o.get("kind").getAsString(), o.get("size").getAsString(),
+                    in.get("x0").getAsInt(), in.get("z0").getAsInt(), in.get("x1").getAsInt(), in.get("z1").getAsInt(),
+                    o.get("floorY").getAsInt(), o.get("gate").getAsString(), o.get("region").getAsString()));
+            }
+            AotRpg.LOG.info("Loaded {} property plots", plots.size());
+        } catch (Exception e) {
+            AotRpg.LOG.error("Could not read {}", file, e);
         }
     }
 
@@ -144,6 +176,9 @@ public final class Places {
     public java.util.List<Net.Area> areas() {
         return areas;
     }
+
+    /** Every town house: {x0, z0, x1, z1, floorY, roofY, doorX, doorZ}. */
+    public final java.util.List<int[]> homes = new java.util.ArrayList<>();
 
     /** Wall radii {Sina, Rose, Maria} around the capital at 0,0 (null before the json is read). */
     public int[] walls;

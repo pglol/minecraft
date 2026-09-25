@@ -86,6 +86,38 @@ public final class TownGrid {
         return lotValid(a0, b0, a1, b1);
     }
 
+    /** Every house of this grid within a world-space box (exported for the RPG mod's homes). */
+    public java.util.List<House> houseList(int minX, int minZ, int maxX, int maxZ) {
+        java.util.List<House> out = new java.util.ArrayList<>();
+        int[] as = {localA(minX, minZ), localA(maxX, maxZ), localA(minX, maxZ), localA(maxX, minZ)};
+        int[] bs = {localB(minX, minZ), localB(maxX, maxZ), localB(minX, maxZ), localB(maxX, minZ)};
+        int amin = Math.min(Math.min(as[0], as[1]), Math.min(as[2], as[3])), amax = Math.max(Math.max(as[0], as[1]), Math.max(as[2], as[3]));
+        int bmin = Math.min(Math.min(bs[0], bs[1]), Math.min(bs[2], bs[3])), bmax = Math.max(Math.max(bs[0], bs[1]), Math.max(bs[2], bs[3]));
+        int shift = street / 2;
+        for (int ia = Math.floorDiv(amin, block); ia <= Math.floorDiv(amax, block); ia++) {
+            for (int ib = Math.floorDiv(bmin + shift, block); ib <= Math.floorDiv(bmax + shift, block); ib++) {
+                if (plotBlock(ia, ib)) continue;
+                for (int qa = 0; qa < 2; qa++) {
+                    for (int qb = 0; qb < 2; qb++) {
+                        int la0 = ia * block + street + qa * (lot + 1);
+                        int lb0 = ib * block + street - shift + qb * (lot + 1);
+                        int la1 = la0 + lot - 1, lb1 = lb0 + lot - 1;
+                        if (!lotValid(la0, lb0, la1, lb1)) continue;
+                        if (ia * 2L + qa == stableA && ib * 2L + qb == stableB) continue;
+                        long lh = Hash.of(seed, ia * 2L + qa, ib * 2L + qb);
+                        double u = Hash.unit(lh);
+                        if (u < 0.74 || (u < 0.80 && !stables)) {
+                            House h = house(qa, qb, la0, lb0, la1, lb1, lh);
+                            // Every column of the house must be inside the grid, as when it is drawn.
+                            if (shape.inside(h.x0, h.z0) && shape.inside(h.x1, h.z1)) out.add(h);
+                        }
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
     /** Enumerates the plot blocks of this grid within a world-space box. */
     public java.util.List<Plot> plotList(int minX, int minZ, int maxX, int maxZ) {
         java.util.List<Plot> out = new java.util.ArrayList<>();

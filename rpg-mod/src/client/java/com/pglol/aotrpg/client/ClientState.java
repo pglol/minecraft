@@ -32,6 +32,10 @@ public final class ClientState {
     public static Net.MarketView market;
     public static java.util.List<Net.ExchangeEntry> exchange = java.util.List.of();
     public static Net.FactionView factions;
+    public static Net.HomeView home;
+    public static Net.HomeAdminView homeAdmin;
+    public static Net.ForgeView forge;
+    public static Net.ModeView modes;
     public static java.util.Map<java.util.UUID, Net.SheathState> sheaths = new java.util.HashMap<>();
 
     public static Net.PartyMember partyMember(java.util.UUID id) {

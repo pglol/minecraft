@@ -81,6 +81,26 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof FactionScreen s) s.refresh();
             else if (payload.open()) ctx.client().setScreen(new FactionScreen());
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.HomeView.ID, (payload, ctx) -> {
+            ClientState.home = payload;
+            if (ctx.client().currentScreen instanceof HomeScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new HomeScreen());
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.HomeAdminView.ID, (payload, ctx) -> {
+            ClientState.homeAdmin = payload;
+            if (ctx.client().currentScreen instanceof HomeAdminScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new HomeAdminScreen());
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.ForgeView.ID, (payload, ctx) -> {
+            ClientState.forge = payload;
+            if (ctx.client().currentScreen instanceof ForgeScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new ForgeScreen());
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.ModeView.ID, (payload, ctx) -> {
+            ClientState.modes = payload;
+            if (ctx.client().currentScreen instanceof GameModeScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new GameModeScreen());
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.HitMarker.ID, (payload, ctx) -> HitFx.onHit(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.WalletSync.ID, (payload, ctx) -> {
             ClientState.marks = payload.marks();
