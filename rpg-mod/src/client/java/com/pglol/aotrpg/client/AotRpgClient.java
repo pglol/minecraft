@@ -258,7 +258,6 @@ public final class AotRpgClient implements ClientModInitializer {
             while (LockOn.key.wasPressed()) if (client.currentScreen == null) LockOn.pressed(client);
             CombatUi.tick(client);
             CosmeticFx.tick(client);
-            Toasts.tickLoot(client);
             while (socialKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());
             }

@@ -163,39 +163,13 @@ public final class Toasts {
 
     // ------------------------------------------------------------------ loot pickups
 
-    private static final java.util.Map<net.minecraft.item.Item, Integer> lastCounts = new java.util.HashMap<>();
-    private static boolean primed;
-
-    /** Each tick: items that appeared in the inventory (with no screen open) are shown as pickups. */
-    public static void tickLoot(MinecraftClient mc) {
-        if (mc.player == null) {
-            primed = false;
-            lastCounts.clear();
-            return;
-        }
-        java.util.Map<net.minecraft.item.Item, Integer> now = new java.util.HashMap<>();
-        java.util.Map<net.minecraft.item.Item, ItemStack> sample = new java.util.HashMap<>();
-        var inv = mc.player.getInventory();
-        for (int i = 0; i < inv.size(); i++) {
-            ItemStack s = inv.getStack(i);
-            if (s.isEmpty()) continue;
-            now.merge(s.getItem(), s.getCount(), Integer::sum);
-            sample.putIfAbsent(s.getItem(), s);
-        }
-        if (primed && mc.currentScreen == null) {
-            for (var e : now.entrySet()) {
-                int gained = e.getValue() - lastCounts.getOrDefault(e.getKey(), 0);
-                if (gained <= 0) continue;
-                ItemStack s = sample.get(e.getKey());
-                String key = "loot:" + e.getKey();
-                int total = gained;
-                for (Toast t : toasts) if (key.equals(t.key) && Util.getMeasuringTimeMs() - t.born < STAY) total = t.count += gained;
-                Text name = s.getName();
-                push(Text.literal("+" + total + " ").append(name), null, colorOf(name, 0xEDE3C8), s.copyWithCount(1), key);
-            }
-        }
-        lastCounts.clear();
-        lastCounts.putAll(now);
-        primed = true;
+    /** An item picked up off the ground (repeat pickups of the same item add up). */
+    public static void pickedUp(ItemStack stack, int amount) {
+        if (amount <= 0) return;
+        String key = "loot:" + stack.getItem();
+        int total = amount;
+        for (Toast t : toasts) if (key.equals(t.key) && Util.getMeasuringTimeMs() - t.born < STAY) total = t.count += amount;
+        Text name = stack.getName();
+        push(Text.literal("+" + total + " ").append(name), null, colorOf(name, 0xEDE3C8), stack.copyWithCount(1), key);
     }
 }
