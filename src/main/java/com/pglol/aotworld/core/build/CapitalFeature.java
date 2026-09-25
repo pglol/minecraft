@@ -77,23 +77,52 @@ public final class CapitalFeature extends TownFeature {
     }
 
     private void tunnel(ChunkBuffer buf, int x, int z) {
-        if (x < TUNNEL_X0 || x > TUNNEL_X1) return;
+        if (x < TUNNEL_X0 || x > TUNNEL_X1 + 3) return;
         int dz = Math.abs(z - TUNNEL_Z);
         if (dz > 3) return;
-        int floor = CAVE_FLOOR + (x - TUNNEL_X0);
+        int gate = TUNNEL_X1 - 7; // the gatehouse covers the last stretch of the stairway
+        if (x >= gate) {
+            gatehouse(buf, x, z, dz);
+            if (x > TUNNEL_X1) return;
+        }
+        int floor = Math.min(BASE, CAVE_FLOOR + (x - TUNNEL_X0));
+        boolean under = floor + 6 <= BASE;
         if (dz == 3) {
-            if (floor + 6 <= BASE) buf.fill(x, floor, floor + 6, z, Blocks.STONE_BRICKS);
-            else {
-                buf.fill(x, floor, BASE, z, Blocks.STONE_BRICKS);
-                buf.set(x, BASE + 1, z, dz == 3 && z > TUNNEL_Z ? Blocks.SPRUCE_FENCE_X : Blocks.SPRUCE_FENCE_X);
-            }
+            // Side walls; below ground they reach the tunnel roof.
+            buf.fill(x, floor, under ? floor + 6 : BASE, z, Blocks.STONE_BRICKS);
             return;
         }
-        buf.set(x, floor, z, Blocks.id("stone_brick_stairs[facing=east,half=bottom]"));
-        buf.fill(x, floor + 1, Math.max(floor + 5, BASE + 2), z, Blocks.AIR);
-        if (floor + 6 <= BASE) {
+        buf.set(x, floor, z, floor >= BASE ? Blocks.STONE_BRICKS : Blocks.id("stone_brick_stairs[facing=east,half=bottom]"));
+        if (under) {
+            // Enclosed tunnel: air inside, a stone roof, the surface above left intact.
+            buf.fill(x, floor + 1, floor + 5, z, Blocks.AIR);
             buf.set(x, floor + 6, z, Blocks.STONE_BRICKS);
             if (dz == 0 && x % 8 == 0) buf.set(x, floor + 5, z, Blocks.LANTERN_HANGING);
+        } else {
+            buf.fill(x, floor + 1, BASE + 3, z, Blocks.AIR);
         }
+    }
+
+    /** A small roofed stone gatehouse over the top of the stairway, with a sign. */
+    private void gatehouse(ChunkBuffer buf, int x, int z, int dz) {
+        int x1 = TUNNEL_X1 + 2;
+        if (x > x1) {
+            // Sign just outside the arch, facing the street.
+            if (dz == 2 && z > TUNNEL_Z) buf.sign(x, BASE + 1, z, 12, "Underground", "City", "\u2193", "");
+            return;
+        }
+        boolean front = x == x1;
+        if (dz == 3) {
+            boolean pillar = x == TUNNEL_X1 - 7 || front || x == TUNNEL_X1 - 3;
+            buf.fill(x, BASE + 1, BASE + 4, z, pillar ? Blocks.id("chiseled_stone_bricks") : Blocks.STONE_BRICKS);
+            if (pillar && x == x1) buf.set(x, BASE + 3, z, Blocks.LANTERN);
+        } else if (front) {
+            buf.set(x, BASE, z, Blocks.STONE_BRICKS);
+            if (dz == 2) buf.fill(x, BASE + 4, BASE + 4, z, Blocks.STONE_BRICKS);
+        }
+        buf.set(x, BASE + 5, z, Blocks.id("stone_brick_slab[type=bottom]"));
+        if (dz <= 2) buf.set(x, BASE + 5, z, Blocks.STONE_BRICKS);
+        if (dz == 0 && !front) buf.set(x, BASE + 6, z, Blocks.id("stone_brick_slab[type=bottom]"));
+        if (dz == 0 && x == TUNNEL_X1 - 2) buf.set(x, BASE + 4, z, Blocks.LANTERN_HANGING);
     }
 }
