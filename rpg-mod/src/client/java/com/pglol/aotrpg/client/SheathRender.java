@@ -58,15 +58,25 @@ public final class SheathRender {
             for (int i = 0; i < grips.length; i++) {
                 ItemStack stack = grips[i];
                 ms.push();
-                // Drawn as their inventory icons (flat, the blade on the diagonal) so every grip
-                // model lies the same way: flat against the back. Turned 180 and 270 degrees, the
-                // two blades cross in an even X, handles up over each shoulder.
-                float angle = grips.length == 1 ? 225 : (i == 0 ? 180 : 270);
                 ms.translate(0, -0.05, 0.012 * i);
-                ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle));
-                ms.scale(0.85f, 0.85f, 0.85f);
-                mc.getItemRenderer().renderItem(stack, ModelTransformationMode.GUI, light, OverlayTexture.DEFAULT_UV, ms, vc, mc.world,
-                    pl.getId() * 7 + i);
+                if (Registries.ITEM.getId(stack.getItem()).getNamespace().equals("dannys-aot")) {
+                    // Danny's real 3D grip: upright along its own Y from the pommel. Tilted 45 degrees
+                    // either side of hanging straight down, handles over the shoulders, and slid back
+                    // half its length so the two cross at their middles, flat against the back.
+                    float angle = grips.length == 1 ? 200 : (i == 0 ? 135 : 225);
+                    ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle));
+                    ms.scale(0.8f, 0.8f, 0.8f);
+                    ms.translate(0, -0.55, 0);
+                    mc.getItemRenderer().renderItem(stack, ModelTransformationMode.NONE, light, OverlayTexture.DEFAULT_UV, ms, vc, mc.world,
+                        pl.getId() * 7 + i);
+                } else {
+                    // Flat item sprites lie on the diagonal: 180 and 270 degrees make the X.
+                    float angle = grips.length == 1 ? 225 : (i == 0 ? 180 : 270);
+                    ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle));
+                    ms.scale(0.85f, 0.85f, 0.85f);
+                    mc.getItemRenderer().renderItem(stack, ModelTransformationMode.GUI, light, OverlayTexture.DEFAULT_UV, ms, vc, mc.world,
+                        pl.getId() * 7 + i);
+                }
                 ms.pop();
             }
             ms.pop();
