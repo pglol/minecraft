@@ -48,6 +48,11 @@ public final class TitanLevels {
 
     private final Map<UUID, Nape> napes = new HashMap<>();
 
+    /** Severed napes whose titan must fall, finished a tick later (after Danny's own nape kill). */
+    private record Finish(LivingEntity titan, ServerPlayerEntity by, DamageSource source) { }
+
+    private final List<Finish> finishing = new ArrayList<>();
+
     /** Nape, eye and limb hitboxes are separate entities in Danny's mod. */
     public static boolean part(Entity e) {
         String path = Registries.ENTITY_TYPE.getId(e.getType()).getPath();
@@ -88,6 +93,11 @@ public final class TitanLevels {
 
     /** Once a second: level any new titans near players, and tell players about the ones around them. */
     public void tick(MinecraftServer server, int ticks) {
+        if (!finishing.isEmpty()) {
+            List<Finish> now = new ArrayList<>(finishing);
+            finishing.clear();
+            for (Finish f : now) finish(f);
+        }
         if (ticks % 20 != 11) return;
         long now = System.currentTimeMillis();
         napes.values().removeIf(n -> now - n.lastAt > 60_000);
@@ -215,6 +225,7 @@ public final class TitanLevels {
         if (kill) {
             n.approvedUntil = now + APPROVE_MS;
             n.strikes = 0;
+            finishing.add(new Finish(titan, p, source));
             return false;
         }
         // Not deep enough: the titan staggers, steams, and the cut starts to close.
@@ -223,6 +234,24 @@ public final class TitanLevels {
         w.playSound(null, hit.getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, SoundCategory.PLAYERS, 1f, 0.8f);
         titan.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 2, false, false, false));
         return true;
+    }
+
+    /**
+     * A severed nape always kills: Danny's nape deals a fixed blow, which falls short of titans made
+     * tougher by their level, so whatever health is left goes too (credited to the striker).
+     */
+    private void finish(Finish f) {
+        LivingEntity t = f.titan();
+        if (!t.isAlive() || t.isRemoved()) return;
+        Nape n = napes.computeIfAbsent(t.getUuid(), k -> new Nape());
+        n.approvedUntil = System.currentTimeMillis() + APPROVE_MS;
+        DamageSource src = f.by().isAlive() ? f.by().getDamageSources().playerAttack(f.by()) : f.source();
+        t.damage(src, t.getHealth() + 1000f);
+        if (t.isAlive()) {
+            // Titans immune to ordinary blows: end it directly, still crediting the striker.
+            t.setHealth(0);
+            t.onDeath(src);
+        }
     }
 
     private static void send(ServerPlayerEntity p, LivingEntity titan, int strikes, int need, boolean kill) {
