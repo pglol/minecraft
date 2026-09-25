@@ -114,6 +114,20 @@ public final class Ui {
         m.pop();
     }
 
+    /** Text with a dark ink outline, readable on the parchment map. */
+    public static void inked(DrawContext c, Text t, float x, float y, float scale, int color, boolean center) {
+        MatrixStack m = c.getMatrices();
+        m.push();
+        m.translate(x, y, 0);
+        m.scale(scale, scale, 1);
+        int dx = center ? -font().getWidth(t) / 2 : 0;
+        Text plain = Text.literal(t.getString()).setStyle(t.getStyle().withColor((net.minecraft.text.TextColor) null));
+        int ink = 0xE0201408;
+        for (int[] o : new int[][] {{-1, 0}, {1, 0}, {0, -1}, {0, 1}}) c.drawText(font(), plain, dx + o[0], o[1], ink, false);
+        c.drawText(font(), t, dx, 0, color, false);
+        m.pop();
+    }
+
     public static void item(DrawContext c, ItemStack stack, int x, int y, float scale) {
         MatrixStack m = c.getMatrices();
         m.push();

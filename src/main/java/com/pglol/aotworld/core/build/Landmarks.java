@@ -108,11 +108,15 @@ public final class Landmarks {
                     if (cheb == 9 && top >= base + 26 && Math.floorMod(dx + dz, 2) == 0) buf.set(x, top + 1, z, stoneMix(seed, x, top + 1, z));
                 } else {
                     buf.set(x, base, z, Blocks.COBBLE);
+                    boolean ring = cheb == 7;
                     for (int y = base + 6; y < base + 30; y += 6) {
-                        if (Hash.unit(Hash.of(seed, x, y, z)) < 0.72) buf.set(x, y, z, Blocks.SPRUCE_PLANKS);
+                        if (!ring && Hash.unit(Hash.of(seed, x, y, z)) < 0.72) buf.set(x, y, z, Blocks.SPRUCE_PLANKS);
                     }
-                    if (dx == -7 && dz == -7) buf.fill(x, base + 1, base + 26, z, Blocks.id("ladder[facing=south]"));
-                    if (dx == -7 && dz == -8) buf.fill(x, base + 1, base + 26, z, Blocks.STONE_BRICKS);
+                    if (ring) {
+                        // Stair of half-steps around the inside of the walls, one turn per floor.
+                        int p = dz == -7 ? dx + 7 : dx == 7 ? 14 + dz + 7 : dz == 7 ? 28 + 7 - dx : 42 + 7 - dz;
+                        Tower.spiral(buf, x, z, (p % 56) / 56.0 * 2 * Math.PI - Math.PI, base, base + 27);
+                    }
                 }
             } else if (cheb >= 23 && cheb <= 24) {
                 boolean gate = dz > 0 && Math.abs(dx) <= 2;

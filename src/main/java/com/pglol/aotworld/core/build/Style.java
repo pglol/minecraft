@@ -13,6 +13,8 @@ public final class Style {
     public final int[] roofStair = new int[4];
     public final int[] door = new int[8];
     public final int[] ladder = new int[4];
+    /** Indoor staircase steps, matching the floor wood. */
+    public final int[] stair = new int[4];
     public final int paneX, paneZ;
 
     /**
@@ -37,6 +39,8 @@ public final class Style {
             this.door[f * 2] = Blocks.id(door + "[facing=" + FACING[f] + ",half=lower,hinge=left]");
             this.door[f * 2 + 1] = Blocks.id(door + "[facing=" + FACING[f] + ",half=upper,hinge=left]");
             ladder[f] = Blocks.id("ladder[facing=" + FACING[f] + "]");
+            String stairName = floor.endsWith("_planks") ? floor.replace("_planks", "_stairs") : "stone_brick_stairs";
+            stair[f] = Blocks.id(stairName + "[facing=" + FACING[f] + ",half=bottom]");
         }
         paneX = Blocks.id("glass_pane[east=true,west=true]");
         paneZ = Blocks.id("glass_pane[north=true,south=true]");

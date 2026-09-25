@@ -105,6 +105,13 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Placed a cooking campfire here."), true);
                 return 1;
             }))
+            .then(CommandManager.literal("kit").then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                Profile pr = created(p);
+                Kit.give(p, pr, AotRpg.PLACES.get("cadet-training-camp"));
+                c.getSource().sendFeedback(() -> Text.literal("Gave " + pr.name + " the starter kit."), true);
+                return 1;
+            })))
             .then(CommandManager.literal("items").executes(c -> {
                 AotItems.scan(c.getSource().getServer());
                 c.getSource().sendFeedback(() -> Text.literal(AotItems.all().size() + " AoT mod items listed in <world>/aot_rpg/aot-items.txt"), false);
@@ -113,6 +120,10 @@ final class Commands {
             .then(CommandManager.literal("reload").executes(c -> {
                 AotRpg.PLACES.load(c.getSource().getServer());
                 AotRpg.QUESTS.load(c.getSource().getServer());
+                for (ServerPlayerEntity o : c.getSource().getServer().getPlayerManager().getPlayerList()) {
+                    AotRpg.sendWorldData(o);
+                    AotRpg.QUESTS.send(o);
+                }
                 c.getSource().sendFeedback(() -> Text.literal("Reloaded aot-rpg.json."), true);
                 return 1;
             })));

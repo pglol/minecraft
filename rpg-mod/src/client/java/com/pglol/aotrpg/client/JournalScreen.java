@@ -55,6 +55,7 @@ public class JournalScreen extends Screen {
 
     @Override
     protected void init() {
+        WorldMapScreen.requestIfMissing();
         w = Math.min(460, width - 20);
         left = (width - w) / 2;
         top = 70;

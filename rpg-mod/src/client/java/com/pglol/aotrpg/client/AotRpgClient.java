@@ -42,7 +42,7 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.OpenCreator.ID, (payload, ctx) -> {
             // A fresh creator (not a rejected attempt) means the character was reset.
             if (payload.error().isEmpty()) {
-                ClientState.reset();
+                ClientState.resetCharacter();
                 CreatorScreen.draft = null;
             }
             ctx.client().setScreen(new CreatorScreen(payload.error()));

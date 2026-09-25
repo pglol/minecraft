@@ -44,8 +44,20 @@ public class WorldMapScreen extends Screen {
         return false;
     }
 
+    private static long lastRequest;
+
+    /** Ask the server again if the map or area names never arrived. */
+    static void requestIfMissing() {
+        long now = net.minecraft.util.Util.getMeasuringTimeMs();
+        if ((ClientState.areas.isEmpty() || MapData.info == null) && now - lastRequest > 5000) {
+            lastRequest = now;
+            ClientPlayNetworking.send(new Net.WorldDataRequest());
+        }
+    }
+
     @Override
     protected void init() {
+        requestIfMissing();
         ClientPlayerEntity pl = client.player;
         if (Double.isNaN(centerX) && pl != null) {
             centerX = pl.getX();
@@ -179,12 +191,12 @@ public class WorldMapScreen extends Screen {
 
     @Override
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
-        c.fillGradient(0, 0, width, height, 0xF0101410, 0xF8060806);
+        c.fillGradient(0, 0, width, height, 0xF0141008, 0xF80A0804);
+        Ui.cloth(c, 0, 0, width, height);
         Ui.text(c, Ui.title("MAP OF THE WORLD"), mapL, 8, 1.2f, Ui.GOLD, false);
-        c.fill(mapL - 1, mapT - 1, mapR + 1, mapB + 1, 0xFF2A3A4A);
 
         c.enableScissor(mapL, mapT, mapR, mapB);
-        c.fill(mapL, mapT, mapR, mapB, 0xFF22384E);
+        c.fill(mapL, mapT, mapR, mapB, 0xFF3A3020);
         Net.MapInfo info = MapData.info;
         if (MapData.ready && info != null) {
             MatrixStack m = c.getMatrices();
@@ -273,8 +285,8 @@ public class WorldMapScreen extends Screen {
             Text name = Ui.heading(big ? a.name().toUpperCase() : a.name());
             float ns = big ? 1.0f : 0.85f;
             int ty = big ? y - 8 : y - 22;
-            Ui.text(c, lv, x, ty, 0.7f, 0xFFD8D0C0, true);
-            Ui.text(c, name, x, ty + 7, ns, col, true);
+            Ui.inked(c, lv, x, ty, 0.7f, 0xFFF0E6CC, true);
+            Ui.inked(c, name, x, ty + 7, ns, col, true);
             int w = (int) (textRenderer.getWidth(name) * ns / 2) + 2;
             if (mouseX >= x - w && mouseX <= x + w && mouseY >= ty - 2 && mouseY <= ty + 16) hover = a;
         }

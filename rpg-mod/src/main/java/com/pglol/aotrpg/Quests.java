@@ -177,7 +177,7 @@ public final class Quests {
         p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1f);
         // Rewards: supplies from the AoT mod for fights, emeralds for exploring.
         if (d.kills() > 0) {
-            ItemStack gas = AotItems.stack(4 + d.level() / 10, null, "gas", "canister");
+            ItemStack gas = AotItems.bestStack(4 + d.level() / 10, AotItems.GAS);
             if (!gas.isEmpty()) p.giveItemStack(gas);
             p.giveItemStack(new ItemStack(Items.EMERALD, 3 + d.level() / 8));
         } else {

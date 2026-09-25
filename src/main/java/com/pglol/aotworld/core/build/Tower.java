@@ -12,6 +12,20 @@ final class Tower {
         return dx * dx + dz * dz <= (radius + 1.5) * (radius + 1.5);
     }
 
+    private static final int SLAB_LOW = Blocks.id("spruce_slab[type=bottom]"), SLAB_HIGH = Blocks.id("spruce_slab[type=top]");
+
+    /** One turn of slabs rises 6 blocks (a floor): half a block per step, walkable without jumping. */
+    static void spiral(ChunkBuffer b, int x, int z, double angle, int baseY, int top) {
+        double frac = (angle + Math.PI) / (2 * Math.PI);
+        int half = (int) Math.floor(frac * 12);
+        for (int turn = 0; ; turn++) {
+            int hh = half + 12 * turn;
+            int y = baseY + 1 + hh / 2;
+            if (y >= top - 1) break;
+            b.set(x, y, z, hh % 2 == 0 ? SLAB_LOW : SLAB_HIGH);
+        }
+    }
+
     static void column(ChunkBuffer b, int x, int z, int cx, int cz, int radius, int baseY, int height,
                        int wall, int roof, int groundY) {
         double d = Math.hypot(x - cx, z - cz);
@@ -27,10 +41,10 @@ final class Tower {
                 }
             } else {
                 b.fill(x, baseY + 1, top, z, Blocks.AIR);
-                for (int y = baseY; y < top; y += 6) b.set(x, y, z, Blocks.SPRUCE_PLANKS);
-                if (x == cx && z == cz + radius - 1) {
-                    b.fill(x, baseY + 1, top - 1, z, Blocks.id("ladder[facing=north]"));
-                }
+                boolean ring = d > radius - 1.9 && radius >= 3;
+                // Floors in the middle; the outer ring is a spiral stair of half-steps.
+                for (int y = baseY; y < top; y += 6) if (!ring || y == baseY) b.set(x, y, z, Blocks.SPRUCE_PLANKS);
+                if (ring) spiral(b, x, z, Math.atan2(z - cz, x - cx), baseY, top);
             }
             b.set(x, top, z, wall);
         }

@@ -367,7 +367,15 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: send me the world data again (map, areas, campfires, quests). */
+    public record WorldDataRequest() implements CustomPayload {
+        public static final Id<WorldDataRequest> ID = id("world_data");
+        public static final PacketCodec<RegistryByteBuf, WorldDataRequest> CODEC = PacketCodec.unit(new WorldDataRequest());
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playC2S().register(WorldDataRequest.ID, WorldDataRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(Areas.ID, Areas.CODEC);
         PayloadTypeRegistry.playS2C().register(MapInfo.ID, MapInfo.CODEC);
         PayloadTypeRegistry.playC2S().register(MapRequest.ID, MapRequest.CODEC);

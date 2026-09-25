@@ -42,11 +42,19 @@ public final class Kit {
         p.giveItemStack(uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "Riding Boots", "Standard issue, 104th Cadet Corps"));
         // Gear from the AoT mod when it is installed (ODM gear, blades, gas), otherwise a training sword.
         if (AotItems.present()) {
-            ItemStack odm = AotItems.stack(1, null, "odm", "maneuver", "3dmg");
+            // Standard issue ODM gear (not the anti-personnel model), two grips, blades and gas.
+            ItemStack odm = AotItems.bestStack(1, AotItems.ODM, "grip", "handle", "blade", "gas");
             if (!odm.isEmpty()) p.giveItemStack(odm);
-            ItemStack blade = AotItems.stack(1, Items.IRON_SWORD, "blade", "sword");
-            p.giveItemStack(blade);
-            ItemStack gas = AotItems.stack(8, null, "gas", "canister");
+            ItemStack grip = AotItems.bestStack(1, AotItems.GRIP, "blade");
+            if (!grip.isEmpty()) {
+                if (grip.getMaxCount() > 1) grip.setCount(2);
+                else p.giveItemStack(grip.copy());
+                p.giveItemStack(grip);
+            }
+            ItemStack blades = AotItems.bestStack(8, AotItems.BLADE, "grip", "handle");
+            if (!blades.isEmpty()) p.giveItemStack(blades);
+            else if (grip.isEmpty()) p.giveItemStack(named(Items.IRON_SWORD, 1, "Training Blade", Formatting.WHITE, "Dull, but it will do."));
+            ItemStack gas = AotItems.bestStack(8, AotItems.GAS);
             if (!gas.isEmpty()) p.giveItemStack(gas);
         } else {
             p.giveItemStack(named(Items.IRON_SWORD, 1, "Training Blade", Formatting.WHITE, "Dull, but it will do."));

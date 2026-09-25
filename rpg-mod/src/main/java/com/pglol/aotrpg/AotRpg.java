@@ -51,6 +51,15 @@ public final class AotRpg implements ModInitializer {
         return ServerPlayNetworking.canSend(p, Net.Sync.ID);
     }
 
+    /** Map image info, areas and campfires: everything the map and minimap need. */
+    public static void sendWorldData(ServerPlayerEntity p) {
+        if (!ServerPlayNetworking.canSend(p, Net.Campfires.ID)) return;
+        ServerPlayNetworking.send(p, new Net.Campfires(PLACES.campfireArray()));
+        ServerPlayNetworking.send(p, new Net.Areas(PLACES.areas()));
+        Net.MapInfo mi = PLACES.mapInfo();
+        if (mi != null) ServerPlayNetworking.send(p, mi);
+    }
+
     /** Sends the character to the player's HUD, or updates the boss bar for vanilla clients. */
     public static void sync(ServerPlayerEntity p, Profile pr) {
         if (!pr.created) return;
@@ -64,6 +73,11 @@ public final class AotRpg implements ModInitializer {
     public void onInitialize() {
         Net.register();
         SatchelHandler.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.WorldDataRequest.ID, (payload, ctx) -> {
+            sendWorldData(ctx.player());
+            QUESTS.send(ctx.player());
+            QUESTS.markers(ctx.player(), true);
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.QuestAction.ID, (payload, ctx) -> QUESTS.action(ctx.player(), payload.quest(), payload.action()));
         ServerPlayNetworking.registerGlobalReceiver(Net.SetWaypoint.ID, (payload, ctx) -> QUESTS.setWaypoint(ctx.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(Net.MapRequest.ID, (payload, ctx) -> {
@@ -142,12 +156,7 @@ public final class AotRpg implements ModInitializer {
             ServerPlayerEntity p = handler.getPlayer();
             Profile pr = PROFILES.get(p.getUuid());
             PARTIES.joined(p);
-            if (ServerPlayNetworking.canSend(p, Net.Campfires.ID)) {
-                ServerPlayNetworking.send(p, new Net.Campfires(PLACES.campfireArray()));
-                ServerPlayNetworking.send(p, new Net.Areas(PLACES.areas()));
-                Net.MapInfo mi = PLACES.mapInfo();
-                if (mi != null) ServerPlayNetworking.send(p, mi);
-            }
+            sendWorldData(p);
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
                 if (!pr.created) {

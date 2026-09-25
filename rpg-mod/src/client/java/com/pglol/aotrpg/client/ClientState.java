@@ -29,6 +29,16 @@ public final class ClientState {
         return null;
     }
 
+    /** Forget the character only (a reset or a new character); world data stays. */
+    public static void resetCharacter() {
+        profile = null;
+        stamina = -1;
+        maxStamina = 100;
+        exhausted = false;
+        objective = null;
+        death = null;
+    }
+
     public static void reset() {
         profile = null;
         stamina = -1;

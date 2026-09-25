@@ -42,8 +42,8 @@ public final class AotItems {
             ITEMS.sort((a, b) -> a.getPath().compareTo(b.getPath()));
         }
         StringBuilder b = new StringBuilder("# Items from the Attack on Titan mod (" + namespace + "), found by the AoT RPG mod.\n");
-        b.append("# Kit/quest picks: odm=").append(find("odm", "maneuver", "3dmg", "gear"))
-            .append(" blade=").append(find("blade", "sword")).append(" gas=").append(find("gas", "canister", "tank")).append("\n\n");
+        b.append("# Starter kit picks: odm=").append(best(ODM)).append(" grips(x2)=").append(best(GRIP, "blade"))
+            .append(" blades=").append(best(BLADE, "grip", "handle")).append(" gas=").append(best(GAS)).append("\n\n");
         for (Identifier id : ITEMS) b.append(id).append('\n');
         try {
             var f = server.getSavePath(WorldSavePath.ROOT).resolve("aot_rpg").resolve("aot-items.txt");
@@ -58,6 +58,43 @@ public final class AotItems {
     public static boolean present() {
         return namespace != null && !ITEMS.isEmpty();
     }
+
+    /** Variants that are not the standard issue gear. */
+    public static final String[] SPECIAL = {"anti", "personnel", "ap_", "_ap", "kenny", "broken", "damaged", "upgrade", "creative",
+        "thunder", "spear", "cannon"};
+
+    /**
+     * The best standard item for the keywords: earlier keywords win, special variants
+     * (anti-personnel, broken, ...) and ids containing "avoid" words are skipped, shorter ids win.
+     */
+    public static Identifier best(String[] keywords, String... avoid) {
+        for (String k : keywords) {
+            Identifier pick = null;
+            for (Identifier id : ITEMS) {
+                String p = id.getPath();
+                if (!p.contains(k)) continue;
+                boolean bad = false;
+                for (String x : SPECIAL) if (p.contains(x)) bad = true;
+                for (String x : avoid) if (p.contains(x)) bad = true;
+                if (bad) continue;
+                if (pick == null || p.length() < pick.getPath().length()) pick = id;
+            }
+            if (pick != null) return pick;
+        }
+        return null;
+    }
+
+    public static ItemStack bestStack(int count, String[] keywords, String... avoid) {
+        Identifier id = best(keywords, avoid);
+        if (id == null) return ItemStack.EMPTY;
+        Item item = Registries.ITEM.get(id);
+        return new ItemStack(item, Math.max(1, Math.min(count, item.getMaxCount())));
+    }
+
+    public static final String[] ODM = {"odm_gear", "odm", "maneuver", "3dmg"};
+    public static final String[] GRIP = {"grip", "handle", "trigger"};
+    public static final String[] BLADE = {"blade"};
+    public static final String[] GAS = {"gas_canister", "gas", "canister"};
 
     /** First AoT item whose id contains any of the keywords (earlier keywords win). */
     public static Identifier find(String... keywords) {

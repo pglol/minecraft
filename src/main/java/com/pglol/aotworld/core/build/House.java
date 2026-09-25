@@ -44,7 +44,9 @@ public final class House {
         this.z1 = Math.max(z0, z1);
         this.alongX = alongX;
         this.baseY = baseY;
-        this.floors = Math.max(1, floors);
+        // Upper floors need room for a staircase (4 blocks along the house): tiny houses stay single-storey.
+        int inner = (alongX ? this.x1 - this.x0 : this.z1 - this.z0) - 1;
+        this.floors = inner >= 6 ? Math.max(1, floors) : 1;
         this.style = style;
         this.doorSide = doorSide;
         this.chimney = chimney;
@@ -201,24 +203,47 @@ public final class House {
         }
     }
 
+    /** The staircase row: along the wall opposite the door. */
+    private int stairRow() {
+        return doorSide > 0 ? cx0 + 1 : cx1 - 1;
+    }
+
+    /** Step index 0..2 of the staircase in this column, 3 for the landing, or -1. */
+    private int stairStep(int a, int c) {
+        if (floors < 2 || c != stairRow() || a < ax1 - 4 || a > ax1 - 1) return -1;
+        return a - (ax1 - 4);
+    }
+
+    /** Keeps furniture off the staircase and the space in front of it. */
+    private boolean nearStairs(int a, int c) {
+        return floors > 1 && a >= ax1 - 5 && Math.abs(c - stairRow()) <= 1;
+    }
+
     private void interior(ChunkBuffer b, int x, int z, int a, int c, int top) {
         Style s = style;
-        boolean ladderCol = floors > 1 && a == ax1 - 1 && c == cx1 - 1;
+        int step = stairStep(a, c);
         for (int k = 0; k < floors; k++) {
             int fy = baseY + 4 * k;
-            if (!(ladderCol && k > 0)) b.set(x, fy, z, s.floor);
+            // Stairwell: the floor above the upper two steps is left open for headroom.
+            boolean well = k > 0 && (step == 1 || step == 2);
+            if (!well) b.set(x, fy, z, s.floor);
             boolean lamp = (a - ax0) % 6 == 3 && (c - cx0) % 6 == 3;
-            if (lamp && !ladderCol) b.set(x, fy + 3, z, Blocks.LANTERN_HANGING);
+            if (lamp && !nearStairs(a, c)) b.set(x, fy + 3, z, Blocks.LANTERN_HANGING);
         }
         if (!s.flat) b.set(x, top, z, s.floor);
-        if (ladderCol) {
-            int f = alongFacing(false);
-            b.fill(x, baseY + 1, baseY + 4 * (floors - 1), z, s.ladder[f]);
+        if (step >= 0 && step < 3) {
+            // A straight flight up to each floor: three steps, the landing is the next floor.
+            int stair = s.stair[alongFacing(true)];
+            for (int k = 0; k + 1 < floors; k++) {
+                int fy = baseY + 4 * k;
+                if (step > 0) b.fill(x, fy + 1, fy + step, z, s.floor);
+                b.set(x, fy + 1 + step, z, stair);
+            }
         }
-        if (a == ax0 + 1 && c == cx1 - 1) b.set(x, baseY + 1, z, Blocks.BARREL);
-        if (a == ax1 - 1 && c == cx0 + 1) b.set(x, baseY + 1, z, Blocks.CRAFTING_TABLE);
+        if (a == ax0 + 1 && c == cx1 - 1 && !nearStairs(a, c)) b.set(x, baseY + 1, z, Blocks.BARREL);
+        if (a == ax1 - 1 && c == cx0 + 1 && !nearStairs(a, c)) b.set(x, baseY + 1, z, Blocks.CRAFTING_TABLE);
 
-        furnish(b, x, z, a, c);
+        if (!nearStairs(a, c)) furnish(b, x, z, a, c);
     }
 
     // ---- Furnishing ------------------------------------------------------------------------
@@ -273,8 +298,9 @@ public final class House {
         int cellA = ia / 5, cellC = ic / 5;
         if (cellA >= iw / 5 || cellC >= id / 5) return; // leftover strip stays a walkway
         int oa = ia % 5 - 1, oc = ic % 5 - 1;           // -1..3; vignettes use 0..2
-        int ladderA = ax1 - 1 - ax0 - 1, ladderC = cx1 - 1 - cx0 - 1;
-        if (floors > 1 && ladderA / 5 == cellA && ladderC / 5 == cellC) return;
+        // Skip room vignettes that would overlap the staircase.
+        int ca0 = ax0 + 1 + cellA * 5, cc0 = cx0 + 1 + cellC * 5;
+        for (int da = 0; da < 5; da++) for (int dc = 0; dc < 5; dc++) if (nearStairs(ca0 + da, cc0 + dc)) return;
         for (int k = 0; k < floors; k++) {
             int y = baseY + 4 * k + 1;
             long h = Hash.of(hs, k, cellA * 64L + cellC);
