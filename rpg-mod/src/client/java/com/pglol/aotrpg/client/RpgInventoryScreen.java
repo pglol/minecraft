@@ -213,9 +213,9 @@ public class RpgInventoryScreen extends InventoryScreen {
         if (!state.isEmpty()) Ui.text(c, Text.literal(state), lx + 25, y + 95, 0.55f, state.startsWith("Drawn") ? Ui.RED : Ui.GOLD, true);
         if (st != null && st.count() > 0 && client.player.getInventory().main.get(0).isEmpty()) {
             // Sheathed grips: show them faintly in the melee pair.
-            ItemStack g = net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(st.item())).getDefaultStack();
+            ItemStack g = st.a().isEmpty() ? st.b() : st.a();
             LoadoutUi.drawGhost(c, g, lx + 8, y + 76);
-            if (st.count() > 1 && client.player.getOffHandStack().isEmpty()) LoadoutUi.drawGhost(c, g, lx + 28, y + 76);
+            if (st.count() > 1 && client.player.getOffHandStack().isEmpty()) LoadoutUi.drawGhost(c, st.b(), lx + 28, y + 76);
         }
 
         // Shield with the armour value.
