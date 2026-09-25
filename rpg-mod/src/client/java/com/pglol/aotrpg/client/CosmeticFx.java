@@ -167,16 +167,19 @@ public final class CosmeticFx {
     public static void slash(Net.SlashFx fx) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null) return;
-        ParticleEffect[] set = fx.style().equals("slash_steel") || fx.style().isEmpty() ? new ParticleEffect[] {ParticleTypes.CRIT} : particles(fx.style());
+        ParticleEffect[] set = fx.style().equals("slash_steel") || fx.style().isEmpty()
+            ? new ParticleEffect[] {new DustParticleEffect(rgb(0xF4F0E6), 0.9f), ParticleTypes.CRIT}
+            : fx.style().equals("slash_crimson") ? new ParticleEffect[] {new DustParticleEffect(rgb(0xE03A3A), 1.1f), new DustParticleEffect(rgb(0x7A1010), 1f)}
+            : particles(fx.style());
         double yaw = Math.toRadians(fx.yaw());
         double rx = Math.cos(yaw), rz = Math.sin(yaw); // the attacker's right
         double tilt = Math.random() < 0.5 ? 1 : -1;
-        for (int i = 0; i <= 14; i++) {
-            double u = i / 14.0 * 2 - 1;
+        for (int i = 0; i <= 22; i++) {
+            double u = i / 22.0 * 2 - 1;
             double x = fx.x() + rx * u * 1.1, z = fx.z() + rz * u * 1.1, y = fx.y() + u * 0.5 * tilt - (1 - u * u) * 0.2;
             mc.world.addParticle(pick(set), x, y, z, rx * 0.02, 0, rz * 0.02);
         }
-        if (!fx.style().equals("slash_steel")) mc.world.addParticle(ParticleTypes.SWEEP_ATTACK, fx.x(), fx.y(), fx.z(), 0, 0, 0);
+        mc.world.addParticle(ParticleTypes.SWEEP_ATTACK, fx.x(), fx.y(), fx.z(), 0, 0, 0);
     }
 
     /** Each client tick: body particles, speed trails, horse trails, ember rings. */

@@ -138,7 +138,7 @@ public final class Guard {
             long now = System.currentTimeMillis();
             ServerWorld w = (ServerWorld) entity.getWorld();
             // Clash: both fighters swung at each other just now.
-            if (entity instanceof ServerPlayerEntity def && src instanceof ServerPlayerEntity att && source.getSource() == att
+            if (entity instanceof ServerPlayerEntity def && src instanceof ServerPlayerEntity att && Combat.melee(source)
                 && melee(att.getMainHandStack()) && melee(def.getMainHandStack()) && !guarding(def)) {
                 Swing theirs = swings.get(def.getUuid());
                 if (theirs != null && theirs.target() == att.getId() && now - theirs.at() < CLASH_WINDOW_MS
@@ -171,7 +171,7 @@ public final class Guard {
                     def.damage(w.getDamageSources().generic(), amount * (dp.has(Skill.BULWARK) ? 0.175f : 0.35f));
                     return false;
                 }
-                push(src, def, source.getSource() == src ? 0.75 : 0);
+                push(src, def, Combat.melee(source) ? 0.75 : 0);
                 push(def, src, 0.25);
                 return false;
             }

@@ -77,7 +77,7 @@ public final class Abilities {
         if (!pr.created) return 1;
         State s = st(att);
         long now = System.currentTimeMillis();
-        boolean melee = source.getSource() == att;
+        boolean melee = Combat.melee(source);
         double m = 1, lv = pr.level;
         if (AotRpg.isTitan(target) && pr.has(Skill.TITAN_SLAYER)) m *= 1.15;
         if (melee) {
@@ -110,7 +110,7 @@ public final class Abilities {
     /** Evasion: may cancel a melee hit outright. */
     public boolean dodge(ServerPlayerEntity def, DamageSource source) {
         Profile pr = pr(def);
-        if (!pr.has(Skill.EVASION) || source.getAttacker() == null || source.getSource() != source.getAttacker()) return false;
+        if (!pr.has(Skill.EVASION) || source.getAttacker() == null || !Combat.melee(source)) return false;
         if (def.getRandom().nextDouble() >= 0.08 + 0.001 * pr.level) return false;
         callout(def, "DODGED", Formatting.GREEN);
         burst(def, ParticleTypes.CLOUD, 10);
@@ -139,7 +139,7 @@ public final class Abilities {
         Entity src = source.getAttacker();
         if (victim instanceof ServerPlayerEntity def) {
             Profile pr = pr(def);
-            if (pr.has(Skill.RETALIATION) && src instanceof LivingEntity att && source.getSource() == src && att != def
+            if (pr.has(Skill.RETALIATION) && src instanceof LivingEntity att && Combat.melee(source) && att != def
                 && def.getRandom().nextFloat() < 0.25f) {
                 att.damage(def.getDamageSources().thorns(def), taken * (float) (0.35 + 0.003 * pr.level));
                 burst(att, ParticleTypes.DAMAGE_INDICATOR, 6);
@@ -156,7 +156,7 @@ public final class Abilities {
                 }
             }
         }
-        if (src instanceof ServerPlayerEntity att && source.getSource() == att && !sweeping && pr(att).has(Skill.SPINNING_SLASH)
+        if (src instanceof ServerPlayerEntity att && Combat.melee(source) && !sweeping && pr(att).has(Skill.SPINNING_SLASH)
             && att.getRandom().nextFloat() < 0.2f) {
             sweeping = true;
             try {

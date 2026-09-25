@@ -45,7 +45,7 @@ public final class Combat {
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
             if (!(source.getAttacker() instanceof ServerPlayerEntity attacker) || attacker == entity || taken <= 0) return;
             if (!(entity instanceof PlayerEntity) && !AotRpg.isTitan(entity) && !(entity instanceof net.minecraft.entity.mob.HostileEntity)) return;
-            boolean ranged = source.getSource() != attacker || AotItems.isApgGun(attacker.getMainHandStack());
+            boolean ranged = !melee(source);
             if (!ranged) {
                 // The attacker's blade slash, for everyone nearby.
                 Net.SlashFx fx = new Net.SlashFx(AotRpg.COSMETICS.selected(attacker, "slash"), entity.getX(),
@@ -59,6 +59,19 @@ public final class Combat {
             int kind = (ranged ? 1 : 0) | (kill ? 2 : 0) | (entity instanceof PlayerEntity ? 4 : 0) | (AotRpg.isTitan(entity) ? 8 : 0);
             ServerPlayNetworking.send(attacker, new Net.HitMarker(entity.getId(), taken, kind));
         });
+    }
+
+    /**
+     * Was this hit a close-quarters strike? Danny's ODM blades deal their damage with their own
+     * damage source (not always the plain player attack), so a hit counts as melee whenever it is
+     * not a projectile and the attacker holds a blade or sword rather than an APG gun.
+     */
+    public static boolean melee(net.minecraft.entity.damage.DamageSource source) {
+        if (!(source.getAttacker() instanceof LivingEntity att)) return false;
+        net.minecraft.entity.Entity direct = source.getSource();
+        if (direct == att) return !(att instanceof PlayerEntity p) || !AotItems.isApgGun(p.getMainHandStack());
+        if (direct instanceof net.minecraft.entity.projectile.ProjectileEntity) return false;
+        return att.getMainHandStack() != null && Guard.melee(att.getMainHandStack()) && !AotItems.isApgGun(att.getMainHandStack());
     }
 
     /** Is an entity a living combat target worth a marker (used by tests of the kind bits). */
