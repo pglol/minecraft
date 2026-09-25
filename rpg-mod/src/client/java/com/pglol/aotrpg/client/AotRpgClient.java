@@ -20,8 +20,14 @@ public final class AotRpgClient implements ClientModInitializer {
         characterKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.character",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.aot_rpg"));
 
-        ClientPlayNetworking.registerGlobalReceiver(Net.OpenCreator.ID, (payload, ctx) ->
-            ctx.client().setScreen(new CreatorScreen(payload.error())));
+        ClientPlayNetworking.registerGlobalReceiver(Net.OpenCreator.ID, (payload, ctx) -> {
+            // A fresh creator (not a rejected attempt) means the character was reset.
+            if (payload.error().isEmpty()) {
+                ClientState.reset();
+                CreatorScreen.draft = null;
+            }
+            ctx.client().setScreen(new CreatorScreen(payload.error()));
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.Sync.ID, (payload, ctx) -> {
             ClientState.profile = payload;
             CreatorScreen.draft = null;

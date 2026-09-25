@@ -19,7 +19,28 @@ final class Commands {
     private Commands() {}
 
     static void register(CommandDispatcher<ServerCommandSource> d) {
-        d.register(CommandManager.literal("character").executes(c -> {
+        d.register(CommandManager.literal("character")
+            .then(CommandManager.literal("reset")
+                .executes(c -> {
+                    ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                    if (!AotRpg.PROFILES.get(p.getUuid()).created) {
+                        if (!AotRpg.CREATION.active(p)) AotRpg.CREATION.begin(p);
+                        return 0;
+                    }
+                    p.sendMessage(Text.literal("\u26a0 This deletes your character: name, level, stats and skills. ").formatted(Formatting.RED)
+                        .append(Text.literal("[Click to confirm]").formatted(Formatting.GOLD, Formatting.BOLD)
+                            .styled(st -> st.withClickEvent(new net.minecraft.text.ClickEvent(
+                                net.minecraft.text.ClickEvent.Action.RUN_COMMAND, "/character reset confirm"))
+                                .withHoverEvent(new net.minecraft.text.HoverEvent(net.minecraft.text.HoverEvent.Action.SHOW_TEXT,
+                                    Text.literal("Start character creation again"))))));
+                    return 1;
+                })
+                .then(CommandManager.literal("confirm").executes(c -> {
+                    ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                    reset(p, true);
+                    return 1;
+                })))
+            .executes(c -> {
             ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
             Profile pr = AotRpg.PROFILES.get(p.getUuid());
             if (!pr.created) {
@@ -32,14 +53,16 @@ final class Commands {
         }));
 
         d.register(CommandManager.literal("aotrpg").requires(s -> s.hasPermissionLevel(2))
-            .then(CommandManager.literal("reset").then(CommandManager.argument("player", EntityArgumentType.player())
+            .then(CommandManager.literal("reset")
                 .executes(c -> {
+                    ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                    reset(p, false);
+                    c.getSource().sendFeedback(() -> Text.literal("Reset your character."), true);
+                    return 1;
+                })
+                .then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
                     ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
-                    AotRpg.PROFILES.reset(p.getUuid());
-                    AotRpg.NAMETAGS.remove(p);
-                    AotRpg.PROGRESSION.removeBar(p);
-                    AotRpg.PROGRESSION.apply(p, AotRpg.PROFILES.get(p.getUuid()));
-                    AotRpg.CREATION.begin(p);
+                    reset(p, false);
                     c.getSource().sendFeedback(() -> Text.literal("Reset " + p.getName().getString() + "'s character."), true);
                     return 1;
                 })))
@@ -71,6 +94,17 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Reloaded aot-rpg.json."), true);
                 return 1;
             })));
+    }
+
+    /** Wipes a character and opens the creator again. keepKit: no second starter kit. */
+    static void reset(ServerPlayerEntity p, boolean keepKit) {
+        AotRpg.PROFILES.reset(p.getUuid(), keepKit);
+        AotRpg.NAMETAGS.remove(p);
+        AotRpg.PROGRESSION.removeBar(p);
+        AotRpg.STAMINA.refill(p);
+        AotRpg.PROGRESSION.apply(p, AotRpg.PROFILES.get(p.getUuid()));
+        if (p.getHealth() > p.getMaxHealth()) p.setHealth(p.getMaxHealth());
+        AotRpg.CREATION.begin(p);
     }
 
     private static Profile created(ServerPlayerEntity p) throws CommandSyntaxException {

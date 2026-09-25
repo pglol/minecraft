@@ -64,8 +64,11 @@ public final class ProfileStore {
         }
     }
 
-    public void reset(UUID id) {
-        cache.put(id, new Profile());
+    /** Wipes the character. keepKit: the new character does not get a second starter kit. */
+    public void reset(UUID id, boolean keepKit) {
+        Profile p = new Profile();
+        p.kitGiven = keepKit;
+        cache.put(id, p);
         save(id);
     }
 

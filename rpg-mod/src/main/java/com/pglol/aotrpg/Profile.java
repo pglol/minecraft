@@ -18,6 +18,8 @@ public final class Profile {
     public int skillPoints;
     public java.util.Set<Skill> skills = new java.util.HashSet<>();
     public int chapter;
+    /** Set when a self-reset should not hand out another starter kit. */
+    public boolean kitGiven;
     public int titanKills;
 
     public int stat(Stat s) {

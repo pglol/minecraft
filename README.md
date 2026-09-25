@@ -288,7 +288,8 @@ Commands:
 Skills: three branches (Blade, Mobility, Survival) of four skills, unlocked at levels 1/10/20/35. You get 1 skill point at enlistment and 1 more every 5 levels.
 
 Stamina: sprinting and attacking drain it and resting refills it. At zero you are exhausted: no sprinting and slowed until it recovers. Endurance and some skills raise it.
-- `/aotrpg reset <player>`, `/aotrpg setlevel <player> <level>`, `/aotrpg xp <player> <amount>`, `/aotrpg reload` (operators).
+- `/character reset`: delete your own character and create a new one (asks you to confirm; no second starter kit).
+- `/aotrpg reset [player]` (no name = yourself), `/aotrpg setlevel <player> <level>`, `/aotrpg xp <player> <amount>`, `/aotrpg reload` (operators).
 
 Character data is saved in `<world>/aot_rpg/players/`. Place coordinates come from `<world>/aot-rpg.json`, which the generator writes. Running `add-titans.bat` on an older world adds it.
 
