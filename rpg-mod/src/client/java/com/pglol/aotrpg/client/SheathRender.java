@@ -65,6 +65,9 @@ public final class SheathRender {
                     // half its length so the two cross at their middles, flat against the back.
                     float angle = grips.length == 1 ? 200 : (i == 0 ? 135 : 225);
                     ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle));
+                    // Turn each blade a quarter about its own length (inward, mirrored) so the flat of
+                    // the blade lies against the back instead of standing out edge-first.
+                    ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(grips.length == 1 || i == 0 ? 90 : -90));
                     ms.scale(0.8f, 0.8f, 0.8f);
                     ms.translate(0, -0.55, 0);
                     mc.getItemRenderer().renderItem(stack, ModelTransformationMode.NONE, light, OverlayTexture.DEFAULT_UV, ms, vc, mc.world,
