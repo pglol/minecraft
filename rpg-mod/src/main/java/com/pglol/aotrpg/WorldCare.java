@@ -5,7 +5,10 @@ import com.google.gson.GsonBuilder;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.CropBlock;
 import net.minecraft.block.FluidBlock;
+import net.minecraft.block.SaplingBlock;
+import net.minecraft.block.StemBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
@@ -38,7 +41,8 @@ import java.util.Map;
  * Protection: players cannot break or place blocks in the overworld (Paradis, Marley), except in
  * build zones set by operators. Operators in creative mode can always build.
  * Regeneration: blocks destroyed by anything else (titans, explosions, fire, mobs) are remembered
- * and put back after a delay, when no player is close by. Commands and operator edits are permanent.
+ * and put back after a delay, when no player is right there. Blocks that mobs or falling blocks drop
+ * where there was air (thrown debris) are removed again. Commands and operator edits are permanent.
  */
 public final class WorldCare {
     public static final class Zone {
@@ -58,7 +62,11 @@ public final class WorldCare {
         public List<Zone> buildZones = new ArrayList<>();
     }
 
-    private record Entry(BlockState state, NbtCompound be, long at) { }
+    /** debris: something landed here (thrown or fallen blocks); put the original back over it. */
+    private record Entry(BlockState state, NbtCompound be, long at, boolean debris) { }
+
+    /** Above zero while a non-player entity ticks (falling blocks, mobs): blocks they place are debris. */
+    public static int mobTicking;
 
     private static final int MAX_ENTRIES = 250_000;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -96,7 +104,7 @@ public final class WorldCare {
                 for (int i = 0; i < list.size(); i++) {
                     NbtCompound c = list.getCompound(i);
                     BlockState st = NbtHelper.toBlockState(Registries.BLOCK.getReadOnlyWrapper(), c.getCompound("s"));
-                    changed.put(c.getLong("p"), new Entry(st, c.contains("e") ? c.getCompound("e") : null, c.getLong("t")));
+                    changed.put(c.getLong("p"), new Entry(st, c.contains("e") ? c.getCompound("e") : null, c.getLong("t"), c.getBoolean("d")));
                 }
             }
         } catch (Exception e) {
@@ -123,6 +131,7 @@ public final class WorldCare {
                 c.put("s", NbtHelper.fromBlockState(e.getValue().state()));
                 if (e.getValue().be() != null) c.put("e", e.getValue().be());
                 c.putLong("t", e.getValue().at());
+                if (e.getValue().debris()) c.putBoolean("d", true);
                 list.add(c);
             }
             NbtCompound root = new NbtCompound();
@@ -165,9 +174,24 @@ public final class WorldCare {
     /** Called from the World mixin before any block change on the server. */
     public void beforeChange(ServerWorld w, BlockPos pos, BlockState next) {
         // Cheapest checks first: this runs for every block change on the server.
-        if (!(next.isAir() || next.getBlock() instanceof FluidBlock || next.isOf(Blocks.FIRE) || next.isOf(Blocks.SOUL_FIRE))) return;
+        boolean destroyed = next.isAir() || next.getBlock() instanceof FluidBlock || next.isOf(Blocks.FIRE) || next.isOf(Blocks.SOUL_FIRE);
+        if (!destroyed && mobTicking <= 0) return;
         if (!config.regen || full || w.getRegistryKey() != World.OVERWORLD || quiet.get() > 0) return;
         long key = pos.asLong();
+        if (!destroyed) {
+            // A block appearing where there was air or water while a mob or falling block ticks:
+            // debris from titans and explosions (villager crops and saplings are left alone).
+            if (next.getBlock() instanceof CropBlock || next.getBlock() instanceof StemBlock || next.getBlock() instanceof SaplingBlock) return;
+            BlockState old = w.getBlockState(pos);
+            if (!transientBlock(old) || old.isOf(Blocks.MOVING_PISTON) || inBuildZone(pos.getX(), pos.getZ())) return;
+            Entry e = changed.get(key);
+            if (e != null) {
+                if (!e.debris()) changed.put(key, new Entry(e.state(), e.be(), e.at(), true));
+            } else {
+                changed.put(key, new Entry(old, null, w.getTime(), true));
+            }
+            return;
+        }
         if (changed.containsKey(key)) return; // keep the first, original state
         BlockState old = w.getBlockState(pos);
         if (transientBlock(old) || inBuildZone(pos.getX(), pos.getZ())) return;
@@ -177,7 +201,7 @@ public final class WorldCare {
             be = ent.createNbt(w.getRegistryManager());
             be.remove("Items"); // contents dropped already; never duplicate loot
         }
-        changed.put(key, new Entry(old, be, w.getTime()));
+        changed.put(key, new Entry(old, be, w.getTime(), false));
         if (changed.size() >= MAX_ENTRIES) {
             full = true;
             AotRpg.LOG.warn("World regeneration is tracking {} blocks; not recording more until some are restored.", MAX_ENTRIES);
@@ -196,6 +220,7 @@ public final class WorldCare {
 
     /** Once a second: restore what is due, bottom up, away from players. */
     public void tick(long ticks, boolean force) {
+        mobTicking = 0; // safety: never left raised by an entity that crashed mid-tick
         if (changed.isEmpty() || (!config.regen && !force)) return;
         if (ticks % (20 * 300) == 0) save();
         if (!force && ticks % 20 != 0) return;
@@ -213,12 +238,14 @@ public final class WorldCare {
                 if (budget <= 0) break;
                 BlockPos pos = BlockPos.fromLong(e.getKey());
                 if (!w.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) continue;
-                if (!force && w.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 12, false) != null) continue;
+                if (!force && w.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 4, false) != null) continue;
                 changed.remove(e.getKey());
                 BlockState cur = w.getBlockState(pos);
-                // Something new is there (a villager replanted, an operator built): leave it.
-                if (!transientBlock(cur) || cur.isOf(Blocks.MOVING_PISTON)) continue;
                 Entry en = e.getValue();
+                if (cur.isOf(Blocks.MOVING_PISTON) || cur.equals(en.state())) continue;
+                // Debris is always cleared; otherwise something new there (a villager replanted,
+                // an operator built) is left alone.
+                if (!en.debris() && !transientBlock(cur)) continue;
                 w.setBlockState(pos, en.state(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
                 if (en.be() != null) {
                     BlockEntity ent = w.getBlockEntity(pos);

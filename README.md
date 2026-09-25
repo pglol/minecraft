@@ -280,6 +280,10 @@ Progression:
 - Levels run from 1 to 100, and each level gives 1 stat point.
 - An XP bar at the top of the screen shows your level, name and discipline.
 
+Titan waves: the announcement says how many titans are coming, and a boss bar counts the wave titans near you down ("Titan wave · 5 titans remaining") until it says *Wave cleared*. Hordes work the same way. This needs the titan datapack from the new generator (rerun `add-titans.bat`).
+
+Grabbed by a titan: a prompt tells you to spam attack to strike its eye. Enough quick strikes wound and blind the titan and throw you free. While you are shifted into a titan, the combat hotbar steps aside so the shifter's own hotbar shows.
+
 Name plates: with the client mod, players show an AoT-styled plate (character name, level, discipline) instead of the username tag, fading out beyond about 20 blocks. Party members further away get a small soft diamond over their head with their name and distance, visible through terrain and even beyond render distance. Party members' plates have a green trim (gold for the leader) and a health bar.
 
 Minimap (top left, **Ctrl+M** toggles it): terrain around you (north up), your arrow, party members (green, gold for the leader; they stay pinned to the edge when far away), titans (large red) and hostile mobs (small red), and a gold marker for your current story objective. The objective text and distance sit under the map; party frames sit below that.
@@ -311,7 +315,7 @@ Items only go where they belong. Misplaced ones move to your backpack, and nothi
 
 **Quick heal (H)** uses the heal slot, or your best heal from the inventory or satchel when it's empty. It works instantly on an 8 second cooldown, and food mends a little health on top of the hunger it restores.
 
-**ODM sheath (G):** the two ODM grips (the `blade` handles, or the APG grips) are a set. **G** sheathes both on your back (they show crossed there for everyone) and draws them again into slot 1 and your off hand. Whatever you had in your off hand is kept aside and comes back when you sheathe. New characters start with both grips sheathed. The HUD shows DRAWN or SHEATHED next to the hotbar.
+**ODM sheath (G):** the two ODM grips (the `blade` handles, or the APG grips) are a set. **G** sheathes both on your back (they show crossed there for everyone) and draws them again into slot 1 and your off hand. Whatever you had in your off hand is kept aside and comes back when you sheathe; spare grips go to your backpack, never into your hands. New characters start with both grips sheathed. The HUD shows DRAWN or SHEATHED next to the hotbar.
 
 Inventory: the character panel is a Baldur's Gate style loadout built from the real hotbar slots: Melee (slot 1 and the off hand) and Ranged (slots 2 and 3) around your armor shield, then Tool, Heal and Mount, then Signal and the two free slots. Your stats sit where the hotbar row used to be. With the recipe book open the slots go back to the normal hotbar row.
 
@@ -357,7 +361,7 @@ Story: Chapter 1 has you report to the Cadet Training Camp, then slay 3 titans b
 
 Protected land and regeneration: players cannot break or place blocks anywhere in the overworld (Paradis, the walls, Marley). Buckets, fire, tilling and stripping, and knocking down item frames, paintings or armor stands are blocked too. Operators in creative mode can always build. When there's a building island, mark it with a build zone. Build zones are open to everyone and never regenerate.
 
-Anything else that destroys blocks (titans, explosions, fire, mobs) is remembered. The blocks are put back after 5 minutes, bottom up, only when no player is within 12 blocks, and never on top of something new. Changes made by commands (`/fill`, `/setblock`, building tools) and by operators breaking blocks are permanent. Waiting blocks survive restarts (`<world>/aot_rpg/regen.nbt`). Settings are in `<world>/aot_rpg/protection.json`.
+Anything else that destroys blocks (titans, explosions, fire, mobs) is remembered. The blocks are put back after 5 minutes, bottom up, when no player is standing right there (4 blocks). Debris is cleared too: blocks that mobs, titans or falling blocks drop where there was air or water are removed, and a hole with debris in it is filled with what was there first. Anything else new in a hole (a villager's crops, an operator's build) is left alone. Changes made by commands (`/fill`, `/setblock`, building tools) and by operators breaking blocks are permanent. Waiting blocks survive restarts (`<world>/aot_rpg/regen.nbt`). Settings are in `<world>/aot_rpg/protection.json`.
 - `/aotrpg protect on|off`, `/aotrpg protect zone add <name> <x1> <z1> <x2> <z2>`, `/aotrpg protect zone remove <name>`, `/aotrpg protect zone list`.
 - `/aotrpg regen on|off`, `/aotrpg regen delay <seconds>`, `/aotrpg regen now` (restore everything loaded right away), `/aotrpg regen forget` (keep the current damage), `/aotrpg regen status`.
 

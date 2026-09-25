@@ -56,6 +56,7 @@ public final class AotRpgClient implements ClientModInitializer {
         socialKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.social",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, "category.aot_rpg"));
         WorldRenderEvents.AFTER_ENTITIES.register(Beams::render);
+        WorldRenderEvents.AFTER_ENTITIES.register(SheathRender::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.HealInfo.ID, (payload, ctx) -> {
             CombatHotbar.heal = payload;
             CombatHotbar.healAt = net.minecraft.util.Util.getMeasuringTimeMs();
@@ -67,9 +68,6 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof CosmeticsScreen s) s.refresh();
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.SheathState.ID, (payload, ctx) -> ClientState.sheaths.put(payload.player(), payload));
-        net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback.EVENT.register((type, renderer, helper, context) -> {
-            if (renderer instanceof net.minecraft.client.render.entity.PlayerEntityRenderer pr) helper.register(new SheathFeature(pr));
-        });
         ClientPlayNetworking.registerGlobalReceiver(Net.Trail.ID, (payload, ctx) -> Trails.spawn(payload));
 
         ClientPlayNetworking.registerGlobalReceiver(Net.OpenCreator.ID, (payload, ctx) -> {
@@ -124,6 +122,7 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(RpgHud::render);
         HudRenderCallback.EVENT.register(Minimap::render);
         HudRenderCallback.EVENT.register(PartyHud::render);
+        HudRenderCallback.EVENT.register(TitanState::renderHud);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (characterKey.wasPressed()) {
@@ -150,6 +149,7 @@ public final class AotRpgClient implements ClientModInitializer {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());
             }
             Trails.tickShooting(client);
+            TitanState.tick(client);
             Minimap.tick(client);
             // Exhausted: no sprinting until stamina recovers.
             if (ClientState.exhausted && client.player != null && client.player.isSprinting()) client.player.setSprinting(false);

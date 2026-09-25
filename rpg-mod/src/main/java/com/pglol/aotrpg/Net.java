@@ -468,7 +468,15 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: a strike at the eye of the titan holding you. */
+    public record Struggle() implements CustomPayload {
+        public static final Id<Struggle> ID = id("struggle");
+        public static final PacketCodec<RegistryByteBuf, Struggle> CODEC = PacketCodec.unit(new Struggle());
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playC2S().register(Struggle.ID, Struggle.CODEC);
         PayloadTypeRegistry.playC2S().register(ToggleSheath.ID, ToggleSheath.CODEC);
         PayloadTypeRegistry.playS2C().register(SheathState.ID, SheathState.CODEC);
         PayloadTypeRegistry.playC2S().register(ShotFired.ID, ShotFired.CODEC);

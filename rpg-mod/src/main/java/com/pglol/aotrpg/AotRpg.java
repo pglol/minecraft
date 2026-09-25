@@ -52,6 +52,8 @@ public final class AotRpg implements ModInitializer {
     public static final Cosmetics COSMETICS = new Cosmetics();
     public static final WorldCare CARE = new WorldCare();
     public static final Loadout LOADOUT = new Loadout();
+    public static final Waves WAVES = new Waves();
+    public static final Grab GRAB = new Grab();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -81,6 +83,7 @@ public final class AotRpg implements ModInitializer {
     public void onInitialize() {
         Net.register();
         SatchelHandler.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.ToggleSheath.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) LOADOUT.toggle(ctx.player());
         });
@@ -270,6 +273,8 @@ public final class AotRpg implements ModInitializer {
             QUESTS.forget(p);
             HEAL.forget(p);
             LOADOUT.forget(p);
+            WAVES.forget(p);
+            GRAB.forget(p);
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
             PROFILES.save(p.getUuid());
@@ -320,6 +325,8 @@ public final class AotRpg implements ModInitializer {
             STORY.tick(p, PROFILES.get(p.getUuid()), ticks);
             QUESTS.tick(p, PROFILES.get(p.getUuid()), ticks);
             if (PROFILES.get(p.getUuid()).created) LOADOUT.tick(p, ticks);
+            WAVES.tick(p, ticks);
+            GRAB.tick(p, ticks);
             if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {
                 SATCHEL.tickSupplies(p);
                 HEAL.sync(p, ticks % 40 == 0);

@@ -245,7 +245,8 @@ public final class Loadout {
             ItemStack off = inv.offHand.get(0);
             boolean room = true;
             if (!off.isEmpty()) {
-                if (g.getStack(STASH).isEmpty()) g.setStack(STASH, off);
+                // Spare grips go to the backpack; only a real off-hand item is kept aside.
+                if (g.getStack(STASH).isEmpty() && !isGrip(off)) g.setStack(STASH, off);
                 else {
                     int to = freeBackpack(inv, off);
                     if (to < 0) room = false;
@@ -272,16 +273,24 @@ public final class Loadout {
         // The grip in your hand, or the one in slot 1.
         int mainSlot = isGrip(inv.main.get(inv.selectedSlot)) ? inv.selectedSlot : isGrip(inv.main.get(0)) ? 0 : -1;
         if (mainSlot >= 0) {
-            g.setStack(SHEATH_A, inv.main.get(mainSlot));
-            inv.main.set(mainSlot, ItemStack.EMPTY);
+            g.setStack(SHEATH_A, inv.main.get(mainSlot).split(1));
             n++;
         }
         ItemStack off = inv.offHand.get(0);
         if (isGrip(off)) {
-            g.setStack(n == 0 ? SHEATH_A : SHEATH_B, off);
-            inv.offHand.set(0, g.getStack(STASH));
-            g.setStack(STASH, ItemStack.EMPTY);
+            g.setStack(n == 0 ? SHEATH_A : SHEATH_B, off.split(1));
             n++;
+        }
+        // The off hand gets its own item back; a spare grip never goes there.
+        ItemStack stash = g.getStack(STASH);
+        if (!stash.isEmpty() && inv.offHand.get(0).isEmpty()) {
+            if (isGrip(stash)) {
+                int to = freeBackpack(inv, stash);
+                if (to >= 0 && inv.main.get(to).isEmpty()) inv.main.set(to, stash);
+                else if (to >= 0) inv.main.get(to).increment(stash.getCount());
+                else p.dropItem(stash, false);
+            } else inv.offHand.set(0, stash);
+            g.setStack(STASH, ItemStack.EMPTY);
         }
         if (n == 0) {
             p.sendMessage(Text.literal("No ODM grips in hand or in slot 1 to sheathe.").formatted(Formatting.GRAY), true);

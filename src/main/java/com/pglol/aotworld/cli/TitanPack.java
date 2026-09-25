@@ -260,10 +260,14 @@ final class TitanPack {
             wave.append("execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:try_group_near\n");
         }
         wave.append("execute if score #ok aot_titans matches 0 run return 0\n");
+        // aot_wave_live stays on until the titan dies: the RPG mod counts the wave down with it.
+        wave.append("execute store result score #wn aot_titans if entity @e[tag=aot_new]\n");
         wave.append("tag @e[tag=aot_new] add aot_wave\n");
+        wave.append("tag @e[tag=aot_new] add aot_wave_live\n");
         wave.append("tag @e[tag=aot_new] remove aot_new\n");
         wave.append("title @s times 10 60 20\n");
-        wave.append("title @s subtitle {\"text\":\"A wave of titans is closing in\",\"color\":\"gray\"}\n");
+        wave.append("title @s subtitle [{\"score\":{\"name\":\"#wn\",\"objective\":\"aot_titans\"},\"color\":\"red\",\"bold\":true},"
+            + "{\"text\":\" titans are closing in\",\"color\":\"gray\"}]\n");
         wave.append("title @s title {\"text\":\"Titans approaching!\",\"color\":\"dark_red\",\"bold\":true}\n");
         wave.append("playsound minecraft:block.bell.use master @s ~ ~ ~ 1 0.6\n");
         write(fn.resolve("wave.mcfunction"), wave.toString());
@@ -453,9 +457,14 @@ final class TitanPack {
             "execute store result score #ok aot_titans run function aot_titans:try_group_near",
             "execute if score #ok aot_titans matches 0 store result score #ok aot_titans run function aot_titans:try_group_near",
             "execute if score #ok aot_titans matches 0 run function aot_titans:try_group_near",
+            "execute store result score #wn aot_titans if entity @e[tag=aot_new]",
             "tag @e[tag=aot_new] add aot_wave",
+            "tag @e[tag=aot_new] add aot_wave_live",
             "tag @e[tag=aot_new] remove aot_new",
             "scoreboard players set #force aot_titans 0",
+            "title @a[distance=..200] times 10 70 20",
+            "title @a[distance=..200] subtitle [{\"score\":{\"name\":\"#wn\",\"objective\":\"aot_titans\"},\"color\":\"red\",\"bold\":true},"
+                + "{\"text\":\" titans in the horde\",\"color\":\"gray\"}]",
             "title @a[distance=..200] title {\"text\":\"A HORDE IS COMING\",\"color\":\"dark_red\",\"bold\":true}"));
     }
 

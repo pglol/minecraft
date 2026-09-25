@@ -27,8 +27,9 @@ public final class CombatHotbar {
 
     private static final int S = 20, GAP = 1, HEAL = 26;
 
+    /** Off while shifted into a titan, so the shifter's own hotbar shows instead. */
     public static boolean active() {
-        return RpgHud.active();
+        return RpgHud.active() && !TitanState.shifted();
     }
 
     /** Screen x of hotbar slot i (0-8); the heal slot is wider. */
