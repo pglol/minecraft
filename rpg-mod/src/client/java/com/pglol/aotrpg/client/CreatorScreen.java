@@ -265,7 +265,7 @@ public class CreatorScreen extends Screen {
 
     private static String gear(Discipline dc) {
         return switch (dc) {
-            case SCOUT -> "4 signal flares";
+            case SCOUT -> "Flare gun and 6 flares";
             case VANGUARD -> "A spare blade";
             case GUARDIAN -> "Garrison shield";
             case MARKSMAN -> "Hunting bow and 48 arrows";

@@ -3,6 +3,6 @@
   "minVersion": "0.8",
   "package": "com.pglol.aotrpg.client.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["InGameHudMixin", "MinecraftClientMixin", "EntityMixin", "EntityRendererMixin", "MinecraftClientScreenMixin", "SlotAccessor", "HandledScreenMixin", "BossBarHudAccessor", "BossBarHudMixin", "ItemPickupMixin"],
+  "client": ["InGameHudMixin", "MinecraftClientMixin", "EntityMixin", "EntityRendererMixin", "MinecraftClientScreenMixin", "SlotAccessor", "HandledScreenMixin", "BossBarHudAccessor", "BossBarHudMixin", "ItemPickupMixin", "DrawContextMixin"],
   "injectors": {"defaultRequire": 0}
 }

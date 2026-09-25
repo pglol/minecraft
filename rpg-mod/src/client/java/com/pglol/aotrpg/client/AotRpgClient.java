@@ -12,6 +12,7 @@ import com.pglol.aotrpg.SatchelHandler;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 /** Client side: creator and character screens, the RPG HUD, the K key. */
@@ -42,6 +43,13 @@ public final class AotRpgClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Gear above your level says so plainly in its tooltip.
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, ctx, type, lines) -> {
+            if (!GearUi.locked(stack)) return;
+            lines.add(1, Text.literal("LOCKED: needs level " + com.pglol.aotrpg.Gear.requiredLevel(stack) + " (you are "
+                + ClientState.profile.level() + ")").formatted(net.minecraft.util.Formatting.RED, net.minecraft.util.Formatting.BOLD));
+            lines.add(2, Text.literal("No damage or armor bonus until then").formatted(net.minecraft.util.Formatting.RED));
+        });
         characterKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.character",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.aot_rpg"));
         satchelKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.satchel",
@@ -176,7 +184,12 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.HitMarker.ID, (payload, ctx) -> {
             HitFx.onHit(payload);
             CombatUi.onHit(payload);
+            TitanPlates.onHit(payload);
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.TitanTags.ID, (payload, ctx) -> TitanPlates.onTags(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.NapeHit.ID, (payload, ctx) -> TitanPlates.onNape(payload));
+        WorldRenderEvents.AFTER_ENTITIES.register(TitanPlates::render);
+        HudRenderCallback.EVENT.register(TitanPlates::renderHud);
         ClientPlayNetworking.registerGlobalReceiver(Net.WalletSync.ID, (payload, ctx) -> {
             ClientState.marks = payload.marks();
             ClientState.gold = payload.gold();

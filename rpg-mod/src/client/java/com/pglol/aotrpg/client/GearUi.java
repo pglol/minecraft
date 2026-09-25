@@ -35,6 +35,26 @@ public final class GearUi {
         };
     }
 
+    /** Gear above your level: it does nothing for you until you grow into it. */
+    public static boolean locked(ItemStack s) {
+        if (s == null || s.isEmpty() || !com.pglol.aotrpg.Gear.isGear(s) || ClientState.profile == null) return false;
+        return com.pglol.aotrpg.Gear.requiredLevel(s) > ClientState.profile.level();
+    }
+
+    /** Over a slot holding locked gear: a red wash, a red frame and the level it needs. */
+    public static void lockOverlay(DrawContext c, net.minecraft.client.font.TextRenderer tr, ItemStack s, int x, int y) {
+        if (!locked(s)) return;
+        var m = c.getMatrices();
+        m.push();
+        m.translate(0, 0, 250);
+        c.fill(x, y, x + 16, y + 16, 0x70B01818);
+        c.drawBorder(x, y, 16, 16, 0xFFE04040);
+        String lv = "Lv" + com.pglol.aotrpg.Gear.requiredLevel(s);
+        m.scale(0.5f, 0.5f, 1);
+        c.drawText(tr, lv, (x + 1) * 2, (y + 1) * 2, 0xFFFF6A6A, true);
+        m.pop();
+    }
+
     /** A soft glow behind gear in a slot, stronger (and pulsing) the rarer it is. */
     public static void backing(DrawContext c, ItemStack s, int x, int y) {
         int r = rarity(s);

@@ -57,6 +57,7 @@ public final class AotRpg implements ModInitializer {
     public static final Wallet WALLET = new Wallet();
     public static final Gear GEAR = new Gear();
     public static final Combat COMBAT = new Combat();
+    public static final TitanLevels TITAN_LEVELS = new TitanLevels();
     public static final Market MARKET = new Market();
     public static final Roles ROLES = new Roles();
     public static final Homes HOMES = new Homes();
@@ -518,6 +519,7 @@ public final class AotRpg implements ModInitializer {
                 && PARTIES.same(attacker.getUuid(), victim.getUuid())));
         GUARD_FIGHT.register();
         COMBAT.register();
+        TITAN_LEVELS.register();
     }
 
     private void tick(MinecraftServer server) {
@@ -554,6 +556,7 @@ public final class AotRpg implements ModInitializer {
         if (ticks % 600 == 300) HORSES.sweep(server.getOverworld());
         CROWD.tick(server, ticks);
         WAR.tick(ticks);
+        TITAN_LEVELS.tick(server, ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {
             PROFILES.saveAll();

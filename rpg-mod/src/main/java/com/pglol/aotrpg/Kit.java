@@ -7,6 +7,8 @@ import net.minecraft.component.type.UnbreakableComponent;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -85,7 +87,15 @@ public final class Kit {
         p.giveItemStack(ration);
         p.giveItemStack(Provisions.of(Items.BREAD, 8));
         switch (pr.discipline) {
-            case SCOUT -> p.giveItemStack(named(Items.FIREWORK_ROCKET, 4, "Signal Flare", Formatting.GREEN, "Fire to signal your squad."));
+            case SCOUT -> {
+                // Danny's flare gun and green cartridges (the Survey Corps' signal).
+                Item gun = Registries.ITEM.get(Identifier.of("dannys-aot", "flare_gun"));
+                Item green = Registries.ITEM.get(Identifier.of("dannys-aot", "green_flare_cartridge"));
+                Item red = Registries.ITEM.get(Identifier.of("dannys-aot", "red_flare_cartridge"));
+                if (gun != Items.AIR) p.giveItemStack(new ItemStack(gun));
+                if (green != Items.AIR) p.giveItemStack(new ItemStack(green, 4));
+                if (red != Items.AIR) p.giveItemStack(new ItemStack(red, 2));
+            }
             case VANGUARD -> p.giveItemStack(named(Items.IRON_SWORD, 1, "Spare Blade", Formatting.WHITE, "Blades dull fast against titans."));
             case GUARDIAN -> p.giveItemStack(named(Items.SHIELD, 1, "Garrison Shield", Formatting.WHITE));
             case MARKSMAN -> {

@@ -219,6 +219,33 @@ public final class Net {
     }
 
     /** Client -> server: open my satchel. */
+    /** A titan's level and nape progress, for its name plate. */
+    public record TitanTag(int entity, int level, int strikes, int needed) { }
+
+    /** Server -> client: the titans around you. */
+    public record TitanTags(java.util.List<TitanTag> tags) implements CustomPayload {
+        public static final Id<TitanTags> ID = id("titan_tags");
+        public static final PacketCodec<RegistryByteBuf, TitanTags> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.tags.size());
+            for (TitanTag t : v.tags) { b.writeVarInt(t.entity()); b.writeVarInt(t.level()); b.writeVarInt(t.strikes()); b.writeVarInt(t.needed()); }
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 128);
+            java.util.List<TitanTag> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new TitanTag(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+            return new TitanTags(l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: a nape strike landed (and whether it felled the titan). */
+    public record NapeHit(int entity, int strikes, int needed, boolean kill) implements CustomPayload {
+        public static final Id<NapeHit> ID = id("nape_hit");
+        public static final PacketCodec<RegistryByteBuf, NapeHit> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.entity); b.writeVarInt(v.strikes); b.writeVarInt(v.needed); b.writeBoolean(v.kill);
+        }, b -> new NapeHit(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readBoolean()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record StatLine(String label, String value) { }
     public record StatBoard(String title, java.util.List<StatLine> rows) { }
 
@@ -1274,6 +1301,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(OpenSatchel.ID, OpenSatchel.CODEC);
         PayloadTypeRegistry.playC2S().register(StatsRequest.ID, StatsRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(StatsView.ID, StatsView.CODEC);
+        PayloadTypeRegistry.playS2C().register(TitanTags.ID, TitanTags.CODEC);
+        PayloadTypeRegistry.playS2C().register(NapeHit.ID, NapeHit.CODEC);
         PayloadTypeRegistry.playS2C().register(CookingState.ID, CookingState.CODEC);
         PayloadTypeRegistry.playC2S().register(Cook.ID, Cook.CODEC);
         PayloadTypeRegistry.playS2C().register(Campfires.ID, Campfires.CODEC);

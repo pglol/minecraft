@@ -1,5 +1,7 @@
 package com.pglol.aotrpg;
 
+import java.util.UUID;
+
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifierSlot;
 import net.minecraft.component.type.AttributeModifiersComponent;
@@ -279,9 +281,13 @@ public final class Gear {
      */
     public static int dropLevel(ServerPlayerEntity p, int source, int bonus) {
         int lv = AotRpg.PROFILES.get(p.getUuid()).level;
+        // Harder places pay better: up to a few levels past you (or your party's best), locked until you catch up.
+        int ref = lv;
+        Parties.Party party = AotRpg.PARTIES.of(p.getUuid());
+        if (party != null) for (UUID m : party.members) ref = Math.max(ref, AotRpg.PROFILES.get(m).level);
         Random r = p.getRandom();
-        int base = Math.max(1, Math.min(source, lv + 2) + bonus + r.nextInt(3) - 1);
-        base = Math.min(base, lv + 3);
+        int base = Math.max(1, Math.min(source, ref + 4) + bonus + r.nextInt(3) - 1);
+        base = Math.min(base, Math.max(lv + 3, Math.min(source, ref) + 5));
         if (r.nextFloat() < 0.04f) base = lv + 6 + r.nextInt(10); // a rare find, above your level
         return Math.max(1, base);
     }

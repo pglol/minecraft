@@ -12,7 +12,6 @@ import net.minecraft.item.BucketItem;
 import net.minecraft.item.CompassItem;
 import net.minecraft.item.CrossbowItem;
 import net.minecraft.item.FilledMapItem;
-import net.minecraft.item.FireworkRocketItem;
 import net.minecraft.item.FishingRodItem;
 import net.minecraft.item.FlintAndSteelItem;
 import net.minecraft.item.GoatHornItem;
@@ -128,10 +127,10 @@ public final class Loadout {
                 || i instanceof FlintAndSteelItem || i instanceof BrushItem || i instanceof BucketItem;
             case HEAL -> isHeal(s);
             case MOUNT -> i instanceof SaddleItem || i instanceof LeadItem || i instanceof AnimalArmorItem || i instanceof OnAStickItem
-                || MOUNT_ITEMS.contains(i);
-            case SIGNAL -> i instanceof FireworkRocketItem || i instanceof SpyglassItem || i instanceof CompassItem
+                || MOUNT_ITEMS.contains(i) || Horses.isWhistle(s);
+            case SIGNAL -> !Horses.isWhistle(s) && (i instanceof SpyglassItem || i instanceof CompassItem
                 || i instanceof FilledMapItem || i instanceof GoatHornItem || SIGNAL_ITEMS.contains(i)
-                || (p != null && (p.equals("flare_gun") || p.endsWith("_flare_cartridge")));
+                || (p != null && (p.equals("flare_gun") || p.endsWith("_flare_cartridge"))));
             case FREE -> true;
         };
     }

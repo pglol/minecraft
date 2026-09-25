@@ -601,7 +601,10 @@ public final class Horses {
         tag.putBoolean("aot_whistle", true);
         w.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
         w.set(DataComponentTypes.CUSTOM_NAME, Text.literal("Horse Whistle").formatted(Formatting.GOLD).styled(s -> s.withItalic(false)));
-        p.getInventory().offerOrDrop(w);
+        // Straight into the Mount slot of the hotbar when it is free.
+        int mount = java.util.Arrays.asList(Loadout.SLOTS).indexOf(Loadout.Kind.MOUNT);
+        if (mount >= 0 && p.getInventory().getStack(mount).isEmpty()) p.getInventory().setStack(mount, w);
+        else p.getInventory().offerOrDrop(w);
     }
 
     public static boolean isWhistle(ItemStack s) {

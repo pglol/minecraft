@@ -31,7 +31,7 @@ import java.util.UUID;
  * each other, and players with the mod see a party HUD and outlines on their party.
  */
 public final class Parties {
-    public static final int MAX = 6;
+    public static final int MAX = 5;
     private static final int INVITE_TICKS = 20 * 60;
 
     public static final class Party {
