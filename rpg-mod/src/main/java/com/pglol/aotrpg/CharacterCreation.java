@@ -62,6 +62,11 @@ public final class CharacterCreation {
         s.pitch = p.getPitch();
         sessions.put(p.getUuid(), s);
         p.setInvulnerable(true);
+        if (AotRpg.hasClient(p)) {
+            // Players with the mod get the real creator screen.
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new Net.OpenCreator(""));
+            return;
+        }
         p.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 20 * 60 * 30, 0, false, false));
         Titles.show(p, Text.literal("ATTACK ON TITAN").formatted(Formatting.DARK_RED, Formatting.BOLD),
             Text.literal("Create your character").formatted(Formatting.GRAY), 10, 60, 20);
@@ -89,7 +94,7 @@ public final class CharacterCreation {
     /** Chat typed while choosing a name. Returns true if the message was consumed. */
     public boolean chat(ServerPlayerEntity p, String msg) {
         Session s = sessions.get(p.getUuid());
-        if (s == null) return false;
+        if (s == null || AotRpg.hasClient(p)) return false;
         if (s.awaitingName == 0) {
             p.sendMessage(Text.literal("Finish creating your character first.").formatted(Formatting.GRAY));
             return true;
@@ -285,6 +290,36 @@ public final class CharacterCreation {
         return m;
     }
 
+    /** The creator screen's answer (players with the mod). */
+    public void submit(ServerPlayerEntity p, Net.Create c) {
+        Session s = sessions.get(p.getUuid());
+        if (s == null) return;
+        String error = null;
+        String first = Names.clean(c.first()), family = Names.clean(c.family());
+        int sum = 0;
+        if (c.stats().length != Stat.values().length) error = "Invalid stats.";
+        else for (int v : c.stats()) {
+            if (v < 0) error = "Invalid stats.";
+            sum += v;
+        }
+        if (sum > START_POINTS) error = "Too many stat points.";
+        if (c.origin() < 0 || c.origin() >= Origin.values().length) error = "Choose an origin.";
+        if (c.discipline() < 0 || c.discipline() >= Discipline.values().length) error = "Choose a discipline.";
+        if (first == null) error = "First name: one word, 2-14 letters.";
+        else if (family == null) error = "Family name: one word, 2-14 letters.";
+        if (error != null) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new Net.OpenCreator(error));
+            return;
+        }
+        s.origin = Origin.values()[c.origin()];
+        s.discipline = Discipline.values()[c.discipline()];
+        s.stats.clear();
+        for (Stat st : Stat.values()) if (c.stats()[st.ordinal()] > 0) s.stats.put(st, c.stats()[st.ordinal()]);
+        s.first = first;
+        s.family = family;
+        finish(p, s);
+    }
+
     private void finish(ServerPlayerEntity p, Session s) {
         sessions.remove(p.getUuid());
         p.closeHandledScreen();
@@ -299,6 +334,8 @@ public final class CharacterCreation {
         pr.xp = 0;
         pr.stats = new EnumMap<>(s.stats);
         pr.points = START_POINTS - s.spent();
+        pr.skillPoints = Skill.pointsForLevel(1);
+        pr.skills = new java.util.HashSet<>();
         pr.chapter = 1;
         AotRpg.PROFILES.save(p.getUuid());
 
@@ -317,7 +354,7 @@ public final class CharacterCreation {
             p.setSpawnPoint(w.getRegistryKey(), new BlockPos(home[0], y, home[2]), 0, true, false);
         }
         Kit.give(p, pr, AotRpg.PLACES.get("cadet-training-camp"));
-        AotRpg.PROGRESSION.updateBar(p, pr);
+        AotRpg.sync(p, pr);
         AotRpg.NAMETAGS.update(p, pr);
         intro(p, pr);
     }

@@ -56,6 +56,11 @@ public final class Progression {
             d == Discipline.GUARDIAN ? 6 : d == Discipline.MEDIC ? 4 : 0, add);
         set(p, EntityAttributes.GENERIC_ARMOR, "disc_armor", d == Discipline.GUARDIAN ? 2 : 0, add);
         set(p, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, "disc_knockback", d == Discipline.GUARDIAN ? 0.2 : 0, add);
+        for (Skill sk : Skill.values()) {
+            if (sk.attribute != null) set(p, sk.attribute, "skill_" + sk.name().toLowerCase(), pr.has(sk) ? sk.amount : 0, sk.op());
+        }
+        set(p, EntityAttributes.GENERIC_JUMP_STRENGTH, "skill_wings_jump", pr.has(Skill.WINGS_OF_FREEDOM) ? 0.15 : 0, mul);
+        set(p, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, "skill_unbreakable_kb", pr.has(Skill.UNBREAKABLE) ? 0.25 : 0, add);
         if (p.getHealth() > p.getMaxHealth()) p.setHealth(p.getMaxHealth());
     }
 
@@ -67,6 +72,7 @@ public final class Progression {
             pr.xp -= Profile.xpForNext(pr.level);
             pr.level++;
             pr.points++;
+            if (pr.level % 5 == 0) pr.skillPoints++;
             up = true;
         }
         if (pr.level >= MAX_LEVEL) pr.xp = 0;
@@ -77,11 +83,16 @@ public final class Progression {
                 Text.literal("Level " + pr.level + "  ·  +1 stat point  (/character)").formatted(Formatting.YELLOW), 10, 50, 20);
             p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1.1f);
         }
-        updateBar(p, pr);
+        AotRpg.sync(p, pr);
     }
 
+    /** The XP boss bar, for players without the mod's HUD. */
     public void updateBar(ServerPlayerEntity p, Profile pr) {
         if (!pr.created) return;
+        if (AotRpg.hasClient(p)) {
+            removeBar(p);
+            return;
+        }
         ServerBossBar bar = bars.computeIfAbsent(p.getUuid(),
             u -> new ServerBossBar(Text.empty(), BossBar.Color.YELLOW, BossBar.Style.NOTCHED_10));
         if (!bar.getPlayers().contains(p)) bar.addPlayer(p);

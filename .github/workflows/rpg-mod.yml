@@ -27,6 +27,14 @@ jobs:
           gradle-version: '8.12'
       - name: Build
         run: gradle build --no-daemon --stacktrace
+      - name: Check HUD mixin targets
+        continue-on-error: true
+        run: |
+          jar=$(find ~/.gradle/caches/fabric-loom .gradle/loom-cache -name 'minecraft-*yarn*.jar' 2>/dev/null | grep -v sources | head -1)
+          [ -z "$jar" ] && jar=$(find ~/.gradle .gradle -name '*.jar' -path '*minecraft*' 2>/dev/null | xargs -I{} sh -c 'unzip -l {} 2>/dev/null | grep -q net/minecraft/client/gui/hud/InGameHud.class && echo {}' | head -1)
+          echo "jar: $jar"
+          javap -p -cp "$jar" net.minecraft.client.gui.hud.InGameHud | grep -iE "render(StatusBars|ExperienceBar|ExperienceLevel)"
+          grep -iE "mixin|refmap|Cannot find" -r build/tmp 2>/dev/null | head -20 || true
       - uses: actions/upload-artifact@v4
         with:
           name: aot-rpg-mod

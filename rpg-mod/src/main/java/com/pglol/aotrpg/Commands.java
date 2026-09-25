@@ -26,7 +26,8 @@ final class Commands {
                 if (!AotRpg.CREATION.active(p)) AotRpg.CREATION.begin(p);
                 return 0;
             }
-            sheet(p, pr);
+            if (AotRpg.hasClient(p)) net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new Net.OpenCharacter(0));
+            else sheet(p, pr);
             return 1;
         }));
 
@@ -49,6 +50,8 @@ final class Commands {
                     int lv = IntegerArgumentType.getInteger(c, "level");
                     pr.points += lv - pr.level;
                     if (pr.points < 0) pr.points = 0;
+                    pr.skillPoints += Skill.pointsForLevel(lv) - Skill.pointsForLevel(pr.level);
+                    if (pr.skillPoints < 0) pr.skillPoints = 0;
                     pr.level = lv;
                     pr.xp = 0;
                     refresh(p, pr);
@@ -79,7 +82,7 @@ final class Commands {
 
     private static void refresh(ServerPlayerEntity p, Profile pr) {
         AotRpg.PROGRESSION.apply(p, pr);
-        AotRpg.PROGRESSION.updateBar(p, pr);
+        AotRpg.sync(p, pr);
         AotRpg.NAMETAGS.update(p, pr);
         AotRpg.PROFILES.save(p.getUuid());
     }

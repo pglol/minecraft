@@ -40,6 +40,11 @@ public final class ProfileStore {
                 Profile p = GSON.fromJson(Files.readString(f, StandardCharsets.UTF_8), Profile.class);
                 if (p != null) {
                     if (p.stats == null) p.stats = new java.util.EnumMap<>(Stat.class);
+                    if (p.skills == null) {
+                        // Profile from before skills existed: grant the points they would have earned.
+                        p.skills = new java.util.HashSet<>();
+                        if (p.created) p.skillPoints = Skill.pointsForLevel(p.level);
+                    }
                     return p;
                 }
             } catch (Exception e) {

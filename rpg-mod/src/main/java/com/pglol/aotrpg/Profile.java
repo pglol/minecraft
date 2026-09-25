@@ -15,6 +15,8 @@ public final class Profile {
     public long xp;
     public int points;
     public Map<Stat, Integer> stats = new EnumMap<>(Stat.class);
+    public int skillPoints;
+    public java.util.Set<Skill> skills = new java.util.HashSet<>();
     public int chapter;
     public int titanKills;
 
@@ -28,6 +30,14 @@ public final class Profile {
         if (origin != null && origin.bonusStat == s) v++;
         if (origin == Origin.UNDERGROUND && s == Stat.STRENGTH) v++;
         return v;
+    }
+
+    public boolean has(Skill s) {
+        return skills.contains(s);
+    }
+
+    public float maxStamina() {
+        return 100 + 5 * total(Stat.ENDURANCE) + (has(Skill.SECOND_WIND) ? 30 : 0);
     }
 
     public static long xpForNext(int level) {

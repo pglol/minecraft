@@ -65,6 +65,10 @@ final class ServerSetup {
             System.out.println("    No level.dat in that folder. Drag the world folder itself, try again.");
         }
         System.out.println();
+        String mv = line(in, "    Move the world into the server (instant, it leaves your single-player saves)\n"
+            + "    or copy it (slower, keeps a single-player copy)? (m/c, Enter = move): ");
+        boolean move = !mv.toLowerCase(java.util.Locale.ROOT).startsWith("c");
+        System.out.println();
         String ram = line(in, " 3) Server memory, e.g. 6G (Enter = 6G): ");
         if (ram.isEmpty()) ram = "6G";
         if (ram.matches("\\d+")) ram += "G";
@@ -72,7 +76,7 @@ final class ServerSetup {
         System.out.println(" 4) The server needs you to accept the Minecraft EULA: https://aka.ms/MinecraftEULA");
         boolean eula = line(in, "    Do you accept it? (y/n): ").toLowerCase(java.util.Locale.ROOT).startsWith("y");
         System.out.println();
-        run(server, mods, world, null, ram, eula, toolDir);
+        run(server, mods, world, null, ram, eula, toolDir, move);
     }
 
     private static String line(java.io.BufferedReader in, String prompt) throws IOException {
@@ -93,6 +97,11 @@ final class ServerSetup {
     }
 
     static void run(Path server, Path mods, Path world, String loader, String ram, boolean eula, Path toolDir)
+            throws IOException, InterruptedException {
+        run(server, mods, world, loader, ram, eula, toolDir, false);
+    }
+
+    static void run(Path server, Path mods, Path world, String loader, String ram, boolean eula, Path toolDir, boolean move)
             throws IOException, InterruptedException {
         Files.createDirectories(server);
         System.out.println("Creating server in " + server.toAbsolutePath());
@@ -155,8 +164,20 @@ final class ServerSetup {
             if (!Files.exists(world.resolve("level.dat"))) throw new IllegalArgumentException(world + " is not a world folder");
             level = world.getFileName().toString().replaceAll("[^A-Za-z0-9_-]", "_");
             Path dest = server.resolve(level);
-            System.out.println("Copying world to " + dest.getFileName() + " (this can take a few minutes)...");
-            copyTree(world, dest);
+            boolean moved = false;
+            if (move && !Files.exists(dest)) {
+                try {
+                    Files.move(world, dest); // a rename: instant on the same drive
+                    moved = true;
+                    System.out.println("Moved world to " + dest);
+                } catch (IOException e) {
+                    System.out.println("Can't move the world across drives, copying it instead.");
+                }
+            }
+            if (!moved) {
+                System.out.println("Copying world to " + dest.getFileName() + " (this can take a few minutes)...");
+                copyTree(world, dest);
+            }
         }
 
         // 4. Settings
