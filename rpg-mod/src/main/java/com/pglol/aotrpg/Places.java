@@ -61,8 +61,16 @@ public final class Places {
                         o.get("prio").getAsInt(), o.get("x").getAsInt(), o.get("y").getAsInt(), o.get("z").getAsInt()));
                 }
             }
+            if (root.has("walls")) {
+                JsonObject wl = root.getAsJsonObject("walls");
+                walls = new int[] {wl.get("sina").getAsInt(), wl.get("rose").getAsInt(), wl.get("maria").getAsInt()};
+            }
             if (root.has("safe")) {
                 JsonObject sf = root.getAsJsonObject("safe");
+                if (walls == null) {
+                    int rose = sf.get("rose").getAsInt();
+                    walls = new int[] {rose * 250 / 380, rose, rose * 480 / 380};
+                }
                 java.util.List<int[]> zones = new java.util.ArrayList<>();
                 for (JsonElement e : sf.getAsJsonArray("zones")) {
                     var a = e.getAsJsonArray();
@@ -135,6 +143,26 @@ public final class Places {
 
     public java.util.List<Net.Area> areas() {
         return areas;
+    }
+
+    /** Wall radii {Sina, Rose, Maria} around the capital at 0,0 (null before the json is read). */
+    public int[] walls;
+
+    /** The nearest area of any of these looks (town, safe, marley...), or null. */
+    public Net.Area nearest(double x, double z, double maxDist, String... looks) {
+        Net.Area best = null;
+        double bd = maxDist * maxDist;
+        for (Net.Area a : areas()) {
+            boolean ok = looks.length == 0;
+            for (String l : looks) if (a.look().equals(l)) ok = true;
+            if (!ok) continue;
+            double d = (a.x() - x) * (a.x() - x) + (a.z() - z) * (a.z() - z);
+            if (d < bd) {
+                bd = d;
+                best = a;
+            }
+        }
+        return best;
     }
 
     /** The level of the nearest area (the middle of its range), 1 when unknown. */

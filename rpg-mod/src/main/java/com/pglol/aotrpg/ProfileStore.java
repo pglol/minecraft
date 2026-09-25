@@ -126,6 +126,8 @@ public final class ProfileStore {
                         if (p.created) p.skillPoints = Skill.pointsForLevel(p.level);
                     }
                     if (p.lifestyle == null) p.lifestyle = new java.util.HashMap<>();
+                    if (p.orders == null) p.orders = new java.util.HashMap<>();
+                    if (p.faction == null) p.faction = "";
                     return p;
                 }
             } catch (Exception e) {

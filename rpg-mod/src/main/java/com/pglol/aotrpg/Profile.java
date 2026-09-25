@@ -33,6 +33,12 @@ public final class Profile {
     public long marks;
     /** Times this character used a bloodline reroll (at most Characters.MAX_REROLLS). */
     public int bloodlineRerolls;
+    /** Faction (Factions.Faction name, empty for none), reputation, when joined. */
+    public String faction = "";
+    public int factionRep;
+    public long factionJoined;
+    /** Work orders this cycle: id -> progress (-1 done). */
+    public java.util.Map<String, Integer> orders = new java.util.HashMap<>();
     /** Lifestyle skills (smithing, fishing, cooking): skill -> xp. */
     public java.util.Map<String, Long> lifestyle = new java.util.HashMap<>();
 

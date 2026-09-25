@@ -32,8 +32,14 @@ public final class SocialWheel extends Screen {
                 () -> soon(mc, "Trading")),
             new Option("Cosmetics", "Trails and looks", new ItemStack(Items.AMETHYST_SHARD), true,
                 () -> mc.setScreen(new CosmeticsScreen())),
-            new Option("", "Reserved", ItemStack.EMPTY, false, () -> mc.setScreen(null)),
-            new Option("", "Reserved", ItemStack.EMPTY, false, () -> mc.setScreen(null)),
+            new Option("Market", "Trade at the town market", new ItemStack(Items.GOLD_NUGGET), true, () -> {
+                mc.setScreen(null);
+                net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new com.pglol.aotrpg.Net.MarketAction("open", "", 0, 0));
+            }),
+            new Option("Factions", "Sectors and work orders", new ItemStack(Items.WHITE_BANNER), true, () -> {
+                mc.setScreen(null);
+                net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new com.pglol.aotrpg.Net.FactionAction("open", ""));
+            }),
         };
     }
 

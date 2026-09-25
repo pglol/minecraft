@@ -95,7 +95,9 @@ final class Datapack {
         // Places titans may not enter (the RPG mod removes them): everything inside Wall Rose,
         // plus districts, the capital and the story sites.
         com.pglol.aotworld.core.Atlas at = w.atlas;
-        json.append("\n  ],\n  \"safe\": {\"rose\": ").append((int) at.rose.radius).append(", \"zones\": [");
+        json.append("\n  ],\n  \"walls\": {\"sina\": ").append((int) at.sina.radius).append(", \"rose\": ").append((int) at.rose.radius)
+            .append(", \"maria\": ").append((int) at.maria.radius).append("}");
+        json.append(",\n  \"safe\": {\"rose\": ").append((int) at.rose.radius).append(", \"zones\": [");
         List<String> zones = new ArrayList<>();
         for (com.pglol.aotworld.core.Atlas.District d : at.districts) {
             zones.add(String.format(Locale.ROOT, "[%d, %d, %d]", (int) d.cx, (int) d.cz, (int) d.radius + 40));

@@ -67,6 +67,20 @@ public final class AotRpgClient implements ClientModInitializer {
             ClientState.cosmeticsAll = payload.allowlisted();
             if (ctx.client().currentScreen instanceof CosmeticsScreen s) s.refresh();
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.MarketView.ID, (payload, ctx) -> {
+            ClientState.market = payload;
+            if (ctx.client().currentScreen instanceof MarketScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new MarketScreen());
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.ExchangeView.ID, (payload, ctx) -> {
+            ClientState.exchange = payload.list();
+            if (ctx.client().currentScreen instanceof MarketScreen s) s.refresh();
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.FactionView.ID, (payload, ctx) -> {
+            ClientState.factions = payload;
+            if (ctx.client().currentScreen instanceof FactionScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new FactionScreen());
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.HitMarker.ID, (payload, ctx) -> HitFx.onHit(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.WalletSync.ID, (payload, ctx) -> {
             ClientState.marks = payload.marks();

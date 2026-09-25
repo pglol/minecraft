@@ -29,6 +29,9 @@ public final class ClientState {
     public static boolean cosmeticsAll;
     public static long marks, gold;
     public static Net.CharacterList characters;
+    public static Net.MarketView market;
+    public static java.util.List<Net.ExchangeEntry> exchange = java.util.List.of();
+    public static Net.FactionView factions;
     public static java.util.Map<java.util.UUID, Net.SheathState> sheaths = new java.util.HashMap<>();
 
     public static Net.PartyMember partyMember(java.util.UUID id) {

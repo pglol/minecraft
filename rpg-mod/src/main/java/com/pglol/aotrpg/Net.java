@@ -530,7 +530,138 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    public record MarketGood(String item, String category, long buy, long sell, int stock, int trend, int have) {
+        void write(RegistryByteBuf b) {
+            b.writeString(item); b.writeString(category); b.writeVarLong(buy); b.writeVarLong(sell);
+            b.writeVarInt(stock); b.writeVarInt(trend); b.writeVarInt(have);
+        }
+
+        static MarketGood read(RegistryByteBuf b) {
+            return new MarketGood(b.readString(), b.readString(), b.readVarLong(), b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readVarInt());
+        }
+    }
+
+    public record GearOffer(int slot, long value) { }
+
+    /** Server -> client: a town market (goods with local prices, your sellable gear). */
+    public record MarketView(String town, String sector, String controller, int discount, java.util.List<MarketGood> goods,
+                             java.util.List<GearOffer> gear, boolean open) implements CustomPayload {
+        public static final Id<MarketView> ID = id("market");
+        public static final PacketCodec<RegistryByteBuf, MarketView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.town); b.writeString(v.sector); b.writeString(v.controller); b.writeVarInt(v.discount);
+            b.writeVarInt(v.goods.size());
+            for (MarketGood g : v.goods) g.write(b);
+            b.writeVarInt(v.gear.size());
+            for (GearOffer g : v.gear) { b.writeVarInt(g.slot()); b.writeVarLong(g.value()); }
+            b.writeBoolean(v.open);
+        }, b -> {
+            String t = b.readString(), s = b.readString(), c = b.readString();
+            int d = b.readVarInt();
+            int n = Math.min(b.readVarInt(), 512);
+            java.util.List<MarketGood> g = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) g.add(MarketGood.read(b));
+            int m = Math.min(b.readVarInt(), 64);
+            java.util.List<GearOffer> gear = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) gear.add(new GearOffer(b.readVarInt(), b.readVarLong()));
+            return new MarketView(t, s, c, d, g, gear, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record ExchangeEntry(long id, net.minecraft.item.ItemStack item, long price, String seller, boolean mine) { }
+
+    /** Server -> client: the Exchange listings. */
+    public record ExchangeView(java.util.List<ExchangeEntry> list) implements CustomPayload {
+        public static final Id<ExchangeView> ID = id("exchange");
+        public static final PacketCodec<RegistryByteBuf, ExchangeView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.list.size());
+            for (ExchangeEntry e : v.list) {
+                b.writeVarLong(e.id()); net.minecraft.item.ItemStack.OPTIONAL_PACKET_CODEC.encode(b, e.item());
+                b.writeVarLong(e.price()); b.writeString(e.seller()); b.writeBoolean(e.mine());
+            }
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 256);
+            java.util.List<ExchangeEntry> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                l.add(new ExchangeEntry(b.readVarLong(), net.minecraft.item.ItemStack.OPTIONAL_PACKET_CODEC.decode(b), b.readVarLong(),
+                    b.readString(), b.readBoolean()));
+            }
+            return new ExchangeView(l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: buy/sell/sellgear/list/buylisting/cancel/exchange/open with item, amount, number. */
+    public record MarketAction(String action, String item, int qty, long number) implements CustomPayload {
+        public static final Id<MarketAction> ID = id("market_action");
+        public static final PacketCodec<RegistryByteBuf, MarketAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeString(v.item); b.writeVarInt(v.qty); b.writeVarLong(v.number);
+        }, b -> new MarketAction(b.readString(), b.readString(), b.readVarInt(), b.readVarLong()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record SectorInfo(String title, float[] influence, int controller) { }
+
+    public record OrderInfo(String id, int sector, String text, long marks, int rep, int progress, int qty) { }
+
+    /** Server -> client: your faction, the sectors and this cycle's work orders. */
+    public record FactionView(int faction, int rep, int here, java.util.List<SectorInfo> sectors, java.util.List<OrderInfo> orders,
+                              long cycleLeft, long[] treasury, boolean open) implements CustomPayload {
+        public static final Id<FactionView> ID = id("factions");
+        public static final PacketCodec<RegistryByteBuf, FactionView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.faction + 1); b.writeVarInt(v.rep); b.writeVarInt(v.here);
+            b.writeVarInt(v.sectors.size());
+            for (SectorInfo s : v.sectors) {
+                b.writeString(s.title()); b.writeVarInt(s.influence().length);
+                for (float f : s.influence()) b.writeFloat(f);
+                b.writeVarInt(s.controller() + 1);
+            }
+            b.writeVarInt(v.orders.size());
+            for (OrderInfo o : v.orders) {
+                b.writeString(o.id()); b.writeVarInt(o.sector()); b.writeString(o.text()); b.writeVarLong(o.marks());
+                b.writeVarInt(o.rep()); b.writeVarInt(o.progress() + 2); b.writeVarInt(o.qty());
+            }
+            b.writeVarLong(v.cycleLeft);
+            b.writeVarInt(v.treasury.length);
+            for (long t : v.treasury) b.writeVarLong(t);
+            b.writeBoolean(v.open);
+        }, b -> {
+            int f = b.readVarInt() - 1, rep = b.readVarInt(), here = b.readVarInt();
+            int n = Math.min(b.readVarInt(), 16);
+            java.util.List<SectorInfo> sec = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                String t = b.readString();
+                float[] inf = new float[Math.min(b.readVarInt(), 8)];
+                for (int k = 0; k < inf.length; k++) inf[k] = b.readFloat();
+                sec.add(new SectorInfo(t, inf, b.readVarInt() - 1));
+            }
+            int m = Math.min(b.readVarInt(), 64);
+            java.util.List<OrderInfo> ord = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) {
+                ord.add(new OrderInfo(b.readString(), b.readVarInt(), b.readString(), b.readVarLong(), b.readVarInt(), b.readVarInt() - 2, b.readVarInt()));
+            }
+            long left = b.readVarLong();
+            long[] tr = new long[Math.min(b.readVarInt(), 8)];
+            for (int k = 0; k < tr.length; k++) tr[k] = b.readVarLong();
+            return new FactionView(f, rep, here, sec, ord, left, tr, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: join / leave / accept / turnin / abandon / open. */
+    public record FactionAction(String action, String arg) implements CustomPayload {
+        public static final Id<FactionAction> ID = id("faction_action");
+        public static final PacketCodec<RegistryByteBuf, FactionAction> CODEC =
+            PacketCodec.of((v, b) -> { b.writeString(v.action); b.writeString(v.arg); }, b -> new FactionAction(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playS2C().register(MarketView.ID, MarketView.CODEC);
+        PayloadTypeRegistry.playS2C().register(ExchangeView.ID, ExchangeView.CODEC);
+        PayloadTypeRegistry.playC2S().register(MarketAction.ID, MarketAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(FactionView.ID, FactionView.CODEC);
+        PayloadTypeRegistry.playC2S().register(FactionAction.ID, FactionAction.CODEC);
         PayloadTypeRegistry.playS2C().register(HitMarker.ID, HitMarker.CODEC);
         PayloadTypeRegistry.playS2C().register(WalletSync.ID, WalletSync.CODEC);
         PayloadTypeRegistry.playS2C().register(CharacterList.ID, CharacterList.CODEC);

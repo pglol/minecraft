@@ -56,6 +56,9 @@ public final class AotRpg implements ModInitializer {
     public static final Wallet WALLET = new Wallet();
     public static final Gear GEAR = new Gear();
     public static final Combat COMBAT = new Combat();
+    public static final Market MARKET = new Market();
+    public static final Exchange EXCHANGE = new Exchange();
+    public static final Factions FACTIONS = new Factions();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
@@ -87,6 +90,25 @@ public final class AotRpg implements ModInitializer {
     public void onInitialize() {
         Net.register();
         SatchelHandler.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.MarketAction.ID, (payload, ctx) -> {
+            ServerPlayerEntity p = ctx.player();
+            if (!PROFILES.get(p.getUuid()).created) return;
+            switch (payload.action()) {
+                case "open" -> MARKET.open(p);
+                case "buy" -> MARKET.buy(p, payload.item(), payload.qty());
+                case "sell" -> MARKET.sell(p, payload.item(), payload.qty());
+                case "sellgear" -> MARKET.sellGear(p, payload.qty());
+                case "exchange" -> EXCHANGE.send(p);
+                case "list" -> EXCHANGE.list(p, payload.qty(), payload.number());
+                case "buylisting" -> EXCHANGE.buy(p, payload.number());
+                case "cancel" -> EXCHANGE.cancel(p, payload.number());
+                default -> { }
+            }
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.FactionAction.ID, (payload, ctx) -> {
+            if (payload.action().equals("open")) FACTIONS.send(ctx.player(), true);
+            else FACTIONS.action(ctx.player(), payload.action(), payload.arg());
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.CharacterAction.ID, (payload, ctx) -> {
             if (payload.action().equals("list")) CHARACTERS.send(ctx.player(), true);
             else CHARACTERS.action(ctx.player(), payload.action(), payload.slot());
@@ -257,11 +279,15 @@ public final class AotRpg implements ModInitializer {
             AotItems.scan(server);
             COSMETICS.open(server);
             CARE.open(server);
+            MARKET.open(server);
+            EXCHANGE.open(server);
+            FACTIONS.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
             SATCHEL.saveAll();
             CARE.save();
+            MARKET.save();
             NAMETAGS.clear();
         });
 
@@ -350,6 +376,8 @@ public final class AotRpg implements ModInitializer {
         SCHEDULER.tick();
         ticks++;
         CARE.tick(ticks, false);
+        MARKET.tick(ticks);
+        EXCHANGE.tick(ticks);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
@@ -394,6 +422,7 @@ public final class AotRpg implements ModInitializer {
         WALLET.addMarks(killer, 4 + Math.round(dead.getMaxHealth() / 40), null);
         GEAR.titanDrop(killer, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
+        FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());
         // Party members within 64 blocks share 60%; anyone else within 32 blocks gets an assist.
         for (ServerPlayerEntity p : killer.getServerWorld().getPlayers()) {
             if (p == killer) continue;

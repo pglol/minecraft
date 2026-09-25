@@ -286,6 +286,14 @@ final class Commands {
                     .append(Text.literal(" to " + AotRpg.PROFILES.get(to.getUuid()).name).formatted(Formatting.GRAY)), false);
                 return 1;
             }))));
+        d.register(CommandManager.literal("market").executes(c -> {
+            AotRpg.MARKET.open(c.getSource().getPlayerOrThrow());
+            return 1;
+        }));
+        d.register(CommandManager.literal("faction").executes(c -> {
+            AotRpg.FACTIONS.send(c.getSource().getPlayerOrThrow(), true);
+            return 1;
+        }));
         d.register(CommandManager.literal("characters").executes(c -> {
             AotRpg.CHARACTERS.send(c.getSource().getPlayerOrThrow(), true);
             return 1;
