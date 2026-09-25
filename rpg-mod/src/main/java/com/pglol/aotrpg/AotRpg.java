@@ -198,6 +198,7 @@ public final class AotRpg implements ModInitializer {
             Notify.toast(p, Text.literal("Skills reset").formatted(Formatting.GOLD),
                 Text.literal(refund + " points back · " + (Skill.MAX_RESETS - pr.skillResets) + " resets left"), 0xE0B96A, "minecraft:experience_bottle", null);
         });
+        ServerPlayNetworking.registerGlobalReceiver(Net.SlashHit.ID, (payload, ctx) -> COMBAT.slash(ctx.player(), payload.entity()));
         ServerPlayNetworking.registerGlobalReceiver(Net.GuardKey.ID, (payload, ctx) -> GUARD_FIGHT.set(ctx.player(), payload.on()));
         ServerPlayNetworking.registerGlobalReceiver(Net.TaskAction.ID, (payload, ctx) -> TASKS.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.PassAction.ID, (payload, ctx) -> SEASON.action(ctx.player(), payload.action(), payload.tier()));

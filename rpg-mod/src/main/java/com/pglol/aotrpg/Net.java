@@ -474,6 +474,14 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: my blade swing struck this entity (for the slash effect). */
+    public record SlashHit(int entity) implements CustomPayload {
+        public static final Id<SlashHit> ID = id("slash_hit");
+        public static final PacketCodec<RegistryByteBuf, SlashHit> CODEC =
+            PacketCodec.of((v, b) -> b.writeVarInt(v.entity), b -> new SlashHit(b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Client -> server: select a cosmetic. */
     public record SelectCosmetic(String cosmetic) implements CustomPayload {
         public static final Id<SelectCosmetic> ID = id("select_cosmetic");
@@ -1100,6 +1108,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playC2S().register(SlashHit.ID, SlashHit.CODEC);
         PayloadTypeRegistry.playC2S().register(SkillReset.ID, SkillReset.CODEC);
         PayloadTypeRegistry.playS2C().register(Toast.ID, Toast.CODEC);
         PayloadTypeRegistry.playS2C().register(CosmeticsOf.ID, CosmeticsOf.CODEC);

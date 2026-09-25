@@ -36,7 +36,34 @@ public final class CombatUi {
 
     // ------------------------------------------------------------------ guard key
 
+    private static boolean wasSwinging;
+
+    /** A blade swing that meets something in reach is reported for the slash effect. */
+    private static void tickSwing(MinecraftClient mc) {
+        if (mc.player == null || mc.world == null) {
+            wasSwinging = false;
+            return;
+        }
+        boolean sw = mc.player.handSwinging;
+        var held = mc.player.getMainHandStack();
+        if (sw && !wasSwinging && com.pglol.aotrpg.Guard.melee(held) && !com.pglol.aotrpg.AotItems.isApgGun(held)) {
+            Entity target = mc.targetedEntity;
+            if (target == null) {
+                Vec3d eye = mc.player.getEyePos(), look = mc.player.getRotationVec(1f);
+                double reach = 6;
+                Vec3d end = eye.add(look.multiply(reach));
+                var hit = net.minecraft.entity.projectile.ProjectileUtil.raycast(mc.player, eye, end,
+                    mc.player.getBoundingBox().stretch(look.multiply(reach)).expand(1.5),
+                    e -> e.isAlive() && e.canHit() && e != mc.player, reach * reach);
+                if (hit != null) target = hit.getEntity();
+            }
+            if (target != null) ClientPlayNetworking.send(new Net.SlashHit(target.getId()));
+        }
+        wasSwinging = sw;
+    }
+
     public static void tick(MinecraftClient mc) {
+        tickSwing(mc);
         boolean want = guardKey != null && guardKey.isPressed() && mc.currentScreen == null && mc.player != null;
         if (want != guardSent) {
             guardSent = want;

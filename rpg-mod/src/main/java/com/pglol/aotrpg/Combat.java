@@ -46,14 +46,6 @@ public final class Combat {
             if (!(source.getAttacker() instanceof ServerPlayerEntity attacker) || attacker == entity || taken <= 0) return;
             if (!(entity instanceof PlayerEntity) && !AotRpg.isTitan(entity) && !(entity instanceof net.minecraft.entity.mob.HostileEntity)) return;
             boolean ranged = !melee(source);
-            if (!ranged) {
-                // The attacker's blade slash, for everyone nearby.
-                Net.SlashFx fx = new Net.SlashFx(AotRpg.COSMETICS.selected(attacker, "slash"), entity.getX(),
-                    entity.getY() + Math.min(entity.getHeight() * 0.6, 3), entity.getZ(), attacker.getYaw());
-                for (ServerPlayerEntity o : net.fabricmc.fabric.api.networking.v1.PlayerLookup.around((net.minecraft.server.world.ServerWorld) entity.getWorld(), entity.getPos(), 48)) {
-                    if (ServerPlayNetworking.canSend(o, Net.SlashFx.ID)) ServerPlayNetworking.send(o, fx);
-                }
-            }
             if (!ServerPlayNetworking.canSend(attacker, Net.HitMarker.ID)) return;
             boolean kill = entity.isDead() || entity.getHealth() <= 0;
             int kind = (ranged ? 1 : 0) | (kill ? 2 : 0) | (entity instanceof PlayerEntity ? 4 : 0) | (AotRpg.isTitan(entity) ? 8 : 0);
@@ -72,6 +64,30 @@ public final class Combat {
         if (direct == att) return !(att instanceof PlayerEntity p) || !AotItems.isApgGun(p.getMainHandStack());
         if (direct instanceof net.minecraft.entity.projectile.ProjectileEntity) return false;
         return att.getMainHandStack() != null && Guard.melee(att.getMainHandStack()) && !AotItems.isApgGun(att.getMainHandStack());
+    }
+
+    private final java.util.Map<java.util.UUID, Long> lastSlash = new java.util.HashMap<>();
+
+    /**
+     * A blade swing that struck something (reported by the swinging player's client, because
+     * Danny's ODM blades deal their damage their own way): the player's slash cosmetic, shown to
+     * everyone nearby. Checked for reach and rate so it can't be abused.
+     */
+    public void slash(ServerPlayerEntity p, int entityId) {
+        long now = System.currentTimeMillis();
+        if (now - lastSlash.getOrDefault(p.getUuid(), 0L) < 150) return;
+        net.minecraft.entity.Entity target = p.getServerWorld().getEntityById(entityId);
+        if (target == null || !target.isAlive() || target == p || AotItems.isApgGun(p.getMainHandStack()) || !Guard.melee(p.getMainHandStack())) return;
+        // Titans are huge: measure to the nearest point of their body.
+        double reach = 7;
+        if (target.getBoundingBox().expand(reach).contains(p.getEyePos()) == false) return;
+        lastSlash.put(p.getUuid(), now);
+        double y = Math.min(p.getEyeY(), target.getBoundingBox().maxY - 0.2);
+        net.minecraft.util.math.Vec3d at = target.getBoundingBox().getCenter();
+        Net.SlashFx fx = new Net.SlashFx(AotRpg.COSMETICS.selected(p, "slash"), at.x, Math.max(target.getY() + 0.3, y - 0.2), at.z, p.getYaw());
+        for (ServerPlayerEntity o : net.fabricmc.fabric.api.networking.v1.PlayerLookup.around(p.getServerWorld(), at, 48)) {
+            if (ServerPlayNetworking.canSend(o, Net.SlashFx.ID)) ServerPlayNetworking.send(o, fx);
+        }
     }
 
     /** Is an entity a living combat target worth a marker (used by tests of the kind bits). */
