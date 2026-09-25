@@ -131,7 +131,9 @@ public final class Gear {
     public static ItemStack roll(Random r, Rarity rarity, int ilvl) {
         boolean weapon = r.nextFloat() < 0.5f;
         ItemStack s;
-        Item aot = weapon && r.nextFloat() < 0.6f ? AotItems.exact(AOT_WEAPONS[r.nextInt(AOT_WEAPONS.length)]) : null;
+        // Weapons are the AoT mod's ODM grip blades (mostly) and APG guns whenever it is installed.
+        Item aot = weapon ? AotItems.exact(r.nextFloat() < 0.65f ? "blade" : "apg_gun") : null;
+        if (weapon && aot == null) aot = AotItems.exact(AOT_WEAPONS[r.nextInt(AOT_WEAPONS.length)]);
         if (aot != null) {
             // Rare ODM blades and APG guns: the gear that matters against titans and in PvP.
             s = new ItemStack(aot);

@@ -1,5 +1,6 @@
 package com.pglol.aotrpg;
 
+import net.minecraft.item.ItemStack;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.RegistryByteBuf;
@@ -457,11 +458,18 @@ public final class Net {
     }
 
     /** Server -> client: how many ODM grips a player has sheathed on their back (0-2), and which item. */
-    public record SheathState(java.util.UUID player, String item, int count) implements CustomPayload {
+    /** Server -> client: the grips sheathed on a player's back (empty stacks for none), exactly as they are. */
+    public record SheathState(java.util.UUID player, ItemStack a, ItemStack b) implements CustomPayload {
         public static final Id<SheathState> ID = id("sheath");
         public static final PacketCodec<RegistryByteBuf, SheathState> CODEC = PacketCodec.of((v, b) -> {
-            b.writeUuid(v.player); b.writeString(v.item); b.writeVarInt(v.count);
-        }, b -> new SheathState(b.readUuid(), b.readString(), b.readVarInt()));
+            b.writeUuid(v.player);
+            ItemStack.OPTIONAL_PACKET_CODEC.encode(b, v.a);
+            ItemStack.OPTIONAL_PACKET_CODEC.encode(b, v.b);
+        }, b -> new SheathState(b.readUuid(), ItemStack.OPTIONAL_PACKET_CODEC.decode(b), ItemStack.OPTIONAL_PACKET_CODEC.decode(b)));
+
+        public int count() {
+            return (a.isEmpty() ? 0 : 1) + (b.isEmpty() ? 0 : 1);
+        }
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 

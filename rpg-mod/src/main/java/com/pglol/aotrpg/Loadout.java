@@ -147,7 +147,7 @@ public final class Loadout {
 
     // ---------------------------------------------------------------- server side
 
-    private final Map<UUID, Integer> lastSheath = new HashMap<>();
+    private final Map<UUID, Net.SheathState> lastSheath = new HashMap<>();
 
     /** Sheath (slot 0) and stashed off-hand item (slot 1), saved with the satchel. */
     private static SimpleInventory gear(ServerPlayerEntity p) {
@@ -345,19 +345,18 @@ public final class Loadout {
         return (isGrip(g.getStack(SHEATH_A)) ? 1 : 0) + (isGrip(g.getStack(SHEATH_B)) ? 1 : 0);
     }
 
-    private static String sheathItem(ServerPlayerEntity p) {
+    /** The grips on the back, as they are (loaded blades and all). */
+    private static Net.SheathState sheathState(ServerPlayerEntity p) {
         SimpleInventory g = gear(p);
-        ItemStack s = isGrip(g.getStack(SHEATH_A)) ? g.getStack(SHEATH_A) : g.getStack(SHEATH_B);
-        return s.isEmpty() ? "" : Registries.ITEM.getId(s.getItem()).toString();
+        ItemStack a = isGrip(g.getStack(SHEATH_A)) ? g.getStack(SHEATH_A).copyWithCount(1) : ItemStack.EMPTY;
+        ItemStack b = isGrip(g.getStack(SHEATH_B)) ? g.getStack(SHEATH_B).copyWithCount(1) : ItemStack.EMPTY;
+        return new Net.SheathState(p.getUuid(), a, b);
     }
 
     public void broadcast(ServerPlayerEntity p, boolean force) {
-        int n = onBack(p);
-        String item = sheathItem(p);
-        int key = n * 31 + item.hashCode();
-        Integer old = lastSheath.put(p.getUuid(), key);
-        if (!force && old != null && old == key) return;
-        Net.SheathState msg = new Net.SheathState(p.getUuid(), item, n);
+        Net.SheathState msg = sheathState(p);
+        Net.SheathState old = lastSheath.put(p.getUuid(), msg);
+        if (!force && old != null && ItemStack.areEqual(old.a(), msg.a()) && ItemStack.areEqual(old.b(), msg.b())) return;
         for (ServerPlayerEntity o : p.getServer().getPlayerManager().getPlayerList()) {
             if (ServerPlayNetworking.canSend(o, Net.SheathState.ID)) ServerPlayNetworking.send(o, msg);
         }
@@ -367,7 +366,7 @@ public final class Loadout {
     public void sendAll(ServerPlayerEntity to) {
         if (!ServerPlayNetworking.canSend(to, Net.SheathState.ID)) return;
         for (ServerPlayerEntity o : to.getServer().getPlayerManager().getPlayerList()) {
-            ServerPlayNetworking.send(to, new Net.SheathState(o.getUuid(), sheathItem(o), onBack(o)));
+            ServerPlayNetworking.send(to, sheathState(o));
         }
     }
 

@@ -154,7 +154,7 @@ public final class CombatHotbar {
     private static void drawSheath(DrawContext c, MinecraftClient mc, ClientPlayerEntity pl, int x, int y) {
         Net.SheathState st = ClientState.sheaths.get(pl.getUuid());
         ItemStack off = pl.getOffHandStack();
-        boolean sheathed = st != null && st.count() > 0 && !st.item().isEmpty();
+        boolean sheathed = st != null && st.count() > 0;
         if (off.isEmpty() && !sheathed) return;
         boolean drawn = com.pglol.aotrpg.Loadout.isGrip(off);
         int col = drawn ? 0xFFC0463A : sheathed ? Ui.GOLD : 0xFF8F8A7A;

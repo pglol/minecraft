@@ -36,13 +36,11 @@ public final class SheathRender {
         float td = ctx.tickCounter().getTickDelta(true);
         for (PlayerEntity pl : mc.world.getPlayers()) {
             Net.SheathState st = ClientState.sheaths.get(pl.getUuid());
-            if (st == null || st.count() <= 0 || st.item().isEmpty() || pl.isInvisible() || pl.hasVehicle()) continue;
+            if (st == null || st.count() <= 0 || pl.isInvisible() || pl.hasVehicle()) continue;
             if (pl == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
             EntityPose pose = pl.getPose();
             if (pose != EntityPose.STANDING && pose != EntityPose.CROUCHING) continue;
-            var item = Registries.ITEM.get(Identifier.of(st.item()));
-            if (item == Items.AIR) continue;
-            ItemStack stack = new ItemStack(item);
+            ItemStack[] grips = st.count() == 2 ? new ItemStack[] {st.a(), st.b()} : new ItemStack[] {st.a().isEmpty() ? st.b() : st.a()};
 
             Vec3d pos = pl.getLerpedPos(td);
             float bodyYaw = MathHelper.lerpAngleDegrees(td, pl.prevBodyYaw, pl.bodyYaw);
@@ -57,13 +55,21 @@ public final class SheathRender {
             ms.translate(0, crouch ? 1.02 : 1.2, 0);
             if (crouch) ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-28));
             ms.translate(0, 0, armored ? 0.24 : 0.19);
-            for (int i = 0; i < st.count(); i++) {
+            for (int i = 0; i < grips.length; i++) {
+                ItemStack stack = grips[i];
                 ms.push();
-                // Handles up over each shoulder, blades crossing down the back.
-                float angle = st.count() == 1 ? 225 : (i == 0 ? 180 : 270);
-                ms.translate(0, 0, 0.015 * i);
+                // An even X: handles up over each shoulder, blades crossing down the back at the
+                // same angle either side. Danny's grips are upright 3D models; flat item sprites
+                // are drawn diagonally, so they need 45 degrees less.
+                boolean upright = Registries.ITEM.getId(stack.getItem()).getNamespace().equals("dannys-aot");
+                float tilt = grips.length == 1 ? 30 : (i == 0 ? 38 : -38);
+                float angle = (upright ? 180 : 225) + tilt;
+                ms.translate(0, -0.05, 0.02 * i);
                 ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle));
-                ms.scale(0.62f, 0.62f, 0.62f);
+                ms.scale(0.95f, 0.95f, 0.95f);
+                // Turn about the model's middle, not its corner (an upright grip's origin is its
+                // pommel, so it also slides back half its length to cross at the middle).
+                ms.translate(-0.5, upright ? -1.1 : -0.5, -0.5);
                 mc.getItemRenderer().renderItem(stack, ModelTransformationMode.NONE, light, OverlayTexture.DEFAULT_UV, ms, vc, mc.world,
                     pl.getId() * 7 + i);
                 ms.pop();
