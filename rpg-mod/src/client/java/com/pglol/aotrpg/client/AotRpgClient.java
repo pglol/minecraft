@@ -91,6 +91,9 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof HomeAdminScreen s) s.refresh();
             else if (payload.open()) ctx.client().setScreen(new HomeAdminScreen());
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.FishBite.ID, (payload, ctx) -> ctx.client().setScreen(
+            new MinigameScreen(MinigameScreen.Kind.REEL, "Reel it in", "Hold Space or the mouse to keep the fish in your zone", payload.difficulty(),
+                q -> ClientPlayNetworking.send(new Net.FishResult(q)))));
         ClientPlayNetworking.registerGlobalReceiver(Net.ForgeView.ID, (payload, ctx) -> {
             ClientState.forge = payload;
             if (ctx.client().currentScreen instanceof ForgeScreen s) s.refresh();

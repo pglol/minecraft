@@ -3,6 +3,6 @@
   "minVersion": "0.8",
   "package": "com.pglol.aotrpg.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": ["PlayerEntityMixin", "WorldMixin", "CommandManagerMixin", "BlockItemMixin", "SlotMixin", "ServerWorldMixin", "PlayerNameMixin", "PlayerListNameMixin"],
+  "mixins": ["PlayerEntityMixin", "WorldMixin", "CommandManagerMixin", "BlockItemMixin", "SlotMixin", "ServerWorldMixin", "PlayerNameMixin", "PlayerListNameMixin", "FishingBobberMixin"],
   "injectors": {"defaultRequire": 1}
 }

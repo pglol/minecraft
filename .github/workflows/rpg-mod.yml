@@ -52,6 +52,7 @@ jobs:
               javap -p -cp "$j" net.minecraft.server.command.CommandManager | grep -E " execute"
               javap -p -cp "$j" net.minecraft.item.BlockItem | grep -E " place"
               javap -p -cp "$j" net.minecraft.block.entity.BlockEntity | grep -E " (read|createNbt)\("
+              javap -p -cp "$j" net.minecraft.entity.projectile.FishingBobberEntity | grep -E "hookCountdown|waitCountdown| use\(| tick\("
               break
             fi
           done

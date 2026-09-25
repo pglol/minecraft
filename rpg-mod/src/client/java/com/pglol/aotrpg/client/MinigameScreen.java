@@ -36,6 +36,14 @@ public final class MinigameScreen extends Screen {
     private boolean holding;
     private long lastTick = Util.getMeasuringTimeMs();
 
+    private net.minecraft.sound.SoundEvent strikeSound;
+
+    /** The sound a strike makes (the anvil by default). */
+    public MinigameScreen sound(net.minecraft.sound.SoundEvent s) {
+        strikeSound = s;
+        return this;
+    }
+
     public MinigameScreen(Kind kind, String title, String hint, float difficulty, Consumer<Float> done) {
         super(Text.literal(title));
         this.kind = kind;
@@ -78,7 +86,8 @@ public final class MinigameScreen extends Screen {
             s = 0.15f;
             lastGrade = "Miss";
         }
-        client.getSoundManager().play(PositionedSoundInstance.master(s >= 1 ? SoundEvents.BLOCK_ANVIL_LAND : SoundEvents.BLOCK_ANVIL_HIT, s >= 1 ? 1.4f : 1f, 0.35f));
+        if (strikeSound != null) client.getSoundManager().play(PositionedSoundInstance.master(strikeSound, s >= 1 ? 1.4f : 1f, 0.8f));
+        else client.getSoundManager().play(PositionedSoundInstance.master(s >= 1 ? SoundEvents.BLOCK_ANVIL_LAND : SoundEvents.BLOCK_ANVIL_HIT, s >= 1 ? 1.4f : 1f, 0.35f));
         score += s;
         strikes++;
         lastAt = Util.getMeasuringTimeMs();

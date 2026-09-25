@@ -60,13 +60,21 @@ public class CookingScreen extends Screen {
         Net.RecipeStatus st = status(r.ordinal());
         int can = st == null ? 0 : st.craftable();
         int bx = left + listW + 10, bw = (w - listW - 30) / 2;
-        AotButton one = new AotButton(bx, top + h - 28, bw, 20, Ui.heading("Cook"), () -> ClientPlayNetworking.send(new Net.Cook(r.ordinal(), 1)));
+        AotButton one = new AotButton(bx, top + h - 28, bw, 20, Ui.heading("Cook"), () -> cook(r.ordinal(), 1));
         AotButton all = new AotButton(bx + bw + 10, top + h - 28, bw, 20, Ui.heading("Cook all" + (can > 1 ? " (" + Math.min(16, can) + ")" : "")),
-            () -> ClientPlayNetworking.send(new Net.Cook(r.ordinal(), 16)));
+            () -> cook(r.ordinal(), 16));
         one.active = can > 0;
         all.active = can > 1;
         addDrawableChild(one);
         addDrawableChild(all);
+    }
+
+    /** One quick minigame per batch: the result sets the meal quality. */
+    private void cook(int recipe, int times) {
+        client.setScreen(new MinigameScreen(MinigameScreen.Kind.STRIKE, "Cooking", "Flip at the right moment: Space or click, three times", 0.3f, q -> {
+            ClientPlayNetworking.send(new Net.Cook(recipe, times, q));
+            client.setScreen(this);
+        }).sound(net.minecraft.sound.SoundEvents.BLOCK_CAMPFIRE_CRACKLE));
     }
 
     @Override

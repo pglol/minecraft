@@ -45,6 +45,7 @@ public final class AotRpg implements ModInitializer {
     public static final Story STORY = new Story();
     public static final Satchel SATCHEL = new Satchel();
     public static final Cooking COOKING = new Cooking();
+    public static final Fishing FISHING = new Fishing();
     public static final DeathCare DEATH = new DeathCare();
     public static final Quests QUESTS = new Quests();
     public static final TitanGuard GUARD = new TitanGuard();
@@ -159,6 +160,7 @@ public final class AotRpg implements ModInitializer {
             return net.minecraft.util.TypedActionResult.pass(stack);
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.FishResult.ID, (payload, ctx) -> FISHING.result(ctx.player(), payload.quality()));
         ServerPlayNetworking.registerGlobalReceiver(Net.ToggleSheath.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) LOADOUT.toggle(ctx.player());
         });
@@ -206,7 +208,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.openScreen(ctx.player());
         });
-        ServerPlayNetworking.registerGlobalReceiver(Net.Cook.ID, (payload, ctx) -> COOKING.cook(ctx.player(), payload.recipe(), payload.times()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.Cook.ID, (payload, ctx) -> COOKING.cook(ctx.player(), payload.recipe(), payload.times(), payload.quality()));
         // Right-click a lit campfire with an empty hand (or while sneaking) to cook.
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.isClient || hand != Hand.MAIN_HAND || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
@@ -378,6 +380,7 @@ public final class AotRpg implements ModInitializer {
             GRAB.forget(p);
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
+            FISHING.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
         });
 

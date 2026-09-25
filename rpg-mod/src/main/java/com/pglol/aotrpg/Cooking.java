@@ -109,14 +109,22 @@ public final class Cooking {
         }
 
         public ItemStack make() {
+            return make(0);
+        }
+
+        /** A meal; better cooking (quality 0..1) makes the buffs last up to 60% longer. */
+        public ItemStack make(float quality) {
             ItemStack s = new ItemStack(base);
             FoodComponent.Builder food = new FoodComponent.Builder().nutrition(nutrition).saturationModifier(saturation);
-            for (Buff f : buffs) food.statusEffect(new StatusEffectInstance(f.effect, f.seconds * 20, f.amplifier), 1f);
+            float mult = 1 + 0.6f * Math.max(0, Math.min(1, quality));
+            for (Buff f : buffs) food.statusEffect(new StatusEffectInstance(f.effect, Math.round(f.seconds * 20 * mult), f.amplifier), 1f);
             s.set(DataComponentTypes.FOOD, food.build());
             s.set(DataComponentTypes.CUSTOM_NAME, Text.literal(title).formatted(Formatting.GOLD).styled(st -> st.withItalic(false)));
             List<Text> lore = new ArrayList<>();
             lore.add(Text.literal("+" + nutrition + " hunger").formatted(Formatting.GRAY).styled(st -> st.withItalic(false)));
             lore.add(Text.literal(buffText()).formatted(Formatting.GREEN).styled(st -> st.withItalic(false)));
+            if (quality >= 0.85f) lore.add(Text.literal("Masterfully cooked").formatted(Formatting.AQUA).styled(st -> st.withItalic(false)));
+            else if (quality >= 0.5f) lore.add(Text.literal("Well cooked").formatted(Formatting.YELLOW).styled(st -> st.withItalic(false)));
             lore.add(Text.literal("Cooked over a campfire").formatted(Formatting.DARK_GRAY));
             s.set(DataComponentTypes.LORE, new LoreComponent(lore));
             NbtComponent.set(DataComponentTypes.CUSTOM_DATA, s, n -> n.putString("aot_meal", name().toLowerCase()));
@@ -152,7 +160,7 @@ public final class Cooking {
         ServerPlayNetworking.send(p, new Net.CookingState(open, list));
     }
 
-    public void cook(ServerPlayerEntity p, int recipe, int times) {
+    public void cook(ServerPlayerEntity p, int recipe, int times, float quality) {
         BlockPos fire = at.get(p.getUuid());
         if (fire == null || recipe < 0 || recipe >= Recipe.values().length) return;
         ServerWorld w = p.getServerWorld();
@@ -164,11 +172,19 @@ public final class Cooking {
         int n = Math.min(Math.max(1, times), Math.min(16, craftable(p, r)));
         if (n <= 0) return;
         for (Ingredient i : r.ingredients) AotRpg.SATCHEL.take(p, i.group.items, i.count * n);
-        for (int k = 0; k < n; k++) AotRpg.SATCHEL.add(p, r.make());
+        // Skill makes the work easier: every cooking level adds a little to the minigame result.
+        int lvl = Lifestyle.level(AotRpg.PROFILES.get(p.getUuid()), Lifestyle.COOKING);
+        float q = Math.max(0, Math.min(1, (Float.isNaN(quality) ? 0 : quality) + lvl * 0.01f));
+        // Good cooking can stretch the ingredients into an extra portion or two.
+        int extra = 0;
+        for (int k = 0; k < n; k++) if (p.getRandom().nextFloat() < q * 0.3f) extra++;
+        for (int k = 0; k < n + extra; k++) AotRpg.SATCHEL.add(p, r.make(q));
+        Lifestyle.add(p, Lifestyle.COOKING, Math.round(n * (6 + 14 * q)));
         w.playSound(null, fire, SoundEvents.BLOCK_SMOKER_SMOKE, SoundCategory.BLOCKS, 1f, 1f);
         w.playSound(null, fire, SoundEvents.BLOCK_CAMPFIRE_CRACKLE, SoundCategory.BLOCKS, 1f, 1.2f);
         w.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, fire.getX() + 0.5, fire.getY() + 0.8, fire.getZ() + 0.5, 6, 0.2, 0.3, 0.2, 0.01);
-        p.sendMessage(Text.literal("Cooked " + n + "x " + r.title + " (in your satchel)").formatted(Formatting.GOLD), true);
+        p.sendMessage(Text.literal("Cooked " + (n + extra) + "x " + r.title + (extra > 0 ? " (+" + extra + " extra)" : "")
+            + " · " + (q >= 0.85f ? "masterful" : q >= 0.5f ? "well cooked" : "plain") + " (in your satchel)").formatted(Formatting.GOLD), true);
         send(p, false);
     }
 }

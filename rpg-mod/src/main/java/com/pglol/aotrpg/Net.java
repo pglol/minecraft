@@ -230,10 +230,11 @@ public final class Net {
     }
 
     /** Client -> server: cook a recipe some number of times. */
-    public record Cook(int recipe, int times) implements CustomPayload {
+    public record Cook(int recipe, int times, float quality) implements CustomPayload {
         public static final Id<Cook> ID = id("cook");
         public static final PacketCodec<RegistryByteBuf, Cook> CODEC =
-            PacketCodec.of((v, b) -> { b.writeVarInt(v.recipe); b.writeVarInt(v.times); }, b -> new Cook(b.readVarInt(), b.readVarInt()));
+            PacketCodec.of((v, b) -> { b.writeVarInt(v.recipe); b.writeVarInt(v.times); b.writeFloat(v.quality); },
+                b -> new Cook(b.readVarInt(), b.readVarInt(), b.readFloat()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
@@ -472,6 +473,22 @@ public final class Net {
     }
 
     /** Client -> server: a strike at the eye of the titan holding you. */
+    /** Server -> client: a fish bit, play the reel minigame. */
+    public record FishBite(float difficulty) implements CustomPayload {
+        public static final Id<FishBite> ID = id("fish_bite");
+        public static final PacketCodec<RegistryByteBuf, FishBite> CODEC =
+            PacketCodec.of((v, b) -> b.writeFloat(v.difficulty), b -> new FishBite(b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: how well the fish was reeled (0 = it got away). */
+    public record FishResult(float quality) implements CustomPayload {
+        public static final Id<FishResult> ID = id("fish_result");
+        public static final PacketCodec<RegistryByteBuf, FishResult> CODEC =
+            PacketCodec.of((v, b) -> b.writeFloat(v.quality), b -> new FishResult(b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record Struggle() implements CustomPayload {
         public static final Id<Struggle> ID = id("struggle");
         public static final PacketCodec<RegistryByteBuf, Struggle> CODEC = PacketCodec.unit(new Struggle());
@@ -808,6 +825,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(CharacterList.ID, CharacterList.CODEC);
         PayloadTypeRegistry.playC2S().register(CharacterAction.ID, CharacterAction.CODEC);
         PayloadTypeRegistry.playC2S().register(Struggle.ID, Struggle.CODEC);
+        PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
+        PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);
         PayloadTypeRegistry.playC2S().register(ToggleSheath.ID, ToggleSheath.CODEC);
         PayloadTypeRegistry.playS2C().register(SheathState.ID, SheathState.CODEC);
         PayloadTypeRegistry.playC2S().register(ShotFired.ID, ShotFired.CODEC);
