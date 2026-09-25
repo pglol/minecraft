@@ -16,7 +16,7 @@ import org.lwjgl.glfw.GLFW;
 
 /** Client side: creator and character screens, the RPG HUD, the K key. */
 public final class AotRpgClient implements ClientModInitializer {
-    private static KeyBinding characterKey, mapKey, minimapKey, journalKey, satchelKey;
+    private static KeyBinding characterKey, mapKey, journalKey, satchelKey;
 
     public static KeyBinding mapKey() {
         return mapKey;
@@ -35,8 +35,6 @@ public final class AotRpgClient implements ClientModInitializer {
         HandledScreens.register(SatchelHandler.TYPE, SatchelScreen::new);
         mapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.map",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, "category.aot_rpg"));
-        minimapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.minimap",
-            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_N, "category.aot_rpg"));
         journalKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.journal",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_J, "category.aot_rpg"));
         WorldRenderEvents.AFTER_ENTITIES.register(Beams::render);
@@ -97,9 +95,10 @@ public final class AotRpgClient implements ClientModInitializer {
             while (characterKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new CharacterScreen(0));
             }
-            while (minimapKey.wasPressed()) ClientState.minimap = !ClientState.minimap;
+            // M opens the world map, Ctrl+M hides or shows the minimap.
             while (mapKey.wasPressed()) {
-                if (client.currentScreen == null) client.setScreen(new WorldMapScreen());
+                if (net.minecraft.client.gui.screen.Screen.hasControlDown()) ClientState.minimap = !ClientState.minimap;
+                else if (client.currentScreen == null) client.setScreen(new WorldMapScreen());
             }
             while (journalKey.wasPressed()) {
                 if (client.currentScreen == null && ClientState.profile != null) client.setScreen(new JournalScreen());

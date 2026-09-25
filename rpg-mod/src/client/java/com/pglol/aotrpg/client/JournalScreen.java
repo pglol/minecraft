@@ -57,7 +57,7 @@ public class JournalScreen extends Screen {
     protected void init() {
         w = Math.min(460, width - 20);
         left = (width - w) / 2;
-        top = 58;
+        top = 70;
         h = height - top - 12;
         listW = Math.min(200, w / 2);
         for (int i = 0; i < TABS.length; i++) {
@@ -146,8 +146,8 @@ public class JournalScreen extends Screen {
     @Override
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
         Ui.backdrop(c, width, height);
-        Ui.crest(c, width / 2 - 14, 4, 28, 0.9f);
-        Ui.text(c, Ui.title("QUEST JOURNAL"), width / 2f, 34, 1.3f, Ui.GOLD, true);
+        Ui.crest(c, width / 2 - 11, 3, 22, 0.9f);
+        Ui.text(c, Ui.title("QUEST JOURNAL"), width / 2f, 27, 1.2f, Ui.GOLD, true);
 
         Ui.panel(c, left, top, listW, h);
         List<Net.QuestView> l = list();
@@ -165,8 +165,13 @@ public class JournalScreen extends Screen {
             c.drawTextWithShadow(textRenderer, Text.literal(textRenderer.trimToWidth(sub, listW - 14)), left + 6, y + 12, Ui.MUTED);
             y += ROW;
         }
-        if (l.isEmpty()) c.drawCenteredTextWithShadow(textRenderer, Text.literal(tab == 0 ? "No active quests" : "Nothing here yet"),
-            left + listW / 2, top + 20, Ui.MUTED);
+        if (l.isEmpty()) {
+            c.drawCenteredTextWithShadow(textRenderer, Text.literal(tab == 0 ? "No active quests" : "Nothing here yet"),
+                left + listW / 2, top + 20, Ui.MUTED);
+            if (tab == 1 && ClientState.areas.isEmpty()) Ui.wrapped(c, Text.literal(
+                "Side quests come from the world's map data. Ask the server owner to run add-titans.bat on the world, then /aotrpg reload."),
+                left + 8, top + 36, listW - 16, Ui.MUTED);
+        }
 
         int dx = left + listW + 10, dw = w - listW - 10;
         Ui.panel(c, dx, top, dw, h);

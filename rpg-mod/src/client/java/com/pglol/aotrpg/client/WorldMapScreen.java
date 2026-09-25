@@ -168,7 +168,7 @@ public class WorldMapScreen extends Screen {
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
-        if (AotRpgClient.mapKey().matchesKey(key, scan)) {
+        if (AotRpgClient.mapKey().matchesKey(key, scan) && !Screen.hasControlDown()) {
             close();
             return true;
         }
@@ -195,8 +195,15 @@ public class WorldMapScreen extends Screen {
             c.drawTexture(MapData.TEXTURE, 0, 0, 0, 0, MapData.width, MapData.height, MapData.width, MapData.height);
             m.pop();
         } else {
-            c.drawCenteredTextWithShadow(textRenderer, Text.literal(info == null ? "No map for this world yet" : "Loading map..."),
-                (int) cx(), (int) cy(), Ui.MUTED);
+            if (info == null) {
+                c.drawCenteredTextWithShadow(textRenderer, Ui.heading("No map for this world yet"), (int) cx(), (int) cy() - 20, Ui.GOLD);
+                c.drawCenteredTextWithShadow(textRenderer, Text.literal("The server needs the map made by the world generator:"),
+                    (int) cx(), (int) cy() - 6, Ui.CREAM);
+                c.drawCenteredTextWithShadow(textRenderer, Text.literal("run add-titans.bat on the server's world folder, then /aotrpg reload."),
+                    (int) cx(), (int) cy() + 5, Ui.CREAM);
+            } else {
+                c.drawCenteredTextWithShadow(textRenderer, Text.literal("Loading map..."), (int) cx(), (int) cy(), Ui.MUTED);
+            }
         }
         drawFires(c);
         drawAreas(c, mouseX, mouseY);

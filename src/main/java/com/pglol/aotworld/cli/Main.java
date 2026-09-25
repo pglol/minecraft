@@ -231,6 +231,8 @@ public final class Main {
             bx = (a.minX + a.maxX) / 2.0; bz = (a.minZ + a.maxZ) / 2.0; size = Math.max(a.maxX - a.minX, a.maxZ - a.minZ);
         }
         LevelDat.write(dir, name, seed, spawn[0], spawn[1], spawn[2], bx, bz, size);
+        // Records what this world was built with, so later tools only list what is really there.
+        Files.writeString(dir.resolve("aot-generator.txt"), "features=reststops,barns\n", StandardCharsets.UTF_8);
         Datapack.write(dir, w);
         Registry.write(dir, w);
         String titans = opt(args, "--titans", null);

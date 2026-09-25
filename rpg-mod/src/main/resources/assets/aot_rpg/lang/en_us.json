@@ -1,8 +1,7 @@
 {
   "category.aot_rpg": "Attack on Titan RPG",
   "key.aot_rpg.character": "Character & Skills",
-  "key.aot_rpg.minimap": "Toggle minimap",
   "key.aot_rpg.satchel": "Open satchel",
-  "key.aot_rpg.map": "World map",
+  "key.aot_rpg.map": "World map (Ctrl: toggle minimap)",
   "key.aot_rpg.journal": "Quest journal"
 }

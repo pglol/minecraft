@@ -73,9 +73,12 @@ final class Datapack {
         // Read by the AoT RPG server mod (character origins, quest locations).
         json.append("\n  },\n  \"campfires\": [");
         boolean firstFire = true;
+        // Worlds generated before rest stops existed do not have them: leave them off the list.
+        Path gen = world.resolve("aot-generator.txt");
+        boolean restStops = Files.exists(gen) && Files.readString(gen).contains("reststops");
         for (com.pglol.aotworld.core.build.Poi p : w.pois) {
             int[] f = p.campfire();
-            if (f == null) continue;
+            if (f == null || (p.kind == com.pglol.aotworld.core.build.Poi.Kind.REST_STOP && !restStops)) continue;
             json.append(firstFire ? "\n    " : ",\n    ").append(String.format(Locale.ROOT, "[%d, %d, %d]", f[0], f[1], f[2]));
             firstFire = false;
         }
