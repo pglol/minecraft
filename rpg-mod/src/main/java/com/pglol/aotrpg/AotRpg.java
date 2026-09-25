@@ -110,8 +110,8 @@ public final class AotRpg implements ModInitializer {
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.ModeAction.ID, (payload, ctx) -> {
-            if (payload.id().equals("open")) MODES.send(ctx.player(), true);
-            else MODES.choose(ctx.player(), payload.id());
+            if (payload.mode().equals("open")) MODES.send(ctx.player(), true);
+            else MODES.choose(ctx.player(), payload.mode());
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.ForgeAction.ID, (payload, ctx) -> {
             ServerPlayerEntity p = ctx.player();

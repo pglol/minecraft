@@ -784,9 +784,9 @@ public final class Net {
     }
 
     /** Client -> server: open, or choose a mode by id. */
-    public record ModeAction(String id) implements CustomPayload {
+    public record ModeAction(String mode) implements CustomPayload {
         public static final Id<ModeAction> ID = id("mode_action");
-        public static final PacketCodec<RegistryByteBuf, ModeAction> CODEC = PacketCodec.of((v, b) -> b.writeString(v.id), b -> new ModeAction(b.readString()));
+        public static final PacketCodec<RegistryByteBuf, ModeAction> CODEC = PacketCodec.of((v, b) -> b.writeString(v.mode), b -> new ModeAction(b.readString()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
