@@ -65,6 +65,7 @@ public final class AotRpg implements ModInitializer {
     public static final Exchange EXCHANGE = new Exchange();
     public static final Factions FACTIONS = new Factions();
     public static final FactionWar WAR = new FactionWar();
+    public static final Stats STATS = new Stats();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final Season SEASON = new Season();
@@ -207,6 +208,7 @@ public final class AotRpg implements ModInitializer {
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.StableAction.ID, (payload, ctx) -> {
             if (payload.action().equals("close")) HORSES.closed(ctx.player());
+            else if (payload.action().equals("view")) HORSES.view(ctx.player());
             else HORSES.action(ctx.player(), payload.action(), payload.horse(), payload.arg());
         });
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
@@ -271,6 +273,7 @@ public final class AotRpg implements ModInitializer {
                 ServerPlayNetworking.send(ctx.player(), new Net.MapChunk(payload.name(), i, total, part));
             }
         });
+        ServerPlayNetworking.registerGlobalReceiver(Net.StatsRequest.ID, (payload, ctx) -> STATS.send(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.openScreen(ctx.player());
         });
@@ -402,6 +405,7 @@ public final class AotRpg implements ModInitializer {
             EXCHANGE.open(server);
             FACTIONS.open(server);
             WAR.open(server);
+            STATS.open(server);
             HOMES.open(server);
             MODES.open(server);
             SEASON.open(server);

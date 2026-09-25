@@ -219,6 +219,45 @@ public final class Net {
     }
 
     /** Client -> server: open my satchel. */
+    public record StatLine(String label, String value) { }
+    public record StatBoard(String title, java.util.List<StatLine> rows) { }
+
+    private static void writeLines(RegistryByteBuf b, java.util.List<StatLine> l) {
+        b.writeVarInt(l.size());
+        for (StatLine s : l) { b.writeString(s.label()); b.writeString(s.value()); }
+    }
+
+    private static java.util.List<StatLine> readLines(RegistryByteBuf b) {
+        int n = Math.min(b.readVarInt(), 64);
+        java.util.List<StatLine> l = new java.util.ArrayList<>();
+        for (int i = 0; i < n; i++) l.add(new StatLine(b.readString(), b.readString()));
+        return l;
+    }
+
+    /** Server -> client: personal stats, server stats and leaderboards. */
+    public record StatsView(java.util.List<StatLine> mine, java.util.List<StatLine> server, java.util.List<StatBoard> boards) implements CustomPayload {
+        public static final Id<StatsView> ID = id("stats");
+        public static final PacketCodec<RegistryByteBuf, StatsView> CODEC = PacketCodec.of((v, b) -> {
+            writeLines(b, v.mine); writeLines(b, v.server);
+            b.writeVarInt(v.boards.size());
+            for (StatBoard s : v.boards) { b.writeString(s.title()); writeLines(b, s.rows()); }
+        }, b -> {
+            java.util.List<StatLine> mine = readLines(b), server = readLines(b);
+            int n = Math.min(b.readVarInt(), 16);
+            java.util.List<StatBoard> boards = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) boards.add(new StatBoard(b.readString(), readLines(b)));
+            return new StatsView(mine, server, boards);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: send me the stats. */
+    public record StatsRequest() implements CustomPayload {
+        public static final Id<StatsRequest> ID = id("stats_request");
+        public static final PacketCodec<RegistryByteBuf, StatsRequest> CODEC = PacketCodec.unit(new StatsRequest());
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record OpenSatchel() implements CustomPayload {
         public static final Id<OpenSatchel> ID = id("open_satchel");
         public static final PacketCodec<RegistryByteBuf, OpenSatchel> CODEC = PacketCodec.unit(new OpenSatchel());
@@ -1233,6 +1272,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(SetWaypoint.ID, SetWaypoint.CODEC);
         PayloadTypeRegistry.playS2C().register(Markers.ID, Markers.CODEC);
         PayloadTypeRegistry.playC2S().register(OpenSatchel.ID, OpenSatchel.CODEC);
+        PayloadTypeRegistry.playC2S().register(StatsRequest.ID, StatsRequest.CODEC);
+        PayloadTypeRegistry.playS2C().register(StatsView.ID, StatsView.CODEC);
         PayloadTypeRegistry.playS2C().register(CookingState.ID, CookingState.CODEC);
         PayloadTypeRegistry.playC2S().register(Cook.ID, Cook.CODEC);
         PayloadTypeRegistry.playS2C().register(Campfires.ID, Campfires.CODEC);

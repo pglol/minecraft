@@ -227,6 +227,10 @@ public final class Factions {
     public void action(ServerPlayerEntity p, String action, String arg) {
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         if (!pr.created) return;
+        if (action.equals("view")) {
+            send(p, false);
+            return;
+        }
         prune(pr);
         switch (action) {
             case "join" -> {

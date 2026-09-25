@@ -34,6 +34,7 @@ public final class ClientState {
     public static Net.MarketView market;
     public static java.util.List<Net.ExchangeEntry> exchange = java.util.List.of();
     public static Net.FactionView factions;
+    public static Net.StatsView stats;
     public static Net.HomeView home;
     public static Net.HomeAdminView homeAdmin;
     public static Net.ForgeView forge;

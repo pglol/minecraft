@@ -67,6 +67,10 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.CosmeticsOf.ID, (payload, ctx) -> CosmeticFx.onWorn(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.SlashFx.ID, (payload, ctx) -> CosmeticFx.slash(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(CosmeticFx::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.StatsView.ID, (payload, ctx) -> {
+            ClientState.stats = payload;
+            if (ctx.client().currentScreen instanceof StatsScreen s) s.refresh();
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.StableView.ID, (payload, ctx) -> {
             ClientState.stable = payload;
             if (ctx.client().currentScreen instanceof StableScreen s) s.refresh();

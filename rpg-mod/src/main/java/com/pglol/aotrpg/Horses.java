@@ -458,6 +458,12 @@ public final class Horses {
         send(p, "home", true);
     }
 
+    /** Your horses from the pause menu (a read-only card; managing them needs a stable). */
+    public void view(ServerPlayerEntity p) {
+        where.remove(p.getUuid());
+        send(p, "horse", true);
+    }
+
     private boolean atStable(ServerPlayerEntity p) {
         String w = where.getOrDefault(p.getUuid(), "");
         return !w.isEmpty();

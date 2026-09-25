@@ -17,52 +17,96 @@ public class AotPauseScreen extends Screen {
         super(Text.literal("Paused"));
     }
 
+    private static final int TW = 120, GAP = 4;
+    private int gridX, gridW;
+
     @Override
     protected void init() {
-        int bw = 170, bh = 20, gap = 4;
-        int x = Math.max(20, width / 2 - bw - 30);
+        headers.clear();
+        headerNames.clear();
+        if (ClientState.profile != null) ClientPlayNetworking.send(new Net.FactionAction("view", ""));
         boolean mods = FabricLoader.getInstance().isModLoaded("modmenu");
         boolean op = client.player != null && client.player.hasPermissionLevel(2);
-        int n = (mods ? 11 : 10) + 2 + (op ? 1 : 0);
-        int y = Math.max(50, height / 2 - (n * (bh + gap)) / 2 + 10);
         boolean hasChar = ClientState.profile != null;
-        add(x, y, bw, bh, Ui.title("RESUME"), () -> client.setScreen(null)).textScale = 1.2f;
-        y += bh + gap + 4;
-        add(x, y, bw, bh, Text.literal("Character & Skills  [K]"), () -> client.setScreen(new CharacterScreen(0))).active = hasChar;
-        y += bh + gap;
-        add(x, y, bw, bh, Text.literal("Quest Journal  [J]"), () -> client.setScreen(new JournalScreen())).active = hasChar;
-        y += bh + gap;
-        add(x, y, bw, bh, Text.literal("World Map  [M]"), () -> client.setScreen(new WorldMapScreen()));
-        y += bh + gap;
-        add(x, y, bw, bh, Text.literal("Satchel  [B]"), () -> {
-            client.setScreen(null);
-            ClientPlayNetworking.send(new Net.OpenSatchel());
-        }).active = hasChar;
-        y += bh + gap;
-        add(x, y, bw, bh, Text.literal("Characters"), () -> ClientPlayNetworking.send(new Net.CharacterAction("list", 0)));
-        y += bh + gap;
-        add(x, y, bw, bh, Text.literal("Game Mode"), () -> ClientPlayNetworking.send(new Net.ModeAction("open"))).active = hasChar;
-        y += bh + gap;
-        add(x, y, bw, bh, Text.literal("Home"), () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))).active = hasChar;
-        y += bh + gap;
-        int tw = (bw - 12) / 4;
-        add(x, y, tw, bh, Text.literal("Tasks"), () -> ClientPlayNetworking.send(new Net.TaskAction("open", ""))).active = hasChar;
-        add(x + tw + 4, y, tw, bh, Text.literal("Social"), () -> ClientPlayNetworking.send(new Net.SocialAction("open", null))).active = hasChar;
-        add(x + 2 * (tw + 4), y, tw, bh, Text.literal("Pass"), () -> ClientPlayNetworking.send(new Net.PassAction("open", 0))).active = hasChar;
-        add(x + 3 * (tw + 4), y, bw - 3 * (tw + 4), bh, Text.literal("Event"), () -> ClientPlayNetworking.send(new Net.EventAction("open", ""))).active = hasChar;
-        if (op) {
-            y += bh + gap;
-            add(x, y, bw, bh, Text.literal("Property Office (op)"), () -> ClientPlayNetworking.send(new Net.HomeAction("admin_list", 0, "")));
+        boolean war = ClientState.factions != null && !ClientState.factions.event().isEmpty();
+        gridW = 3 * TW + 2 * GAP;
+        gridX = Math.max(12, Math.min(width / 2 - gridW + 40, width - gridW - 12));
+        // Rows: resume, 4 sections (2 rows each), system; shrink the buttons on short screens.
+        int bh = height >= 330 ? 20 : 18;
+        int total = (bh + 6) + 4 * (11 + 2 * (bh + GAP)) + (bh + 8);
+        int y = Math.max(48, (height - total) / 2 + 12);
+        int x = gridX;
+
+        add(x, y, gridW, bh, Ui.title("RESUME"), () -> client.setScreen(null)).textScale = 1.2f;
+        y += bh + 6;
+
+        y = section(y, bh, "Character", new Tile[] {
+            new Tile("Character [K]", "minecraft:writable_book", hasChar, () -> client.setScreen(new CharacterScreen(0))),
+            new Tile("My Stats", "minecraft:paper", hasChar, () -> client.setScreen(new StatsScreen(this, 0))),
+            new Tile("Satchel [B]", "minecraft:bundle", hasChar, () -> {
+                client.setScreen(null);
+                ClientPlayNetworking.send(new Net.OpenSatchel());
+            }),
+            new Tile("Cosmetics", "minecraft:amethyst_shard", hasChar, () -> client.setScreen(new CosmeticsScreen())),
+            new Tile("Characters", "minecraft:armor_stand", true, () -> ClientPlayNetworking.send(new Net.CharacterAction("list", 0))),
+            new Tile("Game Mode", "minecraft:compass", hasChar, () -> ClientPlayNetworking.send(new Net.ModeAction("open")))});
+        y = section(y, bh, "Adventure", new Tile[] {
+            new Tile("Journal [J]", "minecraft:book", hasChar, () -> client.setScreen(new JournalScreen())),
+            new Tile("World Map [M]", "minecraft:filled_map", true, () -> client.setScreen(new WorldMapScreen())),
+            new Tile("Tasks & Titles", "minecraft:target", hasChar, () -> ClientPlayNetworking.send(new Net.TaskAction("open", ""))),
+            new Tile("Battle Pass", "minecraft:nether_star", hasChar, () -> ClientPlayNetworking.send(new Net.PassAction("open", 0))),
+            new Tile("Events", "minecraft:firework_rocket", hasChar, () -> ClientPlayNetworking.send(new Net.EventAction("open", ""))),
+            new Tile("Server & Ranks", "minecraft:gold_ingot", true, () -> client.setScreen(new StatsScreen(this, 2)))});
+        y = section(y, bh, "Social", new Tile[] {
+            new Tile("Social", "minecraft:bell", hasChar, () -> ClientPlayNetworking.send(new Net.SocialAction("open", null))),
+            new Tile("Party", "minecraft:white_banner", hasChar, () -> client.setScreen(new PartyScreen())),
+            new Tile(war ? "Factions ⚔" : "Factions", "minecraft:shield", hasChar, () -> ClientPlayNetworking.send(new Net.FactionAction("open", ""))),
+            new Tile("Market", "minecraft:emerald", hasChar, () -> ClientPlayNetworking.send(new Net.MarketAction("open", "", 0, 0)))});
+        Tile office = op ? new Tile("Property Office", "minecraft:lectern", true,
+            () -> ClientPlayNetworking.send(new Net.HomeAction("admin_list", 0, ""))) : null;
+        y = section(y, bh, "Home", office == null ? new Tile[] {
+            new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))),
+            new Tile("Stables", "minecraft:saddle", hasChar, () -> ClientPlayNetworking.send(new Net.StableAction("view", "", ""))),
+            new Tile("Furniture", "minecraft:red_bed", hasChar, () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0)))}
+            : new Tile[] {
+            new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))),
+            new Tile("Stables", "minecraft:saddle", hasChar, () -> ClientPlayNetworking.send(new Net.StableAction("view", "", ""))),
+            new Tile("Furniture", "minecraft:red_bed", hasChar, () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0))),
+            office});
+        if (war) {
+            for (var el : children()) {
+                if (el instanceof AotButton b && b.getMessage().getString().startsWith("Factions")) b.accent = 0xFFE04A3A;
+            }
         }
-        y += bh + gap + 4;
-        add(x, y, bw, bh, Text.literal("Options"), () -> client.setScreen(new OptionsScreen(this, client.options)));
-        y += bh + gap;
-        if (mods) {
-            add(x, y, bw, bh, Text.literal("Mods"), this::openModMenu);
-            y += bh + gap;
-        }
-        AotButton leave = add(x, y + 4, bw, bh, Text.literal(client.isInSingleplayer() ? "Save and quit" : "Leave the server"), this::leave);
+
+        y += 4;
+        int n = mods ? 3 : 2;
+        int sw = (gridW - (n - 1) * GAP) / n;
+        add(x, y, sw, bh, Text.literal("Options"), () -> client.setScreen(new OptionsScreen(this, client.options)));
+        if (mods) add(x + sw + GAP, y, sw, bh, Text.literal("Mods"), this::openModMenu);
+        AotButton leave = add(x + (n - 1) * (sw + GAP), y, gridW - (n - 1) * (sw + GAP), bh,
+            Text.literal(client.isInSingleplayer() ? "Save and quit" : "Leave server"), this::leave);
         leave.accent = Ui.RED;
+    }
+
+    private record Tile(String label, String icon, boolean active, Runnable action) { }
+
+    private final java.util.List<int[]> headers = new java.util.ArrayList<>();
+    private final java.util.List<String> headerNames = new java.util.ArrayList<>();
+
+    /** A labelled block of tiles, three per row. Returns the y below it. */
+    private int section(int y, int bh, String name, Tile[] tiles) {
+        headers.add(new int[] {gridX, y});
+        headerNames.add(name);
+        y += 11;
+        for (int i = 0; i < tiles.length; i++) {
+            Tile t = tiles[i];
+            int tx = gridX + (i % 3) * (TW + GAP), ty = y + (i / 3) * (bh + GAP);
+            AotButton b = add(tx, ty, TW, bh, Text.literal(t.label()), t.action());
+            if (bh >= 18) b.icon(new net.minecraft.item.ItemStack(net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(t.icon()))));
+            b.active = t.active();
+        }
+        return y + ((tiles.length + 2) / 3) * (bh + GAP);
     }
 
     private AotButton add(int x, int y, int w, int h, Text label, Runnable r) {
@@ -90,12 +134,19 @@ public class AotPauseScreen extends Screen {
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
         c.fillGradient(0, 0, width, height, 0xC00A0D0A, 0xE0050605);
         c.fillGradient(0, 0, width / 2, height, 0x40000000, 0x00000000);
-        int x = Math.max(20, width / 2 - 200);
-        Ui.text(c, Ui.title("ATTACK ON TITAN"), x, 18, 1.8f, Ui.GOLD, false);
-        c.drawTextWithShadow(textRenderer, Text.literal("Paused"), x + 2, 38, Ui.MUTED);
+        int x = gridX;
+        Ui.text(c, Ui.title("ATTACK ON TITAN"), x, 14, 1.8f, Ui.GOLD, false);
+        c.drawTextWithShadow(textRenderer, Text.literal("Paused"), x + 2, 34, Ui.MUTED);
 
-        // Character card on the right
-        int cw = 190, cx = Math.min(width - cw - 20, width / 2 + 20), cy = height / 2 - 80;
+        for (int i = 0; i < headers.size(); i++) {
+            int[] h = headers.get(i);
+            Ui.text(c, Ui.heading(headerNames.get(i).toUpperCase(java.util.Locale.ROOT)), h[0] + 1, h[1] + 1, 0.7f, Ui.GOLD, false);
+            c.fill(h[0] + 4 + (int) (Ui.font().getWidth(headerNames.get(i).toUpperCase(java.util.Locale.ROOT)) * 0.7f) + 6, h[1] + 4,
+                h[0] + gridW, h[1] + 5, 0x40E0B96A);
+        }
+        // Character card on the right (when there is room).
+        int cw = 190, cx = gridX + gridW + 20, cy = height / 2 - 80;
+        if (cx + cw > width - 8) return;
         Ui.panel(c, cx, cy, cw, 160);
         Ui.crest(c, cx + cw / 2 - 24, cy + 8, 48, 1f);
         Net.Sync p = ClientState.profile;
