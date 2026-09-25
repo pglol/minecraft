@@ -177,9 +177,9 @@ public final class CosmeticFx {
         for (int i = 0; i <= 22; i++) {
             double u = i / 22.0 * 2 - 1;
             double x = fx.x() + rx * u * 1.1, z = fx.z() + rz * u * 1.1, y = fx.y() + u * 0.5 * tilt - (1 - u * u) * 0.2;
-            mc.world.addParticle(pick(set), x, y, z, rx * 0.02, 0, rz * 0.02);
+            mc.world.addImportantParticle(pick(set), x, y, z, rx * 0.02, 0, rz * 0.02);
         }
-        mc.world.addParticle(ParticleTypes.SWEEP_ATTACK, fx.x(), fx.y(), fx.z(), 0, 0, 0);
+        mc.world.addImportantParticle(ParticleTypes.SWEEP_ATTACK, fx.x(), fx.y(), fx.z(), 0, 0, 0);
     }
 
     /** Each client tick: body particles, speed trails, horse trails, ember rings. */

@@ -36,7 +36,8 @@ public final class CombatUi {
 
     // ------------------------------------------------------------------ guard key
 
-    private static boolean wasSwinging;
+    private static boolean wasSwinging, wasAttackDown;
+    private static long lastSlashAt;
 
     /** A blade swing that meets something in reach is reported for the slash effect. */
     private static void tickSwing(MinecraftClient mc) {
@@ -45,8 +46,13 @@ public final class CombatUi {
             return;
         }
         boolean sw = mc.player.handSwinging;
+        boolean down = mc.options.attackKey.isPressed() && mc.currentScreen == null;
+        // A left click or the start of a swing, whichever comes first (some blades animate their own way).
+        boolean struck = (down && !wasAttackDown) || (sw && !wasSwinging);
+        wasAttackDown = down;
         var held = mc.player.getMainHandStack();
-        if (sw && !wasSwinging && com.pglol.aotrpg.Guard.melee(held) && !com.pglol.aotrpg.AotItems.isApgGun(held)) {
+        long nowMs = Util.getMeasuringTimeMs();
+        if (struck && nowMs - lastSlashAt > 150 && com.pglol.aotrpg.Guard.melee(held) && !com.pglol.aotrpg.AotItems.isApgGun(held)) {
             Entity target = mc.targetedEntity;
             if (target == null) {
                 Vec3d eye = mc.player.getEyePos(), look = mc.player.getRotationVec(1f);
@@ -57,7 +63,15 @@ public final class CombatUi {
                     e -> e.isAlive() && e.canHit() && e != mc.player, reach * reach);
                 if (hit != null) target = hit.getEntity();
             }
-            if (target != null) ClientPlayNetworking.send(new Net.SlashHit(target.getId()));
+            if (target != null) {
+                lastSlashAt = nowMs;
+                // Draw my own slash at once; the server shows it to everyone else.
+                var box = target.getBoundingBox();
+                double y = Math.max(target.getY() + 0.3, Math.min(mc.player.getEyeY(), box.maxY - 0.2) - 0.2);
+                String style = ClientState.worn.getOrDefault("slash", "slash_steel");
+                CosmeticFx.slash(new Net.SlashFx(style, box.getCenter().x, y, box.getCenter().z, mc.player.getYaw()));
+                ClientPlayNetworking.send(new Net.SlashHit(target.getId()));
+            }
         }
         wasSwinging = sw;
     }

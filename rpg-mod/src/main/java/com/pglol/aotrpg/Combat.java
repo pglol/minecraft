@@ -86,7 +86,7 @@ public final class Combat {
         net.minecraft.util.math.Vec3d at = target.getBoundingBox().getCenter();
         Net.SlashFx fx = new Net.SlashFx(AotRpg.COSMETICS.selected(p, "slash"), at.x, Math.max(target.getY() + 0.3, y - 0.2), at.z, p.getYaw());
         for (ServerPlayerEntity o : net.fabricmc.fabric.api.networking.v1.PlayerLookup.around(p.getServerWorld(), at, 48)) {
-            if (ServerPlayNetworking.canSend(o, Net.SlashFx.ID)) ServerPlayNetworking.send(o, fx);
+            if (o != p && ServerPlayNetworking.canSend(o, Net.SlashFx.ID)) ServerPlayNetworking.send(o, fx);
         }
     }
 
