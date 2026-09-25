@@ -334,6 +334,12 @@ Death: in **story mode** (the default) you keep your gear and inventory. Worn ge
 
 Story: Chapter 1 has you report to the Cadet Training Camp, then slay 3 titans beyond the walls; Chapter 2 sends you to the Survey Corps HQ. Each objective gives XP. More chapters are coming.
 
+Protected land and regeneration: players cannot break or place blocks anywhere in the overworld (Paradis, the walls, Marley). Buckets, fire, tilling and stripping, and knocking down item frames, paintings or armor stands are blocked too. Operators in creative mode can always build. When there's a building island, mark it with a build zone. Build zones are open to everyone and never regenerate.
+
+Anything else that destroys blocks (titans, explosions, fire, mobs) is remembered. The blocks are put back after 5 minutes, bottom up, only when no player is within 12 blocks, and never on top of something new. Changes made by commands (`/fill`, `/setblock`, building tools) and by operators breaking blocks are permanent. Waiting blocks survive restarts (`<world>/aot_rpg/regen.nbt`). Settings are in `<world>/aot_rpg/protection.json`.
+- `/aotrpg protect on|off`, `/aotrpg protect zone add <name> <x1> <z1> <x2> <z2>`, `/aotrpg protect zone remove <name>`, `/aotrpg protect zone list`.
+- `/aotrpg regen on|off`, `/aotrpg regen delay <seconds>`, `/aotrpg regen now` (restore everything loaded right away), `/aotrpg regen forget` (keep the current damage), `/aotrpg regen status`.
+
 Commands:
 - `/character` or **K**: character sheet and skill tree. Spend stat points and skill points here.
 

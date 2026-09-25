@@ -12,6 +12,8 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.util.Hand;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
@@ -48,6 +50,7 @@ public final class AotRpg implements ModInitializer {
     public static final TitanGuard GUARD = new TitanGuard();
     public static final QuickHeal HEAL = new QuickHeal();
     public static final Cosmetics COSMETICS = new Cosmetics();
+    public static final WorldCare CARE = new WorldCare();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
     public static boolean hasClient(ServerPlayerEntity p) {
@@ -163,6 +166,51 @@ public final class AotRpg implements ModInitializer {
             return ActionResult.PASS;
         });
 
+        // Protected land: no breaking, no buckets or fire, no knocking down frames and paintings.
+        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, be) -> {
+            if (CARE.canBuild(player, pos)) return true;
+            CARE.deny(player);
+            return false;
+        });
+        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, be) -> CARE.forget(pos));
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            var stack = player.getStackInHand(hand);
+            if (!world.isClient && (stack.getItem() instanceof net.minecraft.item.BucketItem
+                || stack.getItem() instanceof net.minecraft.item.PowderSnowBucketItem) && !CARE.canBuild(player, player.getBlockPos())) {
+                CARE.deny(player);
+                return net.minecraft.util.TypedActionResult.fail(stack);
+            }
+            return net.minecraft.util.TypedActionResult.pass(stack);
+        });
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            var item = player.getStackInHand(hand).getItem();
+            if (!world.isClient && (item instanceof net.minecraft.item.FlintAndSteelItem || item instanceof net.minecraft.item.FireChargeItem
+                || item instanceof net.minecraft.item.BucketItem || item instanceof net.minecraft.item.PowderSnowBucketItem
+                || item instanceof net.minecraft.item.HoeItem || item instanceof net.minecraft.item.ShovelItem
+                || item instanceof net.minecraft.item.AxeItem) && !CARE.canBuild(player, hit.getBlockPos())) {
+                // Hoes till, shovels make paths, axes strip logs: all changes to the land.
+                CARE.deny(player);
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (!world.isClient && (entity instanceof net.minecraft.entity.decoration.AbstractDecorationEntity
+                || entity instanceof net.minecraft.entity.decoration.ArmorStandEntity) && !CARE.canBuild(player, entity.getBlockPos())) {
+                CARE.deny(player);
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (!world.isClient && (entity instanceof net.minecraft.entity.decoration.ItemFrameEntity
+                || entity instanceof net.minecraft.entity.decoration.ArmorStandEntity) && !CARE.canBuild(player, entity.getBlockPos())) {
+                CARE.deny(player);
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
+
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             PROFILES.open(server);
             PLACES.load(server);
@@ -170,10 +218,12 @@ public final class AotRpg implements ModInitializer {
             QUESTS.load(server);
             AotItems.scan(server);
             COSMETICS.open(server);
+            CARE.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
             SATCHEL.saveAll();
+            CARE.save();
             NAMETAGS.clear();
         });
 
@@ -252,6 +302,7 @@ public final class AotRpg implements ModInitializer {
     private void tick(MinecraftServer server) {
         SCHEDULER.tick();
         ticks++;
+        CARE.tick(ticks, false);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);

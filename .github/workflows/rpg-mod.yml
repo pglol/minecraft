@@ -44,6 +44,10 @@ jobs:
               javap -p -cp "$j" net.minecraft.client.render.block.entity.BeaconBlockEntityRenderer | grep -E "renderBeam|BEAM_TEXTURE"
               javap -p -cp "$j" net.minecraft.client.gui.hud.InGameHud | grep -E "renderHotbar|renderHotbarItem"
               javap -p -cp "$j" net.minecraft.client.gui.DrawContext | grep -E "drawItemInSlot"
+              javap -p -cp "$j" net.minecraft.world.World | grep -E " setBlockState"
+              javap -p -cp "$j" net.minecraft.server.command.CommandManager | grep -E " execute"
+              javap -p -cp "$j" net.minecraft.item.BlockItem | grep -E " place"
+              javap -p -cp "$j" net.minecraft.block.entity.BlockEntity | grep -E " (read|createNbt)\("
               break
             fi
           done

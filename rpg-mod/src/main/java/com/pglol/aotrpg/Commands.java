@@ -135,6 +135,76 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Closed the Underground stairway trench (" + n + " blocks). The stairs below are untouched."), true);
                 return 1;
             })))
+            .then(CommandManager.literal("protect")
+                .then(CommandManager.literal("on").executes(c -> protect(c.getSource(), true)))
+                .then(CommandManager.literal("off").executes(c -> protect(c.getSource(), false)))
+                .then(CommandManager.literal("zone")
+                    .then(CommandManager.literal("add").then(CommandManager.argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
+                        .then(CommandManager.argument("x1", IntegerArgumentType.integer()).then(CommandManager.argument("z1", IntegerArgumentType.integer())
+                        .then(CommandManager.argument("x2", IntegerArgumentType.integer()).then(CommandManager.argument("z2", IntegerArgumentType.integer())
+                        .executes(c -> {
+                            WorldCare.Zone z = new WorldCare.Zone();
+                            z.name = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "name");
+                            z.x1 = IntegerArgumentType.getInteger(c, "x1");
+                            z.z1 = IntegerArgumentType.getInteger(c, "z1");
+                            z.x2 = IntegerArgumentType.getInteger(c, "x2");
+                            z.z2 = IntegerArgumentType.getInteger(c, "z2");
+                            AotRpg.CARE.config.buildZones.removeIf(o -> o.name.equalsIgnoreCase(z.name));
+                            AotRpg.CARE.config.buildZones.add(z);
+                            AotRpg.CARE.saveConfig();
+                            c.getSource().sendFeedback(() -> Text.literal("Build zone " + z.name + " added: players can build from "
+                                + z.x1 + "," + z.z1 + " to " + z.x2 + "," + z.z2 + ". It does not regenerate."), true);
+                            return 1;
+                        }))))))))
+                    .then(CommandManager.literal("remove").then(CommandManager.argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
+                        .suggests((c, b) -> {
+                            for (WorldCare.Zone z : AotRpg.CARE.config.buildZones) b.suggest(z.name);
+                            return b.buildFuture();
+                        })
+                        .executes(c -> {
+                            String n = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "name");
+                            boolean ok = AotRpg.CARE.config.buildZones.removeIf(o -> o.name.equalsIgnoreCase(n));
+                            AotRpg.CARE.saveConfig();
+                            c.getSource().sendFeedback(() -> Text.literal(ok ? "Removed build zone " + n + "." : "No build zone named " + n + "."), true);
+                            return ok ? 1 : 0;
+                        })))
+                    .then(CommandManager.literal("list").executes(c -> {
+                        StringBuilder sb = new StringBuilder("Protection " + (AotRpg.CARE.config.protect ? "ON" : "OFF") + ". Build zones:");
+                        if (AotRpg.CARE.config.buildZones.isEmpty()) sb.append(" none");
+                        for (WorldCare.Zone z : AotRpg.CARE.config.buildZones) {
+                            sb.append("\n  ").append(z.name).append(": ").append(z.x1).append(",").append(z.z1).append(" to ").append(z.x2).append(",").append(z.z2);
+                        }
+                        c.getSource().sendFeedback(() -> Text.literal(sb.toString()), false);
+                        return 1;
+                    }))))
+            .then(CommandManager.literal("regen")
+                .then(CommandManager.literal("on").executes(c -> regen(c.getSource(), true)))
+                .then(CommandManager.literal("off").executes(c -> regen(c.getSource(), false)))
+                .then(CommandManager.literal("delay").then(CommandManager.argument("seconds", IntegerArgumentType.integer(10, 86400)).executes(c -> {
+                    AotRpg.CARE.config.regenDelaySeconds = IntegerArgumentType.getInteger(c, "seconds");
+                    AotRpg.CARE.saveConfig();
+                    c.getSource().sendFeedback(() -> Text.literal("Destroyed blocks now regrow after " + AotRpg.CARE.config.regenDelaySeconds + " seconds."), true);
+                    return 1;
+                })))
+                .then(CommandManager.literal("now").executes(c -> {
+                    int n = AotRpg.CARE.pending();
+                    AotRpg.CARE.tick(0, true);
+                    int left = AotRpg.CARE.pending();
+                    c.getSource().sendFeedback(() -> Text.literal("Restored " + (n - left) + " blocks" + (left > 0 ? " (" + left + " in unloaded chunks wait)." : ".")), true);
+                    return 1;
+                }))
+                .then(CommandManager.literal("forget").executes(c -> {
+                    int n = AotRpg.CARE.pending();
+                    AotRpg.CARE.forgetAll();
+                    c.getSource().sendFeedback(() -> Text.literal("Forgot " + n + " destroyed blocks: the damage is now permanent."), true);
+                    return 1;
+                }))
+                .then(CommandManager.literal("status").executes(c -> {
+                    var cf = AotRpg.CARE.config;
+                    c.getSource().sendFeedback(() -> Text.literal("Regeneration " + (cf.regen ? "ON" : "OFF") + ", delay " + cf.regenDelaySeconds
+                        + "s, " + AotRpg.CARE.pending() + " blocks waiting. Protection " + (cf.protect ? "ON" : "OFF") + "."), false);
+                    return 1;
+                })))
             .then(CommandManager.literal("cosmetics")
                 .then(CommandManager.literal("allow").then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
                     ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
@@ -187,6 +257,21 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Reloaded aot-rpg.json."), true);
                 return 1;
             })));
+    }
+
+    private static int protect(ServerCommandSource src, boolean on) {
+        AotRpg.CARE.config.protect = on;
+        AotRpg.CARE.saveConfig();
+        src.sendFeedback(() -> Text.literal(on ? "The land is protected: players cannot break or place blocks outside build zones."
+            : "Protection is OFF: everyone can build and break."), true);
+        return 1;
+    }
+
+    private static int regen(ServerCommandSource src, boolean on) {
+        AotRpg.CARE.config.regen = on;
+        AotRpg.CARE.saveConfig();
+        src.sendFeedback(() -> Text.literal(on ? "Destroyed blocks regenerate over time." : "Regeneration is OFF (waiting blocks are kept)."), true);
+        return 1;
     }
 
     private static int cosmetic(ServerCommandSource src, ServerPlayerEntity p, String id, boolean on) {
