@@ -137,6 +137,15 @@ final class Commands {
                     c.getSource().sendFeedback(() -> Text.literal("Gave " + n + " event tokens to " + p.getName().getString()), true);
                     return 1;
                 }))))
+            .then(CommandManager.literal("war").then(CommandManager.literal("start").executes(c -> {
+                boolean ok = AotRpg.WAR.active() == null && AotRpg.WAR.start(null);
+                if (!ok) c.getSource().sendError(Text.literal("A Call to Arms is already running (or no towns are known)."));
+                return ok ? 1 : 0;
+            }).then(CommandManager.argument("town", com.mojang.brigadier.arguments.StringArgumentType.word()).executes(c -> {
+                boolean ok = AotRpg.WAR.active() == null && AotRpg.WAR.start(com.mojang.brigadier.arguments.StringArgumentType.getString(c, "town"));
+                if (!ok) c.getSource().sendError(Text.literal("A Call to Arms is already running, or that town id is unknown."));
+                return ok ? 1 : 0;
+            }))))
             .then(CommandManager.literal("raid").executes(c -> {
                 boolean ok = AotRpg.RAIDS.forceStart(c.getSource().getPlayerOrThrow());
                 if (!ok) c.getSource().sendError(Text.literal("You need to own a property plot (and no raid running there)."));

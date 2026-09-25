@@ -64,6 +64,7 @@ public final class AotRpg implements ModInitializer {
     public static final GameModes MODES = new GameModes();
     public static final Exchange EXCHANGE = new Exchange();
     public static final Factions FACTIONS = new Factions();
+    public static final FactionWar WAR = new FactionWar();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final Season SEASON = new Season();
@@ -400,6 +401,7 @@ public final class AotRpg implements ModInitializer {
             MARKET.open(server);
             EXCHANGE.open(server);
             FACTIONS.open(server);
+            WAR.open(server);
             HOMES.open(server);
             MODES.open(server);
             SEASON.open(server);
@@ -547,6 +549,7 @@ public final class AotRpg implements ModInitializer {
         RAIDS.tick(server, ticks);
         if (ticks % 600 == 300) HORSES.sweep(server.getOverworld());
         CROWD.tick(server, ticks);
+        WAR.tick(ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {
             PROFILES.saveAll();
@@ -576,6 +579,7 @@ public final class AotRpg implements ModInitializer {
         GEAR.titanDrop(killer, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());
+        WAR.onKill(killer, dead);
         SEASON.xp(killer, Season.XP_TITAN);
         TASKS.count(killer, Tasks.TITANS, 1);
         EVENTS.onTitanKill(killer);

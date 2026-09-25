@@ -23,6 +23,7 @@ public class WorldMapScreen extends Screen {
     private static final int SIDE = 150;
     private static double centerX = Double.NaN, centerZ, zoom = 0.03;
     private int mapL, mapT, mapR, mapB;
+    private static boolean showFactions = true;
     private boolean dragging;
 
     public WorldMapScreen() {
@@ -69,7 +70,7 @@ public class WorldMapScreen extends Screen {
         mapB = height - 22;
         int x = width - SIDE - 4, y = mapT + 16;
         for (Net.QuestView q : sideQuests()) {
-            if (y > height - 60) break;
+            if (y > height - 80) break;
             AotButton track = new AotButton(x + SIDE - 42, y, 18, 16, Text.literal("◎"),
                 () -> ClientPlayNetworking.send(new Net.QuestAction(q.id(), "track")));
             track.selected = q.tracked();
@@ -84,6 +85,12 @@ public class WorldMapScreen extends Screen {
             addDrawableChild(star);
             y += 30;
         }
+        ClientPlayNetworking.send(new Net.FactionAction("view", ""));
+        AotButton fac = addDrawableChild(new AotButton(x, height - 64, SIDE, 16, Text.literal(showFactions ? "Faction control: on" : "Faction control: off"), () -> {
+            showFactions = !showFactions;
+            clearAndInit();
+        }));
+        fac.selected = showFactions;
         addDrawableChild(new AotButton(x, height - 44, SIDE, 16, Text.literal("Quest Journal [J]"), () -> client.setScreen(new JournalScreen())));
         addDrawableChild(new AotButton(x, height - 24, SIDE, 16, Text.literal("Centre on me"), () -> {
             if (client.player != null) {
@@ -220,6 +227,7 @@ public class WorldMapScreen extends Screen {
                     (int) cx(), (int) cy() + 5, Ui.CREAM);
             }
         }
+        if (showFactions) drawFactions(c);
         drawFires(c);
         drawAreas(c, mouseX, mouseY);
         drawMarkers(c, mouseX, mouseY);
@@ -236,11 +244,11 @@ public class WorldMapScreen extends Screen {
 
         // Side panel
         int x = width - SIDE - 8;
-        Ui.panel(c, x, mapT - 2, SIDE + 6, height - mapT - 50);
+        Ui.panel(c, x, mapT - 2, SIDE + 6, height - mapT - 70);
         c.drawTextWithShadow(textRenderer, Ui.heading("Quests"), x + 6, mapT + 3, Ui.GOLD);
         int y = mapT + 16;
         for (Net.QuestView q : sideQuests()) {
-            if (y > height - 60) break;
+            if (y > height - 80) break;
             String t = textRenderer.trimToWidth(q.title(), SIDE - 50);
             c.drawTextWithShadow(textRenderer, Text.literal(t), x + 6, y + 1, q.tracked() ? Ui.GOLD : Ui.CREAM);
             String sub = q.progress().isEmpty() ? q.category() : q.progress();
@@ -251,6 +259,50 @@ public class WorldMapScreen extends Screen {
         }
         c.drawTextWithShadow(textRenderer, Text.literal("Drag to move · Scroll to zoom · Right-click to mark a spot (again to remove)"),
             mapL, height - 14, Ui.MUTED);
+    }
+
+    /** Who controls each sector, as tinted rings between the walls, with a legend. */
+    private void drawFactions(DrawContext c) {
+        Net.FactionView v = ClientState.factions;
+        if (v == null || v.walls().length < 3) return;
+        int[] w = v.walls();
+        double[] inner = {0, w[0], w[1], w[2]}, outer = {w[0], w[1], w[2], w[2] * 1.45};
+        int step = 2;
+        for (int y = mapT; y < mapB; y += step) {
+            double dz = wz(y + step / 2.0);
+            for (int s = 0; s < 4 && s < v.sectors().size(); s++) {
+                int ctl = v.sectors().get(s).controller();
+                if (ctl < 0 || ctl >= FactionScreen.COLORS.length) continue;
+                double ro = outer[s], ri = inner[s];
+                if (Math.abs(dz) >= ro) continue;
+                int col = (FactionScreen.COLORS[ctl] & 0xFFFFFF) | (s == 3 ? 0x2C000000 : 0x40000000);
+                double xo = Math.sqrt(ro * ro - dz * dz);
+                double xi = Math.abs(dz) < ri ? Math.sqrt(ri * ri - dz * dz) : 0;
+                if (xi <= 0) fillRow(c, -xo, xo, y, step, col);
+                else {
+                    fillRow(c, -xo, -xi, y, step, col);
+                    fillRow(c, xi, xo, y, step, col);
+                }
+            }
+        }
+        // Legend
+        int lx = mapL + 6, ly = mapB - 16 - 4 * 11;
+        c.fill(lx - 4, ly - 4, lx + 170, mapB - 4, 0xB0100C08);
+        c.drawTextWithShadow(textRenderer, Ui.heading("Faction control"), lx, ly, Ui.GOLD);
+        for (int s = 0; s < 4 && s < v.sectors().size(); s++) {
+            Net.SectorInfo si = v.sectors().get(s);
+            int ctl = si.controller();
+            int col = ctl < 0 ? Ui.MUTED : FactionScreen.COLORS[ctl];
+            int yy = ly + 11 + s * 11;
+            c.fill(lx, yy + 1, lx + 7, yy + 8, col);
+            String who = ctl < 0 ? "contested" : FactionScreen.NAMES[ctl] + (v.leader() == ctl ? " ♛" : "");
+            c.drawTextWithShadow(textRenderer, Text.literal(si.title() + ": " + who), lx + 11, yy, Ui.CREAM);
+        }
+    }
+
+    private void fillRow(DrawContext c, double wx0, double wx1, int y, int step, int col) {
+        int x0 = (int) Math.max(mapL, sx(wx0)), x1 = (int) Math.min(mapR, sx(wx1));
+        if (x1 > x0) c.fill(x0, y, x1, Math.min(mapB, y + step), col);
     }
 
     private void drawImage(DrawContext c, MapData.Image img, float alpha) {

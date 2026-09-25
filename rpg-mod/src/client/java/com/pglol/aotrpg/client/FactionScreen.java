@@ -18,6 +18,9 @@ public final class FactionScreen extends Screen {
         "Order in the interior, and the King's favour."};
     private int left, top, w, h;
     private int scroll;
+    /** Right panel: 0 work orders, 1 standings, 2 Call to Arms. */
+    private static int tab;
+    private int ticks;
 
     public FactionScreen() {
         super(Text.literal("Factions"));
@@ -56,6 +59,18 @@ public final class FactionScreen extends Screen {
             return;
         }
         addDrawableChild(new AotButton(left + 10, top + h - 26, 80, 18, Text.literal("Leave"), () -> act("leave", ""))).accent = Ui.RED;
+        String[] tabs = {"Work orders", "Standings", v.event().isEmpty() ? "Call to Arms" : "⚔ Call to Arms"};
+        for (int i = 0; i < 3; i++) {
+            int t = i;
+            AotButton b = addDrawableChild(new AotButton(left + i * 104, top - 22, 100, 18, Text.literal(tabs[i]), () -> {
+                tab = t;
+                scroll = 0;
+                clearAndInit();
+            }));
+            if (tab == i) b.accent = Ui.GOLD;
+            else if (i == 2 && !v.event().isEmpty()) b.accent = 0xFFE04A3A;
+        }
+        if (tab != 0) return;
         List<Net.OrderInfo> orders = v.orders();
         int ox = left + 250, y = top + 30;
         int rows = (h - 60) / 26;
@@ -70,6 +85,12 @@ public final class FactionScreen extends Screen {
             }
             y += 26;
         }
+    }
+
+    @Override
+    public void tick() {
+        // Keep the event timer and kill board live.
+        if (++ticks % 60 == 0 && ClientState.factions != null && ClientState.factions.faction() >= 0) act("view", "");
     }
 
     @Override
@@ -129,8 +150,20 @@ public final class FactionScreen extends Screen {
         }
         long t = v.treasury().length > v.faction() ? v.treasury()[v.faction()] : 0;
         Ui.text(c, Text.literal(String.format(Locale.ROOT, "Treasury: %,d Marks", t)), left + 10, y + 2, 0.7f, Ui.GOLD, false);
-        // Orders
+        int held = v.held().length > v.faction() ? v.held()[v.faction()] : 0;
+        float mul = v.mult().length > v.faction() ? v.mult()[v.faction()] : 1;
+        Ui.text(c, Text.literal("You hold " + held + " sector" + (held == 1 ? "" : "s") + " · faction rewards +" + Math.round((mul - 1) * 100) + "%"
+            + (v.leader() == v.faction() ? " · LEADING" : "")), left + 10, y + 14, 0.65f, v.leader() == v.faction() ? Ui.GOLD : Ui.CREAM, false);
         int ox = left + 250;
+        if (tab == 1) {
+            standings(c, v, ox);
+            return;
+        }
+        if (tab == 2) {
+            callToArms(c, v, ox);
+            return;
+        }
+        // Orders
         long m = v.cycleLeft() / 60;
         Ui.text(c, Ui.heading("Work orders"), ox, top + 8, 1f, Ui.GOLD, false);
         Ui.text(c, Text.literal("New orders in " + (m / 60) + "h " + (m % 60) + "m"), ox, top + 20, 0.65f, Ui.MUTED, false);
@@ -142,10 +175,79 @@ public final class FactionScreen extends Screen {
             if ((i & 1) == 0) c.fill(ox - 4, oy, left + w - 6, oy + 24, 0x22000000);
             int tc = o.progress() == -1 ? Ui.DIM : Ui.CREAM;
             Ui.text(c, Text.literal(o.text()), ox, oy + 3, 0.62f, tc, false);
-            String reward = o.marks() + " Marks · +" + o.rep() + " rep" + (o.progress() >= 0 && o.text().startsWith("Slay") ? "  ·  " + o.progress() + "/" + o.qty() : "")
+            String reward = Math.round(o.marks() * mul) + " Marks · +" + Math.round(o.rep() * mul) + " rep" + (o.progress() >= 0 && o.text().startsWith("Slay") ? "  ·  " + o.progress() + "/" + o.qty() : "")
                 + (o.progress() == -1 ? "  ·  done" : "");
             Ui.text(c, Text.literal(reward), ox, oy + 13, 0.6f, o.progress() == -1 ? Ui.DIM : Ui.GOLD, false);
             oy += 26;
         }
+    }
+
+    private void standings(DrawContext c, Net.FactionView v, int ox) {
+        int right = left + w - 10;
+        Ui.text(c, Ui.heading("The war for the walls"), ox, top + 8, 1f, Ui.GOLD, false);
+        Ui.text(c, Text.literal("Each sector you control: +8% Marks and reputation from orders and Calls to Arms."), ox, top + 22, 0.6f, Ui.MUTED, false);
+        Ui.text(c, Text.literal("Most sectors: +10% more, and +10% Marks from everything."), ox, top + 31, 0.6f, Ui.MUTED, false);
+        int y = top + 46;
+        Integer[] order = {0, 1, 2};
+        java.util.Arrays.sort(order, (a, b) -> (v.held().length > b ? v.held()[b] : 0) - (v.held().length > a ? v.held()[a] : 0));
+        int rank = 1;
+        for (int f : order) {
+            boolean lead = v.leader() == f, mine = v.faction() == f;
+            c.fill(ox - 4, y, right, y + 44, mine ? 0x26FFFFFF : 0x22000000);
+            c.fill(ox - 4, y, ox - 1, y + 44, COLORS[f]);
+            Ui.text(c, Ui.heading("#" + rank++ + "  " + NAMES[f]), ox + 4, y + 4, 0.95f, COLORS[f], false);
+            if (lead) Ui.text(c, Ui.heading("♛ LEADING"), right - 6 - Ui.font().getWidth("♛ LEADING") * 0.75f, y + 5, 0.75f, Ui.GOLD, false);
+            int held = v.held().length > f ? v.held()[f] : 0;
+            float mul = v.mult().length > f ? v.mult()[f] : 1;
+            long tr = v.treasury().length > f ? v.treasury()[f] : 0;
+            Ui.text(c, Text.literal(held + " sector" + (held == 1 ? "" : "s") + " held · rewards +" + Math.round((mul - 1) * 100) + "%"
+                + String.format(Locale.ROOT, " · treasury %,d", tr)), ox + 4, y + 18, 0.65f, Ui.CREAM, false);
+            StringBuilder names = new StringBuilder();
+            for (Net.SectorInfo si : v.sectors()) if (si.controller() == f) names.append(names.length() == 0 ? "" : ", ").append(si.title());
+            Ui.text(c, Text.literal(names.length() == 0 ? "No sectors" : names.toString()), ox + 4, y + 30, 0.6f, Ui.MUTED, false);
+            y += 50;
+        }
+        Ui.text(c, Text.literal("Control shifts with work orders, titan kills and Calls to Arms. See it on the world map [M]."),
+            ox, y + 4, 0.6f, Ui.DIM, false);
+    }
+
+    private void callToArms(DrawContext c, Net.FactionView v, int ox) {
+        int right = left + w - 10;
+        Ui.text(c, Ui.heading("Call to Arms"), ox, top + 8, 1f, 0xFFE04A3A, false);
+        if (v.event().isEmpty()) {
+            long m = v.nextEvent() / 60;
+            Ui.text(c, Text.literal("All quiet. The next titan march is expected in about " + Math.max(1, m) + " min."), ox, top + 24, 0.7f, Ui.CREAM, false);
+            int y = top + 44;
+            for (String line : new String[] {
+                "When titans march on a town, every soldier online is called to defend it.",
+                "It shows on your map and compass as a red marker.",
+                "Each kill pays Marks, reputation and pass XP, scaled by your faction's sectors.",
+                "Your faction gains ground in that sector with every kill.",
+                "The MVP (most kills) wins special gear, and sometimes a rare cosmetic.",
+                "Hold the town (clear every wave) and the top faction gains much more."}) {
+                Ui.text(c, Text.literal("• " + line), ox, y, 0.62f, Ui.MUTED, false);
+                y += 13;
+            }
+            return;
+        }
+        long s = v.eventLeft();
+        Ui.text(c, Text.literal("Defend " + v.event()), ox, top + 24, 0.8f, Ui.CREAM, false);
+        Ui.text(c, Text.literal(String.format(Locale.ROOT, "%d:%02d left · your kills: %d · marked on your map", s / 60, s % 60, v.myKills())),
+            ox, top + 36, 0.65f, Ui.GOLD, false);
+        int y = top + 54;
+        Ui.text(c, Ui.heading("Top defenders"), ox, y, 0.85f, Ui.GOLD, false);
+        y += 14;
+        if (v.eventTop().isEmpty()) Ui.text(c, Text.literal("No kills yet. Be the first!"), ox, y, 0.65f, Ui.MUTED, false);
+        int i = 0;
+        for (String e : v.eventTop()) {
+            String[] parts = e.split("\u0000");
+            if ((i & 1) == 0) c.fill(ox - 4, y - 2, right, y + 12, 0x22000000);
+            Ui.text(c, Text.literal((i == 0 ? "♛ " : (i + 1) + ". ") + parts[0]), ox, y, 0.7f, i == 0 ? Ui.GOLD : Ui.CREAM, false);
+            String k = (parts.length > 1 ? parts[1] : "0") + " kills";
+            Ui.text(c, Text.literal(k), right - 4 - Ui.font().getWidth(k) * 0.7f, y, 0.7f, Ui.CREAM, false);
+            y += 14;
+            i++;
+        }
+        Ui.text(c, Text.literal("MVP spoils: Rare gear (6+ kills Epic, 12+ Legendary), 35% chance of a rare cosmetic."), ox, top + h - 22, 0.6f, Ui.DIM, false);
     }
 }

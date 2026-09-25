@@ -70,6 +70,8 @@ public final class Roles {
     /** "[RP · Sergeant] Name" for chat and the player list. */
     public static MutableText styledName(Profile pr) {
         MutableText name = Text.literal(pr.name).setStyle(Style.EMPTY.withColor(0xEDE3C8));
+        Factions.Faction fa = Factions.of(pr);
+        if (fa != null) name = Text.literal(Factions.abbr(fa) + " ").setStyle(Style.EMPTY.withColor(fa.color).withBold(true)).append(name);
         String t = tag(pr);
         if (t.isEmpty()) return name;
         MutableText tag = Text.literal((pr.role != null && !pr.role.isEmpty() || !pr.rp ? "" : "RP · ") + t)

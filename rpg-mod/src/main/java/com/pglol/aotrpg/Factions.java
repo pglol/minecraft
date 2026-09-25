@@ -46,6 +46,14 @@ public final class Factions {
         }
     }
 
+    public static String abbr(Faction f) {
+        return switch (f) {
+            case SURVEY_CORPS -> "SC";
+            case GARRISON -> "GAR";
+            case MILITARY_POLICE -> "MP";
+        };
+    }
+
     public static final long CYCLE_MS = 6L * 3600 * 1000;
     public static final int MAX_ACTIVE = 3;
 
@@ -126,6 +134,48 @@ public final class Factions {
         data.treasury.merge(f, Math.max(1, amount / 20), Long::sum);
     }
 
+    /** Influence gained (or lost) in a sector. */
+    public void influence(Sector s, Faction f, double amount) {
+        shift(s, f, amount);
+    }
+
+    public int sectorsHeld(Faction f) {
+        int n = 0;
+        if (f == null) return 0;
+        for (Sector s : Sector.values()) if (controller(s) == f) n++;
+        return n;
+    }
+
+    /** The faction holding the most sectors (none on a tie). */
+    public Faction leader() {
+        Faction best = null;
+        int bn = 0;
+        boolean tie = false;
+        for (Faction f : Faction.values()) {
+            int n = sectorsHeld(f);
+            if (n > bn) {
+                bn = n;
+                best = f;
+                tie = false;
+            } else if (n == bn && n > 0) {
+                tie = true;
+            }
+        }
+        return tie ? null : best;
+    }
+
+    /** Faction rewards (orders, Calls to Arms): +8% per sector held, +10% more for the leading faction. */
+    public double multiplier(Faction f) {
+        if (f == null) return 1;
+        return 1 + 0.08 * sectorsHeld(f) + (leader() == f ? 0.10 : 0);
+    }
+
+    /** The leading faction's soldiers earn 10% more Marks from everything. */
+    public double earnBonus(Profile pr) {
+        Faction f = of(pr);
+        return f != null && leader() == f ? 0.10 : 0;
+    }
+
     private void shift(Sector s, Faction f, double amount) {
         Map<Faction, Double> m = data.influence.get(s);
         m.merge(f, amount, Double::sum);
@@ -195,10 +245,12 @@ public final class Factions {
                 pr.faction = f.name();
                 pr.factionRep = 0;
                 pr.factionJoined = System.currentTimeMillis();
+                AotRpg.NAMETAGS.dirty();
                 p.sendMessage(Text.literal("You joined the " + f.title + ".").withColor(f.color), false);
                 p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_BELL_USE, SoundCategory.PLAYERS, 0.8f, 1f);
             }
             case "leave" -> {
+                AotRpg.NAMETAGS.dirty();
                 pr.faction = "";
                 pr.factionRep = 0;
                 pr.orders.clear();
@@ -261,8 +313,9 @@ public final class Factions {
     private void complete(ServerPlayerEntity p, Profile pr, Order o) {
         Faction f = of(pr);
         pr.orders.put(o.id(), -1);
-        pr.factionRep += o.rep();
-        AotRpg.WALLET.earn(p, o.marks(), "Work order");
+        double mult = multiplier(f);
+        pr.factionRep += (int) Math.round(o.rep() * mult);
+        AotRpg.WALLET.earn(p, Math.round(o.marks() * mult), "Work order");
         AotRpg.SEASON.xp(p, Season.XP_ORDER);
         AotRpg.TASKS.count(p, Tasks.ORDERS, 1);
         AotRpg.ROLES.addPoints(p, 10);
@@ -310,7 +363,30 @@ public final class Factions {
         long[] treasury = new long[Faction.values().length];
         for (Faction f : Faction.values()) treasury[f.ordinal()] = data.treasury.getOrDefault(f, 0L);
         Faction mine = of(pr);
+        int n = Faction.values().length;
+        int[] held = new int[n];
+        float[] mult = new float[n];
+        for (Faction f : Faction.values()) {
+            held[f.ordinal()] = sectorsHeld(f);
+            mult[f.ordinal()] = (float) multiplier(f);
+        }
+        Faction lead = leader();
+        int[] walls = AotRpg.PLACES.walls == null ? new int[0] : AotRpg.PLACES.walls;
+        FactionWar.Event ev = AotRpg.WAR.active();
+        long now = System.currentTimeMillis();
+        List<String> top = new ArrayList<>();
+        String evText = "";
+        long evLeft = 0;
+        int mine2 = 0;
+        if (ev != null) {
+            evText = ev.town + " · " + ev.sector.title;
+            evLeft = Math.max(0, (ev.until - now) / 1000);
+            ev.kills.entrySet().stream().sorted((x, y) -> y.getValue() - x.getValue()).limit(5)
+                .forEach(e -> top.add(ev.names.getOrDefault(e.getKey(), "?") + "\u0000" + e.getValue()));
+            mine2 = ev.kills.getOrDefault(p.getUuid(), 0);
+        }
         ServerPlayNetworking.send(p, new Net.FactionView(mine == null ? -1 : mine.ordinal(), pr.factionRep,
-            Sector.at(p.getX(), p.getZ()).ordinal(), sectors, orders, left / 1000, treasury, open));
+            Sector.at(p.getX(), p.getZ()).ordinal(), sectors, orders, left / 1000, treasury, open, walls, held,
+            lead == null ? -1 : lead.ordinal(), mult, evText, evLeft, top, mine2, Math.max(0, (AotRpg.WAR.nextAt() - now) / 1000)));
     }
 }

@@ -37,7 +37,13 @@ public final class NamePlates {
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         Text name = Ui.heading(r.name());
         String disc = r.discipline() >= 0 && r.discipline() < Discipline.values().length ? Discipline.values()[r.discipline()].title : "";
-        Text sub = Text.literal("Lv " + r.level() + "  ").withColor(Ui.GOLD).append(Text.literal(disc).withColor(Ui.disciplineColor(r.discipline())));
+        net.minecraft.text.MutableText sub = Text.empty();
+        // Faction badge: SC / GAR / MP in the faction's colour.
+        if (r.faction() >= 0 && r.faction() < FactionScreen.COLORS.length) {
+            sub.append(Ui.heading(new String[] {"SC", "GAR", "MP"}[r.faction()]).withColor(FactionScreen.COLORS[r.faction()]))
+                .append(Text.literal(" · ").withColor(0xFF8F8A7A));
+        }
+        sub.append(Text.literal("Lv " + r.level() + "  ").withColor(Ui.GOLD)).append(Text.literal(disc).withColor(Ui.disciplineColor(r.discipline())));
         int w = Math.max(tr.getWidth(name), tr.getWidth(sub)) + 12;
         int h = party != null ? 25 : 22;
 

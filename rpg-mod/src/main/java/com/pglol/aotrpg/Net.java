@@ -176,7 +176,7 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp) { }
+    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp, int faction) { }
 
     /** Server -> client: character names of everyone online, for name plates. */
     public record Roster(java.util.List<RosterEntry> players) implements CustomPayload {
@@ -191,11 +191,12 @@ public final class Net {
                 b.writeString(e.tag());
                 b.writeInt(e.tagColor());
                 b.writeBoolean(e.rp());
+                b.writeVarInt(e.faction() + 1);
             }
         }, b -> {
             int n = Math.min(b.readVarInt(), 1000);
             java.util.List<RosterEntry> l = new java.util.ArrayList<>(n);
-            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean()));
+            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean(), b.readVarInt() - 1));
             return new Roster(l);
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -685,7 +686,8 @@ public final class Net {
 
     /** Server -> client: your faction, the sectors and this cycle's work orders. */
     public record FactionView(int faction, int rep, int here, java.util.List<SectorInfo> sectors, java.util.List<OrderInfo> orders,
-                              long cycleLeft, long[] treasury, boolean open) implements CustomPayload {
+                              long cycleLeft, long[] treasury, boolean open, int[] walls, int[] held, int leader, float[] mult,
+                              String event, long eventLeft, java.util.List<String> eventTop, int myKills, long nextEvent) implements CustomPayload {
         public static final Id<FactionView> ID = id("factions");
         public static final PacketCodec<RegistryByteBuf, FactionView> CODEC = PacketCodec.of((v, b) -> {
             b.writeVarInt(v.faction + 1); b.writeVarInt(v.rep); b.writeVarInt(v.here);
@@ -704,6 +706,13 @@ public final class Net {
             b.writeVarInt(v.treasury.length);
             for (long t : v.treasury) b.writeVarLong(t);
             b.writeBoolean(v.open);
+            b.writeIntArray(v.walls); b.writeIntArray(v.held); b.writeVarInt(v.leader + 1);
+            b.writeVarInt(v.mult.length);
+            for (float x : v.mult) b.writeFloat(x);
+            b.writeString(v.event); b.writeVarLong(v.eventLeft);
+            b.writeVarInt(v.eventTop.size());
+            for (String s : v.eventTop) b.writeString(s);
+            b.writeVarInt(v.myKills); b.writeVarLong(v.nextEvent);
         }, b -> {
             int f = b.readVarInt() - 1, rep = b.readVarInt(), here = b.readVarInt();
             int n = Math.min(b.readVarInt(), 16);
@@ -722,7 +731,17 @@ public final class Net {
             long left = b.readVarLong();
             long[] tr = new long[Math.min(b.readVarInt(), 8)];
             for (int k = 0; k < tr.length; k++) tr[k] = b.readVarLong();
-            return new FactionView(f, rep, here, sec, ord, left, tr, b.readBoolean());
+            boolean open = b.readBoolean();
+            int[] walls = b.readIntArray(8), held = b.readIntArray(8);
+            int leader = b.readVarInt() - 1;
+            float[] mult = new float[Math.min(b.readVarInt(), 8)];
+            for (int k = 0; k < mult.length; k++) mult[k] = b.readFloat();
+            String ev = b.readString();
+            long evLeft = b.readVarLong();
+            int tn = Math.min(b.readVarInt(), 16);
+            java.util.List<String> top = new java.util.ArrayList<>();
+            for (int i = 0; i < tn; i++) top.add(b.readString());
+            return new FactionView(f, rep, here, sec, ord, left, tr, open, walls, held, leader, mult, ev, evLeft, top, b.readVarInt(), b.readVarLong());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }

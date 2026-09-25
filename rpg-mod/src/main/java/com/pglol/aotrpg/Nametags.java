@@ -31,6 +31,10 @@ public final class Nametags {
         dirty = true;
     }
 
+    public void dirty() {
+        dirty = true;
+    }
+
     public void clear() {
         dirty = true;
     }
@@ -53,7 +57,8 @@ public final class Nametags {
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             Profile pr = AotRpg.PROFILES.get(p.getUuid());
             if (pr.created) list.add(new Net.RosterEntry(p.getUuid(), pr.name, pr.level, pr.discipline.ordinal(),
-                Roles.tag(pr), Roles.tagColor(pr), pr.rp && (pr.role == null || pr.role.isEmpty())));
+                Roles.tag(pr), Roles.tagColor(pr), pr.rp && (pr.role == null || pr.role.isEmpty()),
+                Factions.of(pr) == null ? -1 : Factions.of(pr).ordinal()));
         }
         Net.Roster roster = new Net.Roster(list);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
