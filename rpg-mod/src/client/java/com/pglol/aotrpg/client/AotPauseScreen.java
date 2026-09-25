@@ -33,7 +33,7 @@ public class AotPauseScreen extends Screen {
         gridX = Math.max(12, Math.min(width / 2 - gridW + 40, width - gridW - 12));
         // Rows: resume, 4 sections (2 rows each), system; shrink the buttons on short screens.
         int bh = height >= 330 ? 20 : 18;
-        int total = (bh + 6) + 4 * (11 + 2 * (bh + GAP)) + (bh + 8);
+        int total = (bh + 6) + 4 * 11 + 6 * (bh + GAP) + (bh + 8);
         int y = Math.max(48, (height - total) / 2 + 12);
         int x = gridX;
 
@@ -42,12 +42,7 @@ public class AotPauseScreen extends Screen {
 
         y = section(y, bh, "Character", new Tile[] {
             new Tile("Character [K]", "minecraft:writable_book", hasChar, () -> client.setScreen(new CharacterScreen(0))),
-            new Tile("My Stats", "minecraft:paper", hasChar, () -> client.setScreen(new StatsScreen(this, 0))),
-            new Tile("Satchel [B]", "minecraft:bundle", hasChar, () -> {
-                client.setScreen(null);
-                ClientPlayNetworking.send(new Net.OpenSatchel());
-            }),
-            new Tile("Cosmetics", "minecraft:amethyst_shard", hasChar, () -> client.setScreen(new CosmeticsScreen())),
+            new Tile("Satchel [B]", "minecraft:bundle", hasChar, () -> ClientPlayNetworking.send(new Net.OpenSatchel())),
             new Tile("Characters", "minecraft:armor_stand", true, () -> ClientPlayNetworking.send(new Net.CharacterAction("list", 0))),
             new Tile("Game Mode", "minecraft:compass", hasChar, () -> ClientPlayNetworking.send(new Net.ModeAction("open")))});
         y = section(y, bh, "Adventure", new Tile[] {
@@ -56,23 +51,18 @@ public class AotPauseScreen extends Screen {
             new Tile("Tasks & Titles", "minecraft:target", hasChar, () -> ClientPlayNetworking.send(new Net.TaskAction("open", ""))),
             new Tile("Battle Pass", "minecraft:nether_star", hasChar, () -> ClientPlayNetworking.send(new Net.PassAction("open", 0))),
             new Tile("Events", "minecraft:firework_rocket", hasChar, () -> ClientPlayNetworking.send(new Net.EventAction("open", ""))),
-            new Tile("Server & Ranks", "minecraft:gold_ingot", true, () -> client.setScreen(new StatsScreen(this, 2)))});
-        y = section(y, bh, "Social", new Tile[] {
+            new Tile("Server & Ranks", "minecraft:gold_ingot", true, () -> client.setScreen(new StatsScreen(this, 1)))});
+        y = section(y, bh, "Community", new Tile[] {
             new Tile("Social", "minecraft:bell", hasChar, () -> ClientPlayNetworking.send(new Net.SocialAction("open", null))),
-            new Tile("Party", "minecraft:white_banner", hasChar, () -> client.setScreen(new PartyScreen())),
             new Tile(war ? "Factions ⚔" : "Factions", "minecraft:shield", hasChar, () -> ClientPlayNetworking.send(new Net.FactionAction("open", ""))),
-            new Tile("Market", "minecraft:emerald", hasChar, () -> ClientPlayNetworking.send(new Net.MarketAction("open", "", 0, 0)))});
-        Tile office = op ? new Tile("Property Office", "minecraft:lectern", true,
-            () -> ClientPlayNetworking.send(new Net.HomeAction("admin_list", 0, ""))) : null;
-        y = section(y, bh, "Home", office == null ? new Tile[] {
+            new Tile("Global Market", "minecraft:emerald", hasChar, () -> {
+                client.setScreen(new MarketScreen(true));
+                ClientPlayNetworking.send(new Net.MarketAction("exchange", "", 0, 0));
+            }),
+            new Tile("Store", "minecraft:diamond", true, () -> client.setScreen(new StoreScreen(this)))});
+        y = section(y, bh, "Home", new Tile[] {
             new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))),
-            new Tile("Stables", "minecraft:saddle", hasChar, () -> ClientPlayNetworking.send(new Net.StableAction("view", "", ""))),
-            new Tile("Furniture", "minecraft:red_bed", hasChar, () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0)))}
-            : new Tile[] {
-            new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))),
-            new Tile("Stables", "minecraft:saddle", hasChar, () -> ClientPlayNetworking.send(new Net.StableAction("view", "", ""))),
-            new Tile("Furniture", "minecraft:red_bed", hasChar, () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0))),
-            office});
+            new Tile("Stables", "minecraft:saddle", hasChar, () -> ClientPlayNetworking.send(new Net.StableAction("view", "", "")))});
         if (war) {
             for (var el : children()) {
                 if (el instanceof AotButton b && b.getMessage().getString().startsWith("Factions")) b.accent = 0xFFE04A3A;

@@ -40,6 +40,11 @@ public final class HomeScreen extends Screen {
         left = (width - w) / 2;
         top = Math.max(44, (height - h) / 2 + 10);
         addDrawableChild(new AotButton(left + w - 20, top - 22, 20, 20, Text.literal("✕"), this::close));
+        // Operators manage every property from here (the Property Office).
+        if (client.player != null && client.player.hasPermissionLevel(2)) {
+            addDrawableChild(new AotButton(left, top - 22, 120, 20, Text.literal("Property Office"),
+                () -> ClientPlayNetworking.send(new Net.HomeAction("admin_list", 0, ""))));
+        }
         Net.HomeView v = ClientState.home;
         if (v == null) return;
         boolean plot = v.kind().equals("plot");

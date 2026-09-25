@@ -246,6 +246,33 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    public record BagEntry(int slot, net.minecraft.item.ItemStack stack) { }
+
+    /** Server -> client: the satchel's contents. */
+    public record BagView(java.util.List<BagEntry> items, int size, boolean open) implements CustomPayload {
+        public static final Id<BagView> ID = id("bag_view");
+        public static final PacketCodec<RegistryByteBuf, BagView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.items.size());
+            for (BagEntry e : v.items) { b.writeVarInt(e.slot()); net.minecraft.item.ItemStack.OPTIONAL_PACKET_CODEC.encode(b, e.stack()); }
+            b.writeVarInt(v.size); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 1024);
+            java.util.List<BagEntry> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new BagEntry(b.readVarInt(), net.minecraft.item.ItemStack.OPTIONAL_PACKET_CODEC.decode(b)));
+            return new BagView(l, b.readVarInt(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: a satchel button (equip, use, drop, list with a price). */
+    public record BagAction(String action, int slot, long arg) implements CustomPayload {
+        public static final Id<BagAction> ID = id("bag_action");
+        public static final PacketCodec<RegistryByteBuf, BagAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeVarInt(v.slot); b.writeVarLong(v.arg);
+        }, b -> new BagAction(b.readString(), b.readVarInt(), b.readVarLong()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record StatLine(String label, String value) { }
     public record StatBoard(String title, java.util.List<StatLine> rows) { }
 
@@ -1302,6 +1329,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(StatsRequest.ID, StatsRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(StatsView.ID, StatsView.CODEC);
         PayloadTypeRegistry.playS2C().register(TitanTags.ID, TitanTags.CODEC);
+        PayloadTypeRegistry.playS2C().register(BagView.ID, BagView.CODEC);
+        PayloadTypeRegistry.playC2S().register(BagAction.ID, BagAction.CODEC);
         PayloadTypeRegistry.playS2C().register(NapeHit.ID, NapeHit.CODEC);
         PayloadTypeRegistry.playS2C().register(CookingState.ID, CookingState.CODEC);
         PayloadTypeRegistry.playC2S().register(Cook.ID, Cook.CODEC);

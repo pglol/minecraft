@@ -85,7 +85,7 @@ public final class ForgeScreen extends Screen {
             if (v.gear().isEmpty()) Ui.text(c, Text.literal("No gear in your backpack to upgrade."), left + 12, y + 6, 0.8f, Ui.MUTED, false);
             for (Net.ForgeGear g : v.gear()) {
                 if (y > top + h - 26) break;
-                ItemStack s = client.player.getInventory().main.get(g.slot());
+                ItemStack s = ClientState.stackAt(g.slot());
                 GearUi.backing(c, s, left + 10, y + 3);
                 c.drawItem(s, left + 10, y + 3);
                 Ui.text(c, s.getName(), left + 32, y + 2, 0.85f, Ui.CREAM, false);

@@ -58,6 +58,9 @@ public class CharacterScreen extends Screen {
                 clearAndInit();
             }).selected(tab == i));
         }
+        // Cosmetics live with your character now.
+        addDrawableChild(new AotButton(left + tabs.length * 104, top - 22, 100, 20, Ui.heading("Cosmetics"),
+            () -> client.setScreen(new CosmeticsScreen())));
         addDrawableChild(new AotButton(left + w - 20, top - 22, 20, 20, Text.literal("✕"), this::close));
 
         if (tab == 0) {

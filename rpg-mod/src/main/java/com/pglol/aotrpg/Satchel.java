@@ -28,7 +28,10 @@ import java.util.UUID;
  * Saved in <world>/aot_rpg/satchels/<uuid>.dat and never dropped on death.
  */
 public final class Satchel {
-    public static final int SIZE = 36;
+    /** How many stacks the satchel holds (its "load"). */
+    public static final int SIZE = 240;
+    /** Slot addresses: 0-35 the player's inventory, BAG + i the satchel's slot i. */
+    public static final int BAG = 1000;
     private final Map<UUID, SimpleInventory> bags = new HashMap<>();
     /** Per player: the ODM sheath (0 and 2) and the off-hand item stashed while grips are drawn (1). */
     private final Map<UUID, SimpleInventory> gears = new HashMap<>();
@@ -51,9 +54,9 @@ public final class Satchel {
         return s;
     }
 
-    /** What the satchel holds: story items, anything edible and supplies. */
+    /** The satchel holds everything you carry beyond your loadout and armor. */
     public static boolean accepts(ItemStack s) {
-        return !s.isEmpty() && (isStory(s) || s.contains(DataComponentTypes.FOOD) || SUPPLIES.contains(s.getItem()) || AotItems.isSupply(s));
+        return !s.isEmpty();
     }
 
     public void open(MinecraftServer server) {
@@ -191,9 +194,132 @@ public final class Satchel {
     }
 
     public void openScreen(ServerPlayerEntity p) {
+        send(p, true);
+    }
+
+    // ------------------------------------------------------------------ addresses
+
+    /** The stack at an address (inventory slot, or BAG + satchel slot). */
+    public ItemStack at(ServerPlayerEntity p, int addr) {
+        if (addr >= BAG) {
+            SimpleInventory bag = get(p.getUuid());
+            int i = addr - BAG;
+            return i < bag.size() ? bag.getStack(i) : ItemStack.EMPTY;
+        }
+        return addr >= 0 && addr < p.getInventory().main.size() ? p.getInventory().main.get(addr) : ItemStack.EMPTY;
+    }
+
+    public void set(ServerPlayerEntity p, int addr, ItemStack s) {
+        if (addr >= BAG) {
+            SimpleInventory bag = get(p.getUuid());
+            if (addr - BAG < bag.size()) bag.setStack(addr - BAG, s);
+            bag.markDirty();
+        } else if (addr >= 0 && addr < p.getInventory().main.size()) {
+            p.getInventory().main.set(addr, s);
+            p.getInventory().markDirty();
+        }
+    }
+
+    /** Every address holding something: the inventory first, then the satchel. */
+    public java.util.List<Integer> addresses(ServerPlayerEntity p) {
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        for (int i = 0; i < p.getInventory().main.size(); i++) if (!p.getInventory().main.get(i).isEmpty()) out.add(i);
         SimpleInventory bag = get(p.getUuid());
-        p.openHandledScreen(new SimpleNamedScreenHandlerFactory(
-            (syncId, inv, pl) -> new SatchelHandler(syncId, inv, bag), Text.literal("Satchel")));
+        for (int i = 0; i < bag.size(); i++) if (!bag.getStack(i).isEmpty()) out.add(BAG + i);
+        return out;
+    }
+
+    // ------------------------------------------------------------------ the bag
+
+    /**
+     * The inventory rows are gone: whatever lands there (pickups, chest takes) moves into the
+     * satchel, except the supplies kept at hand for reloading while armed.
+     */
+    public void sweep(ServerPlayerEntity p) {
+        if (p.isCreative() || p.currentScreenHandler != p.playerScreenHandler || !p.currentScreenHandler.getCursorStack().isEmpty()) return;
+        var inv = p.getInventory();
+        SimpleInventory bag = get(p.getUuid());
+        boolean armed = AotItems.usesSupplies(p.getMainHandStack()) || AotItems.usesSupplies(p.getOffHandStack());
+        boolean changed = false;
+        for (int slot = 9; slot < 36; slot++) {
+            ItemStack m = inv.main.get(slot);
+            if (m.isEmpty() || (armed && AotItems.isSupply(m))) continue;
+            ItemStack rest = bag.addStack(m.copy());
+            if (rest.getCount() != m.getCount()) {
+                inv.main.set(slot, rest);
+                changed = true;
+            }
+        }
+        if (changed) {
+            bag.markDirty();
+            inv.markDirty();
+            send(p, false);
+        }
+    }
+
+    public void send(ServerPlayerEntity p, boolean open) {
+        if (!net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(p, Net.BagView.ID)) return;
+        SimpleInventory bag = get(p.getUuid());
+        java.util.List<Net.BagEntry> list = new java.util.ArrayList<>();
+        for (int i = 0; i < bag.size(); i++) if (!bag.getStack(i).isEmpty()) list.add(new Net.BagEntry(i, bag.getStack(i).copy()));
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new Net.BagView(list, SIZE, open));
+    }
+
+    /** Buttons in the satchel: equip, use, drop, list on the Global Market. */
+    public void action(ServerPlayerEntity p, String action, int slot, long arg) {
+        SimpleInventory bag = get(p.getUuid());
+        if (slot < 0 || slot >= bag.size()) return;
+        ItemStack s = bag.getStack(slot);
+        if (s.isEmpty()) return;
+        switch (action) {
+            case "equip" -> equip(p, bag, slot, s);
+            case "use" -> {
+                if (!s.contains(DataComponentTypes.FOOD) && !(s.getItem() instanceof net.minecraft.item.PotionItem)) break;
+                ItemStack one = s.split(1);
+                ItemStack left = one.getItem().finishUsing(one, p.getWorld(), p);
+                if (!left.isEmpty() && left != one) p.getInventory().offerOrDrop(left);
+                p.getWorld().playSound(null, p.getBlockPos(), net.minecraft.sound.SoundEvents.ENTITY_GENERIC_EAT,
+                    net.minecraft.sound.SoundCategory.PLAYERS, 0.6f, 1f);
+            }
+            case "drop" -> {
+                if (isStory(s)) break;
+                bag.setStack(slot, ItemStack.EMPTY);
+                p.dropItem(s, false, true);
+            }
+            case "list" -> AotRpg.EXCHANGE.list(p, BAG + slot, arg);
+            default -> { }
+        }
+        bag.markDirty();
+        save(p.getUuid());
+        send(p, false);
+    }
+
+    /** Armor to its slot; anything else to the loadout slot made for it (what was there comes back). */
+    private void equip(ServerPlayerEntity p, SimpleInventory bag, int slot, ItemStack s) {
+        if (Gear.isGear(s) && !Gear.canUse(p, s)) {
+            Notify.toast(p, Text.literal("Locked").formatted(net.minecraft.util.Formatting.RED),
+                Text.literal("Needs level " + Gear.requiredLevel(s)), 0xC0463A, null, null);
+            return;
+        }
+        if (s.getItem() instanceof net.minecraft.item.ArmorItem armor) {
+            var es = armor.getSlotType();
+            ItemStack old = p.getEquippedStack(es);
+            p.equipStack(es, s);
+            bag.setStack(slot, old);
+            return;
+        }
+        var inv = p.getInventory();
+        int target = -1;
+        for (int k = 0; k < 9 && target < 0; k++) {
+            if (Loadout.SLOTS[k] != Loadout.Kind.FREE && Loadout.fits(Loadout.SLOTS[k], s) && inv.main.get(k).isEmpty()) target = k;
+        }
+        for (int k = 0; k < 9 && target < 0; k++) if (Loadout.SLOTS[k] != Loadout.Kind.FREE && Loadout.fits(Loadout.SLOTS[k], s)) target = k;
+        for (int k = 0; k < 9 && target < 0; k++) if (Loadout.SLOTS[k] == Loadout.Kind.FREE && inv.main.get(k).isEmpty()) target = k;
+        if (target < 0) target = 8;
+        ItemStack old = inv.main.get(target);
+        inv.main.set(target, s);
+        bag.setStack(slot, old);
+        inv.markDirty();
     }
 
     /** How many of these items the player has in satchel and inventory together. */

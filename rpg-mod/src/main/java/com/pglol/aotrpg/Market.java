@@ -248,11 +248,11 @@ public final class Market {
     /** Gear sells to any market for its scrap value (rarity and item level). */
     public void sellGear(ServerPlayerEntity p, int slot) {
         Net.Area town = town(p);
-        if (town == null || slot < 0 || slot >= p.getInventory().main.size()) return;
-        ItemStack s = p.getInventory().main.get(slot);
+        if (town == null) return;
+        ItemStack s = AotRpg.SATCHEL.at(p, slot);
         if (!Gear.isGear(s)) return;
         long value = gearValue(s);
-        p.getInventory().main.set(slot, ItemStack.EMPTY);
+        AotRpg.SATCHEL.set(p, slot, ItemStack.EMPTY);
         AotRpg.WALLET.addMarks(p, value, "sold " + s.getName().getString());
         send(p);
     }
@@ -318,6 +318,7 @@ public final class Market {
     private void send(ServerPlayerEntity p, boolean open) {
         Net.Area town = town(p);
         if (town == null || !ServerPlayNetworking.canSend(p, Net.MarketView.ID)) return;
+        AotRpg.SATCHEL.send(p, false);
         double disc = discount(p, town);
         List<Net.MarketGood> list = new ArrayList<>();
         for (Good g : config.goods) {
@@ -329,8 +330,8 @@ public final class Market {
                 (int) Math.round((buy / base - 1) * 100), count(p, it)));
         }
         List<Net.GearOffer> gear = new ArrayList<>();
-        for (int i = 0; i < p.getInventory().main.size(); i++) {
-            ItemStack s = p.getInventory().main.get(i);
+        for (int i : AotRpg.SATCHEL.addresses(p)) {
+            ItemStack s = AotRpg.SATCHEL.at(p, i);
             if (Gear.isGear(s)) gear.add(new Net.GearOffer(i, gearValue(s)));
         }
         Sector sec = Sector.at(town.x(), town.z());

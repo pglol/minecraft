@@ -19,6 +19,10 @@ import org.lwjgl.glfw.GLFW;
 public final class AotRpgClient implements ClientModInitializer {
     private static KeyBinding horseKey;
 
+    public static KeyBinding horseKey() {
+        return horseKey;
+    }
+
     private static KeyBinding characterKey, mapKey, journalKey, satchelKey, healKey, socialKey, sheathKey;
 
     public static KeyBinding sheathKey() {
@@ -75,6 +79,14 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.CosmeticsOf.ID, (payload, ctx) -> CosmeticFx.onWorn(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.SlashFx.ID, (payload, ctx) -> CosmeticFx.slash(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(CosmeticFx::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.BagView.ID, (payload, ctx) -> {
+            java.util.Map<Integer, net.minecraft.item.ItemStack> m = new java.util.TreeMap<>();
+            for (Net.BagEntry e : payload.items()) m.put(e.slot(), e.stack());
+            ClientState.bag = m;
+            ClientState.bagSize = payload.size();
+            if (ctx.client().currentScreen instanceof BagScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new BagScreen());
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.StatsView.ID, (payload, ctx) -> {
             ClientState.stats = payload;
             if (ctx.client().currentScreen instanceof StatsScreen s) s.refresh();
@@ -190,6 +202,7 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.NapeHit.ID, (payload, ctx) -> TitanPlates.onNape(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(TitanPlates::render);
         HudRenderCallback.EVENT.register(TitanPlates::renderHud);
+        HudRenderCallback.EVENT.register(GameHints::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.WalletSync.ID, (payload, ctx) -> {
             ClientState.marks = payload.marks();
             ClientState.gold = payload.gold();

@@ -31,6 +31,17 @@ public final class TitanPlates {
 
     private static final Map<Integer, Net.TitanTag> tags = new HashMap<>();
 
+    /** A living titan within 40 blocks. */
+    public static boolean near() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null || mc.world == null) return false;
+        for (Net.TitanTag t : tags.values()) {
+            Entity e = mc.world.getEntityById(t.entity());
+            if (e != null && e.isAlive() && e.squaredDistanceTo(mc.player) < 40 * 40) return true;
+        }
+        return false;
+    }
+
     public static void onTags(Net.TitanTags t) {
         tags.clear();
         for (Net.TitanTag x : t.tags()) tags.put(x.entity(), x);

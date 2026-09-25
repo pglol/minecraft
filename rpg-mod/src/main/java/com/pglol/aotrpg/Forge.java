@@ -60,12 +60,17 @@ public final class Forge {
 
     private static int count(ServerPlayerEntity p, Item it) {
         int n = 0;
-        for (ItemStack s : p.getInventory().main) if (s.isOf(it) && !Gear.isGear(s)) n += s.getCount();
+        for (int a : AotRpg.SATCHEL.addresses(p)) {
+            ItemStack s = AotRpg.SATCHEL.at(p, a);
+            if (s.isOf(it) && !Gear.isGear(s)) n += s.getCount();
+        }
         return n;
     }
 
     private static void take(ServerPlayerEntity p, Item it, int n) {
-        for (ItemStack s : p.getInventory().main) {
+        AotRpg.SATCHEL.get(p.getUuid()).markDirty();
+        for (int a : AotRpg.SATCHEL.addresses(p)) {
+            ItemStack s = AotRpg.SATCHEL.at(p, a);
             if (n <= 0) return;
             if (!s.isOf(it) || Gear.isGear(s)) continue;
             int k = Math.min(n, s.getCount());
@@ -79,8 +84,7 @@ public final class Forge {
     }
 
     public void upgrade(ServerPlayerEntity p, int slot, double quality) {
-        if (slot < 0 || slot >= p.getInventory().main.size()) return;
-        ItemStack s = p.getInventory().main.get(slot);
+        ItemStack s = AotRpg.SATCHEL.at(p, slot);
         if (!Gear.isGear(s) || Gear.data(s).getInt("up") >= 10) return;
         // Upgrades lift gear at most 3 levels above your own (item level + upgrades).
         int cap = AotRpg.PROFILES.get(p.getUuid()).level + 3;
@@ -156,11 +160,12 @@ public final class Forge {
 
     public void send(ServerPlayerEntity p, boolean open) {
         if (!ServerPlayNetworking.canSend(p, Net.ForgeView.ID)) return;
+        AotRpg.SATCHEL.send(p, false);
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         int smith = Lifestyle.level(pr, Lifestyle.SMITHING);
         List<Net.ForgeGear> gear = new ArrayList<>();
-        for (int i = 0; i < p.getInventory().main.size(); i++) {
-            ItemStack s = p.getInventory().main.get(i);
+        for (int i : AotRpg.SATCHEL.addresses(p)) {
+            ItemStack s = AotRpg.SATCHEL.at(p, i);
             if (!Gear.isGear(s)) continue;
             long[] c = cost(s);
             gear.add(new Net.ForgeGear(i, Gear.data(s).getInt("up"), c[0], (int) c[1], (int) c[2], (float) chance(s, smith, 0)));

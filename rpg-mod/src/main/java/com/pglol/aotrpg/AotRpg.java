@@ -117,7 +117,10 @@ public final class AotRpg implements ModInitializer {
                 case "buy" -> MARKET.buy(p, payload.item(), payload.qty());
                 case "sell" -> MARKET.sell(p, payload.item(), payload.qty());
                 case "sellgear" -> MARKET.sellGear(p, payload.qty());
-                case "exchange" -> EXCHANGE.send(p);
+                case "exchange" -> {
+                    EXCHANGE.deliver(p);
+                    EXCHANGE.send(p);
+                }
                 case "list" -> EXCHANGE.list(p, payload.qty(), payload.number());
                 case "buylisting" -> EXCHANGE.buy(p, payload.number());
                 case "cancel" -> EXCHANGE.cancel(p, payload.number());
@@ -273,6 +276,9 @@ public final class AotRpg implements ModInitializer {
                 byte[] part = java.util.Arrays.copyOfRange(data, i * size, Math.min(data.length, (i + 1) * size));
                 ServerPlayNetworking.send(ctx.player(), new Net.MapChunk(payload.name(), i, total, part));
             }
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.BagAction.ID, (payload, ctx) -> {
+            if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.action(ctx.player(), payload.action(), payload.slot(), payload.arg());
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.StatsRequest.ID, (payload, ctx) -> STATS.send(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {
@@ -449,6 +455,7 @@ public final class AotRpg implements ModInitializer {
                     PROGRESSION.apply(p, pr);
                     sync(p, pr);
                     NAMETAGS.update(p, pr);
+                    SATCHEL.send(p, false);
                     STORY.send(p, pr);
                     p.sendMessage(Text.literal("Welcome back, ").formatted(Formatting.GRAY)
                         .append(Text.literal(pr.name).formatted(Formatting.GOLD, Formatting.BOLD))
@@ -546,6 +553,7 @@ public final class AotRpg implements ModInitializer {
             if (ticks % 1200 == 0 && !CROWD.afk(p)) TASKS.count(p, Tasks.MINUTES, 1);
             if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {
                 SATCHEL.tickSupplies(p);
+                SATCHEL.sweep(p);
                 HEAL.sync(p, ticks % 40 == 0);
             }
             if (ticks % 20 == 0 && PROFILES.get(p.getUuid()).created) PROGRESSION.hunger(p);

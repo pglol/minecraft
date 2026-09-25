@@ -116,7 +116,7 @@ public final class Exchange {
             marks += m.marks;
             if (m.item != null) {
                 ItemStack s = decode(m.item);
-                if (!s.isEmpty()) p.getInventory().offerOrDrop(s);
+                if (!s.isEmpty()) AotRpg.SATCHEL.add(p, s);
             }
             if (m.note != null) p.sendMessage(Text.literal("Exchange: " + m.note).formatted(Formatting.GRAY), false);
         }
@@ -125,9 +125,8 @@ public final class Exchange {
     }
 
     public void list(ServerPlayerEntity p, int slot, long price) {
-        if (AotRpg.MARKET.town(p) == null || price <= 0 || price > 10_000_000) return;
-        if (slot < 0 || slot >= p.getInventory().main.size()) return;
-        ItemStack s = p.getInventory().main.get(slot);
+        if (price <= 0 || price > 10_000_000) return;
+        ItemStack s = AotRpg.SATCHEL.at(p, slot);
         if (s.isEmpty() || Satchel.isStory(s)) return;
         String st = stem(p);
         long mine = data.listings.stream().filter(l -> l.stem.equals(st)).count();
@@ -144,7 +143,7 @@ public final class Exchange {
         l.price = price;
         l.created = System.currentTimeMillis();
         data.listings.add(l);
-        p.getInventory().main.set(slot, ItemStack.EMPTY);
+        AotRpg.SATCHEL.set(p, slot, ItemStack.EMPTY);
         save();
         p.sendMessage(Text.literal("Listed ").formatted(Formatting.GRAY).append(s.getName().copy())
             .append(Text.literal(" for ").formatted(Formatting.GRAY)).append(Wallet.marks(price)), true);
@@ -152,7 +151,6 @@ public final class Exchange {
     }
 
     public void buy(ServerPlayerEntity p, long id) {
-        if (AotRpg.MARKET.town(p) == null) return;
         Listing l = byId(id);
         if (l == null) return;
         if (l.stem.equals(stem(p))) {
@@ -165,7 +163,7 @@ public final class Exchange {
         }
         data.listings.remove(l);
         ItemStack s = decode(l.item);
-        p.getInventory().offerOrDrop(s);
+        AotRpg.SATCHEL.add(p, s.copy());
         long net = Math.round(l.price * (1 - FEE));
         mail(l.stem, net, null, "sold " + s.getCount() + "x " + s.getName().getString() + " for " + net + " Marks");
         save();
@@ -180,7 +178,7 @@ public final class Exchange {
         Listing l = byId(id);
         if (l == null || !l.stem.equals(stem(p))) return;
         data.listings.remove(l);
-        p.getInventory().offerOrDrop(decode(l.item));
+        AotRpg.SATCHEL.add(p, decode(l.item));
         save();
         send(p);
     }
@@ -206,6 +204,7 @@ public final class Exchange {
 
     public void send(ServerPlayerEntity p) {
         if (!ServerPlayNetworking.canSend(p, Net.ExchangeView.ID)) return;
+        AotRpg.SATCHEL.send(p, false);
         String st = stem(p);
         List<Net.ExchangeEntry> out = new ArrayList<>();
         List<Listing> sorted = new ArrayList<>(data.listings);

@@ -35,12 +35,28 @@ public final class ClientState {
     public static java.util.List<Net.ExchangeEntry> exchange = java.util.List.of();
     public static Net.FactionView factions;
     public static Net.StatsView stats;
+    /** The satchel's contents (slot -> stack) and its size. */
+    public static java.util.Map<Integer, net.minecraft.item.ItemStack> bag = new java.util.TreeMap<>();
+    public static int bagSize = 240;
+
+    /** A stack by address: 0-35 the player's inventory, 1000 + i the satchel. */
+    public static net.minecraft.item.ItemStack stackAt(int addr) {
+        if (addr >= com.pglol.aotrpg.Satchel.BAG) return bag.getOrDefault(addr - com.pglol.aotrpg.Satchel.BAG, net.minecraft.item.ItemStack.EMPTY);
+        var mc = net.minecraft.client.MinecraftClient.getInstance();
+        return mc.player == null || addr < 0 || addr >= mc.player.getInventory().main.size() ? net.minecraft.item.ItemStack.EMPTY
+            : mc.player.getInventory().main.get(addr);
+    }
     public static Net.HomeView home;
     public static Net.HomeAdminView homeAdmin;
     public static Net.ForgeView forge;
     public static Net.ModeView modes;
     public static Net.PassView pass;
     public static Net.StableView stable;
+
+    /** Whether we know you own a horse (from the last stable view). */
+    public static boolean hasHorse() {
+        return stable != null && !stable.horses().isEmpty();
+    }
     public static Net.TasksView tasks;
     /** "Your home" / "Your property" while standing on it, else "". */
     public static String property = "";

@@ -25,8 +25,23 @@ public final class MarketScreen extends Screen {
     private TextFieldWidget price;
     private static final int ROW = 22;
 
+    /** The Global Market: players' listings, open anywhere from the pause menu. Town markets are NPC trade only. */
+    private final boolean global;
+
     public MarketScreen() {
-        super(Text.literal("Market"));
+        this(false);
+    }
+
+    public MarketScreen(boolean global) {
+        super(Text.literal(global ? "Global Market" : "Market"));
+        this.global = global;
+    }
+
+    /** Things in your satchel you could list (story items can't be sold). */
+    private static List<Integer> listable() {
+        List<Integer> out = new ArrayList<>();
+        for (var e : ClientState.bag.entrySet()) if (!com.pglol.aotrpg.Satchel.isStory(e.getValue())) out.add(e.getKey());
+        return out;
     }
 
     @Override
@@ -62,9 +77,12 @@ public final class MarketScreen extends Screen {
         h = Math.min(300, height - 60);
         left = (width - w) / 2;
         top = Math.max(44, (height - h) / 2 + 10);
-        for (int i = 0; i < TABS.length; i++) {
+        if (global) tab = 1;
+        else if (tab == 1) tab = 0;
+        for (int i = 0; i < TABS.length && !global; i++) {
+            if (i == 1) continue;
             int t = i;
-            addDrawableChild(new AotButton(left + i * 110, top - 22, 106, 20, Ui.heading(TABS[i]), () -> {
+            addDrawableChild(new AotButton(left + (i == 2 ? 1 : i) * 110, top - 22, 106, 20, Ui.heading(TABS[i]), () -> {
                 tab = t;
                 scroll = 0;
                 if (t == 1) send("exchange", "", 0, 0);
@@ -154,10 +172,11 @@ public final class MarketScreen extends Screen {
         // Exchange tab: click one of your inventory items to choose it for listing.
         if (tab == 1 && client.player != null) {
             int gx = left + 10, gy = top + h - 52;
-            for (int i = 0; i < 36; i++) {
+            List<Integer> items = listable();
+            for (int i = 0; i < Math.min(36, items.size()); i++) {
                 int x = gx + (i % 18) * 18, y = gy + (i / 18) * 18 - 18;
-                if (mx >= x && mx < x + 16 && my >= y && my < y + 16 && !client.player.getInventory().main.get(i).isEmpty()) {
-                    listSlot = i;
+                if (mx >= x && mx < x + 16 && my >= y && my < y + 16) {
+                    listSlot = com.pglol.aotrpg.Satchel.BAG + items.get(i);
                     return true;
                 }
             }
@@ -169,8 +188,8 @@ public final class MarketScreen extends Screen {
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
         Ui.backdrop(c, width, height);
         Net.MarketView v = ClientState.market;
-        Ui.text(c, Ui.title(v == null ? "MARKET" : v.town().toUpperCase(Locale.ROOT) + " MARKET"), width / 2f, top - 44, 1.2f, Ui.GOLD, true);
-        if (v != null) {
+        Ui.text(c, Ui.title(global ? "GLOBAL MARKET" : v == null ? "MARKET" : v.town().toUpperCase(Locale.ROOT) + " MARKET"), width / 2f, top - 44, 1.2f, Ui.GOLD, true);
+        if (v != null && !global) {
             String sub = v.sector() + (v.controller().isEmpty() ? "  ·  contested" : "  ·  held by the " + v.controller())
                 + (v.discount() > 0 ? "  ·  your faction: " + v.discount() + "% better prices" : "");
             Ui.text(c, Text.literal(sub), width / 2f, top - 32, 0.75f, Ui.MUTED, true);
@@ -216,8 +235,8 @@ public final class MarketScreen extends Screen {
     }
 
     private void drawExchange(DrawContext c, int mx, int my) {
-        Ui.text(c, Ui.heading("Exchange"), left + 10, top + 8, 1f, Ui.GOLD, false);
-        Ui.text(c, Text.literal("Players' listings (5% fee on sale). Proceeds reach your mailbox at any market."), left + 110, top + 10, 0.65f, Ui.MUTED, false);
+        Ui.text(c, Ui.heading("Player listings"), left + 10, top + 8, 1f, Ui.GOLD, false);
+        Ui.text(c, Text.literal("5% fee on sale. Your proceeds arrive in your purse the next time you open this."), left + 120, top + 10, 0.65f, Ui.MUTED, false);
         List<Net.ExchangeEntry> list = ClientState.exchange;
         int y = top + 30;
         int n = rows() - 3;
@@ -237,12 +256,13 @@ public final class MarketScreen extends Screen {
         // Your inventory, to pick something to list.
         if (client.player == null) return;
         int gx = left + 10, gy = top + h - 52;
-        Ui.text(c, Text.literal("Pick an item to list:"), gx, gy - 28, 0.65f, Ui.MUTED, false);
+        Ui.text(c, Text.literal("Pick something from your satchel to list (or use Sell in the satchel):"), gx, gy - 28, 0.65f, Ui.MUTED, false);
+        List<Integer> items = listable();
         for (int i = 0; i < 36; i++) {
             int x = gx + (i % 18) * 18, yy = gy + (i / 18) * 18 - 18;
             Ui.slot(c, x - 1, yy - 1);
-            ItemStack s = client.player.getInventory().main.get(i);
-            if (i == listSlot) c.drawBorder(x - 1, yy - 1, 18, 18, Ui.GOLD);
+            ItemStack s = i < items.size() ? ClientState.bag.get(items.get(i)) : ItemStack.EMPTY;
+            if (i < items.size() && com.pglol.aotrpg.Satchel.BAG + items.get(i) == listSlot) c.drawBorder(x - 1, yy - 1, 18, 18, Ui.GOLD);
             if (!s.isEmpty()) {
                 c.drawItem(s, x, yy);
                 c.drawItemInSlot(textRenderer, s, x, yy);
@@ -259,7 +279,7 @@ public final class MarketScreen extends Screen {
         if (v.gear().isEmpty()) Ui.text(c, Text.literal("No gear in your backpack."), left + 14, y + 6, 0.8f, Ui.MUTED, false);
         for (Net.GearOffer g : v.gear()) {
             if (y > top + h - 26) break;
-            ItemStack s = client.player.getInventory().main.get(g.slot());
+            ItemStack s = ClientState.stackAt(g.slot());
             GearUi.backing(c, s, left + 10, y + 3);
             c.drawItem(s, left + 10, y + 3);
             Ui.text(c, s.getName(), left + 32, y + 7, 0.85f, Ui.CREAM, false);

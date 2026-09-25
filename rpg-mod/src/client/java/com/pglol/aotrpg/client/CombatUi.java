@@ -183,6 +183,13 @@ public final class CombatUi {
         c.fill(x0, y, x0 + Math.round((x1 - x0) * frac), y + 2, Ui.XP);
         String lv = "Lv " + p.level();
         Ui.text(c, Text.literal(lv), x1 + 4, h - 10, 0.7f, Ui.GOLD, false);
+        // Progress to the next level, in numbers, sitting on the bar.
+        String prog = String.format(java.util.Locale.ROOT, "%,d / %,d XP  ·  %d%% to Lv %d", p.xp(), p.need(), Math.round(frac * 100), p.level() + 1);
+        float ps = 0.55f;
+        int pw = Math.round(mc.textRenderer.getWidth(prog) * ps);
+        int px = (x0 + x1) / 2;
+        c.fill(px - pw / 2 - 3, y - 6, px + pw / 2 + 3, y, 0xB0101410);
+        Ui.text(c, Text.literal(prog), px, y - 5, ps, 0xFFE8D9A8, true);
         if (now - gainAt < 2200 && gained > 0) {
             float f = (now - gainAt) / 2200f;
             int a = (int) (255 * (f < 0.7f ? 1 : (1 - f) / 0.3f));

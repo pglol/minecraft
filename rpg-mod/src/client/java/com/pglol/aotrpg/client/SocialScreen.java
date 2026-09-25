@@ -64,13 +64,16 @@ public final class SocialScreen extends Screen {
             })).selected(tab == i);
         }
         // Shortcuts along the bottom.
-        String[] names = {"Party", "Tasks", "Battle Pass", "Event Shop", "Market", "Factions"};
+        String[] names = {"Party", "Tasks", "Battle Pass", "Event Shop", "Global Market", "Factions"};
         Runnable[] runs = {
             () -> client.setScreen(new PartyScreen()),
             () -> ClientPlayNetworking.send(new Net.TaskAction("open", "")),
             () -> ClientPlayNetworking.send(new Net.PassAction("open", 0)),
             () -> ClientPlayNetworking.send(new Net.EventAction("open", "")),
-            () -> ClientPlayNetworking.send(new Net.MarketAction("open", "", 0, 0)),
+            () -> {
+                client.setScreen(new MarketScreen(true));
+                ClientPlayNetworking.send(new Net.MarketAction("exchange", "", 0, 0));
+            },
             () -> ClientPlayNetworking.send(new Net.FactionAction("open", ""))};
         int bw = (w - 20 - 4 * (names.length - 1)) / names.length;
         for (int i = 0; i < names.length; i++) {
