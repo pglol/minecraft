@@ -110,11 +110,11 @@ final class Datapack {
             }
         }
         json.append(String.join(", ", zones)).append("]}");
-        int bpp = Math.max(4, (w.atlas.maxX - w.atlas.minX) / 2048);
+        int bpp = com.pglol.aotworld.preview.MapPreview.gameMapBpp(w);
         json.append(String.format(Locale.ROOT, ",\n  \"map\": {\"file\": \"aot-map.png\", \"x0\": %d, \"z0\": %d, \"bpp\": %d}\n}\n",
-            w.atlas.minX, w.atlas.minZ, bpp));
+            w.atlas.minX - com.pglol.aotworld.preview.MapPreview.GAME_MAP_PAD, w.atlas.minZ, bpp));
         System.out.println("Drawing the in-game world map...");
-        javax.imageio.ImageIO.write(com.pglol.aotworld.preview.MapPreview.overview(w, bpp, true), "png", world.resolve("aot-map.png").toFile());
+        javax.imageio.ImageIO.write(com.pglol.aotworld.preview.MapPreview.gameMap(w), "png", world.resolve("aot-map.png").toFile());
         Files.writeString(world.resolve("aot-rpg.json"), json.toString(), StandardCharsets.UTF_8);
     }
 

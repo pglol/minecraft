@@ -5,6 +5,7 @@ import com.pglol.aotworld.core.Atlas;
 import com.pglol.aotworld.core.Blocks;
 import com.pglol.aotworld.core.ChunkBuffer;
 import com.pglol.aotworld.core.Column;
+import com.pglol.aotworld.core.Hash;
 import com.pglol.aotworld.core.Region;
 import com.pglol.aotworld.core.Terrain;
 import com.pglol.aotworld.core.WorldSpec;
@@ -261,6 +262,280 @@ public final class MapPreview {
     }
 
     // ---- Detail --------------------------------------------------------------------------
+
+    // ---- In-game world map: an old parchment chart ----------------------------------------
+
+    private static final int K_SEA = 0, K_LAND = 1, K_FOREST = 2, K_MOUNT = 3, K_SAND = 4, K_WATER = 5, K_SNOW = 6;
+
+    /** Pads the chart west of the generated world so Marley fades into "uncharted" land. */
+    public static final int GAME_MAP_PAD = 1800;
+
+    public static int gameMapBpp(AotWorld w) {
+        return Math.max(4, (w.atlas.maxX - (w.atlas.minX - GAME_MAP_PAD)) / 2048);
+    }
+
+    /** The in-game world map. The top-left pixel is world (minX - GAME_MAP_PAD, minZ). */
+    public static BufferedImage gameMap(AotWorld w) {
+        Atlas a = w.atlas;
+        int bpp = gameMapBpp(w);
+        int x0 = a.minX - GAME_MAP_PAD, z0 = a.minZ;
+        int width = (a.maxX - x0) / bpp, height = (a.maxZ - z0) / bpp;
+        int n = width * height;
+        int[] hts = new int[n];
+        float[] sd = new float[n];
+        byte[] kind = new byte[n];
+        boolean[] outside = new boolean[n];
+        Atlas.Site gf = a.site(Atlas.Kind.GIANT_FOREST);
+        IntStream.range(0, height).parallel().forEach(py -> {
+            Column c = new Column();
+            for (int px = 0; px < width; px++) {
+                int i = py * width + px;
+                int x = x0 + px * bpp, z = z0 + py * bpp;
+                sd[i] = (float) a.landSD(x, z);
+                if (x < a.minX) {
+                    outside[i] = true;
+                    kind[i] = (byte) (sd[i] > 0 ? K_LAND : K_SEA);
+                    hts[i] = WorldSpec.SEA + (sd[i] > 0 ? 4 : 0);
+                    continue;
+                }
+                w.terrain.sample(x, z, c);
+                hts[i] = c.height;
+                byte k;
+                if (c.underwater()) k = (byte) (c.river || c.lake ? K_WATER : K_SEA);
+                else if (c.surface == Blocks.SNOW_BLOCK) k = K_SNOW;
+                else if (c.height > 135) k = K_MOUNT;
+                else if (c.surface == Blocks.SAND || c.biome == Terrain.B_DESERT) k = K_SAND;
+                else if (c.biome == Terrain.B_FOREST || c.biome == Terrain.B_DARK_FOREST || c.biome == Terrain.B_TAIGA
+                    || c.biome == Terrain.B_BIRCH || (gf != null && Math.hypot(x - gf.x, z - gf.z) < gf.radius)) k = K_FOREST;
+                else k = K_LAND;
+                kind[i] = k;
+            }
+        });
+        // Distance from land for every sea pixel (chamfer 3-4), for tint and coastal ripple lines.
+        int[] dist = new int[n];
+        final int INF = 1 << 28;
+        for (int i = 0; i < n; i++) dist[i] = kind[i] == K_SEA ? INF : 0;
+        for (int py = 0; py < height; py++) {
+            for (int px = 0; px < width; px++) {
+                int i = py * width + px;
+                if (dist[i] == 0) continue;
+                int d = dist[i];
+                if (px > 0) d = Math.min(d, dist[i - 1] + 3);
+                if (py > 0) {
+                    d = Math.min(d, dist[i - width] + 3);
+                    if (px > 0) d = Math.min(d, dist[i - width - 1] + 4);
+                    if (px < width - 1) d = Math.min(d, dist[i - width + 1] + 4);
+                }
+                dist[i] = d;
+            }
+        }
+        for (int py = height - 1; py >= 0; py--) {
+            for (int px = width - 1; px >= 0; px--) {
+                int i = py * width + px;
+                if (dist[i] == 0) continue;
+                int d = dist[i];
+                if (px < width - 1) d = Math.min(d, dist[i + 1] + 3);
+                if (py < height - 1) {
+                    d = Math.min(d, dist[i + width] + 3);
+                    if (px < width - 1) d = Math.min(d, dist[i + width + 1] + 4);
+                    if (px > 0) d = Math.min(d, dist[i + width - 1] + 4);
+                }
+                dist[i] = d;
+            }
+        }
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        for (int py = 0; py < height; py++) {
+            for (int px = 0; px < width; px++) {
+                int i = py * width + px;
+                int k = kind[i];
+                double r, g, b;
+                if (k == K_SEA) {
+                    double blocks = dist[i] / 3.0 * bpp;
+                    double t = Math.min(1, blocks / 1400.0);
+                    r = 150 + 40 * t; g = 166 + 24 * t; b = 158 + 10 * t;
+                    double ripple = blocks % 95;
+                    if (blocks > 25 && blocks < 420 && ripple < bpp * 0.9) { r *= 0.84; g *= 0.86; b *= 0.86; }
+                } else if (k == K_WATER) {
+                    r = 122; g = 146; b = 146;
+                } else {
+                    switch (k) {
+                        case K_FOREST: r = 164; g = 156; b = 102; break;
+                        case K_MOUNT: r = 182; g = 162; b = 128; break;
+                        case K_SAND: r = 228; g = 210; b = 160; break;
+                        case K_SNOW: r = 238; g = 230; b = 212; break;
+                        default: r = 208; g = 186; b = 138;
+                    }
+                    if (px > 0 && py > 0) {
+                        int d = hts[i] - hts[i - width - 1];
+                        double f = 1 + Math.max(-0.28, Math.min(0.28, d * (k == K_MOUNT ? 0.09 : 0.05)));
+                        r *= f; g *= f; b *= f;
+                    }
+                    if (k == K_FOREST && Hash.unit(Hash.of(7, px, py)) < 0.22) { r *= 0.8; g *= 0.8; b *= 0.78; }
+                    // Coastline in ink.
+                    boolean coast = false;
+                    if (px > 0 && kind[i - 1] == K_SEA) coast = true;
+                    if (px < width - 1 && kind[i + 1] == K_SEA) coast = true;
+                    if (py > 0 && kind[i - width] == K_SEA) coast = true;
+                    if (py < height - 1 && kind[i + width] == K_SEA) coast = true;
+                    if (coast) { r = 78; g = 56; b = 34; }
+                }
+                if (outside[i]) {
+                    // Beyond the charted world: faded, hatched.
+                    double fade = Math.min(1, (a.minX - (x0 + px * bpp)) / 900.0);
+                    r = r * (1 - 0.5 * fade) + 206 * 0.5 * fade;
+                    g = g * (1 - 0.5 * fade) + 188 * 0.5 * fade;
+                    b = b * (1 - 0.5 * fade) + 146 * 0.5 * fade;
+                    if ((px + py) % 7 == 0) { r *= 0.88; g *= 0.88; b *= 0.88; }
+                }
+                img.setRGB(px, py, rgb(r, g, b));
+            }
+        }
+
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        double s = 1.0 / bpp;
+        java.util.function.DoubleUnaryOperator X = x -> (x - x0) * s, Z = z -> (z - z0) * s;
+        // Faint survey grid.
+        g.setColor(new Color(60, 40, 20, 26));
+        g.setStroke(new BasicStroke(1f));
+        for (int gx = (int) Math.ceil(x0 / 2000.0) * 2000; gx < x0 + width * bpp; gx += 2000) g.drawLine((int) X.applyAsDouble(gx), 0, (int) X.applyAsDouble(gx), height);
+        for (int gz = (int) Math.ceil(z0 / 2000.0) * 2000; gz < z0 + height * bpp; gz += 2000) g.drawLine(0, (int) Z.applyAsDouble(gz), width, (int) Z.applyAsDouble(gz));
+        // Rivers.
+        g.setStroke(new BasicStroke(1.6f));
+        g.setColor(new Color(0x5E7A80));
+        for (com.pglol.aotworld.core.River r : a.rivers) {
+            for (int i = 0; i + 1 < r.xs.length; i++) {
+                g.drawLine((int) X.applyAsDouble(r.xs[i]), (int) Z.applyAsDouble(r.zs[i]),
+                    (int) X.applyAsDouble(r.xs[i + 1]), (int) Z.applyAsDouble(r.zs[i + 1]));
+            }
+        }
+        // Roads: solid ink for highways, dashes for trails.
+        for (com.pglol.aotworld.core.Road r : w.roads.roads()) {
+            switch (r.type) {
+                case MAIN: case PAVED: g.setStroke(new BasicStroke(1.4f)); g.setColor(new Color(0x6A4A2C)); break;
+                case TRAIL: g.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 1f, new float[] {3f, 2f}, 0f));
+                    g.setColor(new Color(0x7A5A3A)); break;
+                default: continue;
+            }
+            for (int i = 0; i + 1 < r.xs.length; i++) {
+                if (a.landSD(r.xs[i], r.zs[i]) < 0) continue;
+                g.drawLine((int) X.applyAsDouble(r.xs[i]), (int) Z.applyAsDouble(r.zs[i]),
+                    (int) X.applyAsDouble(r.xs[i + 1]), (int) Z.applyAsDouble(r.zs[i + 1]));
+            }
+        }
+        // Villages and towns in red-brown ink.
+        for (Village v : w.villages) {
+            int r = Math.max(2, (int) (v.radius * s * 0.8));
+            g.setColor(new Color(0x9A5A36));
+            g.fillOval((int) X.applyAsDouble(v.cx) - r, (int) Z.applyAsDouble(v.cz) - r, 2 * r, 2 * r);
+        }
+        g.setStroke(new BasicStroke(1.2f));
+        for (Atlas.District d : a.districts) {
+            double r = d.radius * s;
+            int ex = (int) (X.applyAsDouble(d.cx) - r), ez = (int) (Z.applyAsDouble(d.cz) - r);
+            g.setColor(new Color(0x9A5A36));
+            g.fillOval(ex, ez, (int) (2 * r), (int) (2 * r));
+            g.setColor(new Color(0x3A2818));
+            g.drawOval(ex, ez, (int) (2 * r), (int) (2 * r));
+        }
+        double cr = a.capitalRadius * s;
+        g.setColor(new Color(0xA8743A));
+        g.fillOval((int) (X.applyAsDouble(0) - cr), (int) (Z.applyAsDouble(0) - cr), (int) (2 * cr), (int) (2 * cr));
+        g.setColor(new Color(0x3A2818));
+        g.drawOval((int) (X.applyAsDouble(0) - cr), (int) (Z.applyAsDouble(0) - cr), (int) (2 * cr), (int) (2 * cr));
+        for (Atlas.Site site : a.sites) {
+            if (site.kind == Atlas.Kind.GIANT_FOREST) continue;
+            int r = Math.max(3, (int) (site.radius * s * 0.7));
+            int sx = (int) X.applyAsDouble(site.x), sz = (int) Z.applyAsDouble(site.z);
+            g.setColor(new Color(0x8A4A2E));
+            g.fillRect(sx - r, sz - r, 2 * r, 2 * r);
+            g.setColor(new Color(0x3A2818));
+            g.drawRect(sx - r, sz - r, 2 * r, 2 * r);
+        }
+        // The Walls: bold ink.
+        for (Atlas.Wall wall : a.walls) {
+            double r = wall.radius * s;
+            g.setStroke(new BasicStroke(3.4f));
+            g.setColor(new Color(0x3A2818));
+            g.drawOval((int) (X.applyAsDouble(0) - r), (int) (Z.applyAsDouble(0) - r), (int) (2 * r), (int) (2 * r));
+            g.setStroke(new BasicStroke(1f));
+            g.setColor(new Color(0xC8A870));
+            g.drawOval((int) (X.applyAsDouble(0) - r), (int) (Z.applyAsDouble(0) - r), (int) (2 * r), (int) (2 * r));
+        }
+        compass(g, width - 150, height - 150, 90);
+        g.dispose();
+        paper(img);
+        return img;
+    }
+
+    private static int rgb(double r, double g, double b) {
+        return ((int) Math.max(0, Math.min(255, r)) << 16) | ((int) Math.max(0, Math.min(255, g)) << 8) | (int) Math.max(0, Math.min(255, b));
+    }
+
+    /** A simple ink compass rose. */
+    private static void compass(Graphics2D g, int cx, int cy, int r) {
+        g.setColor(new Color(58, 40, 24, 200));
+        g.setStroke(new BasicStroke(1.5f));
+        g.drawOval(cx - r, cy - r, 2 * r, 2 * r);
+        g.drawOval(cx - r + 8, cy - r + 8, 2 * r - 16, 2 * r - 16);
+        for (int i = 0; i < 8; i++) {
+            double ang = i * Math.PI / 4 - Math.PI / 2;
+            double len = i % 2 == 0 ? r - 4 : r * 0.55;
+            double w = i % 2 == 0 ? 12 : 7;
+            double lx = Math.cos(ang), lz = Math.sin(ang), nx = -lz, nz = lx;
+            int[] xs = {cx + (int) (lx * len), cx + (int) (nx * w), cx - (int) (nx * w)};
+            int[] zs = {cy + (int) (lz * len), cy + (int) (nz * w), cy - (int) (nz * w)};
+            g.setColor(i == 0 ? new Color(0x8A2A1E) : new Color(58, 40, 24, 220));
+            g.fillPolygon(xs, zs, 3);
+        }
+        g.setFont(new Font(Font.SERIF, Font.BOLD, 22));
+        g.setColor(new Color(0x3A2818));
+        String[] l = {"N", "E", "S", "W"};
+        for (int i = 0; i < 4; i++) {
+            double ang = i * Math.PI / 2 - Math.PI / 2;
+            int tx = cx + (int) (Math.cos(ang) * (r + 16)), tz = cy + (int) (Math.sin(ang) * (r + 16));
+            int tw = g.getFontMetrics().stringWidth(l[i]);
+            g.drawString(l[i], tx - tw / 2, tz + 8);
+        }
+    }
+
+    /** Paper grain, a few stains and scorched edges. */
+    private static void paper(BufferedImage img) {
+        int w = img.getWidth(), h = img.getHeight();
+        long seed = 91;
+        double[][] stains = new double[7][];
+        for (int i = 0; i < stains.length; i++) {
+            stains[i] = new double[] {Hash.unit(Hash.of(seed, i, 1)) * w, Hash.unit(Hash.of(seed, i, 2)) * h,
+                60 + Hash.unit(Hash.of(seed, i, 3)) * 220};
+        }
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int c = img.getRGB(x, y);
+                double r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
+                double grain = 0.94 + 0.06 * valueNoise(x / 3.0, y / 3.0) + 0.05 * (valueNoise(x / 40.0 + 9, y / 40.0 + 3) - 0.5);
+                for (double[] st : stains) {
+                    double d = Math.hypot(x - st[0], y - st[1]) / st[2];
+                    if (d < 1) grain *= 1 - 0.06 * (1 - d) * (1 - d);
+                }
+                double ex = Math.min(x, w - 1 - x) / (double) w, ey = Math.min(y, h - 1 - y) / (double) h;
+                double e = Math.min(ex, ey) + 0.012 * (valueNoise(x / 25.0, y / 25.0) - 0.5);
+                double burn = e < 0.005 ? 0.35 : e < 0.03 ? 0.35 + 0.65 * (e - 0.005) / 0.025 : 1;
+                double vig = 1 - 0.18 * Math.pow(1 - Math.min(ex, ey) * 2, 3);
+                double f = grain * burn * vig;
+                img.setRGB(x, y, rgb(r * f, g * f * 0.985, b * f * 0.96));
+            }
+        }
+    }
+
+    private static double valueNoise(double x, double y) {
+        int ix = (int) Math.floor(x), iy = (int) Math.floor(y);
+        double fx = x - ix, fy = y - iy;
+        fx = fx * fx * (3 - 2 * fx);
+        fy = fy * fy * (3 - 2 * fy);
+        double a = Hash.unit(Hash.of(5, ix, iy)), b = Hash.unit(Hash.of(5, ix + 1, iy));
+        double c = Hash.unit(Hash.of(5, ix, iy + 1)), d = Hash.unit(Hash.of(5, ix + 1, iy + 1));
+        return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+    }
 
     /** Old-map look: colours pulled toward sepia parchment, darker edges. */
     private static void parchment(BufferedImage img) {
