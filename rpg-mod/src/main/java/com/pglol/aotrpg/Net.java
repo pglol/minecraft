@@ -452,7 +452,17 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: how many ODM grips a player has sheathed on their back (0-2), and which item. */
+    public record SheathState(java.util.UUID player, String item, int count) implements CustomPayload {
+        public static final Id<SheathState> ID = id("sheath");
+        public static final PacketCodec<RegistryByteBuf, SheathState> CODEC = PacketCodec.of((v, b) -> {
+            b.writeUuid(v.player); b.writeString(v.item); b.writeVarInt(v.count);
+        }, b -> new SheathState(b.readUuid(), b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playS2C().register(SheathState.ID, SheathState.CODEC);
         PayloadTypeRegistry.playC2S().register(ShotFired.ID, ShotFired.CODEC);
         PayloadTypeRegistry.playC2S().register(QuickHealUse.ID, QuickHealUse.CODEC);
         PayloadTypeRegistry.playS2C().register(HealInfo.ID, HealInfo.CODEC);

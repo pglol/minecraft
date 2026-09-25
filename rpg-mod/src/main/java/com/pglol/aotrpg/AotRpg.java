@@ -51,6 +51,7 @@ public final class AotRpg implements ModInitializer {
     public static final QuickHeal HEAL = new QuickHeal();
     public static final Cosmetics COSMETICS = new Cosmetics();
     public static final WorldCare CARE = new WorldCare();
+    public static final Loadout LOADOUT = new Loadout();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -237,6 +238,7 @@ public final class AotRpg implements ModInitializer {
             Profile pr = PROFILES.get(p.getUuid());
             PARTIES.joined(p);
             COSMETICS.sync(p);
+            LOADOUT.sendAll(p);
             sendWorldData(p);
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
@@ -264,6 +266,7 @@ public final class AotRpg implements ModInitializer {
             SATCHEL.unload(p.getUuid());
             QUESTS.forget(p);
             HEAL.forget(p);
+            LOADOUT.forget(p);
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
             PROFILES.save(p.getUuid());
@@ -313,6 +316,7 @@ public final class AotRpg implements ModInitializer {
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
             STORY.tick(p, PROFILES.get(p.getUuid()), ticks);
             QUESTS.tick(p, PROFILES.get(p.getUuid()), ticks);
+            if (PROFILES.get(p.getUuid()).created) LOADOUT.tick(p, ticks);
             if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {
                 SATCHEL.tickSupplies(p);
                 HEAL.sync(p, ticks % 40 == 0);

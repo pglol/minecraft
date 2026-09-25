@@ -294,7 +294,26 @@ Starter kit: the cadet uniform (`dannys-aot:uniform`), ODM boots (`dannys-aot:od
 
 Supplies in the satchel: Ice Burst clusters (`dannys-aot:ice_burst_cluster`), blade components (`dannys-aot:blade_component`) and APG cartridges (`dannys-aot:apg_cartridge`) are kept in the satchel, and picked-up supplies are moved there. When you hold ODM gear, the APG ODM, a gas canister or the APG gun, one stack of each is brought out into your backpack rows (never the hotbar) so the AoT mod can use it (refilling the canister and so on). When you put the gear away they go back to the satchel.
 
-Combat hotbar: the same nine slots in the same place, grouped by importance: 1-3 Arms (red), 4-6 Gear (gold), 7-9 Utility (grey). The selected slot lifts and glows, and the group name shows when you switch. On the right sits the **quick heal** (**H**): it uses your best heal from the inventory or satchel (healing potion, golden apple, glistering melon, cooked meals) on an 8 second cooldown, showing the key, the item, how many you have and the cooldown.
+Combat loadout (hotbar): every slot has a purpose and only takes what belongs there. The HUD splits it down the middle, with a combat wing and a support wing pointing in at the heal slot:
+
+| Slot | For |
+|---|---|
+| 1 Melee | ODM gear grips, blades, swords, axes |
+| 2 Ranged | APG gun, bows, crossbows, muskets, thunder spears |
+| 3 Sidearm | a second weapon or a shield |
+| 4 Tool | pickaxes, shovels, fishing rods, shears |
+| **5 Heal** (centre) | provisions, campfire meals, golden apples, potions |
+| 6 Mount | saddle, lead, horse armor, horse treats |
+| 7 Signal | flare gun and flares, torches, spyglass, maps |
+| 8, 9 Free | anything |
+
+Misplaced items move to your backpack, and empty slots fill themselves with the best match from your backpack (bread goes straight into the heal slot). Empty slots show a faint picture of what goes there; hover one in the inventory for a hint. Creative mode is not restricted.
+
+**Quick heal (H)** uses the heal slot, or your best heal from the inventory or satchel when it's empty. It works instantly on an 8 second cooldown, and food mends a little health on top of the hunger it restores.
+
+**ODM sheath:** the two ODM grips are a set. Put one in slot 1 and the twin goes into a sheath on your back automatically. Select slot 1 and the twin is drawn into your off hand. Switch away and it's sheathed again, and whatever you had in your off hand comes back. Sheathed grips show crossed on your back for everyone, and the HUD shows DRAWN or SHEATH next to the hotbar. The inventory's character panel shows the loadout: the Melee pair, your armor, and Ranged and Sidearm.
+
+**Food is RPG food:** ready-to-eat food from loot, mob drops, trades or crafting (bread, cooked meat, pies, stews...) becomes a named provision as soon as it reaches your inventory or satchel. Provisions heal with H just like campfire meals. Raw meat, fish and vegetables are cooking ingredients. The starter kit has Survey Corps Rations and Field Bread.
 
 Social wheel (hold **Left Alt**, point, release): Party (members, leave or disband, one-click invites for players within 48 blocks), Emote (coming soon), Trade (coming soon), Cosmetics, and two reserved slots.
 

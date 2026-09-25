@@ -60,6 +60,10 @@ public final class AotRpgClient implements ClientModInitializer {
             ClientState.cosmeticsAll = payload.allowlisted();
             if (ctx.client().currentScreen instanceof CosmeticsScreen s) s.refresh();
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.SheathState.ID, (payload, ctx) -> ClientState.sheaths.put(payload.player(), payload));
+        net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback.EVENT.register((type, renderer, helper, context) -> {
+            if (renderer instanceof net.minecraft.client.render.entity.PlayerEntityRenderer pr) helper.register(new SheathFeature(pr));
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.Trail.ID, (payload, ctx) -> Trails.spawn(payload));
 
         ClientPlayNetworking.registerGlobalReceiver(Net.OpenCreator.ID, (payload, ctx) -> {
@@ -107,6 +111,7 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             ClientState.reset();
+            ClientState.sheaths.clear();
             MapData.reset();
         });
 

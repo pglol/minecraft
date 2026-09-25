@@ -71,7 +71,11 @@ public final class Kit {
         } else {
             p.giveItemStack(named(Items.IRON_SWORD, 1, "Training Blade", Formatting.WHITE, "Dull, but it will do."));
         }
-        p.giveItemStack(new ItemStack(Items.BREAD, 12));
+        // Food is RPG food: campfire rations for the heal slot, provisions for the road.
+        ItemStack ration = Cooking.Recipe.RATION.make();
+        ration.setCount(4);
+        p.giveItemStack(ration);
+        p.giveItemStack(Provisions.of(Items.BREAD, 8));
         switch (pr.discipline) {
             case SCOUT -> p.giveItemStack(named(Items.FIREWORK_ROCKET, 4, "Signal Flare", Formatting.GREEN, "Fire to signal your squad."));
             case VANGUARD -> p.giveItemStack(named(Items.IRON_SWORD, 1, "Spare Blade", Formatting.WHITE, "Blades dull fast against titans."));
@@ -81,7 +85,7 @@ public final class Kit {
                 p.giveItemStack(new ItemStack(Items.ARROW, 48));
             }
             case MEDIC -> {
-                p.giveItemStack(named(Items.GOLDEN_APPLE, 3, "Field Rations", Formatting.GOLD, "Restores health quickly."));
+                p.giveItemStack(named(Items.GOLDEN_APPLE, 3, "Medic's Golden Apple", Formatting.GOLD, "Restores health quickly. Heal slot [H]."));
                 p.giveItemStack(named(Items.GLISTERING_MELON_SLICE, 6, "Medicinal Herbs", Formatting.GREEN));
             }
         }

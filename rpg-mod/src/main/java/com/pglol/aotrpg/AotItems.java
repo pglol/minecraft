@@ -24,7 +24,7 @@ import java.util.Map;
 public final class AotItems {
     private AotItems() {}
 
-    private static String namespace;
+    public static volatile String namespace;
     private static final List<Identifier> ITEMS = new ArrayList<>();
 
     public static void scan(MinecraftServer server) {

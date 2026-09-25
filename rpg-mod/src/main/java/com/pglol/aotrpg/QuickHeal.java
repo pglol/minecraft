@@ -29,7 +29,7 @@ public final class QuickHeal {
     private final Map<UUID, String> lastSent = new HashMap<>();
 
     /** Higher is better; 0 = not a heal. */
-    static int rank(ItemStack s) {
+    public static int rank(ItemStack s) {
         if (s.isEmpty()) return 0;
         PotionContentsComponent pc = s.get(DataComponentTypes.POTION_CONTENTS);
         if (pc != null && s.isOf(Items.POTION)) {
@@ -41,7 +41,10 @@ public final class QuickHeal {
         if (s.isOf(Items.GOLDEN_APPLE)) return 40;
         if (s.isOf(Items.GLISTERING_MELON_SLICE)) return 30;
         var cd = s.get(DataComponentTypes.CUSTOM_DATA);
-        if (cd != null && cd.copyNbt().contains("aot_meal")) return 20;
+        if (Provisions.isCooked(s)) return 20;
+        // Provisions: bread, cooked meat, fish... Raw ingredients are for cooking, not healing.
+        var food = s.get(DataComponentTypes.FOOD);
+        if (food != null && Provisions.isProvision(s)) return 5 + Math.min(10, food.nutrition());
         return 0;
     }
 
@@ -51,6 +54,12 @@ public final class QuickHeal {
         Found best = null;
         int bestRank = 0, total = 0;
         Inventory[] invs = {p.getInventory(), AotRpg.SATCHEL.get(p.getUuid())};
+        // What you put in the heal slot (5) comes first.
+        ItemStack slot = p.getInventory().main.get(Loadout.HEAL_SLOT);
+        if (rank(slot) > 0) {
+            best = new Found(p.getInventory(), Loadout.HEAL_SLOT, slot, 0);
+            bestRank = Integer.MAX_VALUE;
+        }
         for (Inventory inv : invs) {
             for (int i = 0; i < inv.size(); i++) {
                 ItemStack s = inv.getStack(i);
@@ -78,7 +87,7 @@ public final class QuickHeal {
         }
         Found f = best(p);
         if (f == null) {
-            p.sendMessage(Text.literal("No healing items. Cook meals, carry golden apples or potions.").formatted(Formatting.RED), true);
+            p.sendMessage(Text.literal("Nothing to heal with. Carry food, meals or potions.").formatted(Formatting.RED), true);
             return;
         }
         ItemStack one = f.stack.copyWithCount(1);
@@ -86,8 +95,10 @@ public final class QuickHeal {
             p.heal(6);
             p.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 0));
         } else {
-            // Eats or drinks it instantly: food, effects and all.
+            // Eats or drinks it instantly: food, effects and all. Food also mends a little at once.
+            var food = one.get(DataComponentTypes.FOOD);
             one.getItem().finishUsing(one, p.getWorld(), p);
+            if (food != null && !one.isOf(Items.GOLDEN_APPLE) && !one.isOf(Items.ENCHANTED_GOLDEN_APPLE)) p.heal(Math.min(8, food.nutrition()));
         }
         f.stack.decrement(1);
         f.inv.markDirty();

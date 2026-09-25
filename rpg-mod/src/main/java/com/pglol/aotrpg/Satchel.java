@@ -30,6 +30,8 @@ import java.util.UUID;
 public final class Satchel {
     public static final int SIZE = 36;
     private final Map<UUID, SimpleInventory> bags = new HashMap<>();
+    /** Per player: the ODM sheath (0) and the off-hand item stashed while grips are drawn (1). */
+    private final Map<UUID, SimpleInventory> gears = new HashMap<>();
     private MinecraftServer server;
     private Path dir;
 
@@ -58,6 +60,7 @@ public final class Satchel {
         this.server = server;
         dir = server.getSavePath(WorldSavePath.ROOT).resolve("aot_rpg").resolve("satchels");
         bags.clear();
+        gears.clear();
         try {
             Files.createDirectories(dir);
         } catch (Exception e) {
@@ -69,6 +72,11 @@ public final class Satchel {
         return bags.computeIfAbsent(id, this::load);
     }
 
+    public SimpleInventory gear(UUID id) {
+        get(id);
+        return gears.computeIfAbsent(id, k -> new SimpleInventory(2));
+    }
+
     private SimpleInventory load(UUID id) {
         SimpleInventory inv = new SimpleInventory(SIZE);
         Path f = dir.resolve(id + ".dat");
@@ -76,6 +84,11 @@ public final class Satchel {
             try {
                 NbtCompound n = NbtIo.readCompressed(f, NbtSizeTracker.ofUnlimitedBytes());
                 inv.readNbtList(n.getList("Items", NbtElement.COMPOUND_TYPE), server.getRegistryManager());
+                SimpleInventory g = new SimpleInventory(2);
+                if (n.contains("Gear", NbtElement.COMPOUND_TYPE)) {
+                    net.minecraft.inventory.Inventories.readNbt(n.getCompound("Gear"), g.getHeldStacks(), server.getRegistryManager());
+                }
+                gears.put(id, g);
             } catch (Exception e) {
                 AotRpg.LOG.error("Could not read satchel {}", f, e);
             }
@@ -89,6 +102,12 @@ public final class Satchel {
         try {
             NbtCompound n = new NbtCompound();
             n.put("Items", inv.toNbtList(server.getRegistryManager()));
+            SimpleInventory g = gears.get(id);
+            if (g != null) {
+                NbtCompound gn = new NbtCompound();
+                net.minecraft.inventory.Inventories.writeNbt(gn, g.getHeldStacks(), server.getRegistryManager());
+                n.put("Gear", gn);
+            }
             NbtIo.writeCompressed(n, dir.resolve(id + ".dat"));
         } catch (Exception e) {
             AotRpg.LOG.error("Could not save satchel {}", id, e);
@@ -98,6 +117,7 @@ public final class Satchel {
     public void unload(UUID id) {
         save(id);
         bags.remove(id);
+        gears.remove(id);
     }
 
     public void saveAll() {
