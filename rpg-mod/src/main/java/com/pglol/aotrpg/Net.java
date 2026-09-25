@@ -521,7 +521,17 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: you hit something. kind bits: 1 ranged, 2 kill, 4 player, 8 titan. */
+    public record HitMarker(int entity, float damage, int kind) implements CustomPayload {
+        public static final Id<HitMarker> ID = id("hit");
+        public static final PacketCodec<RegistryByteBuf, HitMarker> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.entity); b.writeFloat(v.damage); b.writeVarInt(v.kind);
+        }, b -> new HitMarker(b.readVarInt(), b.readFloat(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playS2C().register(HitMarker.ID, HitMarker.CODEC);
         PayloadTypeRegistry.playS2C().register(WalletSync.ID, WalletSync.CODEC);
         PayloadTypeRegistry.playS2C().register(CharacterList.ID, CharacterList.CODEC);
         PayloadTypeRegistry.playC2S().register(CharacterAction.ID, CharacterAction.CODEC);

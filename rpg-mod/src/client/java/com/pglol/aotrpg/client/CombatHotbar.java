@@ -100,6 +100,7 @@ public final class CombatHotbar {
         if (sel) c.drawBorder(x - 1, y - 1, S + 2, S + 2, 0xFFEDE3C8);
         ItemStack st = pl.getInventory().main.get(i);
         if (!st.isEmpty()) {
+            GearUi.backing(c, st, x + 2, y + 2);
             c.drawItem(pl, st, x + 2, y + 2, i + 1);
             c.drawItemInSlot(mc.textRenderer, st, x + 2, y + 2);
         } else {

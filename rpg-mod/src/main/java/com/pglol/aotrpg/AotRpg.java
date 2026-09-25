@@ -55,6 +55,7 @@ public final class AotRpg implements ModInitializer {
     public static final Characters CHARACTERS = new Characters();
     public static final Wallet WALLET = new Wallet();
     public static final Gear GEAR = new Gear();
+    public static final Combat COMBAT = new Combat();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
@@ -342,6 +343,7 @@ public final class AotRpg implements ModInitializer {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
             !(entity instanceof ServerPlayerEntity victim && source.getAttacker() instanceof ServerPlayerEntity attacker
                 && PARTIES.same(attacker.getUuid(), victim.getUuid())));
+        COMBAT.register();
     }
 
     private void tick(MinecraftServer server) {

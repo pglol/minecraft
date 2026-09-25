@@ -67,6 +67,7 @@ public final class AotRpgClient implements ClientModInitializer {
             ClientState.cosmeticsAll = payload.allowlisted();
             if (ctx.client().currentScreen instanceof CosmeticsScreen s) s.refresh();
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.HitMarker.ID, (payload, ctx) -> HitFx.onHit(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.WalletSync.ID, (payload, ctx) -> {
             ClientState.marks = payload.marks();
             ClientState.gold = payload.gold();
@@ -132,6 +133,7 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(Minimap::render);
         HudRenderCallback.EVENT.register(PartyHud::render);
         HudRenderCallback.EVENT.register(TitanState::renderHud);
+        HudRenderCallback.EVENT.register(HitFx::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (characterKey.wasPressed()) {

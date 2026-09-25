@@ -71,6 +71,22 @@ public final class Gear {
         new Affix("kbres", "Knockback Resistance", EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, 0.004, true),
     };
 
+    /** Danny's AoT weapons: ODM blades and the APG gun. Their gear bonus is Power (more damage). */
+    private static final String[] AOT_WEAPONS = {"blade", "apg_gun"};
+
+    public static boolean aotWeapon(ItemStack s) {
+        var id = net.minecraft.registry.Registries.ITEM.getId(s.getItem());
+        if (!id.getNamespace().equals("dannys-aot") && !id.getNamespace().equals(AotItems.namespace)) return false;
+        for (String p : AOT_WEAPONS) if (id.getPath().equals(p)) return true;
+        return false;
+    }
+
+    /** Extra damage fraction from gear Power (0.12 = +12%). */
+    public static double power(ItemStack s) {
+        if (s.isEmpty() || !isGear(s)) return 0;
+        return data(s).getDouble("power");
+    }
+
     private static final Item[] WEAPONS = {Items.IRON_SWORD, Items.IRON_AXE, Items.DIAMOND_SWORD, Items.DIAMOND_AXE, Items.NETHERITE_SWORD};
     private static final Item[] ARMORS = {Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS,
         Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS,
@@ -113,11 +129,18 @@ public final class Gear {
 
     /** A new piece of gear of this rarity and item level. */
     public static ItemStack roll(Random r, Rarity rarity, int ilvl) {
-        boolean weapon = r.nextFloat() < 0.45f;
-        Item[] pool = weapon ? WEAPONS : ARMORS;
-        // Better bases turn up at higher item levels.
-        int reach = Math.min(pool.length, 2 + ilvl / 12 + rarity.ordinal());
-        ItemStack s = new ItemStack(pool[r.nextInt(reach)]);
+        boolean weapon = r.nextFloat() < 0.5f;
+        ItemStack s;
+        Item aot = weapon && r.nextFloat() < 0.6f ? AotItems.exact(AOT_WEAPONS[r.nextInt(AOT_WEAPONS.length)]) : null;
+        if (aot != null) {
+            // Rare ODM blades and APG guns: the gear that matters against titans and in PvP.
+            s = new ItemStack(aot);
+        } else {
+            Item[] pool = weapon ? WEAPONS : ARMORS;
+            // Better bases turn up at higher item levels.
+            int reach = Math.min(pool.length, 2 + ilvl / 12 + rarity.ordinal());
+            s = new ItemStack(pool[r.nextInt(reach)]);
+        }
         NbtCompound g = new NbtCompound();
         g.putString("rarity", rarity.name());
         g.putInt("ilvl", ilvl);
@@ -158,12 +181,26 @@ public final class Gear {
         lore.add(Text.literal(rarity.title + (weapon ? " weapon" : " armor")).formatted(rarity.color).styled(st -> st.withItalic(false)));
         lore.add(Text.literal("Item level " + ilvl + (up > 0 ? "   ·   +" + up : "")).formatted(Formatting.GRAY).styled(st -> st.withItalic(false)));
         double scale = (1 + ilvl) * (1 + 0.25 * rarity.ordinal()) * (1 + 0.08 * up);
+        boolean aotWeapon = aotWeapon(s);
+        if (aotWeapon) {
+            // Power: +2% per rarity step, +0.25% per item level, +3% per forge upgrade.
+            double power = 0.02 * rarity.ordinal() + 0.0025 * ilvl + 0.03 * up + 0.01;
+            power = Math.round(power * 1000) / 1000.0;
+            g.putDouble("power", power);
+            NbtCompound tagP = s.get(DataComponentTypes.CUSTOM_DATA).copyNbt();
+            tagP.put("aot_gear", g);
+            s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tagP));
+        }
         int n = rarity.affixes;
         List<Affix> picked = new ArrayList<>();
         List<Affix> left = new ArrayList<>(List.of(pool));
         for (int i = 0; i < n && !left.isEmpty(); i++) picked.add(left.remove(r.nextInt(left.size())));
-        // Every piece gets its main stat scaled by level and upgrades.
-        if (!picked.contains(pool[0])) picked.add(0, pool[0]);
+        // Every piece gets its main stat scaled by level and upgrades (Danny's weapons: Power instead).
+        if (aotWeapon) {
+            picked.remove(pool[0]);
+            lore.add(Text.literal(String.format(java.util.Locale.ROOT, "+%.1f%% Power", g.getDouble("power") * 100))
+                .formatted(Formatting.GOLD).styled(st -> st.withItalic(false)));
+        } else if (!picked.contains(pool[0])) picked.add(0, pool[0]);
         int idx = 0;
         for (Affix a : picked) {
             double v = a.perLevel() * scale * (0.8 + 0.4 * r.nextDouble());
@@ -183,7 +220,8 @@ public final class Gear {
             case RARE -> net.minecraft.util.Rarity.RARE;
             case EPIC, LEGENDARY -> net.minecraft.util.Rarity.EPIC;
         });
-        if (rarity.ordinal() >= 3) s.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+        // Rare and up shimmer in the inventory; dropped ones glow in their colour.
+        if (rarity.ordinal() >= 2) s.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
         // Keep the name colour in step with the rarity.
         Text name = s.get(DataComponentTypes.CUSTOM_NAME);
         if (name != null) {
@@ -223,7 +261,7 @@ public final class Gear {
         ServerWorld w = (ServerWorld) titan.getWorld();
         ItemEntity e = new ItemEntity(w, titan.getX(), titan.getY() + 1, titan.getZ(), s);
         e.setPickupDelay(10);
-        e.setGlowing(rar.ordinal() >= 2);
+        e.setGlowing(rar.ordinal() >= 1);
         w.spawnEntity(e);
         if (rar.ordinal() >= 2) announce(killer, s, rar);
     }
