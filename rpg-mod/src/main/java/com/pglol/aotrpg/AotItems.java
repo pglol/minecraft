@@ -42,7 +42,7 @@ public final class AotItems {
             ITEMS.sort((a, b) -> a.getPath().compareTo(b.getPath()));
         }
         StringBuilder b = new StringBuilder("# Items from the Attack on Titan mod (" + namespace + "), found by the AoT RPG mod.\n");
-        b.append("# Starter kit picks: odm grips(x2)=").append(best(ODM, "handle", "blade", "gas", "boot", "uniform"))
+        b.append("# Starter kit picks: harness (legs)=").append(exact("odm_gear") != null ? namespace + ":odm_gear" : "none").append(" grips(x2, sheathed)=").append(exact("blade") != null ? namespace + ":blade" : "none")
             .append(" blades=").append(exact("blade_component") != null ? namespace + ":blade_component" : best(BLADE, "grip", "handle"))
             .append(" gas=").append(best(GAS)).append(" ice burst=").append(exact("ice_burst_cluster") != null ? namespace + ":ice_burst_cluster" : String.valueOf(best(CLUSTER)))
             .append(" uniform=").append(exact("uniform") != null ? namespace + ":uniform" : "none").append("\n\n");
@@ -98,7 +98,7 @@ public final class AotItems {
     /** Consumables that live in the satchel and move into the inventory while armed. */
     public static final String[] SUPPLY_PATHS = {"blade_component", "apg_cartridge", "ice_burst_cluster"};
     /** Gear that draws on those supplies while held. */
-    public static final String[] USER_PATHS = {"odm_gear", "odm_apg", "apg_gun", "gas_canister"};
+    public static final String[] USER_PATHS = {"blade", "odm_apg", "apg_gun", "gas_canister"};
     public static final String[] GRIP = {"grip", "handle", "trigger"};
     public static final String[] BLADE = {"blade"};
     public static final String[] GAS = {"gas_canister", "gas", "canister"};

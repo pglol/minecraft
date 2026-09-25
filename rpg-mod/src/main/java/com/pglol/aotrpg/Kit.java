@@ -41,16 +41,24 @@ public final class Kit {
         Item uniformItem = AotItems.exact("uniform");
         if (uniformItem != null) p.giveItemStack(new ItemStack(uniformItem));
         else p.giveItemStack(uniform(Items.LEATHER_CHESTPLATE, 0x6B4F2A, "Cadet Jacket", "Standard issue, 104th Cadet Corps"));
-        p.giveItemStack(uniform(Items.LEATHER_LEGGINGS, 0xE8E0C8, "Training Trousers", "Standard issue, 104th Cadet Corps"));
+        // The ODM harness is worn on the legs; without the AoT mod, plain training trousers.
+        Item harness = AotItems.exact("odm_gear");
+        if (harness != null) {
+            if (p.getEquippedStack(net.minecraft.entity.EquipmentSlot.LEGS).isEmpty()) {
+                p.equipStack(net.minecraft.entity.EquipmentSlot.LEGS, new ItemStack(harness));
+            } else p.giveItemStack(new ItemStack(harness));
+        } else {
+            p.giveItemStack(uniform(Items.LEATHER_LEGGINGS, 0xE8E0C8, "Training Trousers", "Standard issue, 104th Cadet Corps"));
+        }
         // The AoT mod's own ODM boots when installed, else renamed leather boots.
         Item boots = AotItems.exact("odm_boots");
         if (boots != null) p.giveItemStack(new ItemStack(boots));
         else p.giveItemStack(uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "ODM Boots",
             "Strapped boots for ODM gear. Standard issue, 104th Cadet Corps"));
         if (AotItems.present()) {
-            // Standard ODM gear: one grip for each hand, a gas canister, and supplies in the satchel.
-            ItemStack odm = AotItems.bestStack(1, AotItems.ODM, "handle", "blade", "gas", "boot", "uniform");
-            if (odm.isEmpty()) odm = AotItems.bestStack(1, AotItems.GRIP, "blade");
+            // Two grips (the blade handles held in each hand), a gas canister, and supplies in the satchel.
+            Item grip = AotItems.exact("blade");
+            ItemStack odm = grip != null ? new ItemStack(grip) : AotItems.bestStack(1, AotItems.GRIP, "blade");
             if (!odm.isEmpty()) {
                 // Both grips start sheathed on the back: the sheath key draws them.
                 for (int i = 0; i < 2; i++) if (!AotRpg.LOADOUT.sheathe(p, odm.copy())) p.giveItemStack(odm.copy());

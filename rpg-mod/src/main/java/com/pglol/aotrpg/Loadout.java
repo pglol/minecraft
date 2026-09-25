@@ -76,7 +76,7 @@ public final class Loadout {
     public static final int HEAL_SLOT = 4;
 
     private static final String NS = "dannys-aot";
-    private static final Set<String> AOT_MELEE = Set.of("odm_gear", "odm_apg", "blade");
+    private static final Set<String> AOT_MELEE = Set.of("blade", "odm_apg");
     private static final Set<String> AOT_RANGED = Set.of("apg_gun", "musket", "flinstock", "thunder_spear");
     private static final Set<String> AOT_HEAL = Set.of("syringe", "armor_potion", "canned_herring", "canned_herring_open", "vintage_wine");
     private static final Set<Item> MOUNT_ITEMS = Set.of(Items.HAY_BLOCK, Items.GOLDEN_CARROT, Items.NAME_TAG, Items.APPLE, Items.SUGAR);
@@ -92,7 +92,8 @@ public final class Loadout {
 
     public static boolean isGrip(ItemStack s) {
         String p = s.isEmpty() ? null : aot(s);
-        return p != null && (p.equals("odm_gear") || p.equals("odm_apg"));
+        // The handheld grips (blade handles, APG grips); odm_gear itself is the harness worn on the legs.
+        return p != null && (p.equals("blade") || p.equals("odm_apg"));
     }
 
     public static boolean isMelee(ItemStack s) {

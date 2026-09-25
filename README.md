@@ -290,9 +290,9 @@ Quest Journal (**J**): the main story plus side quests built from the map: explo
 
 Waypoints: the tracked quest, your mark, party marks and party-highlighted quests show as bold light beams in the world, plus a semi-transparent floating icon with the name and distance that shows through terrain and fades as you arrive. On the minimap they are small diamonds, pinned to the edge when far away.
 
-Starter kit: the cadet uniform (`dannys-aot:uniform`), ODM boots (`dannys-aot:odm_boots`), two ODM gear grips (`dannys-aot:odm_gear`), a gas canister, plus 16 Ice Burst clusters (`dannys-aot:ice_burst_cluster`) and 16 blade components in the satchel. `/aotrpg kit <player>` gives it again.
+Starter kit: the cadet uniform (`dannys-aot:uniform`), ODM boots (`dannys-aot:odm_boots`), the ODM harness worn on the legs (`dannys-aot:odm_gear`), two grips (`dannys-aot:blade`, starting sheathed on the back), a gas canister, plus 16 Ice Burst clusters (`dannys-aot:ice_burst_cluster`) and 16 blade components in the satchel. `/aotrpg kit <player>` gives it again.
 
-Supplies in the satchel: Ice Burst clusters (`dannys-aot:ice_burst_cluster`), blade components (`dannys-aot:blade_component`) and APG cartridges (`dannys-aot:apg_cartridge`) are kept in the satchel, and picked-up supplies are moved there. When you hold ODM gear, the APG ODM, a gas canister or the APG gun, one stack of each is brought out into your backpack rows (never the hotbar) so the AoT mod can use it (refilling the canister and so on). When you put the gear away they go back to the satchel.
+Supplies in the satchel: Ice Burst clusters (`dannys-aot:ice_burst_cluster`), blade components (`dannys-aot:blade_component`) and APG cartridges (`dannys-aot:apg_cartridge`) are kept in the satchel, and picked-up supplies are moved there. When you hold your grips (`blade` or the APG grips), a gas canister or the APG gun, one stack of each is brought out into your backpack rows (never the hotbar) so the AoT mod can use it (refilling the canister and so on). When you put the gear away they go back to the satchel.
 
 Combat loadout (hotbar): every slot has a purpose and only takes what belongs there. The HUD splits it down the middle, with a combat wing and a support wing pointing in at the heal slot:
 
@@ -311,7 +311,7 @@ Items only go where they belong. Misplaced ones move to your backpack, and nothi
 
 **Quick heal (H)** uses the heal slot, or your best heal from the inventory or satchel when it's empty. It works instantly on an 8 second cooldown, and food mends a little health on top of the hunger it restores.
 
-**ODM sheath (G):** the two ODM grips are a set. **G** sheathes both on your back (they show crossed there for everyone) and draws them again into slot 1 and your off hand. Whatever you had in your off hand is kept aside and comes back when you sheathe. New characters start with both grips sheathed. The HUD shows DRAWN or SHEATHED next to the hotbar.
+**ODM sheath (G):** the two ODM grips (the `blade` handles, or the APG grips) are a set. **G** sheathes both on your back (they show crossed there for everyone) and draws them again into slot 1 and your off hand. Whatever you had in your off hand is kept aside and comes back when you sheathe. New characters start with both grips sheathed. The HUD shows DRAWN or SHEATHED next to the hotbar.
 
 Inventory: the character panel is a Baldur's Gate style loadout built from the real hotbar slots: Melee (slot 1 and the off hand) and Ranged (slots 2 and 3) around your armor shield, then Tool, Heal and Mount, then Signal and the two free slots. Your stats sit where the hotbar row used to be. With the recipe book open the slots go back to the normal hotbar row.
 

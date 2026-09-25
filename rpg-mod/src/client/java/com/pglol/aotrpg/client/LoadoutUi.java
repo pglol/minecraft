@@ -35,7 +35,7 @@ public final class LoadoutUi {
     /** The faint picture in an empty slot showing what goes there. */
     public static ItemStack ghost(Loadout.Kind k) {
         if (ghosts == null) {
-            ghosts = new ItemStack[] {aot("odm_gear", Items.IRON_SWORD), aot("apg_gun", Items.BOW), new ItemStack(Items.SHIELD),
+            ghosts = new ItemStack[] {aot("blade", Items.IRON_SWORD), aot("apg_gun", Items.BOW), new ItemStack(Items.SHIELD),
                 new ItemStack(Items.IRON_PICKAXE), new ItemStack(Items.BREAD), new ItemStack(Items.SADDLE), aot("flare_gun", Items.TORCH),
                 ItemStack.EMPTY};
         }
