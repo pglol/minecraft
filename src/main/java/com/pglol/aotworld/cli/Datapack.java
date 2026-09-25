@@ -71,7 +71,15 @@ final class Datapack {
             "tellraw @s {\"text\":\"Places (click to travel)\",\"color\":\"yellow\",\"bold\":true}\n" + list, StandardCharsets.UTF_8);
         Files.writeString(world.resolve("aot-places.txt"), places.toString(), StandardCharsets.UTF_8);
         // Read by the AoT RPG server mod (character origins, quest locations).
-        json.append("\n  }\n}\n");
+        json.append("\n  },\n  \"campfires\": [");
+        boolean firstFire = true;
+        for (com.pglol.aotworld.core.build.Poi p : w.pois) {
+            int[] f = p.campfire();
+            if (f == null) continue;
+            json.append(firstFire ? "\n    " : ",\n    ").append(String.format(Locale.ROOT, "[%d, %d, %d]", f[0], f[1], f[2]));
+            firstFire = false;
+        }
+        json.append("\n  ]\n}\n");
         Files.writeString(world.resolve("aot-rpg.json"), json.toString(), StandardCharsets.UTF_8);
     }
 

@@ -12,6 +12,7 @@
     "client": ["com.pglol.aotrpg.client.AotRpgClient"]
   },
   "mixins": [
+    "aot_rpg.mixins.json",
     {"config": "aot_rpg.client.mixins.json", "environment": "client"}
   ],
   "depends": {

@@ -10,6 +10,8 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.util.Hand;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ActionResult;
@@ -38,6 +40,9 @@ public final class AotRpg implements ModInitializer {
     public static final Stamina STAMINA = new Stamina();
     public static final Parties PARTIES = new Parties();
     public static final Story STORY = new Story();
+    public static final Satchel SATCHEL = new Satchel();
+    public static final Cooking COOKING = new Cooking();
+    public static final DeathCare DEATH = new DeathCare();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
     public static boolean hasClient(ServerPlayerEntity p) {
@@ -56,6 +61,24 @@ public final class AotRpg implements ModInitializer {
     @Override
     public void onInitialize() {
         Net.register();
+        SatchelHandler.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {
+            if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.openScreen(ctx.player());
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.Cook.ID, (payload, ctx) -> COOKING.cook(ctx.player(), payload.recipe(), payload.times()));
+        // Right-click a lit campfire with an empty hand (or while sneaking) to cook.
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (world.isClient || hand != Hand.MAIN_HAND || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
+            var state = world.getBlockState(hit.getBlockPos());
+            if (!Cooking.isLitCampfire(state)) return ActionResult.PASS;
+            if (!player.getMainHandStack().isEmpty() && !player.isSneaking()) return ActionResult.PASS;
+            if (!PROFILES.get(sp.getUuid()).created || !hasClient(sp)) return ActionResult.PASS;
+            COOKING.open(sp, hit.getBlockPos());
+            return ActionResult.SUCCESS;
+        });
+        ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) -> {
+            if (!alive && DeathCare.keepsItems(oldPlayer)) newPlayer.getInventory().clone(oldPlayer.getInventory());
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.Create.ID, (payload, ctx) -> CREATION.submit(ctx.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(Net.SpendPoint.ID, (payload, ctx) -> {
             ServerPlayerEntity p = ctx.player();
@@ -92,9 +115,11 @@ public final class AotRpg implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             PROFILES.open(server);
             PLACES.load(server);
+            SATCHEL.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
+            SATCHEL.saveAll();
             NAMETAGS.clear();
         });
 
@@ -102,6 +127,7 @@ public final class AotRpg implements ModInitializer {
             ServerPlayerEntity p = handler.getPlayer();
             Profile pr = PROFILES.get(p.getUuid());
             PARTIES.joined(p);
+            if (ServerPlayNetworking.canSend(p, Net.Campfires.ID)) ServerPlayNetworking.send(p, new Net.Campfires(PLACES.campfireArray()));
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
                 if (!pr.created) {
@@ -125,6 +151,8 @@ public final class AotRpg implements ModInitializer {
             }
             NAMETAGS.remove(p);
             STAMINA.remove(p);
+            SATCHEL.unload(p.getUuid());
+            PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
             PROFILES.save(p.getUuid());
         });
@@ -137,6 +165,7 @@ public final class AotRpg implements ModInitializer {
             PROGRESSION.apply(newPlayer, pr);
             newPlayer.setHealth(newPlayer.getMaxHealth());
             STAMINA.refill(newPlayer);
+            PROGRESSION.forgetHunger(newPlayer);
             sync(newPlayer, pr);
             NAMETAGS.update(newPlayer, pr);
         });
@@ -170,10 +199,14 @@ public final class AotRpg implements ModInitializer {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
             STORY.tick(p, PROFILES.get(p.getUuid()), ticks);
+            if (ticks % 20 == 0 && PROFILES.get(p.getUuid()).created) PROGRESSION.hunger(p);
         }
         PARTIES.tick(server, ticks);
         NAMETAGS.tick(server, ticks);
-        if (ticks % (20 * 300) == 0) PROFILES.saveAll();
+        if (ticks % (20 * 300) == 0) {
+            PROFILES.saveAll();
+            SATCHEL.saveAll();
+        }
     }
 
     public static boolean isTitan(Entity e) {
@@ -183,6 +216,10 @@ public final class AotRpg implements ModInitializer {
     }
 
     private void onDeath(LivingEntity dead, net.minecraft.entity.damage.DamageSource source) {
+        if (dead instanceof ServerPlayerEntity sp) {
+            DEATH.onDeath(sp, source);
+            return;
+        }
         if (!isTitan(dead)) return;
         Entity attacker = source.getAttacker();
         if (!(attacker instanceof ServerPlayerEntity killer)) return;

@@ -106,7 +106,7 @@ public final class Minimap {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClientPlayerEntity pl = mc.player;
         bottom = 4;
-        if (pl == null || texture == null || !ClientState.minimap || mc.options.hudHidden || mc.getDebugHud().shouldShowDebugHud()) return;
+        if (pl == null || texture == null || !ClientState.minimap || mc.currentScreen != null || mc.options.hudHidden || mc.getDebugHud().shouldShowDebugHud()) return;
         float td = tick.getTickDelta(true);
         double px = pl.getLerpedPos(td).x, pz = pl.getLerpedPos(td).z;
 
@@ -120,6 +120,15 @@ public final class Minimap {
         // map-space origin (block at the top-left pixel of the view)
         double ox = centerX - TEX / 2.0 + u, oz = centerZ - TEX / 2.0 + v;
 
+        // Cooking fires
+        int[] fires = ClientState.campfires;
+        for (int i = 0; i + 2 < fires.length; i += 3) {
+            double sx = fires[i] + 0.5 - ox, sz = fires[i + 2] + 0.5 - oz;
+            if (sx < 2 || sz < 2 || sx > s - 2 || sz > s - 2) continue;
+            int fx = x + (int) sx, fy = y + (int) sz;
+            c.fill(fx - 2, fy - 2, fx + 2, fy + 2, 0xFF2A1406);
+            c.fill(fx - 1, fy - 1, fx + 1, fy + 1, 0xFFFF9A2E);
+        }
         // Entities
         for (Entity e : mc.world.getEntities()) {
             if (e == pl || !(e instanceof LivingEntity le) || !le.isAlive()) continue;

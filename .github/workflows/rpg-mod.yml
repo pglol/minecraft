@@ -39,6 +39,8 @@ jobs:
               javap -p -cp "$j" net.minecraft.client.render.entity.EntityRenderer | grep -E "renderLabelIfPresent|dispatcher"
               javap -p -cp "$j" net.minecraft.client.MinecraftClient | grep -E " setScreen"
               javap -p -cp "$j" net.minecraft.client.gui.screen.ingame.InventoryScreen | grep -E "drawEntity|isClickOutsideBounds"
+              javap -p -cp "$j" net.minecraft.entity.player.PlayerEntity | grep -E " dropInventory"
+              javap -p -cp "$j" net.minecraft.client.network.ClientPlayerEntity | grep -E "showsDeathScreen|requestRespawn"
               break
             fi
           done

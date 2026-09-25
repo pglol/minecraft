@@ -58,12 +58,17 @@ public final class Kit {
         if (pr.origin == Origin.MITRAS) p.giveItemStack(new ItemStack(Items.EMERALD, 15));
         p.giveItemStack(new ItemStack(Items.EMERALD, 5));
         String where = camp == null ? "the Cadet Training Camp inside Wall Rose" : "the Cadet Training Camp (x " + camp[0] + ", z " + camp[2] + ")";
-        p.giveItemStack(named(Items.PAPER, 1, "Recruitment Letter", Formatting.YELLOW,
+        AotRpg.SATCHEL.add(p, Satchel.markStory(named(Items.PAPER, 1, "Recruitment Letter", Formatting.YELLOW,
             "To: " + pr.name,
             "You have been accepted into the",
             "104th Cadet Corps. Report to",
             where + ".",
             "",
-            "Dedicate your heart."));
+            "Dedicate your heart.",
+            "",
+            "Story item: kept in your satchel.")));
+        // A few supplies to start cooking with.
+        AotRpg.SATCHEL.add(p, new ItemStack(Items.BEEF, 3));
+        AotRpg.SATCHEL.add(p, new ItemStack(Items.POTATO, 4));
     }
 }

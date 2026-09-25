@@ -196,7 +196,71 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: open my satchel. */
+    public record OpenSatchel() implements CustomPayload {
+        public static final Id<OpenSatchel> ID = id("open_satchel");
+        public static final PacketCodec<RegistryByteBuf, OpenSatchel> CODEC = PacketCodec.unit(new OpenSatchel());
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record RecipeStatus(int recipe, int craftable, int[] have) { }
+
+    /** Server -> client: cooking screen contents (open = open the screen, else refresh). */
+    public record CookingState(boolean open, java.util.List<RecipeStatus> recipes) implements CustomPayload {
+        public static final Id<CookingState> ID = id("cooking");
+        public static final PacketCodec<RegistryByteBuf, CookingState> CODEC = PacketCodec.of((v, b) -> {
+            b.writeBoolean(v.open);
+            b.writeVarInt(v.recipes.size());
+            for (RecipeStatus r : v.recipes) {
+                b.writeVarInt(r.recipe());
+                b.writeVarInt(r.craftable());
+                b.writeIntArray(r.have());
+            }
+        }, b -> {
+            boolean open = b.readBoolean();
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<RecipeStatus> l = new java.util.ArrayList<>(n);
+            for (int i = 0; i < n; i++) l.add(new RecipeStatus(b.readVarInt(), b.readVarInt(), b.readIntArray()));
+            return new CookingState(open, l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: cook a recipe some number of times. */
+    public record Cook(int recipe, int times) implements CustomPayload {
+        public static final Id<Cook> ID = id("cook");
+        public static final PacketCodec<RegistryByteBuf, Cook> CODEC =
+            PacketCodec.of((v, b) -> { b.writeVarInt(v.recipe); b.writeVarInt(v.times); }, b -> new Cook(b.readVarInt(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: where the cooking fires are (for the minimap). */
+    public record Campfires(int[] xyz) implements CustomPayload {
+        public static final Id<Campfires> ID = id("campfires");
+        public static final PacketCodec<RegistryByteBuf, Campfires> CODEC =
+            PacketCodec.of((v, b) -> b.writeIntArray(v.xyz), b -> new Campfires(b.readIntArray()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: what happened when you died. */
+    public record DeathInfo(String message, String killer, String mode, long xpLost, int gearWorn) implements CustomPayload {
+        public static final Id<DeathInfo> ID = id("death");
+        public static final PacketCodec<RegistryByteBuf, DeathInfo> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.message);
+            b.writeString(v.killer);
+            b.writeString(v.mode);
+            b.writeVarLong(v.xpLost);
+            b.writeVarInt(v.gearWorn);
+        }, b -> new DeathInfo(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playC2S().register(OpenSatchel.ID, OpenSatchel.CODEC);
+        PayloadTypeRegistry.playS2C().register(CookingState.ID, CookingState.CODEC);
+        PayloadTypeRegistry.playC2S().register(Cook.ID, Cook.CODEC);
+        PayloadTypeRegistry.playS2C().register(Campfires.ID, Campfires.CODEC);
+        PayloadTypeRegistry.playS2C().register(DeathInfo.ID, DeathInfo.CODEC);
         PayloadTypeRegistry.playS2C().register(Roster.ID, Roster.CODEC);
         PayloadTypeRegistry.playS2C().register(Objective.ID, Objective.CODEC);
         PayloadTypeRegistry.playS2C().register(PartySync.ID, PartySync.CODEC);

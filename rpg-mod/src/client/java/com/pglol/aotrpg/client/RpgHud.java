@@ -26,7 +26,7 @@ public final class RpgHud {
         MinecraftClient mc = MinecraftClient.getInstance();
         Net.Sync p = ClientState.profile;
         ClientPlayerEntity pl = mc.player;
-        if (p == null || pl == null || mc.options.hudHidden || mc.getDebugHud().shouldShowDebugHud()) return;
+        if (p == null || pl == null || mc.currentScreen != null || mc.options.hudHidden || mc.getDebugHud().shouldShowDebugHud()) return;
         boolean bars = active();
 
         int x = c.getScaledWindowWidth() - W - 4;
@@ -83,9 +83,15 @@ public final class RpgHud {
 
         // Food and armour on one line
         int food = pl.getHungerManager().getFoodLevel();
-        label(c, "FD", x + 6, y + 50, Ui.FOOD);
+        boolean hungry = food <= 6;
+        int foodColor = hungry ? ((now / 300) % 2 == 0 ? 0xFFD04A3A : 0xFF8A2A20) : Ui.FOOD;
+        label(c, "FD", x + 6, y + 50, foodColor);
         int fw = bw - 34;
-        Ui.bar(c, bx, y + 51, fw, 5, food / 20f, Ui.FOOD);
+        Ui.bar(c, bx, y + 51, fw, 5, food / 20f, foodColor);
+        if (hungry) {
+            String warn = food <= 2 ? "STARVING" : "HUNGRY";
+            c.drawTextWithShadow(Ui.font(), Text.literal(warn), x + W - Ui.font().getWidth(warn), y + h + 3 + (p.points() > 0 || p.skillPoints() > 0 ? 10 : 0), 0xFFD04A3A);
+        }
         String armor = "⛨ " + pl.getArmor();
         c.drawTextWithShadow(Ui.font(), Text.literal(armor), x + W - 6 - Ui.font().getWidth(armor), y + 50, Ui.CREAM);
 

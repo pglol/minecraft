@@ -64,6 +64,28 @@ public final class Progression {
         if (p.getHealth() > p.getMaxHealth()) p.setHealth(p.getMaxHealth());
     }
 
+    private final Map<UUID, Integer> hungerTier = new HashMap<>();
+
+    /** Hungry players hit softer and move slower. Called once a second. */
+    public void hunger(ServerPlayerEntity p) {
+        if (p.isCreative() || p.isSpectator()) return;
+        int food = p.getHungerManager().getFoodLevel();
+        int tier = food <= 2 ? 2 : food <= 6 ? 1 : 0;
+        Integer old = hungerTier.put(p.getUuid(), tier);
+        if (old != null && old == tier) return;
+        var total = EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
+        set(p, EntityAttributes.GENERIC_MOVEMENT_SPEED, "hunger_speed", tier == 2 ? -0.20 : tier == 1 ? -0.10 : 0, total);
+        set(p, EntityAttributes.GENERIC_ATTACK_DAMAGE, "hunger_damage", tier == 2 ? -0.30 : tier == 1 ? -0.15 : 0, total);
+        if (old != null && tier > old) {
+            p.sendMessage(Text.literal(tier == 2 ? "You are starving. You feel weak and slow." : "You are hungry. You feel a little weaker.")
+                .formatted(Formatting.RED), true);
+        }
+    }
+
+    public void forgetHunger(ServerPlayerEntity p) {
+        hungerTier.remove(p.getUuid());
+    }
+
     public void addXp(ServerPlayerEntity p, Profile pr, long amount) {
         if (!pr.created || pr.level >= MAX_LEVEL) return;
         pr.xp += amount;

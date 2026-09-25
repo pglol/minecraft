@@ -17,6 +17,9 @@ public final class ClientState {
     /** Current story objective, or null. */
     public static Net.Objective objective;
     public static boolean minimap = true;
+    /** Cooking fire positions as x,y,z triples. */
+    public static int[] campfires = new int[0];
+    public static Net.DeathInfo death;
 
     public static Net.PartyMember partyMember(java.util.UUID id) {
         for (Net.PartyMember m : party) if (m.id().equals(id)) return m;
@@ -31,5 +34,7 @@ public final class ClientState {
         party = java.util.List.of();
         roster = new java.util.HashMap<>();
         objective = null;
+        campfires = new int[0];
+        death = null;
     }
 }

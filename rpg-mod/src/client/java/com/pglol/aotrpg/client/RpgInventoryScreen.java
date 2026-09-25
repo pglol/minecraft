@@ -1,7 +1,6 @@
 package com.pglol.aotrpg.client;
 
 import com.pglol.aotrpg.Net;
-import com.pglol.aotrpg.Stat;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -28,10 +27,29 @@ public class RpgInventoryScreen extends InventoryScreen {
         return x == (width - backgroundWidth) / 2 && x - PANEL_W - 4 >= 2;
     }
 
+    private AotButton satchelButton, skillsButton;
+
+    @Override
+    protected void init() {
+        super.init();
+        satchelButton = addDrawableChild(new AotButton(0, 0, 60, 14, Text.literal("Satchel [B]"),
+            () -> net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new Net.OpenSatchel())));
+        skillsButton = addDrawableChild(new AotButton(0, 0, 60, 14, Text.literal("Skills [K]"),
+            () -> client.setScreen(new CharacterScreen(0))));
+    }
+
     @Override
     public void render(DrawContext c, int mouseX, int mouseY, float delta) {
         mouseXf = mouseX;
         mouseYf = mouseY;
+        // Follow the panel (the recipe book can move the inventory).
+        boolean show = panel();
+        int lx = x - PANEL_W - 4;
+        satchelButton.visible = skillsButton.visible = show;
+        satchelButton.setPosition(lx + 4, y + backgroundHeight - 19);
+        skillsButton.setPosition(lx + PANEL_W - 64, y + backgroundHeight - 19);
+        Net.Sync p = ClientState.profile;
+        skillsButton.selected = p != null && p.points() + p.skillPoints() > 0;
         super.render(c, mouseX, mouseY, delta);
     }
 
@@ -55,9 +73,9 @@ public class RpgInventoryScreen extends InventoryScreen {
         Net.Sync p = ClientState.profile;
         int cx = x + 51;
         if (p != null) {
-            Ui.text(c, Ui.title(String.valueOf(p.level())), cx, y + 22, 2.2f, Ui.GOLD, true);
-            Ui.text(c, Ui.heading("Level"), cx, y + 44, 0.9f, Ui.MUTED, true);
-            Ui.text(c, Text.literal(p.disciplineEnum().title), cx, y + 58, 0.9f, Ui.disciplineColor(p.discipline()), true);
+            Ui.text(c, Ui.heading("Level"), cx, y + 12, 0.9f, Ui.MUTED, true);
+            Ui.text(c, Ui.title(String.valueOf(p.level())), cx, y + 24, 2f, Ui.GOLD, true);
+            Ui.text(c, Text.literal(p.disciplineEnum().title), cx, y + 50, 0.9f, Ui.disciplineColor(p.discipline()), true);
         }
 
         if (panel()) drawCharacterPanel(c, x - PANEL_W - 4, y, p);
@@ -70,23 +88,21 @@ public class RpgInventoryScreen extends InventoryScreen {
             Text name = Ui.heading(p.name());
             c.drawTextWithShadow(textRenderer, name, lx + (PANEL_W - textRenderer.getWidth(name)) / 2, y + 5, Ui.CREAM);
         }
-        // Big player viewer
-        c.fillGradient(lx + 4, y + 16, lx + PANEL_W - 4, y + 104, 0x30B8955A, 0x10000000);
-        InventoryScreen.drawEntity(c, lx + 4, y + 16, lx + PANEL_W - 4, y + 104, 38, 0.0625f, mouseXf, mouseYf, client.player);
-        Ui.divider(c, lx + 8, y + 107, PANEL_W - 16);
+        // Player viewer: y+16 .. y+86
+        c.fillGradient(lx + 4, y + 16, lx + PANEL_W - 4, y + 86, 0x30B8955A, 0x10000000);
+        InventoryScreen.drawEntity(c, lx + 4, y + 16, lx + PANEL_W - 4, y + 86, 30, 0.0625f, mouseXf, mouseYf, client.player);
+        Ui.divider(c, lx + 8, y + 89, PANEL_W - 16);
 
+        // Stats: five rows, y+94 .. y+143
         var pl = client.player;
-        int ty = y + 112;
+        int ty = y + 94;
         row(c, lx, ty, "Health", Math.round(pl.getHealth()) + " / " + Math.round(pl.getMaxHealth()), Ui.HP);
-        row(c, lx, ty += 10, "Armor", String.valueOf(pl.getArmor()), Ui.CREAM);
-        row(c, lx, ty += 10, "Damage", String.format(Locale.ROOT, "%.1f", pl.getAttributeValue(EntityAttributes.GENERIC_ATTACK_DAMAGE)), Ui.CREAM);
-        row(c, lx, ty += 10, "Speed", Math.round(pl.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) / 0.1 * 100) + "%", Ui.CREAM);
-        row(c, lx, ty += 10, "Stamina", String.valueOf(Math.round(ClientState.maxStamina)), Ui.STAMINA);
-        if (p != null) {
-            int pts = p.points() + p.skillPoints();
-            String hint = pts > 0 ? "[K] " + pts + " point" + (pts == 1 ? "" : "s") + " to spend" : "[K] Skills & attributes";
-            c.drawCenteredTextWithShadow(textRenderer, Text.literal(hint), lx + PANEL_W / 2, y + h - 11, pts > 0 ? Ui.GOLD : Ui.MUTED);
-        }
+        row(c, lx, ty + 10, "Armor", String.valueOf(pl.getArmor()), Ui.CREAM);
+        row(c, lx, ty + 20, "Damage", String.format(Locale.ROOT, "%.1f", pl.getAttributeValue(EntityAttributes.GENERIC_ATTACK_DAMAGE)), Ui.CREAM);
+        row(c, lx, ty + 30, "Speed", Math.round(pl.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) / 0.1 * 100) + "%", Ui.CREAM);
+        row(c, lx, ty + 40, "Food", pl.getHungerManager().getFoodLevel() + " / 20",
+            pl.getHungerManager().getFoodLevel() <= 6 ? Ui.RED : Ui.FOOD);
+        // Buttons sit at y+147 .. y+161 (see init)
     }
 
     private void row(DrawContext c, int lx, int y, String k, String v, int color) {
@@ -107,8 +123,4 @@ public class RpgInventoryScreen extends InventoryScreen {
         return super.isClickOutsideBounds(mouseX, mouseY, left, top, button);
     }
 
-    @SuppressWarnings("unused")
-    private static int statTotal(Net.Sync p, Stat s) {
-        return p.total()[s.ordinal()];
-    }
 }

@@ -89,11 +89,37 @@ final class Commands {
                     AotRpg.PROFILES.save(p.getUuid());
                     return 1;
                 }))))
+            .then(CommandManager.literal("mode").then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(CommandManager.literal("story").executes(c -> setMode(c.getSource(), EntityArgumentType.getPlayer(c, "player"), DeathCare.STORY)))
+                .then(CommandManager.literal("extraction").executes(c -> setMode(c.getSource(), EntityArgumentType.getPlayer(c, "player"), DeathCare.EXTRACTION)))))
+            .then(CommandManager.literal("campfire").executes(c -> {
+                ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                var pos = p.getBlockPos();
+                p.getServerWorld().setBlockState(pos, net.minecraft.block.Blocks.CAMPFIRE.getDefaultState());
+                AotRpg.PLACES.addCampfire(pos.getX(), pos.getY(), pos.getZ());
+                var fires = new Net.Campfires(AotRpg.PLACES.campfireArray());
+                for (ServerPlayerEntity o : c.getSource().getServer().getPlayerManager().getPlayerList()) {
+                    if (net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(o, Net.Campfires.ID))
+                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(o, fires);
+                }
+                c.getSource().sendFeedback(() -> Text.literal("Placed a cooking campfire here."), true);
+                return 1;
+            }))
             .then(CommandManager.literal("reload").executes(c -> {
                 AotRpg.PLACES.load(c.getSource().getServer());
                 c.getSource().sendFeedback(() -> Text.literal("Reloaded aot-rpg.json."), true);
                 return 1;
             })));
+    }
+
+    private static int setMode(ServerCommandSource src, ServerPlayerEntity p, String mode) {
+        AotRpg.PROFILES.get(p.getUuid()).mode = mode;
+        AotRpg.PROFILES.save(p.getUuid());
+        p.sendMessage(Text.literal(mode.equals(DeathCare.STORY)
+            ? "Story mode: your gear is protected when you die."
+            : "Extraction mode: you drop your gear when you die. Your satchel is always safe.").formatted(Formatting.GOLD));
+        src.sendFeedback(() -> Text.literal(p.getName().getString() + " is now in " + mode + " mode."), true);
+        return 1;
     }
 
     /** Wipes a character and opens the creator again. keepKit: no second starter kit. */

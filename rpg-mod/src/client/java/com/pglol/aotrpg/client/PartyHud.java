@@ -22,7 +22,7 @@ public final class PartyHud {
         MinecraftClient mc = MinecraftClient.getInstance();
         List<Net.PartyMember> party = ClientState.party;
         ClientPlayerEntity me = mc.player;
-        if (party.isEmpty() || me == null || mc.options.hudHidden || mc.getDebugHud().shouldShowDebugHud()) return;
+        if (party.isEmpty() || me == null || mc.currentScreen != null || mc.options.hudHidden || mc.getDebugHud().shouldShowDebugHud()) return;
 
         int x = 4;
         // Below the minimap and objective.

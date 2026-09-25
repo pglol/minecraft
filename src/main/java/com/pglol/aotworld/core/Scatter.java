@@ -149,7 +149,52 @@ final class Scatter {
                 occ.add(x, z, r);
             }
         }
+        restStops(w, roads, occ, lakes, out);
         return out;
+    }
+
+    /** Campfire rest stops beside the roads, about every 650 blocks of travel. */
+    private static void restStops(AotWorld w, RoadNetwork roads, Occupancy occ, List<Lake> lakes, List<Poi> out) {
+        Atlas a = w.atlas;
+        final double every = 650;
+        for (Road road : roads.roads()) {
+            if (road.type == Road.Type.PATH || road.length() < 500) continue;
+            int seg = 1;
+            for (double s = every * 0.5; s < road.length() - 150; s += every) {
+                while (seg < road.cum.length - 1 && road.cum[seg] < s) seg++;
+                double t = (s - road.cum[seg - 1]) / Math.max(1e-6, road.cum[seg] - road.cum[seg - 1]);
+                double rx = road.xs[seg - 1] + (road.xs[seg] - road.xs[seg - 1]) * t;
+                double rz = road.zs[seg - 1] + (road.zs[seg] - road.zs[seg - 1]) * t;
+                double dx = road.xs[seg] - road.xs[seg - 1], dz = road.zs[seg] - road.zs[seg - 1];
+                double len = Math.max(1e-6, Math.hypot(dx, dz));
+                long h = Hash.of(w.spec.seed, (int) rx, (int) rz, 0x5E57);
+                double side = Hash.unit(h) < 0.5 ? 1 : -1;
+                double off = road.type.halfWidth + 9;
+                int x = (int) Math.round(rx - dz / len * off * side);
+                int z = (int) Math.round(rz + dx / len * off * side);
+                if (a.landSD(x, z) < 20 || occ.blocked(x, z, 14)) continue;
+                boolean wall = false;
+                for (int i = 0; i < 8 && !wall; i++) {
+                    double ang = i * Math.PI / 4;
+                    wall = a.wallFlatten(x + Math.cos(ang) * 10, z + Math.sin(ang) * 10) > 0;
+                }
+                if (wall || roads.clearance(x, z) < 5) continue;
+                double[] tmp = new double[1];
+                if (a.riverIndex.query(x, z, tmp) < River.Index.INFLUENCE + 6) continue;
+                boolean wet = false;
+                for (Lake l : lakes) if (Mth.dist(x, z, l.cx, l.cz) < l.r * 1.3 + 8) wet = true;
+                if (wet) continue;
+                // Keep the ring on reasonably flat ground.
+                int hc = w.terrain.naturalHeight(x, z), rough = 0;
+                for (int i = 0; i < 8; i++) {
+                    double ang = i * Math.PI / 4;
+                    rough = Math.max(rough, Math.abs(hc - w.terrain.naturalHeight(x + Math.cos(ang) * 5, z + Math.sin(ang) * 5)));
+                }
+                if (rough > 3) continue;
+                out.add(new Poi(w, Poi.Kind.REST_STOP, "Rest Stop", x, z, Hash.mix(h + 1)));
+                occ.add(x, z, 12);
+            }
+        }
     }
 
     private static double pick(long h) {
@@ -403,7 +448,7 @@ final class Scatter {
     static void poiTrails(AotWorld w, RoadNetwork roads, List<Poi> pois) {
         List<Road> add = new ArrayList<>();
         for (Poi p : pois) {
-            if (p.kind == Poi.Kind.SHIPWRECK || p.kind == Poi.Kind.SHRINE) continue;
+            if (p.kind == Poi.Kind.SHIPWRECK || p.kind == Poi.Kind.SHRINE || p.kind == Poi.Kind.REST_STOP) continue;
             int[] e = p.entrance();
             double[] r = roads.nearestPoint(e[0], e[1], false, 600);
             if (r == null) continue;

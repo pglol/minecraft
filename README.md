@@ -286,6 +286,26 @@ Minimap (top left, **M** toggles it): terrain around you (north up), your arrow,
 
 Inventory: the survival inventory uses the AoT style, with a character panel on the left (large player viewer, health, armor, damage, speed, stamina).
 
+Satchel (**B**, or the button in your inventory): 36 slots for story items and supplies: anything edible, cooking ingredients, fishing catches. It is saved separately and **never lost on death**. Story items (like the Recruitment Letter) live only in the satchel.
+
+Cooking: right-click a lit campfire with an empty hand (or while sneaking) to open the cooking screen. Recipes use ingredients from your satchel first, then your inventory, and meals go into the satchel. Meals restore hunger and give timed buffs:
+
+| Meal | Ingredients | Buffs |
+|---|---|---|
+| Roast Meat Skewer | 1 raw meat | Strength I 2m |
+| Grilled Fish | 1 raw fish | Regeneration 15s, Water Breathing 2m |
+| Hearty Stew | 1 raw meat, 2 vegetables | Resistance I 4m, Regeneration 10s |
+| Fisherman's Soup | 2 raw fish, 1 vegetable | Haste I 4m, Water Breathing 4m |
+| Survey Corps Ration | 3 wheat, 1 raw meat | Speed I 5m |
+| Honey Cake | 2 wheat, 1 sweetener, 1 egg | Jump Boost I 3m, Absorption I 2m |
+| Mushroom Broth | 2 mushrooms | Night Vision 5m |
+
+Cooking fires: every camp, hermit's cabin and a new roadside **Rest Stop** (about every 650 blocks of road) has a campfire; they show as orange dots on the minimap. Operators can add more with `/aotrpg campfire`.
+
+Hunger: at 6 food or less you deal 15% less damage and move 10% slower; at 2 or less it is 30% and 20%. The HUD food bar flashes and shows HUNGRY or STARVING.
+
+Death: in **story mode** (the default) you keep your gear and inventory. Worn gear loses 10% durability and you lose 10% of your current level's XP. In **extraction mode** (`/aotrpg mode <player> extraction`, meant for extraction game modes) items drop as usual. The satchel is safe in every mode. The death screen shows what happened and what you kept.
+
 Story: Chapter 1 has you report to the Cadet Training Camp, then slay 3 titans beyond the walls; Chapter 2 sends you to the Survey Corps HQ. Each objective gives XP. More chapters are coming.
 
 Commands:
@@ -295,6 +315,7 @@ Skills: three branches (Blade, Mobility, Survival) of four skills, unlocked at l
 
 Stamina: sprinting and attacking drain it and resting refills it. At zero you are exhausted: no sprinting and slowed until it recovers. Endurance and some skills raise it.
 - `/character reset`: delete your own character and create a new one (asks you to confirm; no second starter kit).
+- `/aotrpg mode <player> story|extraction`, `/aotrpg campfire` (place a cooking fire here).
 - `/aotrpg reset [player]` (no name = yourself), `/aotrpg setlevel <player> <level>`, `/aotrpg xp <player> <amount>`, `/aotrpg reload` (operators).
 
 Parties (up to 6 players):

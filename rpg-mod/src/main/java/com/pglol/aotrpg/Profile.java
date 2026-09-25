@@ -22,6 +22,8 @@ public final class Profile {
     public int questBase;
     /** Set when a self-reset should not hand out another starter kit. */
     public boolean kitGiven;
+    /** "story" (gear protected on death) or "extraction" (items drop). */
+    public String mode = "story";
     public int titanKills;
 
     public int stat(Stat s) {

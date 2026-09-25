@@ -16,7 +16,7 @@ import com.pglol.aotworld.core.Pad;
  */
 public final class Poi extends Feature {
     public enum Kind {
-        TITAN_CAVE(95), EXPEDITION_CAMP(42), WATCHTOWER(8), CAMPSITE(14), SHRINE(10), HERMIT(14), SHIPWRECK(12);
+        TITAN_CAVE(95), EXPEDITION_CAMP(42), WATCHTOWER(8), CAMPSITE(14), SHRINE(10), HERMIT(14), SHIPWRECK(12), REST_STOP(7);
 
         public final int reach;
 
@@ -93,6 +93,7 @@ public final class Poi extends Feature {
             case CAMPSITE: return Pad.circle(x, z, 9, y, 6);
             case SHRINE: return Pad.circle(x, z, 8, y, 6);
             case WATCHTOWER: return Pad.circle(x, z, 5, y, 5);
+            case REST_STOP: return Pad.circle(x, z, 5, y, 5);
             default: return null;
         }
     }
@@ -129,6 +130,7 @@ public final class Poi extends Feature {
             case CAMPSITE: campsite(b, px, pz, col); break;
             case SHRINE: shrine(b, px, pz, col); break;
             case HERMIT: hermit(b, px, pz, col); break;
+            case REST_STOP: restStop(b, px, pz, col); break;
             default: shipwreck(b, px, pz, col); break;
         }
     }
@@ -342,6 +344,37 @@ public final class Poi extends Feature {
             b.set(px, h, pz, Blocks.COBBLE);
             if (Hash.unit(hh) < 0.5) b.set(px, h + 6, pz, Blocks.SPRUCE_PLANKS);
             if (px == x && pz == z) b.lootChest(px, h + 1, pz, "south", "minecraft:chests/village/village_toolsmith");
+        }
+    }
+
+    /** Where this place's cooking fire is, or null. */
+    public int[] campfire() {
+        switch (kind) {
+            case CAMPSITE: case EXPEDITION_CAMP: case REST_STOP: return new int[] {x, y + 1, z};
+            case HERMIT: return new int[] {x + 6, y + 1, z};
+            default: return null;
+        }
+    }
+
+    // ---- Roadside rest stop: a fire ring with log seats, a lantern post and a supply barrel ----
+
+    private void restStop(ChunkBuffer b, int px, int pz, Column col) {
+        int dx = px - x, dz = pz - z;
+        if (Math.abs(dx) > 5 || Math.abs(dz) > 5 || col.underwater()) return;
+        int h = col.height;
+        double d = Math.hypot(dx, dz);
+        if (d > 5.2) return;
+        b.fill(px, h + 1, h + 4, pz, Blocks.AIR);
+        long hh = Hash.of(seed, px, pz);
+        if (d < 3.6) b.set(px, h, pz, Hash.unit(hh) < 0.5 ? Blocks.COARSE_DIRT : Blocks.DIRT_PATH);
+        if (dx == 0 && dz == 0) { b.set(px, h + 1, pz, Blocks.CAMPFIRE); return; }
+        if (Math.abs(dx) == 2 && Math.abs(dz) <= 1) { b.set(px, h + 1, pz, Blocks.OAK_LOG_Z); return; }
+        if (Math.abs(dz) == 2 && Math.abs(dx) <= 1) { b.set(px, h + 1, pz, Blocks.OAK_LOG_X); return; }
+        if (dx == 3 && dz == -3) { b.set(px, h + 1, pz, Blocks.BARREL); return; }
+        if (dx == -3 && dz == 3) {
+            b.set(px, h + 1, pz, Blocks.SPRUCE_FENCE);
+            b.set(px, h + 2, pz, Blocks.SPRUCE_FENCE);
+            b.set(px, h + 3, pz, Blocks.id("lantern[hanging=false]"));
         }
     }
 
