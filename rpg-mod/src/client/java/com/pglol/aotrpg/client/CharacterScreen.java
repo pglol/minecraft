@@ -45,7 +45,7 @@ public class CharacterScreen extends Screen {
         if (p == null) return;
         w = Math.min(440, width - 20);
         left = (width - w) / 2;
-        top = 64;
+        top = 88;
         h = Math.min(220, height - top - 10);
 
         String[] tabs = {"Attributes", "Skills"};
@@ -92,15 +92,15 @@ public class CharacterScreen extends Screen {
         if (p == null) return;
 
         // Header
-        Ui.text(c, Ui.title(p.name()), width / 2f, 8, 1.8f, Ui.GOLD, true);
+        Ui.text(c, Ui.title(p.name()), width / 2f, 6, 1.8f, Ui.GOLD, true);
         Text sub = Text.literal("Level " + p.level() + " ").withColor(Ui.CREAM)
             .append(Text.literal(p.disciplineEnum().title).withColor(Ui.disciplineColor(p.discipline())))
             .append(Text.literal("  ·  " + p.originEnum().title + "  ·  Titans slain: " + p.titanKills()).withColor(Ui.MUTED));
-        c.drawCenteredTextWithShadow(textRenderer, sub, width / 2, 28, 0xFFFFFFFF);
+        c.drawCenteredTextWithShadow(textRenderer, sub, width / 2, 27, 0xFFFFFFFF);
         int bw = 220;
-        Ui.bar(c, width / 2 - bw / 2, 40, bw, 7, p.need() > 0 ? (float) p.xp() / p.need() : 1, Ui.XP);
+        Ui.bar(c, width / 2 - bw / 2, 39, bw, 7, p.need() > 0 ? (float) p.xp() / p.need() : 1, Ui.XP);
         String xp = p.level() >= 100 ? "MAX LEVEL" : p.xp() + " / " + p.need() + " XP";
-        c.drawCenteredTextWithShadow(textRenderer, Text.literal(xp), width / 2, 50, Ui.MUTED);
+        c.drawCenteredTextWithShadow(textRenderer, Text.literal(xp), width / 2, 49, Ui.MUTED);
 
         Ui.panel(c, left, top, w, h);
         if (tab == 0) drawAttributes(c, p);

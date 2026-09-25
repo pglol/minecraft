@@ -360,6 +360,8 @@ public final class CharacterCreation {
         }
         AotRpg.sync(p, pr);
         AotRpg.NAMETAGS.update(p, pr);
+        pr.questBase = 0;
+        AotRpg.STORY.send(p, pr);
         intro(p, pr);
     }
 
@@ -377,11 +379,12 @@ public final class CharacterCreation {
             Titles.show(p, Text.literal(pr.name).formatted(Formatting.GOLD, Formatting.BOLD),
                 Text.literal(pr.discipline.title + " of the 104th Cadet Corps").formatted(Formatting.YELLOW), 20, 60, 20);
             p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1f);
-            MutableText msg = Text.literal("\n⚔ Chapter 1: The Recruit\n").formatted(Formatting.GOLD, Formatting.BOLD)
-                .append(Text.literal("Read your Recruitment Letter and report to the Cadet Training Camp.\n")
-                    .formatted(Formatting.GRAY))
-                .append(Text.literal("Slay titans to gain XP. Type /character to view your character.\n")
-                    .formatted(Formatting.DARK_GRAY));
+            boolean mod = AotRpg.hasClient(p);
+            MutableText msg = Text.literal("\n\u2694 Chapter 1: The Recruit\n").formatted(Formatting.GOLD, Formatting.BOLD)
+                .append(Text.literal("Read your Recruitment Letter and report to the Cadet Training Camp"
+                    + (mod ? " (gold marker on your minimap).\n" : ".\n")).formatted(Formatting.GRAY))
+                .append(Text.literal(mod ? "Slay titans to gain XP. Press K for your character and skills.\n"
+                    : "Slay titans to gain XP. Type /character to view your character.\n").formatted(Formatting.DARK_GRAY));
             p.sendMessage(msg);
         });
     }

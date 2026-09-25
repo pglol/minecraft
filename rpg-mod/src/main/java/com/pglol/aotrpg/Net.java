@@ -158,7 +158,47 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    public record RosterEntry(java.util.UUID id, String name, int level, int discipline) { }
+
+    /** Server -> client: character names of everyone online, for name plates. */
+    public record Roster(java.util.List<RosterEntry> players) implements CustomPayload {
+        public static final Id<Roster> ID = id("roster");
+        public static final PacketCodec<RegistryByteBuf, Roster> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.players.size());
+            for (RosterEntry e : v.players) {
+                b.writeUuid(e.id());
+                b.writeString(e.name());
+                b.writeVarInt(e.level());
+                b.writeVarInt(e.discipline());
+            }
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 1000);
+            java.util.List<RosterEntry> l = new java.util.ArrayList<>(n);
+            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt()));
+            return new Roster(l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: the current story objective (and its map marker). */
+    public record Objective(String chapter, String text, String progress, boolean hasTarget, int x, int y, int z)
+            implements CustomPayload {
+        public static final Id<Objective> ID = id("objective");
+        public static final PacketCodec<RegistryByteBuf, Objective> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.chapter);
+            b.writeString(v.text);
+            b.writeString(v.progress);
+            b.writeBoolean(v.hasTarget);
+            b.writeVarInt(v.x);
+            b.writeVarInt(v.y);
+            b.writeVarInt(v.z);
+        }, b -> new Objective(b.readString(), b.readString(), b.readString(), b.readBoolean(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playS2C().register(Roster.ID, Roster.CODEC);
+        PayloadTypeRegistry.playS2C().register(Objective.ID, Objective.CODEC);
         PayloadTypeRegistry.playS2C().register(PartySync.ID, PartySync.CODEC);
         PayloadTypeRegistry.playS2C().register(OpenCreator.ID, OpenCreator.CODEC);
         PayloadTypeRegistry.playS2C().register(Sync.ID, Sync.CODEC);

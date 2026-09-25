@@ -36,6 +36,9 @@ jobs:
               javap -p -cp "$j" net.minecraft.client.gui.hud.InGameHud | grep -iE "render(StatusBars|ExperienceBar|ExperienceLevel)"
               javap -p -cp "$j" net.minecraft.client.MinecraftClient | grep -E " hasOutline"
               javap -p -cp "$j" net.minecraft.entity.Entity | grep -E " getTeamColorValue"
+              javap -p -cp "$j" net.minecraft.client.render.entity.EntityRenderer | grep -E "renderLabelIfPresent|dispatcher"
+              javap -p -cp "$j" net.minecraft.client.MinecraftClient | grep -E " setScreen"
+              javap -p -cp "$j" net.minecraft.client.gui.screen.ingame.InventoryScreen | grep -E "drawEntity|isClickOutsideBounds"
               break
             fi
           done

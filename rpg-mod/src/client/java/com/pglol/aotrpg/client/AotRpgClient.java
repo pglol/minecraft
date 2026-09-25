@@ -13,12 +13,14 @@ import org.lwjgl.glfw.GLFW;
 
 /** Client side: creator and character screens, the RPG HUD, the K key. */
 public final class AotRpgClient implements ClientModInitializer {
-    private static KeyBinding characterKey;
+    private static KeyBinding characterKey, mapKey;
 
     @Override
     public void onInitializeClient() {
         characterKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.character",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.aot_rpg"));
+        mapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.minimap",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, "category.aot_rpg"));
 
         ClientPlayNetworking.registerGlobalReceiver(Net.OpenCreator.ID, (payload, ctx) -> {
             // A fresh creator (not a rejected attempt) means the character was reset.
@@ -42,15 +44,24 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ClientState.profile != null) ctx.client().setScreen(new CharacterScreen(payload.tab()));
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.PartySync.ID, (payload, ctx) -> ClientState.party = payload.members());
+        ClientPlayNetworking.registerGlobalReceiver(Net.Roster.ID, (payload, ctx) -> {
+            java.util.Map<java.util.UUID, Net.RosterEntry> m = new java.util.HashMap<>();
+            for (Net.RosterEntry e : payload.players()) m.put(e.id(), e);
+            ClientState.roster = m;
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.Objective.ID, (payload, ctx) -> ClientState.objective = payload);
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClientState.reset());
 
         HudRenderCallback.EVENT.register(RpgHud::render);
+        HudRenderCallback.EVENT.register(Minimap::render);
         HudRenderCallback.EVENT.register(PartyHud::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (characterKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new CharacterScreen(0));
             }
+            while (mapKey.wasPressed()) ClientState.minimap = !ClientState.minimap;
+            Minimap.tick(client);
             // Exhausted: no sprinting until stamina recovers.
             if (ClientState.exhausted && client.player != null && client.player.isSprinting()) client.player.setSprinting(false);
         });

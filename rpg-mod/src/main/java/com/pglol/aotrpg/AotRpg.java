@@ -37,6 +37,7 @@ public final class AotRpg implements ModInitializer {
     public static final Nametags NAMETAGS = new Nametags();
     public static final Stamina STAMINA = new Stamina();
     public static final Parties PARTIES = new Parties();
+    public static final Story STORY = new Story();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
     public static boolean hasClient(ServerPlayerEntity p) {
@@ -109,6 +110,7 @@ public final class AotRpg implements ModInitializer {
                     PROGRESSION.apply(p, pr);
                     sync(p, pr);
                     NAMETAGS.update(p, pr);
+                    STORY.send(p, pr);
                     p.sendMessage(Text.literal("Welcome back, ").formatted(Formatting.GRAY)
                         .append(Text.literal(pr.name).formatted(Formatting.GOLD, Formatting.BOLD))
                         .append(Text.literal(".").formatted(Formatting.GRAY)), true);
@@ -167,13 +169,10 @@ public final class AotRpg implements ModInitializer {
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
-            // Once a second: re-attach name tags lost to teleports, dimension changes or dismounts.
-            if (ticks % 20 == 0) {
-                Profile pr = PROFILES.get(p.getUuid());
-                if (pr.created && p.isAlive()) NAMETAGS.update(p, pr);
-            }
+            STORY.tick(p, PROFILES.get(p.getUuid()), ticks);
         }
         PARTIES.tick(server, ticks);
+        NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) PROFILES.saveAll();
     }
 

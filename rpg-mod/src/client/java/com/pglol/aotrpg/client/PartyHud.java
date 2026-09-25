@@ -25,8 +25,8 @@ public final class PartyHud {
         if (party.isEmpty() || me == null || mc.options.hudHidden || mc.getDebugHud().shouldShowDebugHud()) return;
 
         int x = 4;
-        int total = 12 + party.size() * (H + 3);
-        int y = Math.max(4, c.getScaledWindowHeight() / 2 - total / 2 - 20);
+        // Below the minimap and objective.
+        int y = Math.max(4, Minimap.bottom);
 
         c.drawTextWithShadow(Ui.font(), Ui.heading("Party  " + (party.size() + 1) + "/6"), x + 2, y, Ui.GOLD);
         y += 12;

@@ -280,7 +280,13 @@ Progression:
 - Levels run from 1 to 100, and each level gives 1 stat point.
 - An XP bar at the top of the screen shows your level, name and discipline.
 
-Every player has a floating name tag showing their character name, level and discipline, visible within about 20 blocks. It replaces the username tag.
+Name plates: with the client mod, players show an AoT-styled plate (character name, level, discipline) instead of the username tag, fading out beyond about 20 blocks. Party members' plates have a green trim (gold for the leader) and a health bar.
+
+Minimap (top left, **M** toggles it): terrain around you (north up), your arrow, party members (green, gold for the leader; they stay pinned to the edge when far away), titans (large red) and hostile mobs (small red), and a gold marker for your current story objective. The objective text and distance sit under the map; party frames sit below that.
+
+Inventory: the survival inventory uses the AoT style, with a character panel on the left (large player viewer, health, armor, damage, speed, stamina).
+
+Story: Chapter 1 has you report to the Cadet Training Camp, then slay 3 titans beyond the walls; Chapter 2 sends you to the Survey Corps HQ. Each objective gives XP. More chapters are coming.
 
 Commands:
 - `/character` or **K**: character sheet and skill tree. Spend stat points and skill points here.

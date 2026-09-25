@@ -80,7 +80,8 @@ public final class Progression {
             apply(p, pr);
             AotRpg.NAMETAGS.update(p, pr);
             Titles.show(p, Text.literal("LEVEL UP").formatted(Formatting.GOLD, Formatting.BOLD),
-                Text.literal("Level " + pr.level + "  ·  +1 stat point  (/character)").formatted(Formatting.YELLOW), 10, 50, 20);
+                Text.literal("Level " + pr.level + "  ·  +1 stat point" + (pr.level % 5 == 0 ? ", +1 skill point" : "")
+                    + (AotRpg.hasClient(p) ? "  (K)" : "  (/character)")).formatted(Formatting.YELLOW), 10, 50, 20);
             p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1.1f);
         }
         AotRpg.sync(p, pr);

@@ -12,6 +12,12 @@ public final class ClientState {
     /** The other members of our party (empty = no party). */
     public static java.util.List<Net.PartyMember> party = java.util.List.of();
 
+    /** Character names of online players, for name plates. */
+    public static java.util.Map<java.util.UUID, Net.RosterEntry> roster = new java.util.HashMap<>();
+    /** Current story objective, or null. */
+    public static Net.Objective objective;
+    public static boolean minimap = true;
+
     public static Net.PartyMember partyMember(java.util.UUID id) {
         for (Net.PartyMember m : party) if (m.id().equals(id)) return m;
         return null;
@@ -23,5 +29,7 @@ public final class ClientState {
         maxStamina = 100;
         exhausted = false;
         party = java.util.List.of();
+        roster = new java.util.HashMap<>();
+        objective = null;
     }
 }
