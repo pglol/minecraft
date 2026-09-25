@@ -60,8 +60,102 @@ public final class CapitalFeature extends TownFeature {
                 else if (Hash.unit(Hash.of(seed, x, z)) < 0.2) buf.set(x, BASE + 1, z, Blocks.POPPY);
             }
         }
+        plaza(buf, x, z);
         underground(buf, x, z);
         tunnel(buf, x, z);
+    }
+
+    // ---- Palace plaza: patterned paving, lamps, tree planters, flowers and benches ----------
+
+    private static final int PLAZA_R = 94;
+    private static final int[][] LAMPS = ring(88, 24, 0);
+    private static final int[][] TREES = ring(72, 18, 0);
+    private static final int[][] FLOWERS = ring(72, 18, 10);
+    private static final int[][] BENCHES = ring(78, 18, 10);
+
+    private static int[][] ring(double r, int count, double offsetDeg) {
+        int[][] out = new int[count][];
+        for (int i = 0; i < count; i++) {
+            double a = Math.toRadians(offsetDeg + i * 360.0 / count);
+            out[i] = new int[] {(int) Math.round(Math.cos(a) * r), (int) Math.round(Math.sin(a) * r)};
+        }
+        return out;
+    }
+
+    /** Keep decoration off the palace, its towers, the garden and the main avenues. */
+    private static boolean plazaFree(int x, int z) {
+        if (Math.abs(x) <= 50 && Math.abs(z) <= 38) return false;
+        if (Math.abs(x) <= 34 && z > 26 && z < 96) return false;
+        return Math.abs(x) > 3 && Math.abs(z) > 3;
+    }
+
+    private void plaza(ChunkBuffer buf, int x, int z) {
+        double d = Math.hypot(x, z);
+        if (d > PLAZA_R + 3 || !plazaFree(x, z)) return;
+        int y = BASE;
+        // Paving pattern: rings and spokes in a lighter stone.
+        double ring = d % 14;
+        double ang = Math.toDegrees(Math.atan2(z, x));
+        double spoke = Math.abs(((ang % 30) + 30) % 30 - 15);
+        if (d <= PLAZA_R) {
+            if (ring < 1) buf.set(x, y, z, Blocks.SMOOTH_STONE);
+            else if (d > 56 && spoke * d / 57.3 > 14.2) buf.set(x, y, z, Blocks.POLISHED_ANDESITE);
+            if (d > PLAZA_R - 1.2) buf.set(x, y, z, Blocks.STONE_BRICKS);
+            // A lawn band around the square with low hedges and flowers, broken by the avenues.
+            if (d >= 67.5 && d <= 76.5 && spoke > 2.2) {
+                buf.set(x, y, z, Blocks.GRASS);
+                if (d < 68.4 || d > 75.6) buf.set(x, y + 1, z, Blocks.OAK_LEAVES);
+                else {
+                    double u = Hash.unit(Hash.of(seed, x, z, 9));
+                    if (u < 0.10) buf.set(x, y + 1, z, Blocks.POPPY);
+                    else if (u < 0.18) buf.set(x, y + 1, z, Blocks.CORNFLOWER);
+                    else if (u < 0.24) buf.set(x, y + 1, z, Blocks.DANDELION);
+                    else if (u < 0.40) buf.set(x, y + 1, z, Blocks.SHORT_GRASS);
+                }
+            }
+        }
+        for (int[] l : LAMPS) {
+            if (l[0] == x && l[1] == z && plazaFree(x, z)) {
+                buf.fill(x, y + 1, y + 3, z, Blocks.id("dark_oak_fence"));
+                buf.set(x, y + 4, z, Blocks.LANTERN);
+                return;
+            }
+        }
+        for (int[] t : TREES) {
+            if (!plazaFree(t[0], t[1])) continue;
+            int dx = x - t[0], dz = z - t[1];
+            int ax = Math.abs(dx), az = Math.abs(dz);
+            if (ax <= 2 && az <= 2) {
+                double r = Math.hypot(dx, dz);
+                if (r <= 2.6) {
+                    buf.set(x, y + 5, z, Blocks.OAK_LEAVES);
+                    buf.set(x, y + 6, z, Blocks.OAK_LEAVES);
+                    if (r <= 1.5) buf.set(x, y + 7, z, Blocks.OAK_LEAVES);
+                }
+                if (ax <= 1 && az <= 1) {
+                    buf.set(x, y, z, Blocks.GRASS);
+                    if (dx == 0 && dz == 0) buf.fill(x, y + 1, y + 5, z, Blocks.OAK_LOG);
+                    else buf.set(x, y + 1, z, Blocks.id("stone_brick_slab[type=bottom]"));
+                }
+            }
+        }
+        for (int[] f : FLOWERS) {
+            if (!plazaFree(f[0], f[1])) continue;
+            if (Math.abs(x - f[0]) <= 1 && Math.abs(z - f[1]) <= 0) {
+                buf.set(x, y, z, Blocks.GRASS);
+                buf.set(x, y + 1, z, Blocks.id("flowering_azalea"));
+            }
+        }
+        for (int[] b : BENCHES) {
+            if (!plazaFree(b[0], b[1])) continue;
+            // Two seats side by side along the ring, backs to the outside.
+            boolean alongX = Math.abs(b[1]) > Math.abs(b[0]);
+            int ox = alongX ? 1 : 0, oz = alongX ? 0 : 1;
+            if ((x == b[0] && z == b[1]) || (x == b[0] + ox && z == b[1] + oz)) {
+                String facing = alongX ? (b[1] > 0 ? "south" : "north") : (b[0] > 0 ? "east" : "west");
+                buf.set(x, y + 1, z, Blocks.id("spruce_stairs[facing=" + facing + ",half=bottom]"));
+            }
+        }
     }
 
     private void underground(ChunkBuffer buf, int x, int z) {
