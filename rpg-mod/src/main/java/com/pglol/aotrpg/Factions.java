@@ -263,6 +263,7 @@ public final class Factions {
         pr.orders.put(o.id(), -1);
         pr.factionRep += o.rep();
         AotRpg.WALLET.earn(p, o.marks(), "Work order");
+        AotRpg.SEASON.xp(p, Season.XP_ORDER);
         AotRpg.ROLES.addPoints(p, 10);
         if (f != null) shift(o.sector(), f, 1.5 + o.rep() / 6.0);
         Titles.show(p, Text.literal("ORDER COMPLETE").formatted(Formatting.GOLD, Formatting.BOLD),

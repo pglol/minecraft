@@ -782,6 +782,117 @@ public final class Net {
 
     public record ModeEntry(String id, String title, String desc, boolean unlocked, boolean active, String requirement) { }
 
+    // ------------------------------------------------------------------ battle pass, event shop, social hub
+
+    public record PassTier(String free, String freeIcon, int freeColor, boolean freeClaimed,
+                           String premium, String premiumIcon, int premiumColor, boolean premiumClaimed) { }
+
+    /** Server -> client: the season track and this account's progress. */
+    public record PassView(String name, long endsAt, long xp, long xpPerTier, boolean premium, long premiumGold, boolean ended,
+                           java.util.List<PassTier> tiers, boolean open) implements CustomPayload {
+        public static final Id<PassView> ID = id("pass");
+        public static final PacketCodec<RegistryByteBuf, PassView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.name); b.writeLong(v.endsAt); b.writeVarLong(v.xp); b.writeVarLong(v.xpPerTier); b.writeBoolean(v.premium);
+            b.writeVarLong(v.premiumGold); b.writeBoolean(v.ended);
+            b.writeVarInt(v.tiers.size());
+            for (PassTier t : v.tiers) {
+                b.writeString(t.free()); b.writeString(t.freeIcon()); b.writeInt(t.freeColor()); b.writeBoolean(t.freeClaimed());
+                b.writeString(t.premium()); b.writeString(t.premiumIcon()); b.writeInt(t.premiumColor()); b.writeBoolean(t.premiumClaimed());
+            }
+            b.writeBoolean(v.open);
+        }, b -> {
+            String name = b.readString();
+            long ends = b.readLong(), xp = b.readVarLong(), per = b.readVarLong();
+            boolean prem = b.readBoolean();
+            long gold = b.readVarLong();
+            boolean ended = b.readBoolean();
+            int n = Math.min(b.readVarInt(), 200);
+            java.util.List<PassTier> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new PassTier(b.readString(), b.readString(), b.readInt(), b.readBoolean(),
+                b.readString(), b.readString(), b.readInt(), b.readBoolean()));
+            return new PassView(name, ends, xp, per, prem, gold, ended, l, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open, claim (tier), claimall, buy. */
+    public record PassAction(String action, int tier) implements CustomPayload {
+        public static final Id<PassAction> ID = id("pass_action");
+        public static final PacketCodec<RegistryByteBuf, PassAction> CODEC =
+            PacketCodec.of((v, b) -> { b.writeString(v.action); b.writeVarInt(v.tier); }, b -> new PassAction(b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record EventItem(String key, String title, String desc, String icon, int color, long tokens, long gold, int limit, int bought) { }
+
+    /** Server -> client: the special event shop. */
+    public record EventView(boolean running, String name, String token, long endsAt, long tokens, java.util.List<EventItem> items,
+                            boolean open) implements CustomPayload {
+        public static final Id<EventView> ID = id("event");
+        public static final PacketCodec<RegistryByteBuf, EventView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeBoolean(v.running); b.writeString(v.name); b.writeString(v.token); b.writeLong(v.endsAt); b.writeVarLong(v.tokens);
+            b.writeVarInt(v.items.size());
+            for (EventItem i : v.items) {
+                b.writeString(i.key()); b.writeString(i.title()); b.writeString(i.desc()); b.writeString(i.icon()); b.writeInt(i.color());
+                b.writeVarLong(i.tokens()); b.writeVarLong(i.gold()); b.writeVarInt(i.limit()); b.writeVarInt(i.bought());
+            }
+            b.writeBoolean(v.open);
+        }, b -> {
+            boolean run = b.readBoolean();
+            String name = b.readString(), token = b.readString();
+            long ends = b.readLong(), tokens = b.readVarLong();
+            int n = Math.min(b.readVarInt(), 200);
+            java.util.List<EventItem> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new EventItem(b.readString(), b.readString(), b.readString(), b.readString(), b.readInt(),
+                b.readVarLong(), b.readVarLong(), b.readVarInt(), b.readVarInt()));
+            return new EventView(run, name, token, ends, tokens, l, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open, buy (tokens), buy_gold. */
+    public record EventAction(String action, String item) implements CustomPayload {
+        public static final Id<EventAction> ID = id("event_action");
+        public static final PacketCodec<RegistryByteBuf, EventAction> CODEC =
+            PacketCodec.of((v, b) -> { b.writeString(v.action); b.writeString(v.item); }, b -> new EventAction(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record SocialPlayer(java.util.UUID uuid, String name, String account, int level, String tag, int tagColor, boolean online,
+                               boolean friend, boolean party, String where, String faction, int factionColor) { }
+
+    /** Server -> client: the social hub list. */
+    public record SocialView(java.util.List<SocialPlayer> players, boolean open) implements CustomPayload {
+        public static final Id<SocialView> ID = id("social");
+        public static final PacketCodec<RegistryByteBuf, SocialView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.players.size());
+            for (SocialPlayer s : v.players) {
+                b.writeUuid(s.uuid()); b.writeString(s.name()); b.writeString(s.account()); b.writeVarInt(s.level()); b.writeString(s.tag());
+                b.writeInt(s.tagColor()); b.writeBoolean(s.online()); b.writeBoolean(s.friend()); b.writeBoolean(s.party());
+                b.writeString(s.where()); b.writeString(s.faction()); b.writeInt(s.factionColor());
+            }
+            b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 1000);
+            java.util.List<SocialPlayer> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new SocialPlayer(b.readUuid(), b.readString(), b.readString(), b.readVarInt(), b.readString(),
+                b.readInt(), b.readBoolean(), b.readBoolean(), b.readBoolean(), b.readString(), b.readString(), b.readInt()));
+            return new SocialView(l, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open, friend_add, friend_remove, invite. */
+    public record SocialAction(String action, java.util.UUID target) implements CustomPayload {
+        public static final Id<SocialAction> ID = id("social_action");
+        public static final PacketCodec<RegistryByteBuf, SocialAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action);
+            b.writeBoolean(v.target != null);
+            if (v.target != null) b.writeUuid(v.target);
+        }, b -> new SocialAction(b.readString(), b.readBoolean() ? b.readUuid() : null));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the game modes and which are unlocked. */
     public record ModeView(java.util.List<ModeEntry> modes, int chapter, boolean open) implements CustomPayload {
         public static final Id<ModeView> ID = id("modes");
@@ -810,6 +921,12 @@ public final class Net {
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playC2S().register(PassAction.ID, PassAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(EventView.ID, EventView.CODEC);
+        PayloadTypeRegistry.playC2S().register(EventAction.ID, EventAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(SocialView.ID, SocialView.CODEC);
+        PayloadTypeRegistry.playC2S().register(SocialAction.ID, SocialAction.CODEC);
         PayloadTypeRegistry.playS2C().register(ForgeView.ID, ForgeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ForgeAction.ID, ForgeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeView.ID, HomeView.CODEC);

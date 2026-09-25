@@ -94,6 +94,21 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.FishBite.ID, (payload, ctx) -> ctx.client().setScreen(
             new MinigameScreen(MinigameScreen.Kind.REEL, "Reel it in", "Hold Space or the mouse to keep the fish in your zone", payload.difficulty(),
                 q -> ClientPlayNetworking.send(new Net.FishResult(q)))));
+        ClientPlayNetworking.registerGlobalReceiver(Net.PassView.ID, (payload, ctx) -> {
+            ClientState.pass = payload;
+            if (ctx.client().currentScreen instanceof BattlePassScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new BattlePassScreen());
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.EventView.ID, (payload, ctx) -> {
+            ClientState.event = payload;
+            if (ctx.client().currentScreen instanceof EventShopScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new EventShopScreen());
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.SocialView.ID, (payload, ctx) -> {
+            ClientState.social = payload;
+            if (ctx.client().currentScreen instanceof SocialScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new SocialScreen());
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.ForgeView.ID, (payload, ctx) -> {
             ClientState.forge = payload;
             if (ctx.client().currentScreen instanceof ForgeScreen s) s.refresh();

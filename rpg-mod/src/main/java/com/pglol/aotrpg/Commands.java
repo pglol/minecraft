@@ -100,6 +100,43 @@ final class Commands {
                     c.getSource().sendFeedback(() -> Text.literal("Unlocked " + m + " for " + p.getName().getString()), true);
                     return 1;
                 })))))
+            .then(CommandManager.literal("pass")
+                .then(CommandManager.literal("reload").executes(c -> {
+                    AotRpg.SEASON.reload();
+                    AotRpg.EVENTS.reload();
+                    for (ServerPlayerEntity o : c.getSource().getServer().getPlayerManager().getPlayerList()) {
+                        AotRpg.SEASON.send(o, false);
+                        AotRpg.EVENTS.send(o, false);
+                    }
+                    c.getSource().sendFeedback(() -> Text.literal("Reloaded season.json and event.json"), true);
+                    return 1;
+                }))
+                .then(CommandManager.literal("xp").then(CommandManager.argument("player", EntityArgumentType.player())
+                    .then(CommandManager.argument("amount", com.mojang.brigadier.arguments.LongArgumentType.longArg(1)).executes(c -> {
+                        ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                        long n = com.mojang.brigadier.arguments.LongArgumentType.getLong(c, "amount");
+                        AotRpg.SEASON.xp(p, n);
+                        AotRpg.SEASON.send(p, false);
+                        c.getSource().sendFeedback(() -> Text.literal("Gave " + n + " pass XP to " + p.getName().getString()), true);
+                        return 1;
+                    }))))
+                .then(CommandManager.literal("premium").then(CommandManager.argument("player", EntityArgumentType.player())
+                    .then(CommandManager.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool()).executes(c -> {
+                        ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                        boolean on = com.mojang.brigadier.arguments.BoolArgumentType.getBool(c, "on");
+                        AotRpg.SEASON.setPremium(p, on);
+                        c.getSource().sendFeedback(() -> Text.literal((on ? "Granted" : "Removed") + " premium pass for " + p.getName().getString()), true);
+                        return 1;
+                    })))))
+            .then(CommandManager.literal("tokens").then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(CommandManager.argument("amount", com.mojang.brigadier.arguments.LongArgumentType.longArg()).executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    long n = com.mojang.brigadier.arguments.LongArgumentType.getLong(c, "amount");
+                    AotRpg.EVENTS.addTokens(p, n);
+                    AotRpg.EVENTS.send(p, false);
+                    c.getSource().sendFeedback(() -> Text.literal("Gave " + n + " event tokens to " + p.getName().getString()), true);
+                    return 1;
+                }))))
             .then(CommandManager.literal("campfire").executes(c -> {
                 ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
                 var pos = p.getBlockPos();
@@ -273,6 +310,48 @@ final class Commands {
 
     /** /wallet, /pay, /characters and the operator money commands. */
     private static void economy(CommandDispatcher<ServerCommandSource> d) {
+        d.register(CommandManager.literal("pass").executes(c -> {
+            AotRpg.SEASON.send(c.getSource().getPlayerOrThrow(), true);
+            return 1;
+        }));
+        d.register(CommandManager.literal("event").executes(c -> {
+            AotRpg.EVENTS.send(c.getSource().getPlayerOrThrow(), true);
+            return 1;
+        }));
+        d.register(CommandManager.literal("social").executes(c -> {
+            AotRpg.SOCIAL.send(c.getSource().getPlayerOrThrow(), true);
+            return 1;
+        }));
+        d.register(CommandManager.literal("friend")
+            .then(CommandManager.literal("add").then(CommandManager.argument("who", com.mojang.brigadier.arguments.StringArgumentType.word()).executes(c -> {
+                ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                String who = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "who");
+                java.util.UUID id = null;
+                try {
+                    id = java.util.UUID.fromString(who);
+                } catch (IllegalArgumentException e) {
+                    ServerPlayerEntity o = c.getSource().getServer().getPlayerManager().getPlayer(who);
+                    if (o != null) id = o.getUuid();
+                }
+                if (id == null) {
+                    c.getSource().sendError(Text.literal("No such player online."));
+                    return 0;
+                }
+                AotRpg.SOCIAL.action(p, "friend_add", id);
+                return 1;
+            })))
+            .then(CommandManager.literal("remove").then(CommandManager.argument("who", com.mojang.brigadier.arguments.StringArgumentType.word()).executes(c -> {
+                ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                String who = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "who");
+                for (var e : AotRpg.PROFILES.account(p.getUuid()).friends.entrySet()) {
+                    if (e.getValue().equalsIgnoreCase(who) || e.getKey().equals(who)) {
+                        AotRpg.SOCIAL.action(p, "friend_remove", java.util.UUID.fromString(e.getKey()));
+                        return 1;
+                    }
+                }
+                c.getSource().sendError(Text.literal("Not on your friends list."));
+                return 0;
+            }))));
         d.register(CommandManager.literal("wallet").executes(c -> {
             ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
             p.sendMessage(Text.literal("Wallet: ").formatted(Formatting.GRAY).append(Wallet.marks(AotRpg.WALLET.marks(p)))

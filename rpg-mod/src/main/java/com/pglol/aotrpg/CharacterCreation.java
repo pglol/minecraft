@@ -355,6 +355,7 @@ public final class CharacterCreation {
         }
         if (!pr.kitGiven) {
             Kit.give(p, pr, AotRpg.PLACES.get("cadet-training-camp"));
+            AotRpg.SCHEDULER.later(40, () -> AotRpg.SEASON.daily(p));
             pr.kitGiven = true;
             AotRpg.PROFILES.save(p.getUuid());
         }

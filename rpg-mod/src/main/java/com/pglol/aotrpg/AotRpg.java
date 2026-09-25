@@ -66,6 +66,9 @@ public final class AotRpg implements ModInitializer {
     public static final Factions FACTIONS = new Factions();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
+    public static final Season SEASON = new Season();
+    public static final EventShop EVENTS = new EventShop();
+    public static final Social SOCIAL = new Social();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -160,6 +163,9 @@ public final class AotRpg implements ModInitializer {
             return net.minecraft.util.TypedActionResult.pass(stack);
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.PassAction.ID, (payload, ctx) -> SEASON.action(ctx.player(), payload.action(), payload.tier()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.EventAction.ID, (payload, ctx) -> EVENTS.action(ctx.player(), payload.action(), payload.item()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.SocialAction.ID, (payload, ctx) -> SOCIAL.action(ctx.player(), payload.action(), payload.target()));
         ServerPlayNetworking.registerGlobalReceiver(Net.FishResult.ID, (payload, ctx) -> FISHING.result(ctx.player(), payload.quality()));
         ServerPlayNetworking.registerGlobalReceiver(Net.ToggleSheath.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) LOADOUT.toggle(ctx.player());
@@ -323,6 +329,9 @@ public final class AotRpg implements ModInitializer {
             FACTIONS.open(server);
             HOMES.open(server);
             MODES.open(server);
+            SEASON.open(server);
+            EVENTS.open(server);
+            SOCIAL.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
@@ -346,6 +355,7 @@ public final class AotRpg implements ModInitializer {
             SCHEDULER.later(20, () -> {
                 if (p.isDisconnected()) return;
                 WALLET.sync(p);
+                SEASON.daily(p);
                 boolean several = PROFILES.account(p.getUuid()).slots.size() > 1;
                 // Returning players choose their character (the last one played is ready to continue).
                 if (pr.created || several) CHARACTERS.send(p, true);
@@ -472,12 +482,15 @@ public final class AotRpg implements ModInitializer {
         GEAR.titanDrop(killer, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());
+        SEASON.xp(killer, Season.XP_TITAN);
+        EVENTS.onTitanKill(killer);
         // Party members within 64 blocks share 60%; anyone else within 32 blocks gets an assist.
         for (ServerPlayerEntity p : killer.getServerWorld().getPlayers()) {
             if (p == killer) continue;
             double d2 = p.squaredDistanceTo(dead);
             if (PARTIES.same(killer.getUuid(), p.getUuid()) && d2 < 64 * 64) {
                 reward(p, Math.round(xp * 0.6), false, "Party kill");
+                SEASON.xp(p, Season.XP_TITAN / 2);
                 QUESTS.onTitanKill(p, dead.getX(), dead.getZ());
             }
             else if (d2 < 32 * 32) reward(p, xp / 2, false, "Assist");

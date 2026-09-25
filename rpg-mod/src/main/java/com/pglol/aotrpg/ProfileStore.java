@@ -33,6 +33,19 @@ public final class ProfileStore {
         /** Premium currency for cosmetics and the battle pass (account wide). */
         public long gold;
         public Map<Integer, Long> lastPlayed = new java.util.HashMap<>();
+        // Battle pass (account wide, reset when the season id changes).
+        public String passSeason = "";
+        public long passXp;
+        public boolean passPremium;
+        public List<Integer> passFree = new ArrayList<>();
+        public List<Integer> passPrem = new ArrayList<>();
+        public long lastDaily;
+        // Special event shop (reset when the event id changes).
+        public String eventId = "";
+        public long eventTokens;
+        public Map<String, Integer> eventBought = new java.util.HashMap<>();
+        // Social: friends by uuid, with the last known name.
+        public Map<String, String> friends = new java.util.LinkedHashMap<>();
     }
 
     private final Map<UUID, Profile> cache = new ConcurrentHashMap<>();
@@ -73,6 +86,12 @@ public final class ProfileStore {
         if (a == null) a = new Account();
         if (a.slots == null) a.slots = new ArrayList<>();
         if (a.lastPlayed == null) a.lastPlayed = new java.util.HashMap<>();
+        if (a.passSeason == null) a.passSeason = "";
+        if (a.passFree == null) a.passFree = new ArrayList<>();
+        if (a.passPrem == null) a.passPrem = new ArrayList<>();
+        if (a.eventId == null) a.eventId = "";
+        if (a.eventBought == null) a.eventBought = new java.util.HashMap<>();
+        if (a.friends == null) a.friends = new java.util.LinkedHashMap<>();
         if (a.slots.isEmpty()) a.slots.add(0); // everyone has slot 0 (the old single character)
         if (!a.slots.contains(a.active)) a.active = a.slots.get(0);
         return a;

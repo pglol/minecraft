@@ -23,7 +23,7 @@ public class AotPauseScreen extends Screen {
         int x = Math.max(20, width / 2 - bw - 30);
         boolean mods = FabricLoader.getInstance().isModLoaded("modmenu");
         boolean op = client.player != null && client.player.hasPermissionLevel(2);
-        int n = (mods ? 10 : 9) + 2 + (op ? 1 : 0);
+        int n = (mods ? 11 : 10) + 2 + (op ? 1 : 0);
         int y = Math.max(50, height / 2 - (n * (bh + gap)) / 2 + 10);
         boolean hasChar = ClientState.profile != null;
         add(x, y, bw, bh, Ui.title("RESUME"), () -> client.setScreen(null)).textScale = 1.2f;
@@ -44,6 +44,11 @@ public class AotPauseScreen extends Screen {
         add(x, y, bw, bh, Text.literal("Game Mode"), () -> ClientPlayNetworking.send(new Net.ModeAction("open"))).active = hasChar;
         y += bh + gap;
         add(x, y, bw, bh, Text.literal("Home"), () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))).active = hasChar;
+        y += bh + gap;
+        int tw = (bw - 8) / 3;
+        add(x, y, tw, bh, Text.literal("Social"), () -> ClientPlayNetworking.send(new Net.SocialAction("open", null))).active = hasChar;
+        add(x + tw + 4, y, tw, bh, Text.literal("Pass"), () -> ClientPlayNetworking.send(new Net.PassAction("open", 0))).active = hasChar;
+        add(x + 2 * (tw + 4), y, bw - 2 * (tw + 4), bh, Text.literal("Event"), () -> ClientPlayNetworking.send(new Net.EventAction("open", ""))).active = hasChar;
         if (op) {
             y += bh + gap;
             add(x, y, bw, bh, Text.literal("Property Office (op)"), () -> ClientPlayNetworking.send(new Net.HomeAction("admin_list", 0, "")));

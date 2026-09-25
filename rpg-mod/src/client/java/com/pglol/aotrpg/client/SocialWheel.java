@@ -44,6 +44,14 @@ public final class SocialWheel extends Screen {
                 mc.setScreen(null);
                 net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new com.pglol.aotrpg.Net.FactionAction("open", ""));
             }),
+            new Option("Social", "Friends and everyone online", new ItemStack(Items.PLAYER_HEAD), true, () -> {
+                mc.setScreen(null);
+                net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new com.pglol.aotrpg.Net.SocialAction("open", null));
+            }),
+            new Option("Battle Pass", "Season rewards", new ItemStack(Items.NETHER_STAR), true, () -> {
+                mc.setScreen(null);
+                net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new com.pglol.aotrpg.Net.PassAction("open", 0));
+            }),
         };
     }
 
