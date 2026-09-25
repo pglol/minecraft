@@ -359,6 +359,8 @@ public final class AotRpg implements ModInitializer {
             Profile pr = PROFILES.get(p.getUuid());
             PARTIES.joined(p);
             COSMETICS.sync(p);
+            COSMETICS.sendAll(p);
+            COSMETICS.broadcast(p);
             LOADOUT.sendAll(p);
             HomeAdmin.joined(p);
             SCHEDULER.later(60, () -> {

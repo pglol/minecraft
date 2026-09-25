@@ -30,8 +30,16 @@ public final class Combat {
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
             if (!(source.getAttacker() instanceof ServerPlayerEntity attacker) || attacker == entity || taken <= 0) return;
             if (!(entity instanceof PlayerEntity) && !AotRpg.isTitan(entity) && !(entity instanceof net.minecraft.entity.mob.HostileEntity)) return;
-            if (!ServerPlayNetworking.canSend(attacker, Net.HitMarker.ID)) return;
             boolean ranged = source.getSource() != attacker || AotItems.isApgGun(attacker.getMainHandStack());
+            if (!ranged) {
+                // The attacker's blade slash, for everyone nearby.
+                Net.SlashFx fx = new Net.SlashFx(AotRpg.COSMETICS.selected(attacker, "slash"), entity.getX(),
+                    entity.getY() + Math.min(entity.getHeight() * 0.6, 3), entity.getZ(), attacker.getYaw());
+                for (ServerPlayerEntity o : net.fabricmc.fabric.api.networking.v1.PlayerLookup.around((net.minecraft.server.world.ServerWorld) entity.getWorld(), entity.getPos(), 48)) {
+                    if (ServerPlayNetworking.canSend(o, Net.SlashFx.ID)) ServerPlayNetworking.send(o, fx);
+                }
+            }
+            if (!ServerPlayNetworking.canSend(attacker, Net.HitMarker.ID)) return;
             boolean kill = entity.isDead() || entity.getHealth() <= 0;
             int kind = (ranged ? 1 : 0) | (kill ? 2 : 0) | (entity instanceof PlayerEntity ? 4 : 0) | (AotRpg.isTitan(entity) ? 8 : 0);
             ServerPlayNetworking.send(attacker, new Net.HitMarker(entity.getId(), taken, kind));

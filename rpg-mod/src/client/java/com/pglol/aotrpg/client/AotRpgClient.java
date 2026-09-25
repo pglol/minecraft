@@ -62,6 +62,9 @@ public final class AotRpgClient implements ClientModInitializer {
         WorldRenderEvents.START.register(LockOn::frame);
         WorldRenderEvents.AFTER_ENTITIES.register(LockOn::render);
         WorldRenderEvents.AFTER_ENTITIES.register(CombatUi::renderWorld);
+        ClientPlayNetworking.registerGlobalReceiver(Net.CosmeticsOf.ID, (payload, ctx) -> CosmeticFx.onWorn(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.SlashFx.ID, (payload, ctx) -> CosmeticFx.slash(payload));
+        WorldRenderEvents.AFTER_ENTITIES.register(CosmeticFx::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.GuardFx.ID, (payload, ctx) -> CombatUi.onGuardFx(payload));
         Property.key = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.property",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, "category.aot_rpg"));
@@ -85,7 +88,12 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.CosmeticsSync.ID, (payload, ctx) -> {
             ClientState.cosmetics = payload.unlocked();
-            ClientState.trail = payload.selected().isEmpty() ? "trail_tracer" : payload.selected().get(0);
+            ClientState.worn.clear();
+            for (String s : payload.selected()) {
+                int i = s.indexOf('=');
+                if (i > 0) ClientState.worn.put(s.substring(0, i), s.substring(i + 1));
+            }
+            ClientState.trail = ClientState.worn.getOrDefault("trail", "trail_tracer");
             ClientState.cosmeticsAll = payload.allowlisted();
             if (ctx.client().currentScreen instanceof CosmeticsScreen s) s.refresh();
         });
@@ -243,6 +251,7 @@ public final class AotRpgClient implements ClientModInitializer {
             while (Property.key.wasPressed()) Property.keyPressed(client);
             while (LockOn.key.wasPressed()) if (client.currentScreen == null) LockOn.pressed(client);
             CombatUi.tick(client);
+            CosmeticFx.tick(client);
             while (socialKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());
             }

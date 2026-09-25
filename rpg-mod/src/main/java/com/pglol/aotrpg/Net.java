@@ -431,6 +431,32 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: what one player wears ("slot=id" each), for drawing their effects. */
+    public record CosmeticsOf(java.util.UUID player, java.util.List<String> worn) implements CustomPayload {
+        public static final Id<CosmeticsOf> ID = id("cosmetics_of");
+        public static final PacketCodec<RegistryByteBuf, CosmeticsOf> CODEC = PacketCodec.of((v, b) -> {
+            b.writeUuid(v.player);
+            b.writeVarInt(v.worn.size());
+            for (String s : v.worn) b.writeString(s);
+        }, b -> {
+            java.util.UUID id = b.readUuid();
+            int n = Math.min(b.readVarInt(), 32);
+            java.util.List<String> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(b.readString());
+            return new CosmeticsOf(id, l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> nearby clients: a blade slash landed, drawn in the attacker's slash style. */
+    public record SlashFx(String style, double x, double y, double z, float yaw) implements CustomPayload {
+        public static final Id<SlashFx> ID = id("slash_fx");
+        public static final PacketCodec<RegistryByteBuf, SlashFx> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.style); b.writeDouble(v.x); b.writeDouble(v.y); b.writeDouble(v.z); b.writeFloat(v.yaw);
+        }, b -> new SlashFx(b.readString(), b.readDouble(), b.readDouble(), b.readDouble(), b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Client -> server: select a cosmetic. */
     public record SelectCosmetic(String cosmetic) implements CustomPayload {
         public static final Id<SelectCosmetic> ID = id("select_cosmetic");
@@ -1038,6 +1064,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playS2C().register(CosmeticsOf.ID, CosmeticsOf.CODEC);
+        PayloadTypeRegistry.playS2C().register(SlashFx.ID, SlashFx.CODEC);
         PayloadTypeRegistry.playC2S().register(GuardKey.ID, GuardKey.CODEC);
         PayloadTypeRegistry.playS2C().register(GuardFx.ID, GuardFx.CODEC);
         PayloadTypeRegistry.playS2C().register(TasksView.ID, TasksView.CODEC);

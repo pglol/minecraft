@@ -26,6 +26,8 @@ public final class ClientState {
 
     public static java.util.List<String> cosmetics = java.util.List.of("trail_tracer");
     public static String trail = "trail_tracer";
+    /** Your cosmetics by slot. */
+    public static java.util.Map<String, String> worn = new java.util.HashMap<>();
     public static boolean cosmeticsAll;
     public static long marks, gold;
     public static Net.CharacterList characters;
@@ -66,6 +68,8 @@ public final class ClientState {
         profile = null;
         property = "";
         placing = null;
+        worn.clear();
+        CosmeticFx.clear();
         stamina = -1;
         maxStamina = 100;
         exhausted = false;

@@ -159,15 +159,11 @@ public final class CombatUi {
     /** Particle pairs for block and clash styles (cosmetics); the defaults are steel sparks. */
     record Style(ParticleEffect main, ParticleEffect second) {
         static Style of(String id, int kind) {
-            return switch (id) {
-                case "block_frost", "clash_frost" -> new Style(ParticleTypes.SNOWFLAKE, new DustParticleEffect(new Vector3f(0.6f, 0.9f, 1f), 1.2f));
-                case "block_ember", "clash_ember" -> new Style(ParticleTypes.FLAME, ParticleTypes.LAVA);
-                case "block_holy", "clash_holy" -> new Style(ParticleTypes.END_ROD, new DustParticleEffect(new Vector3f(1f, 0.9f, 0.5f), 1.3f));
-                case "block_void", "clash_void" -> new Style(ParticleTypes.REVERSE_PORTAL, ParticleTypes.PORTAL);
-                case "block_thunder", "clash_thunder" -> new Style(ParticleTypes.ELECTRIC_SPARK, ParticleTypes.END_ROD);
-                case "block_petal", "clash_petal" -> new Style(ParticleTypes.CHERRY_LEAVES, new DustParticleEffect(new Vector3f(1f, 0.6f, 0.75f), 1.1f));
-                default -> kind == 1 ? new Style(ParticleTypes.ELECTRIC_SPARK, ParticleTypes.CRIT) : new Style(ParticleTypes.CRIT, ParticleTypes.ELECTRIC_SPARK);
-            };
+            if (id.isEmpty() || id.endsWith("_steel")) {
+                return kind == 1 ? new Style(ParticleTypes.ELECTRIC_SPARK, ParticleTypes.CRIT) : new Style(ParticleTypes.CRIT, ParticleTypes.ELECTRIC_SPARK);
+            }
+            ParticleEffect[] p = CosmeticFx.particles(id);
+            return new Style(p[0], p[p.length > 1 ? 1 : 0]);
         }
     }
 }
