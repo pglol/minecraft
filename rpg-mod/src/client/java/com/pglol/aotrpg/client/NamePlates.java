@@ -51,22 +51,22 @@ public final class NamePlates {
 
         VertexConsumer bg = consumers.getBuffer(RenderLayer.getTextBackground());
         int trim = party == null ? Ui.TRIM : party.leader() ? 0xFFF2C14E : 0xFF5BD35B;
-        quad(bg, m, x0, y0, x1, y1, 0.03f, fade(0xB00B0F0C, alpha), light);
-        quad(bg, m, x0, y0, x1, y0 + 1, 0.02f, fade(trim, alpha), light);
-        quad(bg, m, x0, y1 - 1, x1, y1, 0.02f, fade(trim, alpha), light);
-        quad(bg, m, x0, y0, x0 + 1, y1, 0.02f, fade(trim & 0x80FFFFFF, alpha), light);
-        quad(bg, m, x1 - 1, y0, x1, y1, 0.02f, fade(trim & 0x80FFFFFF, alpha), light);
+        quad(bg, m, x0, y0, x1, y1, -1.5f, fade(0xB00B0F0C, alpha), light);
+        quad(bg, m, x0, y0, x1, y0 + 1, -1.0f, fade(trim, alpha), light);
+        quad(bg, m, x0, y1 - 1, x1, y1, -1.0f, fade(trim, alpha), light);
+        quad(bg, m, x0, y0, x0 + 1, y1, -1.0f, fade(trim & 0x80FFFFFF, alpha), light);
+        quad(bg, m, x1 - 1, y0, x1, y1, -1.0f, fade(trim & 0x80FFFFFF, alpha), light);
         if (party != null) {
             float hp = party.maxHealth() > 0 ? Math.max(0, Math.min(1, party.health() / party.maxHealth())) : 0;
-            quad(bg, m, x0 + 4, y1 - 4, x1 - 4, y1 - 2, 0.02f, fade(0xFF000000, alpha), light);
-            quad(bg, m, x0 + 4, y1 - 4, x0 + 4 + (w - 8) * hp, y1 - 2, 0.01f, fade(Ui.HP, alpha), light);
+            quad(bg, m, x0 + 4, y1 - 4, x1 - 4, y1 - 2, -1.0f, fade(0xFF000000, alpha), light);
+            quad(bg, m, x0 + 4, y1 - 4, x0 + 4 + (w - 8) * hp, y1 - 2, -0.5f, fade(Ui.HP, alpha), light);
         }
 
         int nameColor = party == null ? Ui.CREAM : party.leader() ? 0xFFF2C14E : 0xFF9BE89B;
         tr.draw(name, -tr.getWidth(name) / 2f, y0 + 3, fade(nameColor, alpha), false, m, consumers,
-            TextRenderer.TextLayerType.NORMAL, 0, light);
+            TextRenderer.TextLayerType.POLYGON_OFFSET, 0, light);
         tr.draw(sub, -tr.getWidth(sub) / 2f, y0 + 12, fade(0xFFFFFFFF, alpha), false, m, consumers,
-            TextRenderer.TextLayerType.NORMAL, 0, light);
+            TextRenderer.TextLayerType.POLYGON_OFFSET, 0, light);
         // Roleplay tag: a small badge above the plate ("RP · Sergeant" or an operator role).
         if (!r.tag().isEmpty()) {
             Text tag = r.rp() ? Text.literal("RP · ").withColor(0xFF8F8A7A).append(Ui.heading(r.tag()).withColor(0xFF000000 | r.tagColor()))
@@ -75,15 +75,15 @@ public final class NamePlates {
             float bx0 = -tw / 2 - 5, bx1 = tw / 2 + 5, by1 = y0 - 1, by0 = by1 - 10;
             int tc = 0xFF000000 | r.tagColor();
             bg = consumers.getBuffer(RenderLayer.getTextBackground());
-            quad(bg, m, bx0, by0, bx1, by1, 0.03f, fade(0xC00B0F0C, alpha), light);
-            quad(bg, m, bx0, by1 - 1, bx1, by1, 0.02f, fade(tc, alpha), light);
-            quad(bg, m, bx0, by0, bx0 + 2, by1, 0.02f, fade(tc, alpha), light);
-            quad(bg, m, bx1 - 2, by0, bx1, by1, 0.02f, fade(tc, alpha), light);
+            quad(bg, m, bx0, by0, bx1, by1, -1.5f, fade(0xC00B0F0C, alpha), light);
+            quad(bg, m, bx0, by1 - 1, bx1, by1, -1.0f, fade(tc, alpha), light);
+            quad(bg, m, bx0, by0, bx0 + 2, by1, -1.0f, fade(tc, alpha), light);
+            quad(bg, m, bx1 - 2, by0, bx1, by1, -1.0f, fade(tc, alpha), light);
             matrices.push();
             matrices.translate(0, by0 + 2, 0);
             matrices.scale(0.8f, 0.8f, 1);
             tr.draw(tag, -tr.getWidth(tag) / 2f, 0, fade(0xFFFFFFFF, alpha), false, matrices.peek().getPositionMatrix(), consumers,
-                TextRenderer.TextLayerType.NORMAL, 0, light);
+                TextRenderer.TextLayerType.POLYGON_OFFSET, 0, light);
             matrices.pop();
         }
         matrices.pop();
