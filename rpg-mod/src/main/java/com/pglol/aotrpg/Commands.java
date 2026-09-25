@@ -155,7 +155,7 @@ final class Commands {
                             c.getSource().sendFeedback(() -> Text.literal("Build zone " + z.name + " added: players can build from "
                                 + z.x1 + "," + z.z1 + " to " + z.x2 + "," + z.z2 + ". It does not regenerate."), true);
                             return 1;
-                        }))))))))
+                        })))))))
                     .then(CommandManager.literal("remove").then(CommandManager.argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
                         .suggests((c, b) -> {
                             for (WorldCare.Zone z : AotRpg.CARE.config.buildZones) b.suggest(z.name);
