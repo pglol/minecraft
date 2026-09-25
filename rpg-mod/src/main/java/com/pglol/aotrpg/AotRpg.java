@@ -79,7 +79,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.QuickHealUse.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) HEAL.use(ctx.player());
         });
-        ServerPlayNetworking.registerGlobalReceiver(Net.SelectCosmetic.ID, (payload, ctx) -> COSMETICS.select(ctx.player(), payload.id()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.SelectCosmetic.ID, (payload, ctx) -> COSMETICS.select(ctx.player(), payload.cosmetic()));
         // APG gun shots: send a trail in the shooter's style to everyone nearby.
         UseItemCallback.EVENT.register((player, world, hand) -> {
             var stack = player.getStackInHand(hand);

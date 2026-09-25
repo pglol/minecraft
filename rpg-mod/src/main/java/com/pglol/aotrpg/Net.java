@@ -427,10 +427,10 @@ public final class Net {
     }
 
     /** Client -> server: select a cosmetic. */
-    public record SelectCosmetic(String id) implements CustomPayload {
+    public record SelectCosmetic(String cosmetic) implements CustomPayload {
         public static final Id<SelectCosmetic> ID = id("select_cosmetic");
         public static final PacketCodec<RegistryByteBuf, SelectCosmetic> CODEC =
-            PacketCodec.of((v, b) -> b.writeString(v.id), b -> new SelectCosmetic(b.readString()));
+            PacketCodec.of((v, b) -> b.writeString(v.cosmetic), b -> new SelectCosmetic(b.readString()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 

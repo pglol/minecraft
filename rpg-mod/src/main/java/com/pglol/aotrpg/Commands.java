@@ -152,7 +152,7 @@ final class Commands {
                     .then(CommandManager.argument("id", com.mojang.brigadier.arguments.StringArgumentType.word())
                         .suggests((c, b) -> {
                             b.suggest("all");
-                            for (Cosmetics.Def d : Cosmetics.ALL) b.suggest(d.id());
+                            for (Cosmetics.Def def : Cosmetics.ALL) b.suggest(def.id());
                             return b.buildFuture();
                         })
                         .executes(c -> cosmetic(c.getSource(), EntityArgumentType.getPlayer(c, "player"),
@@ -161,7 +161,7 @@ final class Commands {
                     .then(CommandManager.argument("id", com.mojang.brigadier.arguments.StringArgumentType.word())
                         .suggests((c, b) -> {
                             b.suggest("all");
-                            for (Cosmetics.Def d : Cosmetics.ALL) b.suggest(d.id());
+                            for (Cosmetics.Def def : Cosmetics.ALL) b.suggest(def.id());
                             return b.buildFuture();
                         })
                         .executes(c -> cosmetic(c.getSource(), EntityArgumentType.getPlayer(c, "player"),
