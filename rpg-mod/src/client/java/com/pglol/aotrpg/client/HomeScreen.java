@@ -63,6 +63,8 @@ public final class HomeScreen extends Screen {
             }
             return;
         }
+        addDrawableChild(new AotButton(plot ? left + 10 : left + 136, by, 110, 22, Ui.heading("Furniture"),
+            () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0))));
         if (!plot) {
             addDrawableChild(new AotButton(left + 10, by, 120, 22, Ui.heading("Go inside"), () -> {
                 act("enter", v.home(), "");
@@ -111,10 +113,13 @@ public final class HomeScreen extends Screen {
             return;
         }
         if (plot) {
-            Ui.wrapped(c, Text.literal("Your land. You can build and break anything inside the plot."), left + 12, top + 54, w - 24, Ui.CREAM);
+            Ui.wrapped(c, Text.literal("Your land: the plot and its surround out to the road. You can build, break and chop anything on it, "
+                + "and nothing you change there is ever regenerated. Furniture: buy it in the store, then place it from your crate here."),
+                left + 12, top + 54, w - 24, Ui.CREAM);
             return;
         }
         Ui.text(c, Ui.heading("Yard upgrades"), left + 12, top + 54, 0.95f, Ui.GOLD, false);
+        Ui.text(c, Text.literal("Built into your yard as soon as you buy them."), left + 120, top + 56, 0.6f, Ui.MUTED, false);
         int y = top + 70;
         for (Net.HomeUpgrade u : v.upgrades()) {
             Ui.text(c, Ui.heading(u.title()), left + 12, y + 2, 0.9f, u.owned() ? Ui.GOLD : Ui.CREAM, false);

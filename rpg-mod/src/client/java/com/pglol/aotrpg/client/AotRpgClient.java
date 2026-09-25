@@ -55,6 +55,20 @@ public final class AotRpgClient implements ClientModInitializer {
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_G, "category.aot_rpg"));
         socialKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.social",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, "category.aot_rpg"));
+        Property.key = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.property",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, "category.aot_rpg"));
+        WorldRenderEvents.AFTER_ENTITIES.register(Property::render);
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) ->
+            world.isClient && hand == net.minecraft.util.Hand.MAIN_HAND ? Property.use(net.minecraft.client.MinecraftClient.getInstance()) : net.minecraft.util.ActionResult.PASS);
+        ClientPlayNetworking.registerGlobalReceiver(Net.PropertyState.ID, (payload, ctx) -> {
+            ClientState.property = payload.where();
+            if (payload.where().isEmpty()) ClientState.placing = null;
+        });
+        ClientPlayNetworking.registerGlobalReceiver(Net.FurnitureView.ID, (payload, ctx) -> {
+            ClientState.furniture = payload;
+            if (ctx.client().currentScreen instanceof FurnitureScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new FurnitureScreen());
+        });
         WorldRenderEvents.AFTER_ENTITIES.register(Beams::render);
         WorldRenderEvents.AFTER_ENTITIES.register(SheathRender::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.HealInfo.ID, (payload, ctx) -> {
@@ -186,6 +200,7 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(PartyHud::render);
         HudRenderCallback.EVENT.register(TitanState::renderHud);
         HudRenderCallback.EVENT.register(HitFx::render);
+        HudRenderCallback.EVENT.register(Property::renderHud);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (characterKey.wasPressed()) {
@@ -208,6 +223,7 @@ public final class AotRpgClient implements ClientModInitializer {
             while (sheathKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) ClientPlayNetworking.send(new Net.ToggleSheath());
             }
+            while (Property.key.wasPressed()) Property.keyPressed(client);
             while (socialKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());
             }

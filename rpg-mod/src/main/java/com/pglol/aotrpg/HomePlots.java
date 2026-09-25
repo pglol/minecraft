@@ -49,11 +49,21 @@ final class HomePlots {
         return -1;
     }
 
+    /** The land that comes with a plot: the plot and its surround out to the road (for building). */
+    static final int LAND = 3;
+
     static boolean ownsAt(ServerPlayerEntity p, BlockPos pos) {
-        int i = plotAt(pos, 0);
+        int i = plotAt(pos, LAND);
         if (i < 0) return false;
         Homes.PlotDeed d = data().plots.get(i);
         return d != null && d.stem.equals(AotRpg.HOMES.stem(p));
+    }
+
+    /** Any sold plot's land here? (Its blocks are the owner's: never regenerated.) */
+    static boolean ownedAt(BlockPos pos) {
+        if (data().plots.isEmpty()) return false;
+        int i = plotAt(pos, LAND);
+        return i >= 0 && data().plots.containsKey(i);
     }
 
     static String label(Places.PlotInfo p) {
@@ -80,7 +90,33 @@ final class HomePlots {
         d.template = pickTemplate(plot);
         data().plots.put(idx, d);
         AotRpg.HOMES.save();
+        WorldCare.quiet(true);
+        try {
+            removeSign(ow, plot);
+        } finally {
+            WorldCare.quiet(false);
+        }
         if (d.template >= 0) build(ow, plot, AotRpg.PLACES.homes.get(d.template));
+    }
+
+    /** Takes down the "For sale" sign by the gate (it stands a few blocks outside the plot). */
+    static int removeSign(ServerWorld ow, Places.PlotInfo p) {
+        int n = 0;
+        for (int x = p.x0() - 6; x <= p.x1() + 6; x++) {
+            for (int z = p.z0() - 6; z <= p.z1() + 6; z++) {
+                boolean inside = x >= p.x0() && x <= p.x1() && z >= p.z0() && z <= p.z1();
+                if (inside) continue;
+                ow.getChunk(x >> 4, z >> 4);
+                for (int y = p.y() - 4; y <= p.y() + 4; y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (ow.getBlockState(pos).getBlock() instanceof net.minecraft.block.AbstractSignBlock) {
+                        ow.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                        n++;
+                    }
+                }
+            }
+        }
+        return n;
     }
 
     static void revoke(int idx) {
@@ -146,6 +182,7 @@ final class HomePlots {
                     }
                 }
             }
+            HouseFix.stairs(ow, new BlockPos(ox, p.y() - 1, oz), new BlockPos(ox + hw - 1, h[5] + 3 + dy, oz + hd - 1));
             // Path from the door to the plot edge on the road side.
             int dx = ox + h[6] - (h[0] - 1), dz = oz + h[7] - (h[1] - 1);
             int sx = 0, sz = 0;
@@ -194,7 +231,14 @@ final class HomePlots {
         int n = 0;
         WorldCare.quiet(true);
         try {
-            for (int i = 0; i < AotRpg.PLACES.plots.size(); i++) if (!data().plots.containsKey(i)) n += clearFence(ow, AotRpg.PLACES.plots.get(i));
+            for (int i = 0; i < AotRpg.PLACES.plots.size(); i++) {
+                if (!data().plots.containsKey(i)) n += clearFence(ow, AotRpg.PLACES.plots.get(i));
+                else {
+                    Places.PlotInfo p = AotRpg.PLACES.plots.get(i);
+                    n += removeSign(ow, p);
+                    n += HouseFix.stairs(ow, new BlockPos(p.x0(), p.y() - 1, p.z0()), new BlockPos(p.x1(), p.y() + 40, p.z1()));
+                }
+            }
         } finally {
             WorldCare.quiet(false);
         }

@@ -893,6 +893,47 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: the player stepped onto ("Your home" / "Your property") or off ("") their property. */
+    public record PropertyState(String where) implements CustomPayload {
+        public static final Id<PropertyState> ID = id("property");
+        public static final PacketCodec<RegistryByteBuf, PropertyState> CODEC =
+            PacketCodec.of((v, b) -> b.writeString(v.where), b -> new PropertyState(b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** A furniture piece: footprint (x0..x1, 0..y1, z0..z1 as seen looking north) and how many are in the crate. */
+    public record FurniturePiece(String id, String title, String category, long price, int owned, String icon,
+                                 int x0, int x1, int y1, int z0, int z1) { }
+
+    /** Server -> client: the furniture store and the character's crate. */
+    public record FurnitureView(java.util.List<FurniturePiece> pieces, boolean onProperty, boolean open) implements CustomPayload {
+        public static final Id<FurnitureView> ID = id("furniture");
+        public static final PacketCodec<RegistryByteBuf, FurnitureView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.pieces.size());
+            for (FurniturePiece f : v.pieces) {
+                b.writeString(f.id()); b.writeString(f.title()); b.writeString(f.category()); b.writeVarLong(f.price()); b.writeVarInt(f.owned());
+                b.writeString(f.icon()); b.writeVarInt(f.x0()); b.writeVarInt(f.x1()); b.writeVarInt(f.y1()); b.writeVarInt(f.z0()); b.writeVarInt(f.z1());
+            }
+            b.writeBoolean(v.onProperty); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 500);
+            java.util.List<FurniturePiece> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new FurniturePiece(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readVarInt(),
+                b.readString(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+            return new FurnitureView(l, b.readBoolean(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open, buy (piece), place (piece at a block). */
+    public record FurnitureAction(String action, String piece, long at) implements CustomPayload {
+        public static final Id<FurnitureAction> ID = id("furniture_action");
+        public static final PacketCodec<RegistryByteBuf, FurnitureAction> CODEC = PacketCodec.of(
+            (v, b) -> { b.writeString(v.action); b.writeString(v.piece); b.writeLong(v.at); },
+            b -> new FurnitureAction(b.readString(), b.readString(), b.readLong()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the game modes and which are unlocked. */
     public record ModeView(java.util.List<ModeEntry> modes, int chapter, boolean open) implements CustomPayload {
         public static final Id<ModeView> ID = id("modes");
@@ -922,6 +963,9 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playS2C().register(PropertyState.ID, PropertyState.CODEC);
+        PayloadTypeRegistry.playS2C().register(FurnitureView.ID, FurnitureView.CODEC);
+        PayloadTypeRegistry.playC2S().register(FurnitureAction.ID, FurnitureAction.CODEC);
         PayloadTypeRegistry.playC2S().register(PassAction.ID, PassAction.CODEC);
         PayloadTypeRegistry.playS2C().register(EventView.ID, EventView.CODEC);
         PayloadTypeRegistry.playC2S().register(EventAction.ID, EventAction.CODEC);

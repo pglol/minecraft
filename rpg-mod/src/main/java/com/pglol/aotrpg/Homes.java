@@ -73,6 +73,8 @@ public final class Homes {
         public int instance;
         public List<String> upgrades = new ArrayList<>();
         public String ownerName = "";
+        /** Staircases repaired (homes bought before the fix). */
+        public boolean stairsFixed;
     }
 
     /** An exclusive plot: one owner, the house is built on the plot in the real world. */
@@ -252,6 +254,7 @@ public final class Homes {
                     }
                 }
             }
+            HouseFix.stairs(hw, map(h, n, h[0] - 1, h[4], h[1] - 1), map(h, n, h[2] + 1, h[5] + 3, h[3] + 1));
             // A gravel path from the front door to the yard gate.
             BlockPos step = map(h, n, h[6], h[4], h[7]);
             for (int z = step.getZ(); z < z0 + YARD; z++) {
@@ -317,6 +320,16 @@ public final class Homes {
         }
         if (p.getWorld().getRegistryKey() != WORLD) returnTo.put(p.getUuid(), new double[] {p.getX(), p.getY(), p.getZ(), p.getYaw()});
         int[] h = AotRpg.PLACES.homes.get(d.home);
+        if (!d.stairsFixed) {
+            d.stairsFixed = true;
+            WorldCare.quiet(true);
+            try {
+                HouseFix.stairs(hw, map(h, d.instance, h[0] - 1, h[4], h[1] - 1), map(h, d.instance, h[2] + 1, h[5] + 3, h[3] + 1));
+            } finally {
+                WorldCare.quiet(false);
+            }
+            save();
+        }
         BlockPos inside = map(h, d.instance, h[6], h[4] + 1, h[7]);
         // Step in through the door: one block towards the house from the doorstep.
         int cx = (h[0] + h[2]) / 2, cz = (h[1] + h[3]) / 2;
@@ -408,8 +421,19 @@ public final class Homes {
             case "manage" -> {
                 int n = instanceAt(p.getBlockPos());
                 Deed d = p.getWorld().getRegistryKey() == WORLD ? find(data.instances.get(n), n) : null;
+                int plot = p.getWorld().getRegistryKey() == World.OVERWORLD ? HomePlots.plotAt(p.getBlockPos(), HomePlots.LAND) : -1;
                 if (d != null) send(p, d.home, true);
+                else if (plot >= 0 && HomePlots.ownsAt(p, p.getBlockPos())) sendPlot(p, plot, true);
                 else if (!deeds(p).isEmpty()) send(p, deeds(p).get(0).home, true);
+                else {
+                    for (var e : data.plots.entrySet()) {
+                        if (e.getValue().stem.equals(stem(p))) {
+                            sendPlot(p, e.getKey(), true);
+                            return;
+                        }
+                    }
+                    p.sendMessage(Text.literal("You don't own a home yet. Sneak + use the door of any town house, or the sign of a plot.").formatted(Formatting.GRAY), true);
+                }
             }
             default -> { }
         }
@@ -440,6 +464,7 @@ public final class Homes {
     /** Gives a character (by stem) a deed to a house and builds its copy. */
     Deed grant(String stem, String name, int home) {
         Deed d = new Deed();
+        d.stairsFixed = true;
         d.home = home;
         d.instance = data.nextInstance++;
         d.ownerName = name;

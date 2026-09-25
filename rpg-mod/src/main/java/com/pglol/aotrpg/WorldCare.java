@@ -201,7 +201,7 @@ public final class WorldCare {
         }
         if (changed.containsKey(key)) return; // keep the first, original state
         BlockState old = w.getBlockState(pos);
-        if (transientBlock(old) || inBuildZone(pos.getX(), pos.getZ())) return;
+        if (transientBlock(old) || inBuildZone(pos.getX(), pos.getZ()) || HomePlots.ownedAt(pos)) return;
         NbtCompound be = null;
         BlockEntity ent = w.getBlockEntity(pos);
         if (ent != null) {

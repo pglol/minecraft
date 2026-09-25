@@ -231,8 +231,9 @@ public final class House {
             if (lamp && !nearStairs(a, c)) b.set(x, fy + 3, z, Blocks.LANTERN_HANGING);
         }
         if (!s.flat) b.set(x, top, z, s.floor);
-        if (step >= 0 && step < 3) {
-            // A straight flight up to each floor: three steps, the landing is the next floor.
+        if (step >= 0) {
+            // A straight flight up to each floor: three steps, then a top step set into the
+            // next floor, so every rise is a stair (no full-block jump at the top).
             int stair = s.stair[alongFacing(true)];
             for (int k = 0; k + 1 < floors; k++) {
                 int fy = baseY + 4 * k;

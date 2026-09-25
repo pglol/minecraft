@@ -185,6 +185,8 @@ public final class AotWorld {
                 rich ? 3 : 2, rich ? 4 : 3, 30,
                 new int[] {Blocks.COBBLE, Blocks.COBBLE, Blocks.STONE, Blocks.ANDESITE, Blocks.MOSSY_COBBLE, Blocks.GRAVEL})
                 .plaza(d.radius * 0.5, 0, 16).plots(0.06);
+            // Hizuru quarters: Japanese-style houses on one side of the avenue.
+            if (d.name.startsWith("Karanes") || d.name.startsWith("Maria East")) grid.quarter(Style.HIZURU);
             int r = (int) d.radius + 2;
             addFeature(new TownFeature(grid, (int) d.cx - r, (int) d.cz - r, (int) d.cx + r, (int) d.cz + r));
         }

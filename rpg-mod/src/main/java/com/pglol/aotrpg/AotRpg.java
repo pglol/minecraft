@@ -69,6 +69,7 @@ public final class AotRpg implements ModInitializer {
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
+    public static final Furniture FURNITURE = new Furniture();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -163,6 +164,8 @@ public final class AotRpg implements ModInitializer {
             return net.minecraft.util.TypedActionResult.pass(stack);
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.FurnitureAction.ID, (payload, ctx) ->
+            FURNITURE.action(ctx.player(), payload.action(), payload.piece(), payload.action().equals("place") ? net.minecraft.util.math.BlockPos.fromLong(payload.at()) : null));
         ServerPlayNetworking.registerGlobalReceiver(Net.PassAction.ID, (payload, ctx) -> SEASON.action(ctx.player(), payload.action(), payload.tier()));
         ServerPlayNetworking.registerGlobalReceiver(Net.EventAction.ID, (payload, ctx) -> EVENTS.action(ctx.player(), payload.action(), payload.item()));
         ServerPlayNetworking.registerGlobalReceiver(Net.SocialAction.ID, (payload, ctx) -> SOCIAL.action(ctx.player(), payload.action(), payload.target()));
@@ -263,6 +266,7 @@ public final class AotRpg implements ModInitializer {
 
         // Protected land: no breaking, no buckets or fire, no knocking down frames and paintings.
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, be) -> {
+            if (!world.isClient && player instanceof ServerPlayerEntity sp && FURNITURE.onBreak(sp, pos)) return false;
             if (CARE.canBuild(player, pos)) return true;
             CARE.deny(player);
             return false;
@@ -332,6 +336,7 @@ public final class AotRpg implements ModInitializer {
             SEASON.open(server);
             EVENTS.open(server);
             SOCIAL.open(server);
+            FURNITURE.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
@@ -391,6 +396,7 @@ public final class AotRpg implements ModInitializer {
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
             FISHING.forget(p.getUuid());
+            FURNITURE.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
         });
 
@@ -445,6 +451,7 @@ public final class AotRpg implements ModInitializer {
             WAVES.tick(p, ticks);
             if (PROFILES.get(p.getUuid()).created) ROLES.tick(p, ticks);
             GRAB.tick(p, ticks);
+            FURNITURE.tick(p, ticks);
             if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {
                 SATCHEL.tickSupplies(p);
                 HEAL.sync(p, ticks % 40 == 0);

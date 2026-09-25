@@ -37,6 +37,11 @@ public final class ClientState {
     public static Net.ForgeView forge;
     public static Net.ModeView modes;
     public static Net.PassView pass;
+    /** "Your home" / "Your property" while standing on it, else "". */
+    public static String property = "";
+    public static Net.FurnitureView furniture;
+    /** The furniture piece being placed, or null. */
+    public static String placing;
     public static Net.EventView event;
     public static Net.SocialView social;
     public static java.util.Map<java.util.UUID, Net.SheathState> sheaths = new java.util.HashMap<>();
@@ -58,6 +63,8 @@ public final class ClientState {
 
     public static void reset() {
         profile = null;
+        property = "";
+        placing = null;
         stamina = -1;
         maxStamina = 100;
         exhausted = false;

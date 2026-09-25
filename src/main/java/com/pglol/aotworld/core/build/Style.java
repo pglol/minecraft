@@ -15,7 +15,7 @@ public final class Style {
     public final int[] ladder = new int[4];
     /** Indoor staircase steps, matching the floor wood. */
     public final int[] stair = new int[4];
-    public final int paneX, paneZ;
+    public int paneX, paneZ;
 
     /**
      * @param frame log block id without state, e.g. "dark_oak_log" (or a plain block for non-timber)
@@ -45,6 +45,21 @@ public final class Style {
         paneX = Blocks.id("glass_pane[east=true,west=true]");
         paneZ = Blocks.id("glass_pane[north=true,south=true]");
     }
+
+    /** Paper screens instead of glass (Hizuru houses). */
+    Style paper() {
+        paneX = Blocks.id("white_stained_glass_pane[east=true,west=true]");
+        paneZ = Blocks.id("white_stained_glass_pane[north=true,south=true]");
+        return this;
+    }
+
+    // Hizuru: dark timber frames, white plaster, paper screens, bamboo floors and tiled roofs.
+    public static final Style[] HIZURU = {
+        new Style("dark_oak_log", "white_concrete", "stone_bricks", "bamboo_planks", "deepslate_tile_stairs", "deepslate_tiles", "bamboo_door", "dark_oak_planks", true, false).paper(),
+        new Style("stripped_dark_oak_log", "white_terracotta", "polished_andesite", "bamboo_planks", "dark_oak_stairs", "dark_oak_planks", "bamboo_door", "dark_oak_planks", true, false).paper(),
+        new Style("spruce_log", "birch_planks", "stone_bricks", "bamboo_planks", "blackstone_stairs", "polished_blackstone", "spruce_door", "spruce_planks", true, false).paper(),
+        new Style("mangrove_log", "white_concrete", "mud_bricks", "bamboo_planks", "mud_brick_stairs", "mud_bricks", "bamboo_door", "mangrove_planks", true, false).paper(),
+    };
 
     // Paradis: half-timbered houses with tiled roofs, the look of Shiganshina and Trost.
     public static final Style[] PARADIS = {

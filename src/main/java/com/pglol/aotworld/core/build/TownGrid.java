@@ -98,6 +98,11 @@ public final class TownGrid {
             for (int ib = Math.floorDiv(bmin + shift, block); ib <= Math.floorDiv(bmax + shift, block); ib++) {
                 if (plotBlock(ia, ib)) continue;
                 for (int qa = 0; qa < 2; qa++) {
+                    House wide = merged(ia, ib, qa);
+                    if (wide != null) {
+                        if (shape.inside(wide.x0, wide.z0) && shape.inside(wide.x1, wide.z1)) out.add(wide);
+                        continue;
+                    }
                     for (int qb = 0; qb < 2; qb++) {
                         int la0 = ia * block + street + qa * (lot + 1);
                         int lb0 = ib * block + street - shift + qb * (lot + 1);
@@ -228,6 +233,14 @@ public final class TownGrid {
             return;
         }
         int ra = ma - street, rb = mb - street;
+        if (ra != lot) {
+            House wide = merged(ia, ib, ra < lot ? 0 : 1);
+            if (wide != null) {
+                buf.set(x, baseY, z, Blocks.COBBLE);
+                if (wide.covers(x, z)) wide.column(buf, x, z, baseY);
+                return;
+            }
+        }
         if (ra == lot || rb == lot) {
             buf.set(x, baseY, z, Hash.unit(h) < 0.5 ? Blocks.GRAVEL : Blocks.COBBLE);
             return;
@@ -290,9 +303,82 @@ public final class TownGrid {
         return true;
     }
 
+    /** Fraction of lot pairs joined into one wide house (a long hall or manor across both lots). */
+    private double wideChance = 0.16;
+
+    public TownGrid wideChance(double c) {
+        wideChance = c;
+        return this;
+    }
+
+    /** Hizuru styles for the houses on one side of the avenue (b < 0): a Japanese quarter. */
+    private Style[] quarter;
+
+    public TownGrid quarter(Style[] styles) {
+        quarter = styles;
+        return this;
+    }
+
+    /**
+     * The wide house joining lots (qa, 0) and (qa, 1) of a city block, or null. Its hash is the
+     * first lot's, so both lots draw the same building.
+     */
+    private House merged(int ia, int ib, int qa) {
+        if (wideChance <= 0 || lot < 9 || Hash.unit(Hash.of(seed ^ 0x3E6DL, ia * 2L + qa, ib)) >= wideChance) return null;
+        if (plotBlock(ia, ib)) return null;
+        int shift = street / 2;
+        int la0 = ia * block + street + qa * (lot + 1);
+        int lb0 = ib * block + street - shift;
+        int la1 = la0 + lot - 1, lb1 = lb0 + 2 * lot; // both lots and the strip between them
+        for (int qb = 0; qb < 2; qb++) if (ia * 2L + qa == stableA && ib * 2L + qb == stableB) return null;
+        if (!lotValid(la0, lb0, la1, lb1)) return null;
+        long lh = Hash.of(seed, ia * 2L + qa, ib * 2L);
+        if (Hash.unit(lh) >= 0.8) return null; // gardens, stalls and wells stay
+        int dA = Hash.range(Hash.mix(lh + 1), Math.max(7, lot - 4), lot - 1);
+        int a0 = qa == 0 ? la0 + 1 : la1 - dA;
+        int a1 = a0 + dA - 1;
+        int b0 = lb0 + 1, b1 = lb1 - 1;
+        int xA = worldX(a0, b0), zA = worldZ(a0, b0), xB = worldX(a1, b1), zB = worldZ(a1, b1);
+        boolean alongX = ux == 0;
+        int sign = (qa == 0 ? -1 : 1) * (ux + uz);
+        // Wide houses: half are long single halls, half are tall manors.
+        boolean manor = Hash.unit(Hash.mix(lh + 9)) < 0.5;
+        int floors = manor ? Math.min(5, maxFloors + 1) : Math.max(1, minFloors);
+        Style st = styleFor(lh, b0);
+        return new House(xA, zA, xB, zB, alongX, baseY, floors, st, sign, Hash.unit(Hash.mix(lh + 5)) < 0.6);
+    }
+
+    private Style styleFor(long lh, int b) {
+        Style[] pool = quarter != null && b < 0 ? quarter : styles;
+        return pool[Hash.range(Hash.mix(lh + 4), 0, pool.length - 1)];
+    }
+
     private House house(int qa, int qb, int la0, int lb0, int la1, int lb1, long lh) {
-        int dA = Hash.range(Hash.mix(lh + 1), 7, lot - 1);
-        int wB = Hash.range(Hash.mix(lh + 2), 7, lot - 1);
+        // Shapes: cottages, tall narrow townhouses, broad houses, and big tall ones.
+        int shape = lot >= 9 ? Hash.range(Hash.mix(lh + 7), 0, 3) : 0;
+        int dA, wB, floors;
+        switch (shape) {
+            case 1 -> { // tall and narrow
+                dA = Hash.range(Hash.mix(lh + 1), 8, Math.min(9, lot - 1));
+                wB = Hash.range(Hash.mix(lh + 2), 8, Math.min(10, lot - 1));
+                floors = Math.min(5, maxFloors + 1);
+            }
+            case 2 -> { // wide and low
+                dA = lot - 1;
+                wB = lot - 1;
+                floors = minFloors;
+            }
+            case 3 -> { // wide and tall
+                dA = Hash.range(Hash.mix(lh + 1), lot - 3, lot - 1);
+                wB = lot - 1;
+                floors = maxFloors;
+            }
+            default -> {
+                dA = Hash.range(Hash.mix(lh + 1), 7, lot - 1);
+                wB = Hash.range(Hash.mix(lh + 2), 7, lot - 1);
+                floors = Hash.range(Hash.mix(lh + 3), minFloors, maxFloors);
+            }
+        }
         int a0 = qa == 0 ? la0 + 1 : la1 - dA;
         int a1 = a0 + dA - 1;
         int b0 = lb0 + (lot - wB) / 2;
@@ -300,8 +386,7 @@ public final class TownGrid {
         int xA = worldX(a0, b0), zA = worldZ(a0, b0), xB = worldX(a1, b1), zB = worldZ(a1, b1);
         boolean alongX = ux == 0; // door faces +-a, so the ridge runs across a
         int sign = (qa == 0 ? -1 : 1) * (ux + uz);
-        int floors = Hash.range(Hash.mix(lh + 3), minFloors, maxFloors);
-        Style st = styles[Hash.range(Hash.mix(lh + 4), 0, styles.length - 1)];
+        Style st = styleFor(lh, b0);
         boolean chimney = Hash.unit(Hash.mix(lh + 5)) < 0.4;
         House hs = new House(xA, zA, xB, zB, alongX, baseY, floors, st, sign, chimney);
         if (!st.timber && Hash.unit(Hash.mix(lh + 6)) < 0.3) hs.use(House.Use.HALL);
