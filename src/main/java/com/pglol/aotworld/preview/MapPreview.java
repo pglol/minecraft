@@ -468,6 +468,103 @@ public final class MapPreview {
         return img;
     }
 
+    /** A settlement plan tile for the in-game map: where, and how big (in blocks). */
+    public record Tile(int cx, int cz, int half) { }
+
+    /** Towns, villages, landmarks and camps get detailed plans on the world map. */
+    public static java.util.List<Tile> planTiles(AotWorld w) {
+        Atlas a = w.atlas;
+        java.util.List<Tile> t = new java.util.ArrayList<>();
+        t.add(new Tile(0, 0, (int) a.capitalRadius + 40));
+        for (Atlas.District d : a.districts) t.add(new Tile((int) d.cx, (int) d.cz, (int) d.radius + 40));
+        for (Atlas.Site s : a.sites) if (s.kind != Atlas.Kind.GIANT_FOREST) t.add(new Tile(s.x, s.z, s.radius + 40));
+        for (Village v : w.villages) t.add(new Tile(v.cx, v.cz, v.radius + 30));
+        for (com.pglol.aotworld.core.build.Poi p : w.pois) {
+            if (p.kind == com.pglol.aotworld.core.build.Poi.Kind.EXPEDITION_CAMP) t.add(new Tile(p.x, p.z, 50));
+        }
+        return t;
+    }
+
+    /**
+     * An old town plan of the real blocks: parchment tones, buildings outlined in ink,
+     * edges fading out so it lies over the base map. bpp blocks per pixel.
+     */
+    public static BufferedImage planTile(AotWorld w, Tile t, int bpp) {
+        int x0 = t.cx() - t.half(), z0 = t.cz() - t.half();
+        int size = 2 * t.half() / bpp;
+        int[] top = new int[size * size];
+        byte[] cls = new byte[size * size]; // 0 ground, 1 paving, 2 building, 3 tree, 4 water, 5 wall
+        ChunkBuffer buf = new ChunkBuffer();
+        int cx0 = Math.floorDiv(x0, 16), cz0 = Math.floorDiv(z0, 16);
+        int cx1 = Math.floorDiv(x0 + size * bpp - 1, 16), cz1 = Math.floorDiv(z0 + size * bpp - 1, 16);
+        for (int ccx = cx0; ccx <= cx1; ccx++) {
+            for (int ccz = cz0; ccz <= cz1; ccz++) {
+                w.composer.compose(ccx, ccz, buf);
+                for (int x = ccx * 16; x < ccx * 16 + 16; x++) {
+                    if (Math.floorMod(x - x0, bpp) != 0) continue;
+                    int px = (x - x0) / bpp;
+                    if (px < 0 || px >= size) continue;
+                    for (int z = ccz * 16; z < ccz * 16 + 16; z++) {
+                        if (Math.floorMod(z - z0, bpp) != 0) continue;
+                        int py = (z - z0) / bpp;
+                        if (py < 0 || py >= size) continue;
+                        int y = buf.top(x, z);
+                        int i = py * size + px;
+                        top[i] = y;
+                        String n = Blocks.baseName(buf.get(x, y, z));
+                        int ground = w.terrain.height(x, z);
+                        byte k;
+                        if (n.contains("water")) k = 4;
+                        else if (n.contains("leaves") || n.contains("log") || n.contains("azalea")) k = 3;
+                        else if (y > ground + 30) k = 5;
+                        else if (y > ground + 2) k = 2;
+                        else if (n.contains("grass") || n.contains("dirt") || n.contains("farmland") || n.contains("wheat")
+                            || n.contains("carrots") || n.contains("potatoes") || n.contains("moss") || n.contains("flower")
+                            || n.contains("poppy") || n.contains("fern") || n.contains("podzol")) k = 0;
+                        else k = 1;
+                        cls[i] = k;
+                    }
+                }
+            }
+        }
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        for (int py = 0; py < size; py++) {
+            for (int px = 0; px < size; px++) {
+                int i = py * size + px;
+                int k = cls[i];
+                double r, g, b;
+                switch (k) {
+                    case 1: r = 224; g = 206; b = 164; break;          // streets and squares
+                    case 2: r = 170; g = 104; b = 76; break;           // buildings
+                    case 3: r = 136; g = 136; b = 86; break;           // trees
+                    case 4: r = 146; g = 164; b = 156; break;          // water
+                    case 5: r = 132; g = 118; b = 100; break;          // the Walls
+                    default: r = 196; g = 184; b = 128;                // gardens, fields
+                }
+                boolean solid = k == 2 || k == 5;
+                if (solid) {
+                    // Ink outline around each building.
+                    boolean edge = false;
+                    if (px > 0 && cls[i - 1] != k) edge = true;
+                    if (py > 0 && cls[i - size] != k) edge = true;
+                    if (px < size - 1 && cls[i + 1] != k) edge = true;
+                    if (py < size - 1 && cls[i + size] != k) edge = true;
+                    if (edge) { r = 72; g = 48; b = 30; }
+                    else if (px > 0 && py > 0 && top[i] > top[i - size - 1]) { r *= 1.08; g *= 1.08; b *= 1.08; }
+                } else if (k == 3 && Hash.unit(Hash.of(3, px, py)) < 0.35) {
+                    r *= 0.82; g *= 0.82; b *= 0.8;
+                }
+                double grain = 0.95 + 0.05 * valueNoise(px / 3.0 + t.cx(), py / 3.0 + t.cz());
+                double dx = (px - size / 2.0) / (size / 2.0), dz = (py - size / 2.0) / (size / 2.0);
+                double d = Math.sqrt(dx * dx + dz * dz);
+                double alpha = d < 0.8 ? 1 : d > 0.99 ? 0 : 1 - (d - 0.8) / 0.19;
+                int al = (int) (alpha * 255);
+                img.setRGB(px, py, (al << 24) | rgb(r * grain, g * grain * 0.985, b * grain * 0.96));
+            }
+        }
+        return img;
+    }
+
     private static int rgb(double r, double g, double b) {
         return ((int) Math.max(0, Math.min(255, r)) << 16) | ((int) Math.max(0, Math.min(255, g)) << 8) | (int) Math.max(0, Math.min(255, b));
     }

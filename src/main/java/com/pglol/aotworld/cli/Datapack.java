@@ -111,10 +111,34 @@ final class Datapack {
         }
         json.append(String.join(", ", zones)).append("]}");
         int bpp = com.pglol.aotworld.preview.MapPreview.gameMapBpp(w);
-        json.append(String.format(Locale.ROOT, ",\n  \"map\": {\"file\": \"aot-map.png\", \"x0\": %d, \"z0\": %d, \"bpp\": %d}\n}\n",
+        json.append(String.format(Locale.ROOT, ",\n  \"map\": {\"file\": \"aot-map.png\", \"x0\": %d, \"z0\": %d, \"bpp\": %d, \"version\": 2}",
             w.atlas.minX - com.pglol.aotworld.preview.MapPreview.GAME_MAP_PAD, w.atlas.minZ, bpp));
         System.out.println("Drawing the in-game world map...");
         javax.imageio.ImageIO.write(com.pglol.aotworld.preview.MapPreview.gameMap(w), "png", world.resolve("aot-map.png").toFile());
+        // Detailed town plans that fade in when the map is zoomed in.
+        System.out.println("Drawing town plans for the map (this takes a minute)...");
+        List<com.pglol.aotworld.preview.MapPreview.Tile> tiles = com.pglol.aotworld.preview.MapPreview.planTiles(w);
+        Path tileDir = world.resolve("aot-map");
+        Files.createDirectories(tileDir);
+        final int tbpp = 2;
+        java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.stream.IntStream.range(0, tiles.size()).parallel().forEach(i -> {
+            try {
+                javax.imageio.ImageIO.write(com.pglol.aotworld.preview.MapPreview.planTile(w, tiles.get(i), tbpp), "png",
+                    tileDir.resolve("t" + i + ".png").toFile());
+                int k = done.incrementAndGet();
+                if (k % 10 == 0) System.out.println("  " + k + " / " + tiles.size());
+            } catch (IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+        });
+        json.append(",\n  \"tiles\": [");
+        for (int i = 0; i < tiles.size(); i++) {
+            var t = tiles.get(i);
+            json.append(i == 0 ? "\n    " : ",\n    ").append(String.format(Locale.ROOT,
+                "{\"file\": \"aot-map/t%d.png\", \"x0\": %d, \"z0\": %d, \"bpp\": %d}", i, t.cx() - t.half(), t.cz() - t.half(), tbpp));
+        }
+        json.append("\n  ]\n}\n");
         Files.writeString(world.resolve("aot-rpg.json"), json.toString(), StandardCharsets.UTF_8);
     }
 
