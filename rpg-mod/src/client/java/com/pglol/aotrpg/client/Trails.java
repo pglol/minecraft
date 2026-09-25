@@ -3,6 +3,7 @@ package com.pglol.aotrpg.client;
 import com.pglol.aotrpg.Net;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.item.ItemStack;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
@@ -18,18 +19,57 @@ public final class Trails {
     }
 
     private static boolean wasDown;
+    // A click waiting for proof that the gun really fired.
+    private static int pending;
+    private static ItemStack gunBefore = ItemStack.EMPTY;
+    private static int ammoBefore;
+    private static boolean coolingBefore;
+    private static Net.Trail aimed;
+
+    private static boolean isGun(ItemStack s) {
+        var id = net.minecraft.registry.Registries.ITEM.getId(s.getItem());
+        return id.getNamespace().equals("dannys-aot") && id.getPath().equals("apg_gun");
+    }
+
+    private static int ammo(MinecraftClient mc) {
+        int n = 0;
+        var inv = mc.player.getInventory();
+        for (int i = 0; i < inv.size(); i++) {
+            var id = net.minecraft.registry.Registries.ITEM.getId(inv.getStack(i).getItem());
+            if (id.getNamespace().equals("dannys-aot") && id.getPath().equals("apg_cartridge")) n += inv.getStack(i).getCount();
+        }
+        return n;
+    }
 
     /**
-     * The APG gun fires on left click, which the server never sees as an item use, so the
-     * client notices the click, draws its own trail at once and tells the server for others.
+     * The APG gun fires on left click, which the server never sees as an item use. A click only
+     * counts as a shot once the gun proves it fired: a cartridge was used, the gun's loaded ammo or
+     * durability changed, or its cooldown started. An empty gun changes nothing, so no trail.
+     * Then the trail is drawn here and the server relays it to nearby players.
      */
     public static void tickShooting(MinecraftClient mc) {
+        if (mc.player == null || mc.world == null) {
+            pending = 0;
+            return;
+        }
         boolean down = mc.options.attackKey.isPressed() && mc.currentScreen == null;
-        boolean fired = down && !wasDown;
+        boolean click = down && !wasDown;
         wasDown = down;
-        if (!fired || mc.player == null || mc.world == null) return;
-        var id = net.minecraft.registry.Registries.ITEM.getId(mc.player.getMainHandStack().getItem());
-        if (!id.getNamespace().equals("dannys-aot") || !id.getPath().equals("apg_gun")) return;
+        ItemStack held = mc.player.getMainHandStack();
+
+        if (pending > 0) {
+            pending--;
+            if (!isGun(held)) pending = 0;
+            else if (ammo(mc) < ammoBefore || !ItemStack.areItemsAndComponentsEqual(held, gunBefore)
+                || (!coolingBefore && mc.player.getItemCooldownManager().isCoolingDown(held.getItem()))) {
+                pending = 0;
+                spawn(aimed);
+                net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new Net.ShotFired());
+            }
+        }
+        if (!click || !isGun(held)) return;
+
+        // Remember the aim at the moment of the click; the proof arrives a tick or a few later.
         Vec3d eye = mc.player.getEyePos(), dir = mc.player.getRotationVec(1f);
         var hit = mc.player.raycast(96, 1f, false);
         Vec3d to = hit.getType() == net.minecraft.util.hit.HitResult.Type.MISS ? eye.add(dir.multiply(96)) : hit.getPos();
@@ -38,8 +78,11 @@ public final class Trails {
         if (mc.options.getPerspective().isFirstPerson()) right = right.multiply(0.25);
         else right = Vec3d.ZERO;
         Vec3d start = eye.add(dir.multiply(0.8)).add(right).add(0, -0.25, 0);
-        spawn(new Net.Trail(ClientState.trail, start.x, start.y, start.z, to.x, to.y, to.z));
-        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new Net.ShotFired());
+        aimed = new Net.Trail(ClientState.trail, start.x, start.y, start.z, to.x, to.y, to.z);
+        gunBefore = held.copy();
+        ammoBefore = ammo(mc);
+        coolingBefore = mc.player.getItemCooldownManager().isCoolingDown(held.getItem());
+        pending = 12; // up to 0.6 s for the server's answer on a laggy connection
     }
 
     public static void spawn(Net.Trail t) {
