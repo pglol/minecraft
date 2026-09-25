@@ -69,7 +69,6 @@ final class HomeYard {
             set(w, x + 1, y + 1, z0 + 2, Blocks.CAULDRON.getDefaultState());
             set(w, x, y + 4, z0 + 4, Blocks.LANTERN.getDefaultState().with(Properties.HANGING, true));
         }
-        Homes.horse(w, x0 + 9.5, y + 1, z0 + 11.5, owner);
     }
 
     /** An open-sided smithy: anvil (opens the forge), smithing table, blast furnace, grindstone, lava trough. */

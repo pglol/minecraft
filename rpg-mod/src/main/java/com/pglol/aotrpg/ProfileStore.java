@@ -145,6 +145,8 @@ public final class ProfileStore {
                         if (p.created) p.skillPoints = Skill.pointsForLevel(p.level);
                     }
                     if (p.lifestyle == null) p.lifestyle = new java.util.HashMap<>();
+                    if (p.horses == null) p.horses = new java.util.ArrayList<>();
+                    if (p.activeHorse == null) p.activeHorse = "";
                     if (!p.skillsV2) {
                         // The skill trees were rebuilt: every character gets all points back to spend again.
                         p.skills.clear();

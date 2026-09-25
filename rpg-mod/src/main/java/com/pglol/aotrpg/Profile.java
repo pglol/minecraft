@@ -59,6 +59,11 @@ public final class Profile {
     public String title = "";
     /** Skill tree resets used (at most Skill.MAX_RESETS), and whether the rebuilt trees were applied. */
     public int skillResets;
+    /** Horses: owned horses, the ride-out one, and the first-ride quest (0 not started, 1 riding, 2 done). */
+    public java.util.List<Horses.Horse> horses = new java.util.ArrayList<>();
+    public String activeHorse = "";
+    public int starterQuest;
+    public double starterDist;
     public boolean skillsV2;
 
     public int stat(Stat s) {

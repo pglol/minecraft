@@ -76,6 +76,7 @@ public final class AotRpg implements ModInitializer {
     public static final Guard GUARD_FIGHT = new Guard();
     public static final Coins COINS = new Coins();
     public static final Abilities ABILITIES = new Abilities();
+    public static final Horses HORSES = new Horses();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -133,6 +134,11 @@ public final class AotRpg implements ModInitializer {
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.HomeAction.ID, (payload, ctx) -> HOMES.action(ctx.player(), payload.action(), payload.home(), payload.arg()));
         // Doors: into your home in town, back out inside; the anvil of a home forge opens the forge.
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            // Old horse spawn eggs become owned horses instead of loose ones.
+            if (!world.isClient && player instanceof ServerPlayerEntity sp && HORSES.useEgg(sp, player.getStackInHand(hand))) return ActionResult.SUCCESS;
+            return ActionResult.PASS;
+        });
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.isClient || !(player instanceof ServerPlayerEntity sp) || hand != net.minecraft.util.Hand.MAIN_HAND) return ActionResult.PASS;
             var state = world.getBlockState(hit.getBlockPos());
@@ -197,6 +203,21 @@ public final class AotRpg implements ModInitializer {
             PROFILES.save(p.getUuid());
             Notify.toast(p, Text.literal("Skills reset").formatted(Formatting.GOLD),
                 Text.literal(refund + " points back · " + (Skill.MAX_RESETS - pr.skillResets) + " resets left"), 0xE0B96A, "minecraft:experience_bottle", null);
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.StableAction.ID, (payload, ctx) -> {
+            if (payload.action().equals("close")) HORSES.closed(ctx.player());
+            else HORSES.action(ctx.player(), payload.action(), payload.horse(), payload.arg());
+        });
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
+            !(entity instanceof net.minecraft.entity.passive.AbstractHorseEntity h) || !HORSES.spare(h));
+        net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player, world, hand) -> {
+            var stack = player.getStackInHand(hand);
+            if (!world.isClient && player instanceof ServerPlayerEntity sp && Horses.isWhistle(stack)) {
+                HORSES.call(sp);
+                sp.getItemCooldownManager().set(stack.getItem(), 30);
+                return net.minecraft.util.TypedActionResult.success(stack);
+            }
+            return net.minecraft.util.TypedActionResult.pass(stack);
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.SlashHit.ID, (payload, ctx) -> COMBAT.slash(ctx.player(), payload.entity()));
         ServerPlayNetworking.registerGlobalReceiver(Net.GuardKey.ID, (payload, ctx) -> GUARD_FIGHT.set(ctx.player(), payload.on()));
@@ -351,6 +372,15 @@ public final class AotRpg implements ModInitializer {
             return ActionResult.PASS;
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (world.isClient || hand != net.minecraft.util.Hand.MAIN_HAND || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
+            if (Horses.isStableMaster(entity)) {
+                HORSES.openMaster(sp, entity);
+                return ActionResult.SUCCESS;
+            }
+            if (HORSES.useHorse(sp, entity)) return ActionResult.SUCCESS;
+            return ActionResult.PASS;
+        });
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (!world.isClient && (entity instanceof net.minecraft.entity.decoration.ItemFrameEntity
                 || entity instanceof net.minecraft.entity.decoration.ArmorStandEntity) && !CARE.canBuild(player, entity.getBlockPos())) {
                 CARE.deny(player);
@@ -376,6 +406,7 @@ public final class AotRpg implements ModInitializer {
             EVENTS.open(server);
             SOCIAL.open(server);
             FURNITURE.open(server);
+            HORSES.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
@@ -441,6 +472,7 @@ public final class AotRpg implements ModInitializer {
             CROWD.forget(p.getUuid());
             GUARD_FIGHT.forget(p.getUuid());
             ABILITIES.forget(p.getUuid());
+            HORSES.forget(p);
             COINS.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
         });
@@ -500,6 +532,7 @@ public final class AotRpg implements ModInitializer {
             FURNITURE.tick(p, ticks);
             GUARD_FIGHT.tick(p, ticks);
             ABILITIES.tick(p);
+            HORSES.tick(p, ticks);
             if (ticks % 20 == 5) GEAR.enforceLevels(p);
             COINS.tick(p, ticks);
             if (ticks % 1200 == 0 && !CROWD.afk(p)) TASKS.count(p, Tasks.MINUTES, 1);
@@ -512,6 +545,7 @@ public final class AotRpg implements ModInitializer {
         PARTIES.tick(server, ticks);
         GUARD.tick(server, ticks);
         RAIDS.tick(server, ticks);
+        if (ticks % 600 == 300) HORSES.sweep(server.getOverworld());
         CROWD.tick(server, ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {

@@ -7,7 +7,8 @@
   "key.aot_rpg.heal": "Quick heal",
   "key.aot_rpg.social": "Social wheel (hold)",
   "key.aot_rpg.property": "Property menu (furniture & upgrades)",
-  "key.aot_rpg.lockon": "Lock on (again: nape / eyes)",
+  "key.aot_rpg.lockon": "Lock on / unlock (drag the mouse to switch target)",
+  "key.aot_rpg.horse": "Call / send away your horse",
   "key.aot_rpg.guard": "Guard / block (hold, optional: right click with a blade also guards)",
   "key.aot_rpg.sheath": "Draw / sheathe ODM grips"
 }

@@ -131,26 +131,31 @@ final class HomePlots {
         return "east";
     }
 
-    /** The biggest town house that fits the plot with its door towards the road. */
+    /**
+     * A town house for the plot: one of the larger houses that fit, door towards the road, picked
+     * per plot so neighbouring properties get different houses (styles, shapes, heights).
+     */
     private static int pickTemplate(Places.PlotInfo p) {
         int w = p.x1() - p.x0() + 1, d = p.z1() - p.z0() + 1;
-        int best = -1, bestArea = 0, fallback = -1, fallbackArea = 0;
+        java.util.List<int[]> facing = new java.util.ArrayList<>(), any = new java.util.ArrayList<>();
         var homes = AotRpg.PLACES.homes;
         for (int i = 0; i < homes.size(); i++) {
             int[] h = homes.get(i);
             if (h[4] < 40) continue; // not the Underground ones
             int hw = h[2] - h[0] + 3, hd = h[3] - h[1] + 3;
             if (hw > w - 2 || hd > d - 4) continue;
-            int area = hw * hd;
-            if (doorSide(h).equals(p.gate()) && area > bestArea) {
-                best = i;
-                bestArea = area;
-            } else if (area > fallbackArea) {
-                fallback = i;
-                fallbackArea = area;
-            }
+            int[] c = {i, hw * hd * Math.max(1, (h[5] - h[4]) / 4)};
+            any.add(c);
+            if (doorSide(h).equals(p.gate())) facing.add(c);
         }
-        return best >= 0 ? best : fallback;
+        java.util.List<int[]> pool = facing.size() >= 4 ? facing : any;
+        if (pool.isEmpty()) return -1;
+        pool.sort((a, b) -> Integer.compare(b[1], a[1]));
+        // From the bigger half of what fits, a different pick for every plot.
+        int n = Math.max(1, Math.min(pool.size(), Math.max(6, pool.size() / 2)));
+        long hsh = p.id() * 0x9E3779B97F4A7C15L;
+        hsh ^= hsh >>> 31;
+        return pool.get((int) Math.floorMod(hsh, n))[0];
     }
 
     /** Copies the template house onto the plot and lays a path to the road. */
@@ -201,6 +206,59 @@ final class HomePlots {
         } finally {
             WorldCare.quiet(false);
         }
+    }
+
+    /**
+     * A small stable (roofed stall, hay, trough, fenced run) in the first clear corner of the plot's
+     * land. False when no corner is clear.
+     */
+    static boolean buildStable(ServerWorld ow, Places.PlotInfo p) {
+        int w = 8, d = 7, y = p.y();
+        int[][] corners = {{p.x0(), p.z0()}, {p.x1() - w + 1, p.z0()}, {p.x0(), p.z1() - d + 1}, {p.x1() - w + 1, p.z1() - d + 1}};
+        for (int[] c : corners) {
+            boolean clear = true;
+            for (int x = c[0]; x < c[0] + w && clear; x++) {
+                for (int z = c[1]; z < c[1] + d && clear; z++) {
+                    ow.getChunk(x >> 4, z >> 4);
+                    for (int yy = y; yy <= y + 4; yy++) {
+                        BlockState s = ow.getBlockState(new BlockPos(x, yy, z));
+                        if (!s.isAir() && !s.isReplaceable()) {
+                            clear = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!clear) continue;
+            int flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
+            WorldCare.quiet(true);
+            try {
+                for (int x = c[0]; x < c[0] + w; x++) {
+                    for (int z = c[1]; z < c[1] + d; z++) {
+                        ow.setBlockState(new BlockPos(x, y - 1, z), Blocks.COARSE_DIRT.getDefaultState(), flags);
+                        boolean edge = x == c[0] || z == c[1] || x == c[0] + w - 1 || z == c[1] + d - 1;
+                        boolean stall = z < c[1] + 3;
+                        if (stall) ow.setBlockState(new BlockPos(x, y + 3, z), Blocks.SPRUCE_SLAB.getDefaultState(), flags);
+                        if (edge && !(z == c[1] + d - 1 && x == c[0] + w / 2)) {
+                            ow.setBlockState(new BlockPos(x, y, z), stall ? Blocks.SPRUCE_PLANKS.getDefaultState() : Blocks.OAK_FENCE.getDefaultState(), flags);
+                        }
+                        if (stall && edge && (x == c[0] || x == c[0] + w - 1) && z == c[1] + 2) {
+                            for (int yy = y; yy <= y + 2; yy++) ow.setBlockState(new BlockPos(x, yy, z), Blocks.SPRUCE_LOG.getDefaultState(), flags);
+                        }
+                    }
+                }
+                ow.setBlockState(new BlockPos(c[0] + 1, y, c[1] + 1), Blocks.HAY_BLOCK.getDefaultState(), flags);
+                ow.setBlockState(new BlockPos(c[0] + 2, y, c[1] + 1), Blocks.WATER_CAULDRON.getDefaultState()
+                    .with(net.minecraft.block.LeveledCauldronBlock.LEVEL, 3), flags);
+                ow.setBlockState(new BlockPos(c[0] + w - 2, y, c[1] + 1), Blocks.HAY_BLOCK.getDefaultState(), flags);
+                ow.setBlockState(new BlockPos(c[0] + w / 2, y + 2, c[1] + 1), Blocks.LANTERN.getDefaultState()
+                    .with(net.minecraft.state.property.Properties.HANGING, true), flags);
+            } finally {
+                WorldCare.quiet(false);
+            }
+            return true;
+        }
+        return false;
     }
 
     /** Removes an old generated fence, gate, corner walls and lanterns around a plot. */

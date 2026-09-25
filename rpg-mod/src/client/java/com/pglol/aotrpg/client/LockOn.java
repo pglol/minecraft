@@ -21,10 +21,10 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 /**
- * Lock-on. Press the key to lock onto what you are looking at; the camera follows it. On an
- * ordinary titan the lock goes to its weak points: press again to switch between the nape and the
- * eyes. Shifters (and anything, while you are shifted yourself) are locked as a whole body.
- * Sneak + key, or losing the target, releases the lock.
+ * Lock-on. Press the key to lock onto what you are looking at; the camera follows it. Drag the
+ * mouse towards another target (or, on an ordinary titan, towards its nape or eyes) and the lock
+ * leans over to it. Shifters (and anything, while you are shifted yourself) are locked as a whole
+ * body. Press the key again, or lose the target, to unlock.
  */
 public final class LockOn {
     private LockOn() {}
@@ -71,13 +71,8 @@ public final class LockOn {
 
     public static void pressed(MinecraftClient mc) {
         if (mc.player == null || mc.world == null) return;
-        if (target != null && (mc.player.isSneaking() || !titan(target) || wholeBody(target))) {
-            target = null;
-            return;
-        }
         if (target != null) {
-            // Cycle the weak points of an ordinary titan.
-            part = part == Part.NAPE ? Part.EYE : Part.NAPE;
+            target = null;
             return;
         }
         Vec3d eye = mc.player.getEyePos(), look = mc.player.getRotationVec(1f);
@@ -99,6 +94,71 @@ public final class LockOn {
         }
         target = best;
         part = best != null && titan(best) && !wholeBody(best) ? Part.NAPE : Part.BODY;
+        if (best != null) {
+            lastYaw = mc.player.getYaw();
+            lastPitch = mc.player.getPitch();
+            dragYaw = dragPitch = 0;
+        }
+    }
+
+    private static float lastYaw, lastPitch, dragYaw, dragPitch;
+
+    private record Aim(Entity entity, Part part) { }
+
+    /** Yaw/pitch from the eye to a point. */
+    private static float[] angles(Vec3d eye, Vec3d at) {
+        Vec3d to = at.subtract(eye);
+        float yaw = (float) (MathHelper.atan2(to.z, to.x) * 180 / Math.PI) - 90;
+        float pitch = (float) -(MathHelper.atan2(to.y, Math.sqrt(to.x * to.x + to.z * to.z)) * 180 / Math.PI);
+        return new float[] {yaw, pitch};
+    }
+
+    private static Vec3d aimOf(MinecraftClient mc, Aim a, float td) {
+        Entity keepT = target;
+        Part keepP = part;
+        target = a.entity();
+        part = a.part();
+        Vec3d v = aim(mc, td);
+        target = keepT;
+        part = keepP;
+        return v;
+    }
+
+    /** The mouse was dragged: lean the lock to the nearest target in that direction. */
+    private static void lean(MinecraftClient mc, float dYaw, float dPitch, float td) {
+        Vec3d eye = mc.player.getCameraPosVec(td);
+        float[] cur = angles(eye, aim(mc, td));
+        double dl = Math.sqrt(dYaw * dYaw + dPitch * dPitch);
+        java.util.List<Aim> options = new java.util.ArrayList<>();
+        if (titan(target) && !wholeBody(target)) options.add(new Aim(target, part == Part.NAPE ? Part.EYE : Part.NAPE));
+        for (Entity e : mc.world.getEntities()) {
+            if (e == target || !candidate(mc, e) || e.squaredDistanceTo(mc.player) > RANGE * RANGE) continue;
+            if (titan(e) && !wholeBody(e)) {
+                options.add(new Aim(e, Part.NAPE));
+                options.add(new Aim(e, Part.EYE));
+            } else {
+                options.add(new Aim(e, Part.BODY));
+            }
+        }
+        Aim best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (Aim a : options) {
+            float[] ang = angles(eye, aimOf(mc, a, td));
+            float oy = MathHelper.wrapDegrees(ang[0] - cur[0]), op = ang[1] - cur[1];
+            double ol = Math.sqrt(oy * oy + op * op);
+            if (ol < 0.5 || ol > 90) continue;
+            double cos = (oy * dYaw + op * dPitch) / (ol * dl);
+            if (cos < 0.55) continue;
+            double score = ol * (1.6 - cos);
+            if (score < bestScore) {
+                bestScore = score;
+                best = a;
+            }
+        }
+        if (best != null) {
+            target = best.entity();
+            part = best.part();
+        }
     }
 
     private static boolean wholeBody(Entity e) {
@@ -150,7 +210,16 @@ public final class LockOn {
             return;
         }
         if (mc.currentScreen != null) return;
-        Vec3d to = aim(mc, ctx.tickCounter().getTickDelta(true)).subtract(mc.player.getCameraPosVec(ctx.tickCounter().getTickDelta(true)));
+        float td0 = ctx.tickCounter().getTickDelta(true);
+        // How far the mouse moved the camera since the lock last set it: that is a drag.
+        float my = MathHelper.wrapDegrees(mc.player.getYaw() - lastYaw), mp = mc.player.getPitch() - lastPitch;
+        dragYaw = dragYaw * 0.9f + my;
+        dragPitch = dragPitch * 0.9f + mp;
+        if (Math.sqrt(dragYaw * dragYaw + dragPitch * dragPitch) > 9) {
+            lean(mc, dragYaw, dragPitch, td0);
+            dragYaw = dragPitch = 0;
+        }
+        Vec3d to = aim(mc, td0).subtract(mc.player.getCameraPosVec(td0));
         float yaw = (float) (MathHelper.atan2(to.z, to.x) * 180 / Math.PI) - 90;
         float pitch = (float) -(MathHelper.atan2(to.y, Math.sqrt(to.x * to.x + to.z * to.z)) * 180 / Math.PI);
         float k = Math.min(1, dt * 12);
@@ -161,6 +230,8 @@ public final class LockOn {
         mc.player.prevYaw = ny;
         mc.player.prevPitch = np;
         mc.player.setHeadYaw(ny);
+        lastYaw = ny;
+        lastPitch = np;
     }
 
     /** The reticle over the locked point: turning brackets, red on the nape, amber on the eyes. */

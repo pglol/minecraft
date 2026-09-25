@@ -65,6 +65,21 @@ public final class HomeScreen extends Screen {
         }
         addDrawableChild(new AotButton(plot ? left + 10 : left + 136, by, 110, 22, Ui.heading("Furniture"),
             () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0))));
+        boolean stable = false;
+        for (Net.HomeUpgrade u : v.upgrades()) if (u.id().equals("STABLE") && u.owned()) stable = true;
+        if (stable) {
+            addDrawableChild(new AotButton(plot ? left + 124 : left + 250, by - 26, 110, 22, Ui.heading("Stables"),
+                () -> act("stables", v.home(), "")));
+        }
+        if (plot) {
+            int y = top + 96;
+            for (Net.HomeUpgrade u : v.upgrades()) {
+                AotButton b = addDrawableChild(new AotButton(left + w - 120, y + 2, 110, 18,
+                    Text.literal(u.owned() ? "Built" : "Build · " + u.price() + " M"), () -> act("stable", v.home(), "")));
+                b.active = !u.owned();
+                y += 28;
+            }
+        }
         if (!plot) {
             addDrawableChild(new AotButton(left + 10, by, 120, 22, Ui.heading("Go inside"), () -> {
                 act("enter", v.home(), "");
@@ -116,6 +131,12 @@ public final class HomeScreen extends Screen {
             Ui.wrapped(c, Text.literal("Your land: the plot and its surround out to the road. You can build, break and chop anything on it, "
                 + "and nothing you change there is ever regenerated. Furniture: buy it in the store, then place it from your crate here."),
                 left + 12, top + 54, w - 24, Ui.CREAM);
+            int y = top + 96;
+            for (Net.HomeUpgrade u : v.upgrades()) {
+                Ui.text(c, Ui.heading(u.title()), left + 12, y + 2, 0.9f, u.owned() ? Ui.GOLD : Ui.CREAM, false);
+                Ui.text(c, Text.literal(u.desc()), left + 12, y + 13, 0.6f, Ui.MUTED, false);
+                y += 28;
+            }
             return;
         }
         Ui.text(c, Ui.heading("Yard upgrades"), left + 12, top + 54, 0.95f, Ui.GOLD, false);

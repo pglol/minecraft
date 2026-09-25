@@ -52,7 +52,7 @@ public final class Homes {
     private static final int BASE_X = 200_000, CELL = 160, YARD = 72, FLOOR = 64, PER_ROW = 64;
 
     public enum Upgrade {
-        STABLE("Stable", 2500, "A paddock and stable in your yard, with your own horse."),
+        STABLE("Stable", 2500, "A paddock and stable in your yard: room for 4 more horses."),
         FORGE("Forge", 3000, "Anvil, forge and tools: upgrade and craft gear."),
         GARDEN("Garden", 1500, "Tilled beds with water for growing ingredients."),
         POND("Fishing Pond", 1200, "A stocked pond to fish in at home."),
@@ -82,6 +82,8 @@ public final class Homes {
         public String stem;
         public String ownerName = "";
         public int template = -1;
+        /** A stable built on the plot (room for more horses). */
+        public boolean stable;
         /** Home raids: distinct days the owner has played since the last raid, and when it was. */
         public int daysPlayed;
         public long lastDay;
@@ -389,7 +391,7 @@ public final class Homes {
             return;
         }
         if (!AotRpg.PROFILES.get(p.getUuid()).created) return;
-        if (home < 0 && !action.equals("manage") && !action.equals("offers")) {
+        if (home < 0 && !action.equals("manage") && !action.equals("offers") && !action.equals("stables")) {
             plotAction(p, action, -home - 1);
             return;
         }
@@ -420,6 +422,7 @@ public final class Homes {
                 if (d != null) enter(p, d);
             }
             case "visit" -> visit(p, home, arg);
+            case "stables" -> AotRpg.HORSES.openHome(p);
             case "upgrade" -> upgrade(p, home, arg);
             case "sell" -> sell(p, home);
             case "manage" -> {
@@ -541,6 +544,14 @@ public final class Homes {
         send(p, home, false);
     }
 
+    /** Standing in your own home with a stable, or on your own plot's land with one built. */
+    public boolean atOwnStable(ServerPlayerEntity p) {
+        if (p.getWorld().getRegistryKey() == WORLD) return hasUpgrade(p, p.getBlockPos(), Upgrade.STABLE);
+        int idx = HomePlots.plotAt(p.getBlockPos(), HomePlots.LAND);
+        PlotDeed d = idx < 0 ? null : data.plots.get(idx);
+        return d != null && d.stable && d.stem.equals(stem(p));
+    }
+
     public boolean hasUpgrade(ServerPlayerEntity p, BlockPos pos, Upgrade u) {
         int n = instanceAt(pos);
         Deed d = find(data.instances.get(n), n);
@@ -557,6 +568,23 @@ public final class Homes {
                 if (o == null) return;
                 data.offers.remove(o);
                 HomePlots.buy(p, idx, o.price);
+            }
+            case "stable" -> {
+                PlotDeed d = data.plots.get(idx);
+                if (d == null || !d.stem.equals(stem(p)) || d.stable) return;
+                if (!AotRpg.WALLET.spendMarks(p, Upgrade.STABLE.price)) {
+                    p.sendMessage(Text.literal("You need " + Upgrade.STABLE.price + " Marks.").formatted(Formatting.RED), true);
+                    return;
+                }
+                if (!HomePlots.buildStable(server.getOverworld(), plot)) {
+                    AotRpg.WALLET.addMarks(p, Upgrade.STABLE.price, null);
+                    p.sendMessage(Text.literal("There's no clear corner on your land for a stable.").formatted(Formatting.RED), true);
+                    return;
+                }
+                d.stable = true;
+                save();
+                Notify.toast(p, Text.literal("Stable built").formatted(Formatting.GOLD), Text.literal("Room for 4 more horses"), 0xE0B96A,
+                    "minecraft:hay_block", null);
             }
             case "sell" -> {
                 PlotDeed d = data.plots.get(idx);
@@ -576,8 +604,10 @@ public final class Homes {
         PlotDeed d = data.plots.get(idx);
         Offer o = HomeAdmin.offerFor(p, -idx - 1);
         String size = (plot.x1() - plot.x0() + 1) + " x " + (plot.z1() - plot.z0() + 1) + " · " + plot.size() + " " + plot.kind() + " plot";
+        List<Net.HomeUpgrade> ups = List.of(new Net.HomeUpgrade("STABLE", "Stable", "A stall and run on your land: room for 4 more horses.",
+            Upgrade.STABLE.price, d != null && d.stable));
         ServerPlayNetworking.send(p, new Net.HomeView(-idx - 1, HomePlots.label(plot), size, HomePlots.price(plot),
-            d != null && d.stem.equals(stem(p)), 0, 1, List.of(), List.of(), open, "plot", o == null ? -1 : o.price,
+            d != null && d.stem.equals(stem(p)), 0, 1, ups, List.of(), open, "plot", o == null ? -1 : o.price,
             d == null ? "" : d.ownerName));
     }
 

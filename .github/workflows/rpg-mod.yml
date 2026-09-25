@@ -56,6 +56,7 @@ jobs:
               javap -p -cp "$j" net.minecraft.client.gui.hud.InGameHud | grep -E " setTitle| setSubtitle"
               javap -p -cp "$j" net.minecraft.client.gui.hud.BossBarHud | grep -E " render\(|bossBars"
               javap -p -cp "$j" net.minecraft.client.network.ClientPlayNetworkHandler | grep -E " onItemPickupAnimation"
+              javap -p -cp "$j" net.minecraft.entity.passive.AbstractHorseEntity | grep -E " openInventory"
               break
             fi
           done

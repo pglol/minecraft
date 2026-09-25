@@ -16,6 +16,8 @@ import org.lwjgl.glfw.GLFW;
 
 /** Client side: creator and character screens, the RPG HUD, the K key. */
 public final class AotRpgClient implements ClientModInitializer {
+    private static KeyBinding horseKey;
+
     private static KeyBinding characterKey, mapKey, journalKey, satchelKey, healKey, socialKey, sheathKey;
 
     public static KeyBinding sheathKey() {
@@ -65,6 +67,13 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.CosmeticsOf.ID, (payload, ctx) -> CosmeticFx.onWorn(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.SlashFx.ID, (payload, ctx) -> CosmeticFx.slash(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(CosmeticFx::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.StableView.ID, (payload, ctx) -> {
+            ClientState.stable = payload;
+            if (ctx.client().currentScreen instanceof StableScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new StableScreen());
+        });
+        horseKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.horse",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_N, "category.aot_rpg"));
         ClientPlayNetworking.registerGlobalReceiver(Net.Toast.ID, (payload, ctx) -> {
             net.minecraft.item.ItemStack icon = payload.icon().isEmpty() ? net.minecraft.item.ItemStack.EMPTY : BattlePassScreen.icon(payload.icon());
             Toasts.push(payload.title(), payload.sub().getString().isEmpty() ? null : payload.sub(), payload.color(), icon,
@@ -255,6 +264,8 @@ public final class AotRpgClient implements ClientModInitializer {
                 if (ClientState.profile != null && client.currentScreen == null) ClientPlayNetworking.send(new Net.ToggleSheath());
             }
             while (Property.key.wasPressed()) Property.keyPressed(client);
+            while (horseKey.wasPressed()) if (client.currentScreen == null && ClientState.profile != null)
+                ClientPlayNetworking.send(new Net.StableAction("call", "", ""));
             while (LockOn.key.wasPressed()) if (client.currentScreen == null) LockOn.pressed(client);
             CombatUi.tick(client);
             CosmeticFx.tick(client);

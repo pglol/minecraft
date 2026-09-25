@@ -1079,6 +1079,58 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    public record BreedEntry(String id, String title, String blurb, float speedMin, float speedMax, float jumpMin, float jumpMax,
+                             int hpMin, int hpMax, int cap, long price) { }
+
+    public record HorseEntry(String id, String name, String breed, int level, int cap, int xp, int xpNext, float speed, float jump,
+                             float health, boolean saddle, String armor, int color, boolean active, boolean out, boolean lent, boolean resting) { }
+
+    /** Server -> client: the stable screen (mode master / home / horse). */
+    public record StableView(String mode, java.util.List<BreedEntry> breeds, java.util.List<HorseEntry> horses, int capacity, int quest,
+                             float questDist, float questGoal, boolean atStable, boolean open) implements CustomPayload {
+        public static final Id<StableView> ID = id("stable");
+        public static final PacketCodec<RegistryByteBuf, StableView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.mode);
+            b.writeVarInt(v.breeds.size());
+            for (BreedEntry e : v.breeds) {
+                b.writeString(e.id()); b.writeString(e.title()); b.writeString(e.blurb()); b.writeFloat(e.speedMin()); b.writeFloat(e.speedMax());
+                b.writeFloat(e.jumpMin()); b.writeFloat(e.jumpMax()); b.writeVarInt(e.hpMin()); b.writeVarInt(e.hpMax()); b.writeVarInt(e.cap());
+                b.writeVarLong(e.price());
+            }
+            b.writeVarInt(v.horses.size());
+            for (HorseEntry h : v.horses) {
+                b.writeString(h.id()); b.writeString(h.name()); b.writeString(h.breed()); b.writeVarInt(h.level()); b.writeVarInt(h.cap());
+                b.writeVarInt(h.xp()); b.writeVarInt(h.xpNext()); b.writeFloat(h.speed()); b.writeFloat(h.jump()); b.writeFloat(h.health());
+                b.writeBoolean(h.saddle()); b.writeString(h.armor()); b.writeVarInt(h.color()); b.writeBoolean(h.active()); b.writeBoolean(h.out());
+                b.writeBoolean(h.lent()); b.writeBoolean(h.resting());
+            }
+            b.writeVarInt(v.capacity); b.writeVarInt(v.quest); b.writeFloat(v.questDist); b.writeFloat(v.questGoal);
+            b.writeBoolean(v.atStable); b.writeBoolean(v.open);
+        }, b -> {
+            String mode = b.readString();
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<BreedEntry> br = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) br.add(new BreedEntry(b.readString(), b.readString(), b.readString(), b.readFloat(), b.readFloat(),
+                b.readFloat(), b.readFloat(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarLong()));
+            int m = Math.min(b.readVarInt(), 128);
+            java.util.List<HorseEntry> hs = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) hs.add(new HorseEntry(b.readString(), b.readString(), b.readString(), b.readVarInt(), b.readVarInt(),
+                b.readVarInt(), b.readVarInt(), b.readFloat(), b.readFloat(), b.readFloat(), b.readBoolean(), b.readString(), b.readVarInt(),
+                b.readBoolean(), b.readBoolean(), b.readBoolean(), b.readBoolean()));
+            return new StableView(mode, br, hs, b.readVarInt(), b.readVarInt(), b.readFloat(), b.readFloat(), b.readBoolean(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: quest, buy (arg breed, id name), select, rename, saddle, armor, dismiss, call, release, close. */
+    public record StableAction(String action, String horse, String arg) implements CustomPayload {
+        public static final Id<StableAction> ID = id("stable_action");
+        public static final PacketCodec<RegistryByteBuf, StableAction> CODEC = PacketCodec.of(
+            (v, b) -> { b.writeString(v.action); b.writeString(v.horse); b.writeString(v.arg); },
+            b -> new StableAction(b.readString(), b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the game modes and which are unlocked. */
     public record ModeView(java.util.List<ModeEntry> modes, int chapter, boolean open) implements CustomPayload {
         public static final Id<ModeView> ID = id("modes");
@@ -1108,6 +1160,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playS2C().register(StableView.ID, StableView.CODEC);
+        PayloadTypeRegistry.playC2S().register(StableAction.ID, StableAction.CODEC);
         PayloadTypeRegistry.playC2S().register(SlashHit.ID, SlashHit.CODEC);
         PayloadTypeRegistry.playC2S().register(SkillReset.ID, SkillReset.CODEC);
         PayloadTypeRegistry.playS2C().register(Toast.ID, Toast.CODEC);
