@@ -71,6 +71,7 @@ public final class AotRpg implements ModInitializer {
     public static final Social SOCIAL = new Social();
     public static final Furniture FURNITURE = new Furniture();
     public static final HomeRaids RAIDS = new HomeRaids();
+    public static final TitanCrowd CROWD = new TitanCrowd();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -399,6 +400,7 @@ public final class AotRpg implements ModInitializer {
             PROGRESSION.removeBar(p);
             FISHING.forget(p.getUuid());
             FURNITURE.forget(p.getUuid());
+            CROWD.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
         });
 
@@ -463,6 +465,7 @@ public final class AotRpg implements ModInitializer {
         PARTIES.tick(server, ticks);
         GUARD.tick(server, ticks);
         RAIDS.tick(server, ticks);
+        CROWD.tick(server, ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {
             PROFILES.saveAll();

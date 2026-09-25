@@ -81,7 +81,7 @@ public final class HomeRaids {
                 double cx = (plot.x0() + plot.x1()) / 2.0, cz = (plot.z0() + plot.z1()) / 2.0;
                 boolean home = Math.abs(p.getX() - cx) < 60 && Math.abs(p.getZ() - cz) < 60;
                 // Spread out over the days after it is due: a 1 in 8 chance each minute at home.
-                if (home && p.getRandom().nextInt(8) == 0) {
+                if (home && !AotRpg.CROWD.afk(p) && p.getRandom().nextInt(8) == 0) {
                     start(server.getOverworld(), p, e.getKey(), plot);
                     dirty = true;
                 }
