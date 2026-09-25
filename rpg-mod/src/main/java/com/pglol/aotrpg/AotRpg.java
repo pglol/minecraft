@@ -75,6 +75,7 @@ public final class AotRpg implements ModInitializer {
     public static final Tasks TASKS = new Tasks();
     public static final Guard GUARD_FIGHT = new Guard();
     public static final Coins COINS = new Coins();
+    public static final Abilities ABILITIES = new Abilities();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -146,7 +147,8 @@ public final class AotRpg implements ModInitializer {
                 if (world.getRegistryKey() == Homes.WORLD && HOMES.useHomeDoor(sp, hit.getBlockPos())) return ActionResult.SUCCESS;
             }
             // Any anvil on your own property is your forge (the yard smithy, or a Workshop Anvil).
-            if (state.isIn(net.minecraft.registry.tag.BlockTags.ANVIL) && PROFILES.get(sp.getUuid()).created
+            if ((state.isIn(net.minecraft.registry.tag.BlockTags.ANVIL) || state.isOf(net.minecraft.block.Blocks.GRINDSTONE)
+                || state.isOf(net.minecraft.block.Blocks.SMITHING_TABLE)) && PROFILES.get(sp.getUuid()).created
                 && (HOMES.hasUpgrade(sp, hit.getBlockPos(), Homes.Upgrade.FORGE) || FURNITURE.ownProperty(sp, hit.getBlockPos()))) {
                 FORGE.open(sp);
                 return ActionResult.SUCCESS;
@@ -172,6 +174,30 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.FurnitureAction.ID, (payload, ctx) ->
             FURNITURE.action(ctx.player(), payload.action(), payload.piece(), payload.action().equals("place") ? net.minecraft.util.math.BlockPos.fromLong(payload.at()) : null));
+        ServerPlayNetworking.registerGlobalReceiver(Net.SkillReset.ID, (payload, ctx) -> {
+            ServerPlayerEntity p = ctx.player();
+            Profile pr = PROFILES.get(p.getUuid());
+            if (!pr.created || pr.skills.isEmpty()) return;
+            if (pr.skillResets >= Skill.MAX_RESETS) {
+                Notify.toast(p, Text.literal("No resets left").formatted(Formatting.RED), Text.literal("Each character can reset its skills " + Skill.MAX_RESETS + " times"), 0xC0463A);
+                return;
+            }
+            long cost = Skill.resetCost(pr.skillResets);
+            if (cost > 0 && !WALLET.spendMarks(p, cost)) {
+                Notify.toast(p, Text.literal("Not enough Marks").formatted(Formatting.RED), Text.literal("This reset costs " + cost + " Marks"), 0xC0463A);
+                return;
+            }
+            int refund = 0;
+            for (Skill s : pr.skills) refund += s.cost;
+            pr.skills.clear();
+            pr.skillPoints += refund;
+            pr.skillResets++;
+            PROGRESSION.apply(p, pr);
+            sync(p, pr);
+            PROFILES.save(p.getUuid());
+            Notify.toast(p, Text.literal("Skills reset").formatted(Formatting.GOLD),
+                Text.literal(refund + " points back · " + (Skill.MAX_RESETS - pr.skillResets) + " resets left"), 0xE0B96A, "minecraft:experience_bottle", null);
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.GuardKey.ID, (payload, ctx) -> GUARD_FIGHT.set(ctx.player(), payload.on()));
         ServerPlayNetworking.registerGlobalReceiver(Net.TaskAction.ID, (payload, ctx) -> TASKS.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.PassAction.ID, (payload, ctx) -> SEASON.action(ctx.player(), payload.action(), payload.tier()));
@@ -256,9 +282,8 @@ public final class AotRpg implements ModInitializer {
             Profile pr = PROFILES.get(p.getUuid());
             if (!pr.created || payload.skill() < 0 || payload.skill() >= Skill.values().length) return;
             Skill sk = Skill.values()[payload.skill()];
-            Skill prev = sk.previous();
-            if (pr.has(sk) || pr.skillPoints <= 0 || pr.level < sk.level || (prev != null && !pr.has(prev))) return;
-            pr.skillPoints--;
+            if (pr.has(sk) || pr.skillPoints < sk.cost || pr.level < sk.level || !sk.unlockedBy(pr::has)) return;
+            pr.skillPoints -= sk.cost;
             pr.skills.add(sk);
             PROGRESSION.apply(p, pr);
             sync(p, pr);
@@ -268,6 +293,11 @@ public final class AotRpg implements ModInitializer {
                 .append(Text.literal(sk.title).formatted(Formatting.GOLD, Formatting.BOLD)), 5, 40, 10);
         });
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (!world.isClient && player instanceof ServerPlayerEntity sp && !sp.isCreative() && !Gear.canUse(sp, sp.getMainHandStack())) {
+                Notify.toast(sp, Text.literal("You can't wield this yet").formatted(Formatting.RED),
+                    Text.literal("Needs level " + Gear.requiredLevel(sp.getMainHandStack())), 0xC0463A, null, "levellock");
+                return ActionResult.FAIL;
+            }
             if (!world.isClient && player instanceof ServerPlayerEntity sp) STAMINA.attack(sp, PROFILES.get(sp.getUuid()));
             return ActionResult.PASS;
         });
@@ -409,6 +439,7 @@ public final class AotRpg implements ModInitializer {
             FURNITURE.forget(p.getUuid());
             CROWD.forget(p.getUuid());
             GUARD_FIGHT.forget(p.getUuid());
+            ABILITIES.forget(p.getUuid());
             COINS.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
         });
@@ -467,6 +498,8 @@ public final class AotRpg implements ModInitializer {
             GRAB.tick(p, ticks);
             FURNITURE.tick(p, ticks);
             GUARD_FIGHT.tick(p, ticks);
+            ABILITIES.tick(p);
+            if (ticks % 20 == 5) GEAR.enforceLevels(p);
             COINS.tick(p, ticks);
             if (ticks % 1200 == 0 && !CROWD.afk(p)) TASKS.count(p, Tasks.MINUTES, 1);
             if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {

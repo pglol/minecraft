@@ -39,7 +39,8 @@ public final class Net {
 
     /** Server -> client: everything the HUD and character screen show. */
     public record Sync(String name, int origin, int discipline, int level, long xp, long need, int points,
-                       int skillPoints, int[] base, int[] total, int titanKills, int chapter, long skills)
+                       int skillPoints, int[] base, int[] total, int titanKills, int chapter, long skills,
+                       int[] crafts, int skillResets)
             implements CustomPayload {
         public static final Id<Sync> ID = id("sync");
         public static final PacketCodec<RegistryByteBuf, Sync> CODEC = PacketCodec.of(Sync::write, Sync::read);
@@ -59,12 +60,14 @@ public final class Net {
             b.writeVarInt(titanKills);
             b.writeVarInt(chapter);
             b.writeLong(skills);
+            b.writeIntArray(crafts);
+            b.writeVarInt(skillResets);
         }
 
         private static Sync read(PacketByteBuf b) {
             return new Sync(b.readString(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarLong(),
                 b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readIntArray(), b.readIntArray(),
-                b.readVarInt(), b.readVarInt(), b.readLong());
+                b.readVarInt(), b.readVarInt(), b.readLong(), b.readIntArray(), b.readVarInt());
         }
 
         public Origin originEnum() { return Origin.values()[origin]; }
@@ -80,7 +83,21 @@ public final class Net {
             long mask = 0;
             for (Skill s : p.skills) mask |= 1L << s.ordinal();
             return new Sync(p.name, p.origin.ordinal(), p.discipline.ordinal(), p.level, p.xp, Profile.xpForNext(p.level),
-                p.points, p.skillPoints, base, total, p.titanKills, p.chapter, mask);
+                p.points, p.skillPoints, base, total, p.titanKills, p.chapter, mask, crafts(p), p.skillResets);
+        }
+
+        /** Smithing, fishing, cooking: level * 1000 + progress to the next level in thousandths. */
+        private static int[] crafts(Profile p) {
+            String[] skills = {Lifestyle.SMITHING, Lifestyle.FISHING, Lifestyle.COOKING};
+            int[] out = new int[skills.length];
+            for (int i = 0; i < skills.length; i++) {
+                int lv = Lifestyle.level(p, skills[i]);
+                long xp = p.lifestyle.getOrDefault(skills[i], 0L);
+                double lo = 40.0 * lv * lv, hi = 40.0 * (lv + 1) * (lv + 1);
+                int frac = lv >= Lifestyle.MAX ? 999 : (int) Math.max(0, Math.min(999, (xp - lo) / (hi - lo) * 1000));
+                out[i] = lv * 1000 + frac;
+            }
+            return out;
         }
     }
 
@@ -1047,6 +1064,13 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: reset the skill trees (limited per character, first one free). */
+    public record SkillReset() implements CustomPayload {
+        public static final Id<SkillReset> ID = id("skill_reset");
+        public static final PacketCodec<RegistryByteBuf, SkillReset> CODEC = PacketCodec.unit(new SkillReset());
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the game modes and which are unlocked. */
     public record ModeView(java.util.List<ModeEntry> modes, int chapter, boolean open) implements CustomPayload {
         public static final Id<ModeView> ID = id("modes");
@@ -1076,6 +1100,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
+        PayloadTypeRegistry.playC2S().register(SkillReset.ID, SkillReset.CODEC);
         PayloadTypeRegistry.playS2C().register(Toast.ID, Toast.CODEC);
         PayloadTypeRegistry.playS2C().register(CosmeticsOf.ID, CosmeticsOf.CODEC);
         PayloadTypeRegistry.playS2C().register(SlashFx.ID, SlashFx.CODEC);

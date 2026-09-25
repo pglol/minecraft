@@ -74,7 +74,7 @@ final class Commands {
                     int lv = IntegerArgumentType.getInteger(c, "level");
                     pr.points += lv - pr.level;
                     if (pr.points < 0) pr.points = 0;
-                    pr.skillPoints += Skill.pointsForLevel(lv) - Skill.pointsForLevel(pr.level);
+                    pr.skillPoints += Math.max(0, Skill.pointsForLevel(lv) - Skill.pointsForLevel(pr.level));
                     if (pr.skillPoints < 0) pr.skillPoints = 0;
                     pr.level = lv;
                     pr.xp = 0;

@@ -209,6 +209,7 @@ public final class Gear {
         List<Text> lore = new ArrayList<>();
         lore.add(Text.literal(rarity.title + (weapon ? " weapon" : " armor")).formatted(rarity.color).styled(st -> st.withItalic(false)));
         lore.add(Text.literal("Item level " + ilvl + (up > 0 ? "   ·   +" + up : "")).formatted(Formatting.GRAY).styled(st -> st.withItalic(false)));
+        lore.add(Text.literal("Requires level " + ilvl).formatted(Formatting.DARK_GRAY).styled(st -> st.withItalic(false)));
         double scale = (1 + ilvl) * (1 + 0.25 * rarity.ordinal()) * (1 + 0.08 * up);
         boolean aotWeapon = aotWeapon(s);
         if (aotWeapon) {
@@ -263,11 +264,48 @@ public final class Gear {
         return Text.literal(r.title).formatted(r.color, Formatting.BOLD);
     }
 
+    /** The item level a character may use: no higher than their own level. */
+    public static int requiredLevel(ItemStack s) {
+        return isGear(s) ? data(s).getInt("ilvl") : 0;
+    }
+
+    public static boolean canUse(ServerPlayerEntity p, ItemStack s) {
+        return !isGear(s) || AotRpg.PROFILES.get(p.getUuid()).level >= requiredLevel(s);
+    }
+
+    /**
+     * Item level for a drop: close to the finder's own level (never the area's alone), a little
+     * higher for bosses, and now and then a rare find well above it (locked until they grow into it).
+     */
+    public static int dropLevel(ServerPlayerEntity p, int source, int bonus) {
+        int lv = AotRpg.PROFILES.get(p.getUuid()).level;
+        Random r = p.getRandom();
+        int base = Math.max(1, Math.min(source, lv + 2) + bonus + r.nextInt(3) - 1);
+        base = Math.min(base, lv + 3);
+        if (r.nextFloat() < 0.04f) base = lv + 6 + r.nextInt(10); // a rare find, above your level
+        return Math.max(1, base);
+    }
+
+    /** Once a second: armor you are not high enough level for comes off. */
+    public void enforceLevels(ServerPlayerEntity p) {
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (!pr.created || p.isCreative()) return;
+        for (net.minecraft.entity.EquipmentSlot slot : new net.minecraft.entity.EquipmentSlot[] {net.minecraft.entity.EquipmentSlot.HEAD,
+            net.minecraft.entity.EquipmentSlot.CHEST, net.minecraft.entity.EquipmentSlot.LEGS, net.minecraft.entity.EquipmentSlot.FEET}) {
+            ItemStack s = p.getEquippedStack(slot);
+            if (s.isEmpty() || canUse(p, s)) continue;
+            p.equipStack(slot, ItemStack.EMPTY);
+            p.getInventory().offerOrDrop(s);
+            Notify.toast(p, Text.literal("Too heavy for you yet").formatted(Formatting.RED),
+                Text.literal(s.getName().getString() + " needs level " + requiredLevel(s)), 0xC0463A, null, null);
+        }
+    }
+
     /** A quest reward: one piece of gear for the quest's level (bonus shifts rarity up). */
     public void reward(ServerPlayerEntity p, int level, int bonus) {
         Random r = p.getRandom();
         Rarity rar = rollRarity(r, bonus);
-        ItemStack s = roll(r, rar, Math.max(1, level));
+        ItemStack s = roll(r, rar, dropLevel(p, Math.max(1, level), 0));
         p.getInventory().offerOrDrop(s);
         announce(p, s, rar);
     }
@@ -285,7 +323,7 @@ public final class Gear {
         if (r.nextFloat() >= chance) return;
         int luck = (shifter ? 2 : boss ? 1 : 0) + (DeathCare.EXTRACTION.equals(AotRpg.PROFILES.get(killer.getUuid()).mode) ? 1 : 0);
         Rarity rar = rollRarity(r, luck);
-        int ilvl = Math.max(1, areaLevel + (shifter ? 10 : boss ? 5 : 0));
+        int ilvl = dropLevel(killer, areaLevel, shifter ? 3 : boss ? 1 : 0);
         ItemStack s = roll(r, rar, ilvl);
         ServerWorld w = (ServerWorld) titan.getWorld();
         ItemEntity e = new ItemEntity(w, titan.getX(), titan.getY() + 1, titan.getZ(), s);

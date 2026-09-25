@@ -82,6 +82,13 @@ public final class Forge {
         if (slot < 0 || slot >= p.getInventory().main.size()) return;
         ItemStack s = p.getInventory().main.get(slot);
         if (!Gear.isGear(s) || Gear.data(s).getInt("up") >= 10) return;
+        // Upgrades lift gear at most 3 levels above your own (item level + upgrades).
+        int cap = AotRpg.PROFILES.get(p.getUuid()).level + 3;
+        if (Gear.data(s).getInt("ilvl") + Gear.data(s).getInt("up") + 1 > cap) {
+            Notify.toast(p, Text.literal("Beyond your skill").formatted(Formatting.RED),
+                Text.literal("You can upgrade gear up to level " + cap + " (your level + 3)"), 0xC0463A, "minecraft:anvil", null);
+            return;
+        }
         long[] c = cost(s);
         Item iron = Items.IRON_INGOT, steel = item("dannys-aot:ultrahard_steel_ingot");
         if (count(p, iron) < c[1] || (c[2] > 0 && count(p, steel) < c[2])) {
@@ -135,7 +142,8 @@ public final class Forge {
             // Craftsmanship shifts the odds towards rarer results.
             int luck = (quality > 0.85 ? 1 : 0) + (smith >= 25 ? 1 : 0);
             Gear.Rarity rar = Gear.rollRarity(p.getRandom(), luck);
-            int ilvl = Math.max(1, pr.level / 2 + smith / 2 + (int) Math.round(quality * 5));
+            // Forged gear tops out 3 levels above the smith.
+            int ilvl = Math.max(1, Math.min(pr.level + 3, pr.level / 2 + smith / 2 + (int) Math.round(quality * 5)));
             out = r.base().isEmpty() ? Gear.rollArmor(p.getRandom(), rar, ilvl) : Gear.rollAs(p.getRandom(), rar, ilvl, item(r.base()));
         }
         p.getInventory().offerOrDrop(out);

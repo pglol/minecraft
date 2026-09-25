@@ -95,7 +95,7 @@ public final class Progression {
             pr.xp -= Profile.xpForNext(pr.level);
             pr.level++;
             pr.points++;
-            if (pr.level % 5 == 0) pr.skillPoints++;
+            if (pr.level % 3 == 0) pr.skillPoints++;
             up = true;
         }
         if (pr.level >= MAX_LEVEL) pr.xp = 0;
@@ -103,7 +103,7 @@ public final class Progression {
             apply(p, pr);
             AotRpg.NAMETAGS.update(p, pr);
             Titles.show(p, Text.literal("LEVEL UP").formatted(Formatting.GOLD, Formatting.BOLD),
-                Text.literal("Level " + pr.level + "  ·  +1 stat point" + (pr.level % 5 == 0 ? ", +1 skill point" : "")
+                Text.literal("Level " + pr.level + "  ·  +1 stat point" + (pr.level % 3 == 0 ? ", +1 skill point" : "")
                     + (AotRpg.hasClient(p) ? "  (K)" : "  (/character)")).formatted(Formatting.YELLOW), 10, 50, 20);
             p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1.1f);
         }

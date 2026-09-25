@@ -148,14 +148,16 @@ public final class Guard {
             // Block: a guarding fighter facing the hit.
             if (!(entity instanceof ServerPlayerEntity def) || !guarding(def) || !inFront(def, src)) return true;
             boolean titan = AotRpg.isTitan(src);
-            float cost = amount * (titan ? 3f : 5f) + 4;
+            Profile dp = AotRpg.PROFILES.get(def.getUuid());
+            float cost = (amount * (titan ? 3f : 5f) + 4) * (dp.has(Skill.BULWARK) ? 0.65f : 1f);
             Vec3d at = def.getEyePos().add(def.getRotationVec(1f).multiply(0.7)).subtract(0, 0.4, 0);
             if (AotRpg.STAMINA.spend(def, cost)) {
                 fx(w, FX_BLOCK, at, def);
+                AotRpg.ABILITIES.blocked(def);
                 if (titan) {
                     // Titans are too strong to stop: the guard only softens the blow.
                     push(def, src, 0.8);
-                    def.damage(w.getDamageSources().generic(), amount * 0.35f);
+                    def.damage(w.getDamageSources().generic(), amount * (dp.has(Skill.BULWARK) ? 0.175f : 0.35f));
                     return false;
                 }
                 push(src, def, source.getSource() == src ? 0.75 : 0);

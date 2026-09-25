@@ -57,6 +57,9 @@ public final class Profile {
     /** Achievements earned, and the one whose title is worn by the name ("" for none). */
     public java.util.Set<String> achievements = new java.util.HashSet<>();
     public String title = "";
+    /** Skill tree resets used (at most Skill.MAX_RESETS), and whether the rebuilt trees were applied. */
+    public int skillResets;
+    public boolean skillsV2;
 
     public int stat(Stat s) {
         return stats.getOrDefault(s, 0);

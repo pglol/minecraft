@@ -145,6 +145,12 @@ public final class ProfileStore {
                         if (p.created) p.skillPoints = Skill.pointsForLevel(p.level);
                     }
                     if (p.lifestyle == null) p.lifestyle = new java.util.HashMap<>();
+                    if (!p.skillsV2) {
+                        // The skill trees were rebuilt: every character gets all points back to spend again.
+                        p.skills.clear();
+                        if (p.created) p.skillPoints = Skill.pointsForLevel(p.level);
+                        p.skillsV2 = true;
+                    }
                     if (p.orders == null) p.orders = new java.util.HashMap<>();
                     if (p.faction == null) p.faction = "";
                     if (p.unlockedModes == null) p.unlockedModes = new java.util.HashSet<>();

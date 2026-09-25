@@ -22,6 +22,7 @@ import java.util.Locale;
 /** Character sheet (attributes) and the skill tree. Opened with K or /character. */
 public class CharacterScreen extends Screen {
     private int tab;
+    private boolean confirmReset;
     private int left, top, w, h;
 
     public CharacterScreen(int tab) {
@@ -45,8 +46,8 @@ public class CharacterScreen extends Screen {
         if (p == null) return;
         w = Math.min(440, width - 20);
         left = (width - w) / 2;
-        top = 88;
-        h = Math.min(220, height - top - 10);
+        top = 70;
+        h = Math.min(tab == 1 ? 330 : 300, height - top - 8);
 
         String[] tabs = {"Attributes", "Skills"};
         for (int i = 0; i < tabs.length; i++) {
@@ -68,21 +69,37 @@ public class CharacterScreen extends Screen {
             }
         } else {
             for (Skill s : Skill.values()) addDrawableChild(new SkillNode(s, nodeX(s), nodeY(s)));
+            long cost = Skill.resetCost(p.skillResets());
+            int left3 = Skill.MAX_RESETS - p.skillResets();
+            AotButton reset = addDrawableChild(new AotButton(left + 8, top + h - 24, 190, 18,
+                Text.literal(left3 <= 0 ? "No resets left" : "Reset skills · " + (cost == 0 ? "free" : cost + " Marks") + " · " + left3 + " left"),
+                () -> {
+                    if (confirmReset) {
+                        confirmReset = false;
+                        ClientPlayNetworking.send(new Net.SkillReset());
+                    } else {
+                        confirmReset = true;
+                        clearAndInit();
+                    }
+                }));
+            if (confirmReset) reset.setMessage(Text.literal("Click again to reset (" + (cost == 0 ? "free" : cost + " Marks") + ")"));
+            reset.accent = Ui.RED;
+            reset.active = left3 > 0 && p.skills() != 0;
         }
     }
 
     private int statY(int i) {
-        return top + 30 + i * Math.min(34, (h - 40) / 4);
+        return top + 28 + i * 30;
     }
 
     private int nodeX(Skill s) {
         int colW = w / 3;
-        return left + s.branch.ordinal() * colW + colW / 2 - 13;
+        return left + s.branch.ordinal() * colW + colW / 2 - 11 + s.lane * 40;
     }
 
     private int nodeY(Skill s) {
-        int step = Math.min(46, (h - 40) / 4);
-        return top + 32 + s.tier * step;
+        int step = Math.max(34, Math.min(46, (h - 72) / Skill.TIERS));
+        return top + 34 + s.tier * step;
     }
 
     @Override
@@ -122,6 +139,24 @@ public class CharacterScreen extends Screen {
             Ui.text(c, Ui.title(String.valueOf(total)), left + w - 60, y + 8, 1.4f, Ui.GOLD, true);
             if (total != base) c.drawTextWithShadow(textRenderer, Text.literal("(+" + (total - base) + ")"), left + w - 100, y + 10, Ui.MUTED);
         }
+        // Crafts: raised by practice (the forge, fishing and cooking minigames), not points.
+        int cy = statY(Stat.values().length) + 6;
+        Ui.divider(c, left + 10, cy - 4, w - 20);
+        c.drawTextWithShadow(textRenderer, Ui.heading("Crafts"), left + 10, cy, Ui.GOLD);
+        c.drawTextWithShadow(textRenderer, Text.literal("raised by practice"), left + 60, cy, Ui.MUTED);
+        String[] names = {"Smithing", "Fishing", "Cooking"};
+        ItemStack[] icons = {new ItemStack(net.minecraft.item.Items.ANVIL), new ItemStack(net.minecraft.item.Items.FISHING_ROD), new ItemStack(net.minecraft.item.Items.CAMPFIRE)};
+        String[] perks = {"better forge odds and quality", "shorter waits, better catches", "stronger meals, extra portions"};
+        int[] crafts = p.crafts();
+        int colW = (w - 20) / 3;
+        for (int i = 0; i < names.length && i < crafts.length; i++) {
+            int x = left + 10 + i * colW, y = cy + 13;
+            int lv = crafts[i] / 1000;
+            c.drawItem(icons[i], x, y);
+            c.drawTextWithShadow(textRenderer, Ui.heading(names[i] + " " + lv), x + 20, y, Ui.CREAM);
+            Ui.bar(c, x + 20, y + 11, colW - 30, 3, (crafts[i] % 1000) / 1000f, Ui.XP);
+            Ui.text(c, Text.literal(perks[i]), x + 20, y + 16, 0.55f, Ui.MUTED, false);
+        }
         // Derived values from the live player
         var pl = MinecraftClient.getInstance().player;
         if (pl != null) {
@@ -142,6 +177,7 @@ public class CharacterScreen extends Screen {
             case AGILITY -> String.format(Locale.ROOT, "+%.1f%% movement speed", 1.5 * v);
             case ENDURANCE -> "+" + (2 * v) + " health, +" + (5 * v) + " stamina";
             case RESOLVE -> "+" + v + " armor";
+            case CHARISMA -> (2 * v) + "% better prices from merchants";
         };
     }
 
@@ -156,11 +192,25 @@ public class CharacterScreen extends Screen {
             Text t = Ui.heading(b.title);
             c.drawTextWithShadow(textRenderer, t, cx - textRenderer.getWidth(t) / 2, top + 20, b.color);
             if (b.ordinal() > 0) c.fill(left + b.ordinal() * colW, top + 18, left + b.ordinal() * colW + 1, top + h - 8, 0x307A6139);
-            // connectors
-            for (int tier = 1; tier < 4; tier++) {
-                Skill s = Skill.of(b, tier), prev = Skill.of(b, tier - 1);
-                int y0 = nodeY(prev) + 26, y1 = nodeY(s);
-                c.fill(cx - 1, y0, cx + 1, y1, p.has(s) ? b.color : p.has(prev) ? 0xA0B8955A : 0x40FFFFFF);
+            // Connectors from each skill to the ones below it (forks branch out and join again).
+            for (int tier = 1; tier < Skill.TIERS; tier++) {
+                for (Skill s : Skill.at(b, tier)) {
+                    for (Skill prev : Skill.at(b, tier - 1)) {
+                        int x0 = nodeX(prev) + 11, y0 = nodeY(prev) + 22, x1 = nodeX(s) + 11, y1 = nodeY(s);
+                        int col = p.has(s) && p.has(prev) ? b.color : p.has(prev) ? 0xA0B8955A : 0x30FFFFFF;
+                        int ym = (y0 + y1) / 2;
+                        c.fill(x0 - 1, y0, x0 + 1, ym, col);
+                        c.fill(Math.min(x0, x1) - 1, ym - 1, Math.max(x0, x1) + 1, ym + 1, col);
+                        c.fill(x1 - 1, ym, x1 + 1, y1, col);
+                    }
+                }
+            }
+            // Points spent in this branch.
+            int spent = 0;
+            for (Skill s : Skill.values()) if (s.branch == b && p.has(s)) spent += s.cost;
+            if (spent > 0) {
+                String sp = spent + " pts";
+                c.drawTextWithShadow(textRenderer, Text.literal(sp), cx - textRenderer.getWidth(sp) / 2, top + h - 38, b.color);
             }
         }
     }
@@ -180,7 +230,7 @@ public class CharacterScreen extends Screen {
         private final Skill skill;
 
         SkillNode(Skill skill, int x, int y) {
-            super(x, y, 26, 26, Text.literal(skill.title));
+            super(x, y, 22, 22, Text.literal(skill.title));
             this.skill = skill;
         }
 
@@ -190,8 +240,7 @@ public class CharacterScreen extends Screen {
 
         private boolean available() {
             Net.Sync p = ClientState.profile;
-            Skill prev = skill.previous();
-            return !learned() && p.skillPoints() > 0 && p.level() >= skill.level && (prev == null || p.has(prev));
+            return !learned() && p.skillPoints() >= skill.cost && p.level() >= skill.level && skill.unlockedBy(p::has);
         }
 
         List<Text> tooltip() {
@@ -205,10 +254,16 @@ public class CharacterScreen extends Screen {
                 return l;
             }
             l.add(Text.literal("Requires level " + skill.level).formatted(p.level() >= skill.level ? Formatting.GRAY : Formatting.RED));
-            Skill prev = skill.previous();
-            if (prev != null) l.add(Text.literal("Requires " + prev.title).formatted(p.has(prev) ? Formatting.GRAY : Formatting.RED));
-            l.add(available() ? Text.literal("Click to learn (1 skill point)").formatted(Formatting.YELLOW)
-                : Text.literal("Costs 1 skill point").formatted(p.skillPoints() > 0 ? Formatting.GRAY : Formatting.RED));
+            if (skill.tier > 0) {
+                boolean ok = skill.unlockedBy(p::has);
+                StringBuilder req = new StringBuilder("Requires ");
+                java.util.List<Skill> above = Skill.at(skill.branch, skill.tier - 1);
+                for (int i = 0; i < above.size(); i++) req.append(i == 0 ? "" : " or ").append(above.get(i).title);
+                l.add(Text.literal(req.toString()).formatted(ok ? Formatting.GRAY : Formatting.RED));
+            }
+            String cost = skill.cost + " skill point" + (skill.cost == 1 ? "" : "s");
+            l.add(available() ? Text.literal("Click to learn (" + cost + ")").formatted(Formatting.YELLOW)
+                : Text.literal("Costs " + cost).formatted(p.skillPoints() >= skill.cost ? Formatting.GRAY : Formatting.RED));
             return l;
         }
 
@@ -222,19 +277,21 @@ public class CharacterScreen extends Screen {
             int x = getX(), y = getY();
             boolean learned = learned(), avail = available();
             int border = learned ? skill.branch.color : avail ? Ui.GOLD : 0xFF3A3830;
-            c.fill(x, y, x + 26, y + 26, learned ? 0xF0222A20 : 0xE0101310);
-            c.drawBorder(x, y, 26, 26, border);
-            if (learned) c.drawBorder(x + 1, y + 1, 24, 24, 0x80E0B96A);
+            c.fill(x, y, x + 22, y + 22, learned ? 0xF0222A20 : 0xE0101310);
+            c.drawBorder(x, y, 22, 22, border);
+            if (learned) c.drawBorder(x + 1, y + 1, 20, 20, 0x80E0B96A);
             if (avail) {
                 int a = (int) (90 + 80 * Math.sin(Util.getMeasuringTimeMs() / 250.0));
-                c.drawBorder(x - 2, y - 2, 30, 30, (a << 24) | 0xE0B96A);
+                c.drawBorder(x - 2, y - 2, 26, 26, (a << 24) | 0xE0B96A);
             }
-            if (isHovered()) c.fill(x + 1, y + 1, x + 25, y + 25, 0x30FFFFFF);
-            c.drawItem(new ItemStack(skill.icon), x + 5, y + 5);
-            if (!learned && !avail) c.fill(x + 1, y + 1, x + 25, y + 25, 0x90000000);
+            if (isHovered()) c.fill(x + 1, y + 1, x + 21, y + 21, 0x30FFFFFF);
+            c.drawItem(new ItemStack(skill.icon), x + 3, y + 3);
+            if (!learned && !avail) c.fill(x + 1, y + 1, x + 21, y + 21, 0x90000000);
+            // Cost pip and a small name.
+            Ui.text(c, Text.literal(String.valueOf(skill.cost)), x + 19, y + 14, 0.6f, learned ? Ui.GOLD : Ui.MUTED, false);
+            if (skill.effect.contains("\u2726")) Ui.text(c, Text.literal("\u2726"), x + 1, y + 1, 0.6f, 0xFFFFD24A, false);
             Text name = Text.literal(skill.title);
-            int tw = textRenderer.getWidth(name);
-            c.drawTextWithShadow(textRenderer, name, x + 13 - tw / 2, y + 28, learned ? Ui.CREAM : avail ? Ui.GOLD : Ui.DIM);
+            Ui.text(c, name, x + 11, y + 23, 0.55f, learned ? Ui.CREAM : avail ? Ui.GOLD : Ui.DIM, true);
         }
 
         @Override

@@ -335,6 +335,7 @@ public final class CharacterCreation {
         pr.stats = new EnumMap<>(s.stats);
         pr.points = START_POINTS - s.spent();
         pr.skillPoints = Skill.pointsForLevel(1);
+        pr.skillsV2 = true;
         pr.skills = new java.util.HashSet<>();
         pr.chapter = 1;
         AotRpg.PROFILES.save(p.getUuid());

@@ -173,7 +173,10 @@ public final class Market {
 
     private double discount(ServerPlayerEntity p, Net.Area town) {
         Sector s = Sector.at(town.x(), town.z());
-        return AotRpg.FACTIONS.controls(p, s) ? config.memberDiscount : 0;
+        double d = AotRpg.FACTIONS.controls(p, s) ? config.memberDiscount : 0;
+        // Charisma: 2% better prices per point.
+        d += 0.02 * AotRpg.PROFILES.get(p.getUuid()).total(Stat.CHARISMA);
+        return Math.min(0.4, d);
     }
 
     public Good find(String item) {

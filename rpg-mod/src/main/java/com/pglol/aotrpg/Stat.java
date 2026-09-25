@@ -8,7 +8,8 @@ public enum Stat {
     STRENGTH("Strength", Items.IRON_SWORD, "+0.5 melee damage per point"),
     AGILITY("Agility", Items.FEATHER, "+1.5% movement speed per point"),
     ENDURANCE("Endurance", Items.GOLDEN_APPLE, "+2 health (1 heart) per point"),
-    RESOLVE("Resolve", Items.SHIELD, "+1 armor per point");
+    RESOLVE("Resolve", Items.SHIELD, "+1 armor per point"),
+    CHARISMA("Charisma", Items.EMERALD, "2% better prices from merchants per point");
 
     public final String title, effect;
     public final Item icon;

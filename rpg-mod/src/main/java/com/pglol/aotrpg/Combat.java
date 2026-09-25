@@ -16,17 +16,32 @@ public final class Combat {
 
     public void register() {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
-            if (reapplying || !(source.getAttacker() instanceof ServerPlayerEntity attacker)) return true;
-            double power = Gear.power(attacker.getMainHandStack());
-            if (power <= 0 || amount <= 0) return true;
+            if (reapplying || amount <= 0) return true;
+            ServerPlayerEntity def = entity instanceof ServerPlayerEntity sp ? sp : null;
+            if (def != null && AotRpg.ABILITIES.dodge(def, source)) return false;
+            double mult = 1;
+            if (source.getAttacker() instanceof ServerPlayerEntity attacker && attacker != entity) {
+                // Gear power counts only when the character is high enough level for the weapon.
+                if (Gear.canUse(attacker, attacker.getMainHandStack())) mult *= 1 + Gear.power(attacker.getMainHandStack());
+                mult *= AotRpg.ABILITIES.outgoing(attacker, entity, source);
+            }
+            if (def != null) {
+                mult *= AotRpg.ABILITIES.incoming(def);
+                if (AotRpg.ABILITIES.lastStand(def, (float) (amount * mult))) return false;
+            }
+            if (Math.abs(mult - 1) < 1e-4) return true;
             reapplying = true;
             try {
-                entity.damage(source, (float) (amount * (1 + power)));
+                entity.damage(source, (float) (amount * mult));
             } finally {
                 reapplying = false;
             }
             return false;
         });
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (source.getAttacker() instanceof ServerPlayerEntity killer) AotRpg.ABILITIES.onKill(killer, entity);
+        });
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> AotRpg.ABILITIES.afterHit(entity, source, taken));
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
             if (!(source.getAttacker() instanceof ServerPlayerEntity attacker) || attacker == entity || taken <= 0) return;
             if (!(entity instanceof PlayerEntity) && !AotRpg.isTitan(entity) && !(entity instanceof net.minecraft.entity.mob.HostileEntity)) return;

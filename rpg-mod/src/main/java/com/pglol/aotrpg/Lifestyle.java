@@ -27,6 +27,7 @@ public final class Lifestyle {
             p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.5f, 1.6f);
         }
         AotRpg.PROFILES.save(p.getUuid());
+        AotRpg.sync(p, pr);
         AotRpg.SEASON.xp(p, xp / 2);
     }
 }
