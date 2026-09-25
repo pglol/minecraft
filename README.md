@@ -290,15 +290,15 @@ Quest Journal (**J**): the main story plus side quests built from the map: explo
 
 Waypoints: the tracked quest, your mark, party marks and party-highlighted quests show as bold light beams in the world, plus a semi-transparent floating icon with the name and distance that shows through terrain and fades as you arrive. On the minimap they are small diamonds, pinned to the edge when far away.
 
-Starter kit: the cadet uniform (`dannys-aot:uniform`), ODM Boots, two ODM grips (standard, not anti-personnel), a gas canister, plus 16 Ice Burst clusters and 16 blade components in the satchel. `/aotrpg kit <player>` gives it again.
+Starter kit: the cadet uniform (`dannys-aot:uniform`), ODM boots (`dannys-aot:odm_boots`), two ODM gear grips (`dannys-aot:odm_gear`), a gas canister, plus 16 Ice Burst clusters (`dannys-aot:ice_burst_cluster`) and 16 blade components in the satchel. `/aotrpg kit <player>` gives it again.
 
-Supplies in the satchel: Ice Burst clusters, blade components (`dannys-aot:blade_component`) and APG cartridges (`dannys-aot:apg_cartridge`) are kept in the satchel, and picked-up supplies are moved there. When you hold ODM grips, a gas canister or an APG gun, one stack of each is brought out into your backpack rows (never the hotbar) so the AoT mod can use it (refilling the canister and so on). When you put the gear away they go back to the satchel.
+Supplies in the satchel: Ice Burst clusters (`dannys-aot:ice_burst_cluster`), blade components (`dannys-aot:blade_component`) and APG cartridges (`dannys-aot:apg_cartridge`) are kept in the satchel, and picked-up supplies are moved there. When you hold ODM gear, the APG ODM, a gas canister or the APG gun, one stack of each is brought out into your backpack rows (never the hotbar) so the AoT mod can use it (refilling the canister and so on). When you put the gear away they go back to the satchel.
 
 Combat hotbar: the same nine slots in the same place, grouped by importance: 1-3 Arms (red), 4-6 Gear (gold), 7-9 Utility (grey). The selected slot lifts and glows, and the group name shows when you switch. On the right sits the **quick heal** (**H**): it uses your best heal from the inventory or satchel (healing potion, golden apple, glistering melon, cooked meals) on an 8 second cooldown, showing the key, the item, how many you have and the cooldown.
 
 Social wheel (hold **Left Alt**, point, release): Party (members, leave or disband, one-click invites for players within 48 blocks), Emote (coming soon), Trade (coming soon), Cosmetics, and two reserved slots.
 
-Cosmetics are looks only, never power. Bullet trails for Danny's APG gun: Tracer (free), Ember, Frost, Thunder, Rainbow, Confetti, Hearts, Void. Everyone near the shot sees the shooter's trail. Operators have everything unlocked. Operator commands:
+Cosmetics are looks only, never power. Bullet trails for Danny's APG gun: Tracer (free), Ember, Frost, Thunder, Rainbow, Confetti, Hearts, Void. Trails appear when you left-click (fire) with the APG gun; everyone within 128 blocks sees the shooter's trail. Operators have everything unlocked. Operator commands:
 - `/aotrpg cosmetics allow|disallow <player>`: the allowlist (everything unlocked).
 - `/aotrpg cosmetics grant|revoke <player> <id|all>`: single cosmetics.
 - `/aotrpg cosmetics list <player>`.

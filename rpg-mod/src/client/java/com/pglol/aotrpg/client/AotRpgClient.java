@@ -135,6 +135,7 @@ public final class AotRpgClient implements ClientModInitializer {
             while (socialKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());
             }
+            Trails.tickShooting(client);
             Minimap.tick(client);
             // Exhausted: no sprinting until stamina recovers.
             if (ClientState.exhausted && client.player != null && client.player.isSprinting()) client.player.setSprinting(false);

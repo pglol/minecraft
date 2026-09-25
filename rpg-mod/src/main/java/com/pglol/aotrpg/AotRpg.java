@@ -51,6 +51,7 @@ public final class AotRpg implements ModInitializer {
     public static final QuickHeal HEAL = new QuickHeal();
     public static final Cosmetics COSMETICS = new Cosmetics();
     public static final WorldCare CARE = new WorldCare();
+    private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
     public static boolean hasClient(ServerPlayerEntity p) {
@@ -83,22 +84,26 @@ public final class AotRpg implements ModInitializer {
             if (PROFILES.get(ctx.player().getUuid()).created) HEAL.use(ctx.player());
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.SelectCosmetic.ID, (payload, ctx) -> COSMETICS.select(ctx.player(), payload.cosmetic()));
-        // APG gun shots: send a trail in the shooter's style to everyone nearby.
-        UseItemCallback.EVENT.register((player, world, hand) -> {
-            var stack = player.getStackInHand(hand);
-            if (!world.isClient && player instanceof ServerPlayerEntity sp && AotItems.isApgGun(stack)) {
-                var eye = sp.getEyePos();
-                var end = eye.add(sp.getRotationVec(1f).multiply(96));
-                var hit = world.raycast(new net.minecraft.world.RaycastContext(eye, end, net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
-                    net.minecraft.world.RaycastContext.FluidHandling.NONE, sp));
-                var to = hit.getType() == net.minecraft.util.hit.HitResult.Type.MISS ? end : hit.getPos();
-                var start = eye.add(sp.getRotationVec(1f).multiply(0.8)).add(0, -0.25, 0);
-                Net.Trail t = new Net.Trail(COSMETICS.selected(sp, "trail"), start.x, start.y, start.z, to.x, to.y, to.z);
-                for (ServerPlayerEntity o : sp.getServerWorld().getPlayers()) {
-                    if (o.squaredDistanceTo(sp) < 128 * 128 && ServerPlayNetworking.canSend(o, Net.Trail.ID)) ServerPlayNetworking.send(o, t);
-                }
+        // APG gun shots (left click): the shooter's client reports the shot and draws its own
+        // trail at once; everyone else nearby gets it from here.
+        ServerPlayNetworking.registerGlobalReceiver(Net.ShotFired.ID, (payload, ctx) -> {
+            ServerPlayerEntity sp = ctx.player();
+            if (!AotItems.isApgGun(sp.getMainHandStack())) return;
+            long now = sp.getServerWorld().getTime();
+            Long last = LAST_SHOT.get(sp.getUuid());
+            if (last != null && now - last < 3) return;
+            LAST_SHOT.put(sp.getUuid(), now);
+            var dir = sp.getRotationVec(1f);
+            var eye = sp.getEyePos();
+            var end2 = eye.add(dir.multiply(96));
+            var hit = sp.getWorld().raycast(new net.minecraft.world.RaycastContext(eye, end2, net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
+                net.minecraft.world.RaycastContext.FluidHandling.NONE, sp));
+            var to = hit.getType() == net.minecraft.util.hit.HitResult.Type.MISS ? end2 : hit.getPos();
+            var start = eye.add(dir.multiply(0.8)).add(0, -0.25, 0);
+            Net.Trail t = new Net.Trail(COSMETICS.selected(sp, "trail"), start.x, start.y, start.z, to.x, to.y, to.z);
+            for (ServerPlayerEntity o : sp.getServerWorld().getPlayers()) {
+                if (o != sp && o.squaredDistanceTo(sp) < 128 * 128 && ServerPlayNetworking.canSend(o, Net.Trail.ID)) ServerPlayNetworking.send(o, t);
             }
-            return net.minecraft.util.TypedActionResult.pass(stack);
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.WorldDataRequest.ID, (payload, ctx) -> {
             sendWorldData(ctx.player());

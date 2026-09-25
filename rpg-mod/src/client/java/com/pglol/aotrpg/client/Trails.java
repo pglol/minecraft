@@ -17,6 +17,31 @@ public final class Trails {
         return new Vector3f(((c >> 16) & 255) / 255f, ((c >> 8) & 255) / 255f, (c & 255) / 255f);
     }
 
+    private static boolean wasDown;
+
+    /**
+     * The APG gun fires on left click, which the server never sees as an item use, so the
+     * client notices the click, draws its own trail at once and tells the server for others.
+     */
+    public static void tickShooting(MinecraftClient mc) {
+        boolean down = mc.options.attackKey.isPressed() && mc.currentScreen == null;
+        boolean fired = down && !wasDown;
+        wasDown = down;
+        if (!fired || mc.player == null || mc.world == null) return;
+        var id = net.minecraft.registry.Registries.ITEM.getId(mc.player.getMainHandStack().getItem());
+        if (!id.getNamespace().equals("dannys-aot") || !id.getPath().equals("apg_gun")) return;
+        Vec3d eye = mc.player.getEyePos(), dir = mc.player.getRotationVec(1f);
+        var hit = mc.player.raycast(96, 1f, false);
+        Vec3d to = hit.getType() == net.minecraft.util.hit.HitResult.Type.MISS ? eye.add(dir.multiply(96)) : hit.getPos();
+        // Start at the barrel: a little ahead, right and below the eye.
+        Vec3d right = dir.crossProduct(new Vec3d(0, 1, 0)).normalize();
+        if (mc.options.getPerspective().isFirstPerson()) right = right.multiply(0.25);
+        else right = Vec3d.ZERO;
+        Vec3d start = eye.add(dir.multiply(0.8)).add(right).add(0, -0.25, 0);
+        spawn(new Net.Trail(ClientState.trail, start.x, start.y, start.z, to.x, to.y, to.z));
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new Net.ShotFired());
+    }
+
     public static void spawn(Net.Trail t) {
         ClientWorld w = MinecraftClient.getInstance().world;
         if (w == null) return;

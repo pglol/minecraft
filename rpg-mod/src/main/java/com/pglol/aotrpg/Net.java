@@ -445,7 +445,15 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: the player fired the APG gun (left click). */
+    public record ShotFired() implements CustomPayload {
+        public static final Id<ShotFired> ID = id("shot");
+        public static final PacketCodec<RegistryByteBuf, ShotFired> CODEC = PacketCodec.unit(new ShotFired());
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playC2S().register(ShotFired.ID, ShotFired.CODEC);
         PayloadTypeRegistry.playC2S().register(QuickHealUse.ID, QuickHealUse.CODEC);
         PayloadTypeRegistry.playS2C().register(HealInfo.ID, HealInfo.CODEC);
         PayloadTypeRegistry.playS2C().register(CosmeticsSync.ID, CosmeticsSync.CODEC);

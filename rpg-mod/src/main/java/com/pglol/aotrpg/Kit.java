@@ -42,7 +42,10 @@ public final class Kit {
         if (uniformItem != null) p.giveItemStack(new ItemStack(uniformItem));
         else p.giveItemStack(uniform(Items.LEATHER_CHESTPLATE, 0x6B4F2A, "Cadet Jacket", "Standard issue, 104th Cadet Corps"));
         p.giveItemStack(uniform(Items.LEATHER_LEGGINGS, 0xE8E0C8, "Training Trousers", "Standard issue, 104th Cadet Corps"));
-        p.giveItemStack(uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "ODM Boots",
+        // The AoT mod's own ODM boots when installed, else renamed leather boots.
+        Item boots = AotItems.exact("odm_boots");
+        if (boots != null) p.giveItemStack(new ItemStack(boots));
+        else p.giveItemStack(uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "ODM Boots",
             "Strapped boots for ODM gear. Standard issue, 104th Cadet Corps"));
         if (AotItems.present()) {
             // Standard ODM gear: one grip for each hand, a gas canister, and supplies in the satchel.
@@ -54,7 +57,9 @@ public final class Kit {
             }
             ItemStack gas = AotItems.bestStack(1, AotItems.GAS);
             if (!gas.isEmpty()) p.giveItemStack(gas);
-            ItemStack clusters = AotItems.bestStack(16, AotItems.CLUSTER);
+            Item cluster = AotItems.exact("ice_burst_cluster");
+            ItemStack clusters = cluster != null ? new ItemStack(cluster, Math.min(16, cluster.getMaxCount()))
+                : AotItems.bestStack(16, AotItems.CLUSTER, "block", "furnace", "shard");
             if (!clusters.isEmpty()) AotRpg.SATCHEL.add(p, clusters);
             Item blade = AotItems.exact("blade_component");
             if (blade != null) AotRpg.SATCHEL.add(p, new ItemStack(blade, Math.min(16, blade.getMaxCount())));

@@ -44,7 +44,7 @@ public final class AotItems {
         StringBuilder b = new StringBuilder("# Items from the Attack on Titan mod (" + namespace + "), found by the AoT RPG mod.\n");
         b.append("# Starter kit picks: odm grips(x2)=").append(best(ODM, "handle", "blade", "gas", "boot", "uniform"))
             .append(" blades=").append(exact("blade_component") != null ? namespace + ":blade_component" : best(BLADE, "grip", "handle"))
-            .append(" gas=").append(best(GAS)).append(" ice burst=").append(best(CLUSTER))
+            .append(" gas=").append(best(GAS)).append(" ice burst=").append(exact("ice_burst_cluster") != null ? namespace + ":ice_burst_cluster" : String.valueOf(best(CLUSTER)))
             .append(" uniform=").append(exact("uniform") != null ? namespace + ":uniform" : "none").append("\n\n");
         for (Identifier id : ITEMS) b.append(id).append('\n');
         try {
@@ -94,9 +94,11 @@ public final class AotItems {
     }
 
     public static final String[] ODM = {"odm_gear", "odm", "maneuver", "3dmg"};
-    public static final String[] CLUSTER = {"ice_burst", "iceburst", "cluster"};
+    public static final String[] CLUSTER = {"ice_burst_cluster", "ice_burst", "iceburst", "cluster"};
     /** Consumables that live in the satchel and move into the inventory while armed. */
-    public static final String[] SUPPLY_PATHS = {"blade_component", "apg_cartridge"};
+    public static final String[] SUPPLY_PATHS = {"blade_component", "apg_cartridge", "ice_burst_cluster"};
+    /** Gear that draws on those supplies while held. */
+    public static final String[] USER_PATHS = {"odm_gear", "odm_apg", "apg_gun", "gas_canister"};
     public static final String[] GRIP = {"grip", "handle", "trigger"};
     public static final String[] BLADE = {"blade"};
     public static final String[] GAS = {"gas_canister", "gas", "canister"};
@@ -121,7 +123,6 @@ public final class AotItems {
         if (!isAot(s)) return false;
         String p = path(s);
         for (String x : SUPPLY_PATHS) if (p.equals(x)) return true;
-        for (String x : CLUSTER) if (p.contains(x)) return true;
         return false;
     }
 
@@ -129,7 +130,8 @@ public final class AotItems {
     public static boolean usesSupplies(ItemStack s) {
         if (!isAot(s) || isSupply(s)) return false;
         String p = path(s);
-        return p.contains("odm") || p.contains("grip") || p.contains("apg_gun") || p.contains("gun") || p.contains("canister") || p.contains("gas");
+        for (String x : USER_PATHS) if (p.equals(x)) return true;
+        return false;
     }
 
     public static boolean isApgGun(ItemStack s) {
