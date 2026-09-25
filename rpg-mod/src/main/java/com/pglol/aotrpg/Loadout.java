@@ -78,7 +78,7 @@ public final class Loadout {
     private static final Set<Item> SIGNAL_ITEMS = Set.of(Items.TORCH, Items.SOUL_TORCH, Items.LANTERN, Items.SOUL_LANTERN, Items.CLOCK,
         Items.RECOVERY_COMPASS, Items.MAP);
 
-    private Loadout() {}
+    Loadout() {}
 
     private static String aot(ItemStack s) {
         Identifier id = Registries.ITEM.getId(s.getItem());
