@@ -32,6 +32,10 @@ public final class SocialWheel extends Screen {
                 () -> soon(mc, "Trading")),
             new Option("Cosmetics", "Trails and looks", new ItemStack(Items.AMETHYST_SHARD), true,
                 () -> mc.setScreen(new CosmeticsScreen())),
+            new Option("Roleplay", rpOn() ? "On: earning rank (click to stop)" : "Off: join roleplay ranks", new ItemStack(Items.NAME_TAG), true, () -> {
+                mc.setScreen(null);
+                if (mc.player != null) mc.player.networkHandler.sendChatCommand(rpOn() ? "rp off" : "rp on");
+            }),
             new Option("Market", "Trade at the town market", new ItemStack(Items.GOLD_NUGGET), true, () -> {
                 mc.setScreen(null);
                 net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new com.pglol.aotrpg.Net.MarketAction("open", "", 0, 0));
@@ -41,6 +45,13 @@ public final class SocialWheel extends Screen {
                 net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new com.pglol.aotrpg.Net.FactionAction("open", ""));
             }),
         };
+    }
+
+    private static boolean rpOn() {
+        var mc = MinecraftClient.getInstance();
+        if (mc.player == null) return false;
+        var r = ClientState.roster.get(mc.player.getUuid());
+        return r != null && r.rp();
     }
 
     private static void soon(MinecraftClient mc, String what) {
@@ -88,7 +99,7 @@ public final class SocialWheel extends Screen {
         super.render(c, mouseX, mouseY, delta);
         float cx = width / 2f, cy = height / 2f;
         int n = options.length;
-        float r = 78;
+        float r = options.length > 6 ? 96 : 78;
         double dx = mouseX - cx, dy = mouseY - cy;
         hovered = -1;
         if (dx * dx + dy * dy > 22 * 22) {

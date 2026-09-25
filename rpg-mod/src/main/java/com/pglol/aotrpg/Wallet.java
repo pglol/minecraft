@@ -35,6 +35,12 @@ public final class Wallet {
         }
     }
 
+    /** Marks earned by playing (quests, bounties, orders): roleplay rank adds its bonus. */
+    public void earn(ServerPlayerEntity p, long n, String why) {
+        double b = Roles.bonus(AotRpg.PROFILES.get(p.getUuid()));
+        addMarks(p, Math.round(n * (1 + b)), why);
+    }
+
     /** Takes Marks if the character has enough. */
     public boolean spendMarks(ServerPlayerEntity p, long n) {
         Profile pr = AotRpg.PROFILES.get(p.getUuid());

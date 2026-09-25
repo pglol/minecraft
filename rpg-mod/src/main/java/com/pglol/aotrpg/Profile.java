@@ -39,6 +39,11 @@ public final class Profile {
     public long factionJoined;
     /** Work orders this cycle: id -> progress (-1 done). */
     public java.util.Map<String, Integer> orders = new java.util.HashMap<>();
+    /** Roleplay: participating, rank points, operator-given role title and colour. */
+    public boolean rp;
+    public long rpPoints;
+    public String role = "";
+    public int roleColor;
     /** Lifestyle skills (smithing, fishing, cooking): skill -> xp. */
     public java.util.Map<String, Long> lifestyle = new java.util.HashMap<>();
 

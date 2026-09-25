@@ -52,7 +52,8 @@ public final class Nametags {
         List<Net.RosterEntry> list = new ArrayList<>();
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             Profile pr = AotRpg.PROFILES.get(p.getUuid());
-            if (pr.created) list.add(new Net.RosterEntry(p.getUuid(), pr.name, pr.level, pr.discipline.ordinal()));
+            if (pr.created) list.add(new Net.RosterEntry(p.getUuid(), pr.name, pr.level, pr.discipline.ordinal(),
+                Roles.tag(pr), Roles.tagColor(pr), pr.rp && (pr.role == null || pr.role.isEmpty())));
         }
         Net.Roster roster = new Net.Roster(list);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {

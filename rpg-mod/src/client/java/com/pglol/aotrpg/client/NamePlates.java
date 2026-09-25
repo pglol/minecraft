@@ -67,6 +67,25 @@ public final class NamePlates {
             TextRenderer.TextLayerType.NORMAL, 0, light);
         tr.draw(sub, -tr.getWidth(sub) / 2f, y0 + 12, fade(0xFFFFFFFF, alpha), false, m, consumers,
             TextRenderer.TextLayerType.NORMAL, 0, light);
+        // Roleplay tag: a small badge above the plate ("RP · Sergeant" or an operator role).
+        if (!r.tag().isEmpty()) {
+            Text tag = r.rp() ? Text.literal("RP · ").withColor(0xFF8F8A7A).append(Ui.heading(r.tag()).withColor(0xFF000000 | r.tagColor()))
+                : Ui.heading(r.tag()).withColor(0xFF000000 | r.tagColor());
+            float tw = tr.getWidth(tag) * 0.8f;
+            float bx0 = -tw / 2 - 5, bx1 = tw / 2 + 5, by1 = y0 - 1, by0 = by1 - 10;
+            int tc = 0xFF000000 | r.tagColor();
+            bg = consumers.getBuffer(RenderLayer.getTextBackground());
+            quad(bg, m, bx0, by0, bx1, by1, 0.03f, fade(0xC00B0F0C, alpha), light);
+            quad(bg, m, bx0, by1 - 1, bx1, by1, 0.02f, fade(tc, alpha), light);
+            quad(bg, m, bx0, by0, bx0 + 2, by1, 0.02f, fade(tc, alpha), light);
+            quad(bg, m, bx1 - 2, by0, bx1, by1, 0.02f, fade(tc, alpha), light);
+            matrices.push();
+            matrices.translate(0, by0 + 2, 0);
+            matrices.scale(0.8f, 0.8f, 1);
+            tr.draw(tag, -tr.getWidth(tag) / 2f, 0, fade(0xFFFFFFFF, alpha), false, matrices.peek().getPositionMatrix(), consumers,
+                TextRenderer.TextLayerType.NORMAL, 0, light);
+            matrices.pop();
+        }
         matrices.pop();
         return true;
     }

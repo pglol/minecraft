@@ -57,6 +57,7 @@ public final class AotRpg implements ModInitializer {
     public static final Gear GEAR = new Gear();
     public static final Combat COMBAT = new Combat();
     public static final Market MARKET = new Market();
+    public static final Roles ROLES = new Roles();
     public static final Exchange EXCHANGE = new Exchange();
     public static final Factions FACTIONS = new Factions();
     public static final Waves WAVES = new Waves();
@@ -330,6 +331,7 @@ public final class AotRpg implements ModInitializer {
             HEAL.forget(p);
             LOADOUT.forget(p);
             WAVES.forget(p);
+            ROLES.forget(p);
             GRAB.forget(p);
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
@@ -385,6 +387,7 @@ public final class AotRpg implements ModInitializer {
             QUESTS.tick(p, PROFILES.get(p.getUuid()), ticks);
             if (PROFILES.get(p.getUuid()).created) LOADOUT.tick(p, ticks);
             WAVES.tick(p, ticks);
+            if (PROFILES.get(p.getUuid()).created) ROLES.tick(p, ticks);
             GRAB.tick(p, ticks);
             if (ticks % 5 == 0 && PROFILES.get(p.getUuid()).created) {
                 SATCHEL.tickSupplies(p);
@@ -419,7 +422,7 @@ public final class AotRpg implements ModInitializer {
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);
         reward(killer, xp, true, "Titan slain");
         // A bounty in Marks, and maybe gear (bosses and shifters always drop).
-        WALLET.addMarks(killer, 4 + Math.round(dead.getMaxHealth() / 40), null);
+        WALLET.earn(killer, 4 + Math.round(dead.getMaxHealth() / 40), null);
         GEAR.titanDrop(killer, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());

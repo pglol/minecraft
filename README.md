@@ -386,6 +386,26 @@ Parties (up to 6 players):
 
 Character data is saved in `<world>/aot_rpg/players/`. Place coordinates come from `<world>/aot-rpg.json`, which the generator writes. Running `add-titans.bat` on an older world adds it.
 
+## Characters, money and the economy
+
+Characters: each player can have up to 3 characters. Each one keeps its own everything: inventory, armour, ender chest, health, position and spawn, other mods' player data, satchel and sheath, stats, quests and Marks. The character screen opens on join (Esc continues as the last one) and from the pause menu or `/characters`: continue, switch, create or delete (click Delete twice). Danny's AoT bloodline reroll item can be used twice per character.
+
+Wallet: **Marks** are the in-game currency each character earns (quests, titan bounties, work orders, selling) and spends. **Gold** is account wide and reserved for cosmetics and the battle pass. `/wallet`, `/pay <player> <marks>`; operators: `/aotrpg marks|gold give|take|set <player> <amount>`.
+
+Gear: loot is earned, not found (town chests no longer hold vanilla loot). Gear rolls a rarity (Common, Uncommon, Rare, Epic, Legendary) and an item level. Weapons, armour, and Danny's ODM blades and APG guns all roll, the last two with Power (more damage against titans and players). Titans may drop gear (bosses and shifters always do and roll better), and fight quests reward a piece. Gear glows in its rarity colour in inventories and on the ground.
+
+Combat feel: landing a hit on a player, titan or monster plays a hit sound and flashes a crosshair marker (red on a kill); blades add a slash streak, guns a ding.
+
+Markets (`/market` in any town, camp or port, or the social wheel): every town has its own stock. Buying drives prices up, selling drives them down, and stock drifts back each minute. Regions make things cheaply (farm villages sell food, the port fish, Shiganshina ODM supplies, Stohess and Mitras luxuries), so traders profit by buying where goods are plentiful and selling where they're scarce. `<world>/aot_rpg/market.json` holds the catalog and regional factors. Gear sells for its scrap value.
+
+Exchange (Market > Exchange): list any item for Marks and buy other players' listings from any market. There's a 5% fee on sales. Money and expired or taken-back items go to that character's mailbox and are delivered at the next market visit (instantly if online).
+
+Factions (`/faction`): Survey Corps, Garrison or Military Police (you can change once a day). The map has five sectors: Wall Sina, Wall Rose, Wall Maria, Beyond the Walls and Marley. Each sector posts work orders every 6 hours: deliver goods to its markets, or slay titans in its land. Completing one pays Marks and reputation and shifts that sector's influence towards your faction. The faction in control gives its members 10% better prices in that sector's markets, and part of the trade there fills its treasury.
+
+Roleplay ranks (`/rp on|off`, or the social wheel): taking part earns rank points (1 a minute while active, 5 per quest, 10 per work order), from Recruit up to Commander. Each rank adds 3% XP and Marks, but only while you're taking part. The tag shows on name plates (a small badge), in chat and in the player list. Operators: `/aotrpg role set <player> <hexcolour> <title>` (a custom role such as Staff), `/aotrpg role clear <player>`, `/aotrpg role points <player> <n>`.
+
+Look: a book-style serif (Spectral) replaces Minecraft's font everywhere, and Cinzel is used for titles.
+
 ## Previews without Minecraft
 
 ```

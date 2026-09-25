@@ -262,7 +262,8 @@ public final class Factions {
         Faction f = of(pr);
         pr.orders.put(o.id(), -1);
         pr.factionRep += o.rep();
-        AotRpg.WALLET.addMarks(p, o.marks(), "Work order");
+        AotRpg.WALLET.earn(p, o.marks(), "Work order");
+        AotRpg.ROLES.addPoints(p, 10);
         if (f != null) shift(o.sector(), f, 1.5 + o.rep() / 6.0);
         Titles.show(p, Text.literal("ORDER COMPLETE").formatted(Formatting.GOLD, Formatting.BOLD),
             Text.literal("+" + o.rep() + " reputation · " + o.sector().title).formatted(Formatting.GRAY), 5, 40, 15);

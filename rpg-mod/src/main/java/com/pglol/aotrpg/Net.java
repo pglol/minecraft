@@ -158,7 +158,7 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    public record RosterEntry(java.util.UUID id, String name, int level, int discipline) { }
+    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp) { }
 
     /** Server -> client: character names of everyone online, for name plates. */
     public record Roster(java.util.List<RosterEntry> players) implements CustomPayload {
@@ -170,11 +170,14 @@ public final class Net {
                 b.writeString(e.name());
                 b.writeVarInt(e.level());
                 b.writeVarInt(e.discipline());
+                b.writeString(e.tag());
+                b.writeInt(e.tagColor());
+                b.writeBoolean(e.rp());
             }
         }, b -> {
             int n = Math.min(b.readVarInt(), 1000);
             java.util.List<RosterEntry> l = new java.util.ArrayList<>(n);
-            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt()));
+            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean()));
             return new Roster(l);
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }

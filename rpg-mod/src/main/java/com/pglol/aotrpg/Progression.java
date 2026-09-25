@@ -88,6 +88,7 @@ public final class Progression {
 
     public void addXp(ServerPlayerEntity p, Profile pr, long amount) {
         if (!pr.created || pr.level >= MAX_LEVEL) return;
+        amount = Math.round(amount * (1 + Roles.bonus(pr)));
         pr.xp += amount;
         boolean up = false;
         while (pr.level < MAX_LEVEL && pr.xp >= Profile.xpForNext(pr.level)) {

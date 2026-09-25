@@ -179,12 +179,13 @@ public final class Quests {
         if (d.kills() > 0) {
             ItemStack gas = AotItems.bestStack(4 + d.level() / 10, AotItems.GAS);
             if (!gas.isEmpty()) p.giveItemStack(gas);
-            AotRpg.WALLET.addMarks(p, 30 + d.level() * 6L, d.title());
+            AotRpg.WALLET.earn(p, 30 + d.level() * 6L, d.title());
             AotRpg.GEAR.reward(p, d.level(), d.kills() >= 8 ? 1 : 0);
         } else {
-            AotRpg.WALLET.addMarks(p, 10 + d.level() * 2L, d.title());
+            AotRpg.WALLET.earn(p, 10 + d.level() * 2L, d.title());
         }
         AotRpg.PROGRESSION.addXp(p, pr, d.xp());
+        AotRpg.ROLES.addPoints(p, 5);
         AotRpg.PROFILES.save(p.getUuid());
         send(p);
         sendObjective(p);

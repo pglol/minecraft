@@ -286,6 +286,57 @@ final class Commands {
                     .append(Text.literal(" to " + AotRpg.PROFILES.get(to.getUuid()).name).formatted(Formatting.GRAY)), false);
                 return 1;
             }))));
+        d.register(CommandManager.literal("rp")
+            .executes(c -> {
+                ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                Profile pr = AotRpg.PROFILES.get(p.getUuid());
+                Roles.Rank r = Roles.rank(pr);
+                p.sendMessage(Text.literal("Roleplay " + (pr.rp ? "on" : "off") + " · " + r.title() + " (" + pr.rpPoints + " points) · bonus +"
+                    + Math.round(Roles.bonus(pr) * 100) + "% XP and Marks").formatted(Formatting.GOLD), false);
+                return 1;
+            })
+            .then(CommandManager.literal("on").executes(c -> {
+                AotRpg.ROLES.toggle(c.getSource().getPlayerOrThrow(), true);
+                return 1;
+            }))
+            .then(CommandManager.literal("off").executes(c -> {
+                AotRpg.ROLES.toggle(c.getSource().getPlayerOrThrow(), false);
+                return 1;
+            })));
+        d.register(CommandManager.literal("aotrpg").requires(s -> s.hasPermissionLevel(2)).then(CommandManager.literal("role")
+            .then(CommandManager.literal("set").then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(CommandManager.argument("color", com.mojang.brigadier.arguments.StringArgumentType.word())
+                    .then(CommandManager.argument("title", com.mojang.brigadier.arguments.StringArgumentType.greedyString()).executes(c -> {
+                        ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                        String col = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "color").replace("#", "");
+                        int rgb;
+                        try {
+                            rgb = Integer.parseInt(col, 16);
+                        } catch (NumberFormatException e) {
+                            c.getSource().sendError(Text.literal("Colour must be hex, e.g. FFD24A"));
+                            return 0;
+                        }
+                        String title = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "title");
+                        AotRpg.ROLES.setRole(p, title, rgb);
+                        c.getSource().sendFeedback(() -> Text.literal(p.getName().getString() + " is now: " + title), true);
+                        return 1;
+                    })))))
+            .then(CommandManager.literal("clear").then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                AotRpg.ROLES.setRole(p, "", 0);
+                c.getSource().sendFeedback(() -> Text.literal("Cleared " + p.getName().getString() + "'s role."), true);
+                return 1;
+            })))
+            .then(CommandManager.literal("points").then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(CommandManager.argument("amount", IntegerArgumentType.integer(0)).executes(c -> {
+                    ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                    Profile pr = AotRpg.PROFILES.get(p.getUuid());
+                    pr.rpPoints = IntegerArgumentType.getInteger(c, "amount");
+                    AotRpg.PROFILES.save(p.getUuid());
+                    AotRpg.ROLES.refresh(p);
+                    c.getSource().sendFeedback(() -> Text.literal(p.getName().getString() + " is now " + Roles.rank(pr).title()), true);
+                    return 1;
+                }))))));
         d.register(CommandManager.literal("market").executes(c -> {
             AotRpg.MARKET.open(c.getSource().getPlayerOrThrow());
             return 1;
