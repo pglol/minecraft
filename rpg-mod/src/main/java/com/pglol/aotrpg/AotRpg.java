@@ -81,6 +81,9 @@ public final class AotRpg implements ModInitializer {
     public void onInitialize() {
         Net.register();
         SatchelHandler.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.ToggleSheath.ID, (payload, ctx) -> {
+            if (PROFILES.get(ctx.player().getUuid()).created) LOADOUT.toggle(ctx.player());
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.QuickHealUse.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) HEAL.use(ctx.player());
         });

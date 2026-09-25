@@ -461,7 +461,15 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: the sheath key (draw or sheathe the ODM grips). */
+    public record ToggleSheath() implements CustomPayload {
+        public static final Id<ToggleSheath> ID = id("toggle_sheath");
+        public static final PacketCodec<RegistryByteBuf, ToggleSheath> CODEC = PacketCodec.unit(new ToggleSheath());
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
+        PayloadTypeRegistry.playC2S().register(ToggleSheath.ID, ToggleSheath.CODEC);
         PayloadTypeRegistry.playS2C().register(SheathState.ID, SheathState.CODEC);
         PayloadTypeRegistry.playC2S().register(ShotFired.ID, ShotFired.CODEC);
         PayloadTypeRegistry.playC2S().register(QuickHealUse.ID, QuickHealUse.CODEC);

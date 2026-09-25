@@ -57,11 +57,20 @@ public class AotButton extends PressableWidget {
         if (icon == null && sub == null) {
             Ui.text(c, getMessage(), x + w / 2f, y + (h - 8 * textScale) / 2f + 1, textScale, col, true);
         } else if (sub == null) {
-            c.drawTextWithShadow(Ui.font(), getMessage(), tx, y + (h - 8) / 2, col);
+            c.drawTextWithShadow(Ui.font(), fit(getMessage(), x + w - 6 - tx), tx, y + (h - 8) / 2, col);
         } else {
-            c.drawTextWithShadow(Ui.font(), getMessage(), tx, y + h / 2 - 9, col);
-            c.drawTextWithShadow(Ui.font(), sub, tx, y + h / 2 + 1, Ui.MUTED);
+            // Long lines are trimmed with an ellipsis so nothing spills past the button.
+            c.drawTextWithShadow(Ui.font(), fit(getMessage(), x + w - 6 - tx), tx, y + h / 2 - 9, col);
+            c.drawTextWithShadow(Ui.font(), fit(sub, x + w - 6 - tx), tx, y + h / 2 + 1, Ui.MUTED);
         }
+    }
+
+    private static net.minecraft.text.OrderedText fit(Text t, int max) {
+        var f = Ui.font();
+        if (f.getWidth(t) <= max) return t.asOrderedText();
+        var cut = f.trimToWidth(t, Math.max(0, max - f.getWidth("…")));
+        return net.minecraft.text.OrderedText.concat(net.minecraft.util.Language.getInstance().reorder(cut),
+            Text.literal("…").asOrderedText());
     }
 
     @Override

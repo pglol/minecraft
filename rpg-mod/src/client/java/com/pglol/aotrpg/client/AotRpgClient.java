@@ -16,7 +16,11 @@ import org.lwjgl.glfw.GLFW;
 
 /** Client side: creator and character screens, the RPG HUD, the K key. */
 public final class AotRpgClient implements ClientModInitializer {
-    private static KeyBinding characterKey, mapKey, journalKey, satchelKey, healKey, socialKey;
+    private static KeyBinding characterKey, mapKey, journalKey, satchelKey, healKey, socialKey, sheathKey;
+
+    public static KeyBinding sheathKey() {
+        return sheathKey;
+    }
 
     public static KeyBinding healKey() {
         return healKey;
@@ -47,6 +51,8 @@ public final class AotRpgClient implements ClientModInitializer {
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_J, "category.aot_rpg"));
         healKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.heal",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_H, "category.aot_rpg"));
+        sheathKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.sheath",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_G, "category.aot_rpg"));
         socialKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.social",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, "category.aot_rpg"));
         WorldRenderEvents.AFTER_ENTITIES.register(Beams::render);
@@ -136,6 +142,9 @@ public final class AotRpgClient implements ClientModInitializer {
             }
             while (healKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) ClientPlayNetworking.send(new Net.QuickHealUse());
+            }
+            while (sheathKey.wasPressed()) {
+                if (ClientState.profile != null && client.currentScreen == null) ClientPlayNetworking.send(new Net.ToggleSheath());
             }
             while (socialKey.wasPressed()) {
                 if (ClientState.profile != null && client.currentScreen == null) client.setScreen(new SocialWheel());

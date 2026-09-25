@@ -52,8 +52,8 @@ public final class Kit {
             ItemStack odm = AotItems.bestStack(1, AotItems.ODM, "handle", "blade", "gas", "boot", "uniform");
             if (odm.isEmpty()) odm = AotItems.bestStack(1, AotItems.GRIP, "blade");
             if (!odm.isEmpty()) {
-                p.giveItemStack(odm.copy());
-                p.giveItemStack(odm.copy());
+                // Both grips start sheathed on the back: the sheath key draws them.
+                for (int i = 0; i < 2; i++) if (!AotRpg.LOADOUT.sheathe(p, odm.copy())) p.giveItemStack(odm.copy());
             }
             ItemStack gas = AotItems.bestStack(1, AotItems.GAS);
             if (!gas.isEmpty()) p.giveItemStack(gas);

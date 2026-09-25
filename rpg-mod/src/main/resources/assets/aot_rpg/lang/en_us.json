@@ -5,5 +5,6 @@
   "key.aot_rpg.map": "World map (Ctrl: toggle minimap)",
   "key.aot_rpg.journal": "Quest journal",
   "key.aot_rpg.heal": "Quick heal",
-  "key.aot_rpg.social": "Social wheel (hold)"
+  "key.aot_rpg.social": "Social wheel (hold)",
+  "key.aot_rpg.sheath": "Draw / sheathe ODM grips"
 }

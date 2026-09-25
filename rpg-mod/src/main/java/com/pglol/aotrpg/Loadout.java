@@ -34,6 +34,11 @@ import net.minecraft.item.TridentItem;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import net.minecraft.network.packet.s2c.play.UpdateSelectedSlotS2CPacket;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -43,9 +48,9 @@ import java.util.UUID;
 /**
  * The combat loadout: every hotbar slot has a purpose.
  *   1 Melee   2 Ranged   3 Sidearm   4 Tool   | 5 Heal |   6 Mount   7 Signal   8 Free   9 Free
- * Items only go where they belong, the right item is equipped automatically, and ODM grips are a
- * pair: the twin rides in a sheath on your back and is drawn into the off hand when slot 1 is
- * selected, then sheathed again (your off-hand item comes back) when you switch away.
+ * Items only go where they belong (nothing is equipped for you). ODM grips are a pair: the sheath
+ * key puts both on your back, and draws them again into slot 1 and the off hand (the off-hand item
+ * is kept aside and comes back when they are sheathed).
  */
 public final class Loadout {
     public enum Kind {
@@ -152,17 +157,16 @@ public final class Loadout {
     public void tick(ServerPlayerEntity p, int ticks) {
         if (!enforced(p)) return;
         boolean calm = p.currentScreenHandler == p.playerScreenHandler && p.currentScreenHandler.getCursorStack().isEmpty();
-        if (calm) sheath(p);
         if (ticks % 5 == 0) {
             Provisions.convertAll(p.getInventory());
             if (ticks % 20 == 0) Provisions.convertAll(AotRpg.SATCHEL.get(p.getUuid()));
+            if (calm) evict(p);
+            broadcast(p, false);
         }
-        if (calm && ticks % 5 == 0) arrange(p);
-        if (ticks % 5 == 0) broadcast(p, false);
     }
 
-    /** Moves misplaced hotbar items to the backpack and fills empty typed slots with the best match. */
-    private void arrange(ServerPlayerEntity p) {
+    /** Items that do not belong in a hotbar slot move to the backpack. Nothing is equipped for you. */
+    private void evict(ServerPlayerEntity p) {
         PlayerInventory inv = p.getInventory();
         boolean changed = false;
         for (int i = 0; i < 9; i++) {
@@ -175,35 +179,7 @@ public final class Loadout {
             inv.main.set(i, ItemStack.EMPTY);
             changed = true;
         }
-        for (int i = 0; i < 9; i++) {
-            Kind k = SLOTS[i];
-            if (k == Kind.FREE || k == Kind.SIDEARM || !inv.main.get(i).isEmpty()) continue;
-            int best = -1, bestScore = 0;
-            for (int j = 9; j < 36; j++) {
-                ItemStack s = inv.main.get(j);
-                if (s.isEmpty() || !fits(k, s)) continue;
-                int score = score(k, s);
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = j;
-                }
-            }
-            if (best >= 0) {
-                inv.main.set(i, inv.main.get(best));
-                inv.main.set(best, ItemStack.EMPTY);
-                changed = true;
-            }
-        }
         if (changed) inv.markDirty();
-    }
-
-    private static int score(Kind k, ItemStack s) {
-        return switch (k) {
-            case MELEE -> isGrip(s) ? 100 : 10;
-            case RANGED -> "apg_gun".equals(aot(s)) ? 100 : 10;
-            case HEAL -> Math.max(1, QuickHeal.rank(s));
-            default -> 1;
-        };
     }
 
     /** A backpack slot (9-35) that can take all of the stack, or -1. */
@@ -216,54 +192,104 @@ public final class Loadout {
         return -1;
     }
 
-    private void sheath(ServerPlayerEntity p) {
-        PlayerInventory inv = p.getInventory();
-        SimpleInventory g = gear(p);
-        ItemStack sheathed = g.getStack(0), stash = g.getStack(1);
-        ItemStack off = inv.offHand.get(0);
-        boolean want = inv.selectedSlot == 0 && isGrip(inv.main.get(0));
-        boolean changed = false;
-        if (!sheathed.isEmpty() && !isGrip(sheathed)) {
-            inv.offerOrDrop(g.removeStack(0));
-            sheathed = ItemStack.EMPTY;
-        }
+    private static final int SHEATH_A = 0, STASH = 1, SHEATH_B = 2;
 
-        // Collect the twin grip into the sheath from the backpack or a spare hotbar slot.
-        if (sheathed.isEmpty() && !(want && isGrip(off))) {
-            for (int j = 1; j < 36; j++) {
-                if (isGrip(inv.main.get(j))) {
-                    g.setStack(0, inv.main.get(j).split(1));
-                    sheathed = g.getStack(0);
-                    changed = true;
-                    break;
+    private static boolean sheathed(SimpleInventory g) {
+        return isGrip(g.getStack(SHEATH_A)) || isGrip(g.getStack(SHEATH_B));
+    }
+
+    /** Puts a grip straight into the sheath (starter kit); false if the sheath is full. */
+    public boolean sheathe(ServerPlayerEntity p, ItemStack grip) {
+        SimpleInventory g = gear(p);
+        int slot = g.getStack(SHEATH_A).isEmpty() ? SHEATH_A : g.getStack(SHEATH_B).isEmpty() ? SHEATH_B : -1;
+        if (slot < 0) return false;
+        g.setStack(slot, grip);
+        g.markDirty();
+        broadcast(p, true);
+        return true;
+    }
+
+    /** The sheath key: draw both grips (slot 1 and the off hand) or put them on your back. */
+    public void toggle(ServerPlayerEntity p) {
+        if (!enforced(p)) return;
+        SimpleInventory g = gear(p);
+        if (sheathed(g)) draw(p, g);
+        else sheatheHeld(p, g);
+        broadcast(p, true);
+    }
+
+    private void draw(ServerPlayerEntity p, SimpleInventory g) {
+        PlayerInventory inv = p.getInventory();
+        ItemStack a = g.getStack(SHEATH_A), b = g.getStack(SHEATH_B);
+        int aSlot = SHEATH_A, bSlot = SHEATH_B;
+        if (!isGrip(a)) {
+            a = b;
+            aSlot = SHEATH_B;
+            b = ItemStack.EMPTY;
+        }
+        // Slot 1 makes room: whatever is there goes to the backpack.
+        ItemStack cur = inv.main.get(0);
+        if (!cur.isEmpty()) {
+            int to = freeBackpack(inv, cur);
+            if (to < 0) {
+                p.sendMessage(Text.literal("No room in your backpack to draw your grips.").formatted(Formatting.RED), true);
+                return;
+            }
+            if (inv.main.get(to).isEmpty()) inv.main.set(to, cur);
+            else inv.main.get(to).increment(cur.getCount());
+        }
+        inv.main.set(0, a);
+        g.setStack(aSlot, ItemStack.EMPTY);
+        if (isGrip(b)) {
+            ItemStack off = inv.offHand.get(0);
+            boolean room = true;
+            if (!off.isEmpty()) {
+                if (g.getStack(STASH).isEmpty()) g.setStack(STASH, off);
+                else {
+                    int to = freeBackpack(inv, off);
+                    if (to < 0) room = false;
+                    else if (inv.main.get(to).isEmpty()) inv.main.set(to, off);
+                    else inv.main.get(to).increment(off.getCount());
                 }
             }
-        }
-        if (want && !isGrip(off) && !sheathed.isEmpty()) {
-            // Draw: the off-hand item goes to the stash (or the backpack), the twin grip into the off hand.
-            if (!off.isEmpty()) {
-                if (stash.isEmpty()) g.setStack(1, off);
-                else if (!inv.insertStack(off)) return; // nowhere to put it: stay sheathed
+            if (room) {
+                inv.offHand.set(0, b);
+                g.setStack(bSlot, ItemStack.EMPTY);
             }
-            inv.offHand.set(0, sheathed);
-            g.setStack(0, ItemStack.EMPTY);
-            changed = true;
-        } else if (!want && isGrip(off) && sheathed.isEmpty()) {
-            // Sheathe: the grip goes on the back, the stashed off-hand item returns.
-            g.setStack(0, off);
-            inv.offHand.set(0, stash);
-            g.setStack(1, ItemStack.EMPTY);
-            changed = true;
-        } else if (!want && off.isEmpty() && !stash.isEmpty()) {
-            inv.offHand.set(0, stash);
-            g.setStack(1, ItemStack.EMPTY);
-            changed = true;
         }
-        if (changed) {
-            inv.markDirty();
-            g.markDirty();
-            broadcast(p, true);
+        inv.selectedSlot = 0;
+        p.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(0));
+        inv.markDirty();
+        g.markDirty();
+        p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_IRON.value(), SoundCategory.PLAYERS, 0.8f, 1.2f);
+        p.sendMessage(Text.literal("Grips drawn").formatted(Formatting.GOLD), true);
+    }
+
+    private void sheatheHeld(ServerPlayerEntity p, SimpleInventory g) {
+        PlayerInventory inv = p.getInventory();
+        int n = 0;
+        // The grip in your hand, or the one in slot 1.
+        int mainSlot = isGrip(inv.main.get(inv.selectedSlot)) ? inv.selectedSlot : isGrip(inv.main.get(0)) ? 0 : -1;
+        if (mainSlot >= 0) {
+            g.setStack(SHEATH_A, inv.main.get(mainSlot));
+            inv.main.set(mainSlot, ItemStack.EMPTY);
+            n++;
         }
+        ItemStack off = inv.offHand.get(0);
+        if (isGrip(off)) {
+            g.setStack(n == 0 ? SHEATH_A : SHEATH_B, off);
+            inv.offHand.set(0, g.getStack(STASH));
+            g.setStack(STASH, ItemStack.EMPTY);
+            n++;
+        }
+        if (n == 0) {
+            p.sendMessage(Text.literal("No ODM grips in hand or in slot 1 to sheathe.").formatted(Formatting.GRAY), true);
+            return;
+        }
+        inv.markDirty();
+        g.markDirty();
+        p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ITEM_ARMOR_EQUIP_LEATHER.value(), SoundCategory.PLAYERS, 0.8f, 1.0f);
+        p.sendMessage(Text.literal("Grips sheathed").formatted(Formatting.GRAY), true);
     }
 
     /** Everything in the sheath and stash back to the inventory (death, reset). */
@@ -277,14 +303,13 @@ public final class Loadout {
 
     /** How many grips show on this player's back: 0, 1 or 2. */
     private static int onBack(ServerPlayerEntity p) {
-        PlayerInventory inv = p.getInventory();
-        int n = isGrip(gear(p).getStack(0)) ? 1 : 0;
-        if (n > 0 && inv.selectedSlot != 0 && isGrip(inv.main.get(0))) n++;
-        return n;
+        SimpleInventory g = gear(p);
+        return (isGrip(g.getStack(SHEATH_A)) ? 1 : 0) + (isGrip(g.getStack(SHEATH_B)) ? 1 : 0);
     }
 
     private static String sheathItem(ServerPlayerEntity p) {
-        ItemStack s = gear(p).getStack(0);
+        SimpleInventory g = gear(p);
+        ItemStack s = isGrip(g.getStack(SHEATH_A)) ? g.getStack(SHEATH_A) : g.getStack(SHEATH_B);
         return s.isEmpty() ? "" : Registries.ITEM.getId(s.getItem()).toString();
     }
 

@@ -164,7 +164,8 @@ public final class CombatHotbar {
         } else {
             LoadoutUi.drawGhost(c, Registries.ITEM.get(Identifier.of(st.item())).getDefaultStack(), x + 3, y + 2);
         }
-        String label = drawn ? "DRAWN" : sheathed ? "SHEATH" : "OFF";
+        String key = AotRpgClient.sheathKey().getBoundKeyLocalizedText().getString().toUpperCase();
+        String label = drawn ? "DRAWN " + key : sheathed ? "SHEATHED " + key : "OFF";
         Ui.text(c, Text.literal(label), x + 11, y - 7, 0.5f, col, true);
     }
 }

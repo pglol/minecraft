@@ -280,7 +280,7 @@ Progression:
 - Levels run from 1 to 100, and each level gives 1 stat point.
 - An XP bar at the top of the screen shows your level, name and discipline.
 
-Name plates: with the client mod, players show an AoT-styled plate (character name, level, discipline) instead of the username tag, fading out beyond about 20 blocks. Party members' plates have a green trim (gold for the leader) and a health bar.
+Name plates: with the client mod, players show an AoT-styled plate (character name, level, discipline) instead of the username tag, fading out beyond about 20 blocks. Party members further away get a small soft diamond over their head with their name and distance, visible through terrain and even beyond render distance. Party members' plates have a green trim (gold for the leader) and a health bar.
 
 Minimap (top left, **Ctrl+M** toggles it): terrain around you (north up), your arrow, party members (green, gold for the leader; they stay pinned to the edge when far away), titans (large red) and hostile mobs (small red), and a gold marker for your current story objective. The objective text and distance sit under the map; party frames sit below that.
 
@@ -307,11 +307,13 @@ Combat loadout (hotbar): every slot has a purpose and only takes what belongs th
 | 7 Signal | flare gun and flares, torches, spyglass, maps |
 | 8, 9 Free | anything |
 
-Misplaced items move to your backpack, and empty slots fill themselves with the best match from your backpack (bread goes straight into the heal slot). Empty slots show a faint picture of what goes there; hover one in the inventory for a hint. Creative mode is not restricted.
+Items only go where they belong. Misplaced ones move to your backpack, and nothing is equipped for you. Empty slots show a faint picture of what goes there; hover one in the inventory for a hint. Creative mode is not restricted.
 
 **Quick heal (H)** uses the heal slot, or your best heal from the inventory or satchel when it's empty. It works instantly on an 8 second cooldown, and food mends a little health on top of the hunger it restores.
 
-**ODM sheath:** the two ODM grips are a set. Put one in slot 1 and the twin goes into a sheath on your back automatically. Select slot 1 and the twin is drawn into your off hand. Switch away and it's sheathed again, and whatever you had in your off hand comes back. Sheathed grips show crossed on your back for everyone, and the HUD shows DRAWN or SHEATH next to the hotbar. The inventory's character panel shows the loadout: the Melee pair, your armor, and Ranged and Sidearm.
+**ODM sheath (G):** the two ODM grips are a set. **G** sheathes both on your back (they show crossed there for everyone) and draws them again into slot 1 and your off hand. Whatever you had in your off hand is kept aside and comes back when you sheathe. New characters start with both grips sheathed. The HUD shows DRAWN or SHEATHED next to the hotbar.
+
+Inventory: the character panel is a Baldur's Gate style loadout built from the real hotbar slots: Melee (slot 1 and the off hand) and Ranged (slots 2 and 3) around your armor shield, then Tool, Heal and Mount, then Signal and the two free slots. Your stats sit where the hotbar row used to be. With the recipe book open the slots go back to the normal hotbar row.
 
 **Food is RPG food:** ready-to-eat food from loot, mob drops, trades or crafting (bread, cooked meat, pies, stews...) becomes a named provision as soon as it reaches your inventory or satchel. Provisions heal with H just like campfire meals. Raw meat, fish and vegetables are cooking ingredients. The starter kit has Survey Corps Rations and Field Bread.
 

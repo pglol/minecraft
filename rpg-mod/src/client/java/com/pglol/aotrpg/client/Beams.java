@@ -23,7 +23,7 @@ public final class Beams {
 
     public static void render(WorldRenderContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null || mc.player == null || ClientState.markers.isEmpty()) return;
+        if (mc.world == null || mc.player == null || (ClientState.markers.isEmpty() && ClientState.party.isEmpty())) return;
         MatrixStack ms = ctx.matrixStack();
         VertexConsumerProvider vc = ctx.consumers();
         if (ms == null || vc == null) return;
@@ -46,6 +46,8 @@ public final class Beams {
         // Icons go through their own buffer so they draw on top, through walls.
         VertexConsumerProvider.Immediate icons = mc.getBufferBuilders().getEntityVertexConsumers();
         for (Net.Marker m : ClientState.markers) icon(mc, ms, icons, cam, m);
+        float td2 = ctx.tickCounter().getTickDelta(true);
+        for (Net.PartyMember pm : ClientState.party) partyIcon(mc, ms, icons, cam, pm, td2);
         icons.draw();
     }
 
@@ -88,6 +90,45 @@ public final class Beams {
         int ta = Math.max(40, a + 40);
         tr.draw(label, -tw / 2f, 3, (ta << 24) | 0xEDE3C8, false, mat, vc, TextRenderer.TextLayerType.SEE_THROUGH, 0, light);
         tr.draw(meters, -mw / 2f, 12, (ta << 24) | 0xE0B96A, false, mat, vc, TextRenderer.TextLayerType.SEE_THROUGH, 0, light);
+        ms.pop();
+    }
+
+    /**
+     * A small, soft marker over a party member who is too far for their name plate: a diamond in
+     * party green (gold for the leader) with the name and distance, visible through terrain.
+     */
+    private static void partyIcon(MinecraftClient mc, MatrixStack ms, VertexConsumerProvider.Immediate vc, Vec3d cam,
+                                  Net.PartyMember pm, float td) {
+        if (!pm.online() || !pm.sameWorld() || pm.id().equals(mc.player.getUuid())) return;
+        var ent = mc.world.getPlayerByUuid(pm.id());
+        Vec3d pos = ent != null ? ent.getLerpedPos(td).add(0, ent.getHeight() + 0.9, 0) : new Vec3d(pm.x(), pm.y() + 2.7, pm.z());
+        Vec3d rel = pos.subtract(cam);
+        double dist = rel.length();
+        if (dist < 22) return; // the name plate covers it up close
+        float fade = (float) Math.min(1, (dist - 22) / 10);
+        int a = (int) (170 * fade);
+        if (a < 8) return;
+        double shown = Math.min(dist, 48);
+        Vec3d at = rel.multiply(shown / dist);
+        float s = (float) (0.0036 * shown);
+        int rgb = pm.leader() ? 0xF2C14E : 0x5BD35B;
+        TextRenderer tr = mc.textRenderer;
+        Text name = Text.literal(pm.name());
+        Text meters = Text.literal((int) dist + "m");
+
+        ms.push();
+        ms.translate(at.x, at.y, at.z);
+        ms.multiply(mc.getEntityRenderDispatcher().getRotation());
+        ms.scale(s, -s, s);
+        Matrix4f mat = ms.peek().getPositionMatrix();
+        int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
+        VertexConsumer bg = vc.getBuffer(RenderLayer.getTextBackgroundSeeThrough());
+        diamond(bg, mat, 0, -8, 5.5f, (a * 2 / 3 << 24), light);
+        diamond(bg, mat, 0, -8, 4, (a << 24) | rgb, light);
+        int tw = tr.getWidth(name);
+        int ta = Math.max(40, a + 30);
+        tr.draw(name, -tw / 2f, 0, (ta << 24) | rgb, false, mat, vc, TextRenderer.TextLayerType.SEE_THROUGH, (a / 3) << 24, light);
+        tr.draw(meters, -tr.getWidth(meters) / 2f, 10, (ta << 24) | 0xEDE3C8, false, mat, vc, TextRenderer.TextLayerType.SEE_THROUGH, 0, light);
         ms.pop();
     }
 

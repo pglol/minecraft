@@ -30,7 +30,7 @@ import java.util.UUID;
 public final class Satchel {
     public static final int SIZE = 36;
     private final Map<UUID, SimpleInventory> bags = new HashMap<>();
-    /** Per player: the ODM sheath (0) and the off-hand item stashed while grips are drawn (1). */
+    /** Per player: the ODM sheath (0 and 2) and the off-hand item stashed while grips are drawn (1). */
     private final Map<UUID, SimpleInventory> gears = new HashMap<>();
     private MinecraftServer server;
     private Path dir;
@@ -74,7 +74,7 @@ public final class Satchel {
 
     public SimpleInventory gear(UUID id) {
         get(id);
-        return gears.computeIfAbsent(id, k -> new SimpleInventory(2));
+        return gears.computeIfAbsent(id, k -> new SimpleInventory(3));
     }
 
     private SimpleInventory load(UUID id) {
@@ -84,7 +84,7 @@ public final class Satchel {
             try {
                 NbtCompound n = NbtIo.readCompressed(f, NbtSizeTracker.ofUnlimitedBytes());
                 inv.readNbtList(n.getList("Items", NbtElement.COMPOUND_TYPE), server.getRegistryManager());
-                SimpleInventory g = new SimpleInventory(2);
+                SimpleInventory g = new SimpleInventory(3);
                 if (n.contains("Gear", NbtElement.COMPOUND_TYPE)) {
                     net.minecraft.inventory.Inventories.readNbt(n.getCompound("Gear"), g.getHeldStacks(), server.getRegistryManager());
                 }
