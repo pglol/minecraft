@@ -80,10 +80,9 @@ public class JournalScreen extends Screen {
         if (tab == 0) {
             var sj = com.pglol.aotrpg.client.story.StoryClient.journal;
             if (sj != null && !sj.title().isEmpty()) {
-                boolean paused = sj.thread().equals("Paused");
-                AotButton pb = addDrawableChild(new AotButton(left + 102, top + 118, 110, 18, Text.literal(paused ? "Resume story" : "Pause story"),
-                    () -> ClientPlayNetworking.send(new Net.QuestAction("story", paused ? "resume" : "pause"))));
-                pb.accent = paused ? 0xFF5BD35B : Ui.GOLD;
+                AotButton pb = addDrawableChild(new AotButton(left + 102, top + 118, 110, 18, Text.literal("Abandon quest"),
+                    () -> ClientPlayNetworking.send(new Net.QuestAction("story", "abandon"))));
+                pb.accent = Ui.RED;
             }
             Net.QuestView main = null;
             for (Net.QuestView mq : ClientState.quests) if (mq.id().equals("main")) main = mq;
@@ -235,14 +234,25 @@ public class JournalScreen extends Screen {
             return;
         }
         Ui.text(c, Ui.heading(j.chapter().isEmpty() ? "The Story" : j.chapter()), x, y, 0.8f, Ui.MUTED, false);
-        Ui.text(c, Ui.title(j.title().isEmpty() ? "Between chapters" : j.title()), x, y + 11, 1.1f, Ui.GOLD, false);
+        Ui.text(c, Ui.title(j.title().isEmpty() ? "No active quest" : j.title()), x, y + 11, 1.1f, Ui.GOLD, false);
         if (!j.thread().isEmpty()) {
             int col = j.thread().equals("Survival") ? 0xFFC8604A : j.thread().equals("Truth") ? 0xFF9AB8D8 : 0xFFA8B87A;
             Ui.text(c, Text.literal("◆ " + j.thread()), x, y + 28, 0.75f, col, false);
         }
         Ui.divider(c, x, y + 40, half - 16);
-        int ty = Ui.wrapped(c, Text.literal(j.objective().isEmpty() ? "More of your story is coming soon." : j.objective()), x, y + 48, half - 16, Ui.CREAM);
+        int ty = Ui.wrapped(c, Text.literal(j.objective().isEmpty() ? (j.available().isEmpty() ? "Explore. New quests will find you." : "Pick up a quest from someone marked with a gold ! (on your map too).") : j.objective()), x, y + 48, half - 16, Ui.CREAM);
         int iy = Math.max(ty + 34, top + 144);
+        if (!j.available().isEmpty()) {
+            Ui.text(c, Ui.heading("Quests on offer"), x, iy, 0.85f, Ui.GOLD, false);
+            iy += 12;
+            for (String a : j.available()) {
+                String[] parts = a.split("\\|", -1);
+                String line = "! " + parts[0] + (parts.length > 1 && !parts[1].isEmpty() ? "  (talk to " + parts[1] + ")" : "");
+                Ui.text(c, Text.literal(line), x + 2, iy, 0.75f, 0xFFF2C14E, false);
+                iy += 10;
+            }
+            iy += 6;
+        }
         Ui.text(c, Ui.heading("Who you've become"), x, iy, 0.85f, Ui.GOLD, false);
         iy += 12;
         for (String s : j.ideology()) {

@@ -158,6 +158,6 @@ public final class Beams {
 
     /** Markers shown only on the map and minimap: your homes and ferry stations. */
     private static boolean mapOnly(Net.Marker m) {
-        return m.kind().equals("home") || m.kind().equals("ferry");
+        return m.kind().equals("home") || m.kind().equals("ferry") || m.kind().equals("giver");
     }
 }

@@ -65,8 +65,12 @@ public final class Story {
         public double mercy, paradis, independence;
         public List<String> deeds = new ArrayList<>();
         public boolean begun;
-        /** Set aside by the player: the step is kept, the scene and its waypoint are hidden. */
+        /** Set aside by the player (legacy; quests are abandoned instead now). */
         public boolean paused;
+        /** Quests offered and waiting to be picked up from their givers. */
+        public Set<String> available = new HashSet<>();
+        /** Where a memory quest started, to come back to when it ends. */
+        public double[] back;
         public boolean freeStart = true;
     }
 
@@ -91,6 +95,18 @@ public final class Story {
         String next;
         List<JsonObject> nextIf = new ArrayList<>();
         long xp;
+        /** Who offers it: {"actor": id, "at": pos, "place"?: id, "dialogue"?: id}. No giver: it starts on its own. */
+        JsonObject giver;
+        /** A stage of a bigger quest: starts the moment the one before it ends. */
+        boolean chain;
+        /** A flashback: takes you there, and back to where you were when the chain ends (returnHome). */
+        boolean memory, returnHome;
+        /** Where the quest takes you when it starts. */
+        JsonElement startAt;
+        /** What the giver says about it. */
+        String pitch = "";
+        /** Quests it makes available: [{"id": .., "if"?: cond}]. */
+        List<JsonObject> unlock = new ArrayList<>();
     }
     static final class Choice { String text = ""; String tag; JsonObject requires; List<JsonObject> effects = new ArrayList<>(); String next; }
     static final class Node { String speaker; String text = ""; String next; boolean end; List<Choice> choices = new ArrayList<>(); List<JsonObject> effects = new ArrayList<>(); }
@@ -108,6 +124,8 @@ public final class Story {
     private final Map<String, Mission> missions = new LinkedHashMap<>();
     private final Map<String, Dialogue> dialogues = new HashMap<>();
     private final Map<String, String> starts = new HashMap<>();
+    /** A chained stage -> the quest it belongs to. */
+    private final Map<String, String> headOf = new HashMap<>();
 
     public void load() {
         actors.clear();
@@ -135,6 +153,35 @@ public final class Story {
                     continue;
                 }
                 missions.put(m.id, m);
+            }
+        }
+        // Each giver gets a short offer: the pitch, then take it or leave it.
+        headOf.clear();
+        for (Mission m : missions.values()) {
+            if (m.giver == null) continue;
+            String who = m.giver.get("actor").getAsString();
+            if (!m.giver.has("dialogue")) {
+                Dialogue d = new Dialogue();
+                Node n = new Node();
+                n.speaker = who;
+                n.text = m.pitch.isEmpty() ? "I've got something for you, if you've got time." : m.pitch;
+                Choice yes = new Choice();
+                yes.text = "I'm in.";
+                JsonObject acc = new JsonObject();
+                acc.addProperty("accept", m.id);
+                yes.effects.add(acc);
+                Choice no = new Choice();
+                no.text = "Not right now.";
+                n.choices.add(yes);
+                n.choices.add(no);
+                d.nodes.put("a", n);
+                dialogues.put("giver:" + m.id, d);
+            }
+            // The stages that follow a giver's quest belong to it (for abandoning).
+            Mission cur = m;
+            while (cur.next != null && missions.containsKey(cur.next) && missions.get(cur.next).chain && !headOf.containsKey(cur.next)) {
+                headOf.put(cur.next, m.id);
+                cur = missions.get(cur.next);
             }
         }
         // Check references so broken content is reported, not discovered in play.
@@ -550,6 +597,8 @@ public final class Story {
                 }
                 case "start" -> s.mission = "@" + v.getAsString();
                 case "pay" -> AotRpg.WALLET.spendMarks(p, v.getAsLong());
+                case "accept" -> accept(p, v.getAsString());
+                case "cutscene" -> cutscene(p, sc, m, v.getAsJsonObject());
                 case "spawn" -> {
                     if (sc != null) {
                         JsonObject o = v.getAsJsonObject();
@@ -806,15 +855,197 @@ public final class Story {
     }
 
     private void sendActors(Scene sc) {
+        for (ServerPlayerEntity x : members(sc)) sendActorsTo(x);
+    }
+
+    /** Skins of everything story-shaped this player can see: their scene's cast and their quest givers. */
+    private void sendActorsTo(ServerPlayerEntity x) {
+        if (!ServerPlayNetworking.canSend(x, Net.Actors.ID)) return;
         List<Net.ActorInfo> list = new ArrayList<>();
-        for (var a : sc.actors.entrySet()) {
-            Entity e = actorEntity(sc, a.getKey());
-            ActorDef d = actors.get(a.getKey());
-            if (e == null || !(e instanceof VillagerEntity)) continue;
-            list.add(new Net.ActorInfo(e.getId(), d == null ? "civilian_m" : d.skin));
+        UUID host = guestOf.getOrDefault(x.getUuid(), x.getUuid());
+        Scene sc = scenes.get(host);
+        if (sc != null) {
+            for (var a : sc.actors.entrySet()) {
+                Entity e = actorEntity(sc, a.getKey());
+                ActorDef d = actors.get(a.getKey());
+                if (e instanceof VillagerEntity) list.add(new Net.ActorInfo(e.getId(), d == null ? "civilian_m" : d.skin));
+            }
         }
-        for (ServerPlayerEntity x : members(sc)) {
-            if (ServerPlayNetworking.canSend(x, Net.Actors.ID)) ServerPlayNetworking.send(x, new Net.Actors(list));
+        Map<String, UUID> mine = givers.get(host);
+        if (mine != null) {
+            for (var g : mine.entrySet()) {
+                Entity e = server.getOverworld().getEntity(g.getValue());
+                Mission m = missions.get(g.getKey());
+                if (e == null || m == null) continue;
+                ActorDef d = actors.get(m.giver.get("actor").getAsString());
+                list.add(new Net.ActorInfo(e.getId(), d == null ? "civilian_m" : d.skin));
+            }
+        }
+        ServerPlayNetworking.send(x, new Net.Actors(list));
+    }
+
+    // ------------------------------------------------------------------ cutscenes
+
+    /**
+     * A camera sequence for the scene's players: shots that glide from one spot to another while
+     * looking at a point, with lines and sounds timed to them. Controls and the HUD pause meanwhile.
+     */
+    private void cutscene(ServerPlayerEntity p, Scene sc, Mission m, JsonObject o) {
+        ServerWorld w = p.getServerWorld();
+        List<Net.Shot> shots = new ArrayList<>();
+        List<ServerPlayerEntity> mem = sc == null ? List.of(p) : members(sc);
+        long at = 0;
+        for (JsonElement el : o.getAsJsonArray("shots")) {
+            JsonObject s = el.getAsJsonObject();
+            double h = s.has("h") ? s.get("h").getAsDouble() : 1.6, h2 = s.has("h2") ? s.get("h2").getAsDouble() : h;
+            double lh = s.has("lh") ? s.get("lh").getAsDouble() : 1.5, lh2 = s.has("lh2") ? s.get("lh2").getAsDouble() : lh;
+            Vec3d from = resolve(w, m, s.get("from")).add(0, h, 0);
+            Vec3d to = s.has("to") ? resolve(w, m, s.get("to")).add(0, h2, 0) : from;
+            Vec3d look = s.has("look") ? resolve(w, m, s.get("look")).add(0, lh, 0) : from.add(0, 0, 1);
+            Vec3d look2 = s.has("lookTo") ? resolve(w, m, s.get("lookTo")).add(0, lh2, 0) : look;
+            float secs = s.has("seconds") ? s.get("seconds").getAsFloat() : 3;
+            shots.add(new Net.Shot(from.x, from.y, from.z, to.x, to.y, to.z, look.x, look.y, look.z, look2.x, look2.y, look2.z, secs));
+            int ticksAt = (int) (at / 50);
+            if (s.has("say")) {
+                JsonObject say = s.getAsJsonObject("say");
+                String who = say.has("who") ? say.get("who").getAsString() : null;
+                String text = say.get("text").getAsString();
+                int later = ticksAt + (say.has("after") ? (int) (say.get("after").getAsFloat() * 20) : 5);
+                AotRpg.SCHEDULER.later(later, () -> line(sc, p, who, text));
+            }
+            if (s.has("sound")) {
+                String sid = s.get("sound").getAsString();
+                SoundEvent se = Registries.SOUND_EVENT.get(Identifier.of(sid));
+                if (se != null) AotRpg.SCHEDULER.later(ticksAt + 1, () -> {
+                    for (ServerPlayerEntity x : mem) x.playSoundToPlayer(se, SoundCategory.AMBIENT, 1f, 1f);
+                });
+            }
+            at += (long) (secs * 1000);
+        }
+        boolean fade = !o.has("fade") || o.get("fade").getAsBoolean();
+        for (ServerPlayerEntity x : mem) {
+            if (ServerPlayNetworking.canSend(x, Net.Cutscene.ID)) ServerPlayNetworking.send(x, new Net.Cutscene(shots, fade));
+        }
+    }
+
+    // ------------------------------------------------------------------ quest givers
+
+    /** Each player's quest givers standing in the world: mission id -> entity. */
+    private final Map<UUID, Map<String, UUID>> givers = new HashMap<>();
+
+    private Vec3d giverAt(ServerWorld w, Mission m) {
+        JsonObject spec = new JsonObject();
+        JsonElement at = m.giver.has("at") ? m.giver.get("at") : new JsonArray();
+        if (at.isJsonObject()) spec = at.getAsJsonObject().deepCopy();
+        else spec.add("rel", at);
+        if (m.giver.has("place") && !spec.has("place")) spec.addProperty("place", m.giver.get("place").getAsString());
+        return resolve(w, m, spec);
+    }
+
+    /** Givers of the quests on offer stand at their spots, marked with a gold "!", while you're nearby. */
+    private void givers(ServerPlayerEntity p, Profile pr) {
+        ServerWorld w = server.getOverworld();
+        Map<String, UUID> mine = givers.computeIfAbsent(p.getUuid(), k -> new HashMap<>());
+        for (var it = mine.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            Mission m = missions.get(e.getKey());
+            Entity en = w.getEntity(e.getValue());
+            boolean keep = m != null && pr.story.available.contains(m.id) && en != null && en.isAlive()
+                && p.getWorld() == w && p.getPos().squaredDistanceTo(en.getPos()) < 110 * 110;
+            if (!keep) {
+                if (en != null) {
+                    phased.remove(en.getId());
+                    en.discard();
+                }
+                it.remove();
+            }
+        }
+        if (p.getWorld() != w) return;
+        boolean changed = false;
+        for (String id : pr.story.available) {
+            Mission m = missions.get(id);
+            if (m == null || m.giver == null || mine.containsKey(id)) continue;
+            Vec3d at = giverAt(w, m);
+            if (p.getPos().squaredDistanceTo(at) > 72 * 72) continue;
+            String who = m.giver.get("actor").getAsString();
+            ActorDef def = actors.getOrDefault(who, new ActorDef());
+            VillagerEntity v = EntityType.VILLAGER.create(w);
+            if (v == null) continue;
+            v.refreshPositionAndAngles(at.x, at.y, at.z, 0, 0);
+            v.setAiDisabled(true);
+            v.setInvulnerable(true);
+            v.setSilent(true);
+            v.setCustomName(Text.literal("! ").formatted(Formatting.GOLD, Formatting.BOLD).append(Text.literal(def.name).formatted(Formatting.WHITE)));
+            v.setCustomNameVisible(true);
+            v.addCommandTag(ACTOR);
+            v.addCommandTag("aot_giver:" + id);
+            phased.put(v.getId(), p.getUuid());
+            w.spawnEntity(v);
+            phased.put(v.getId(), p.getUuid());
+            float yaw = (float) (MathHelper.atan2(p.getZ() - v.getZ(), p.getX() - v.getX()) * MathHelper.DEGREES_PER_RADIAN) - 90;
+            v.setYaw(yaw);
+            v.setHeadYaw(yaw);
+            v.setBodyYaw(yaw);
+            mine.put(id, v.getUuid());
+            changed = true;
+        }
+        sendActorsTo(p);
+        if (changed) AotRpg.QUESTS.markers(p, true);
+    }
+
+    private String giverOf(UUID host, Entity e) {
+        Map<String, UUID> mine = givers.get(host);
+        if (mine == null) return null;
+        for (var g : mine.entrySet()) if (g.getValue().equals(e.getUuid())) return g.getKey();
+        return null;
+    }
+
+    /** Pick up an offered quest (one at a time). */
+    private void accept(ServerPlayerEntity p, String id) {
+        Profile pr = pr(p);
+        Mission cur = current(pr);
+        if (cur != null && !cur.id.equals(id)) {
+            Notify.toast(p, Text.literal("You're already on a quest").formatted(Formatting.RED),
+                Text.literal("Finish or abandon \"" + cur.title + "\" first (journal)"), 0xC0463A, null, "story");
+            return;
+        }
+        if (!pr.story.available.contains(id)) return;
+        startMission(p, pr, id);
+    }
+
+    /** Drop the current quest: it goes back to its giver, to pick up again later. */
+    public void abandon(ServerPlayerEntity p) {
+        Profile pr = pr(p);
+        Mission m = current(pr);
+        if (m == null) return;
+        String head = m.giver != null ? m.id : headOf.get(m.id);
+        if (head == null) {
+            Notify.toast(p, Text.literal("This one can't be abandoned").formatted(Formatting.GRAY), Text.literal(m.title), 0x8F8A7A, null, "story");
+            return;
+        }
+        forget(p);
+        pr.story.mission = "";
+        pr.story.step = 0;
+        pr.story.available.add(head);
+        if (pr.story.back != null) {
+            p.teleport(server.getOverworld(), pr.story.back[0], pr.story.back[1], pr.story.back[2], p.getYaw(), p.getPitch());
+            pr.story.back = null;
+        }
+        AotRpg.PROFILES.save(p.getUuid());
+        Notify.toast(p, Text.literal("Quest abandoned").formatted(Formatting.GOLD), Text.literal(missions.get(head).title + " · pick it up again any time"), 0xE0B96A, "minecraft:writable_book", "story");
+        send(p, pr);
+    }
+
+    /** Map marks for the quests on offer. */
+    public void markers(ServerPlayerEntity p, List<Net.Marker> list) {
+        Profile pr = pr(p);
+        if (!pr.created || server == null) return;
+        ServerWorld w = server.getOverworld();
+        for (String id : pr.story.available) {
+            Mission m = missions.get(id);
+            if (m == null || m.giver == null) continue;
+            Vec3d at = giverAt(w, m);
+            list.add(new Net.Marker("giver", "! " + m.title, (int) at.x, (int) at.y, (int) at.z, 0xF2C14E));
         }
     }
 
@@ -824,8 +1055,8 @@ public final class Story {
     private void begin(ServerPlayerEntity p, Profile pr) {
         State s = pr.story;
         s.begun = true;
-        String first = pr.origin == null ? null : starts.get(pr.origin.name());
-        if (first == null) first = starts.get("default");
+        // Everyone wakes up in the training corps; your origin comes back later, as a memory.
+        String first = starts.get("default");
         if (first == null || !missions.containsKey(first)) return;
         startMission(p, pr, first);
     }
@@ -840,7 +1071,16 @@ public final class Story {
         }
         pr.story.mission = id;
         pr.story.step = 0;
+        pr.story.available.remove(id);
+        ServerWorld w = server.getOverworld();
+        if (m.memory && p.getWorld() == w) pr.story.back = new double[] {p.getX(), p.getY(), p.getZ()};
+        if (m.startAt != null) {
+            Vec3d to = resolve(w, m, m.startAt);
+            p.stopRiding();
+            p.teleport(w, to.x, to.y, to.z, p.getYaw(), p.getPitch());
+        }
         AotRpg.PROFILES.save(p.getUuid());
+        if (m.memory && ServerPlayNetworking.canSend(p, Net.StoryCard.ID)) ServerPlayNetworking.send(p, new Net.StoryCard("A memory", m.chapter));
         Notify.toast(p, Text.literal(m.title).formatted(Formatting.GOLD), Text.literal(m.chapter + " · " + threadName(m.thread)), 0xE0B96A, "minecraft:writable_book", "story");
         send(p, pr);
     }
@@ -861,14 +1101,12 @@ public final class Story {
             return;
         }
         if (!s.begun && s.mission.isEmpty()) {
-            if (ticks % 20 == 0) {
-                begin(p, pr);
-                if (s.freeStart && current(pr) != null) offerStart(p, current(pr));
-            }
+            if (ticks % 20 == 0) begin(p, pr);
             return;
         }
+        if (ticks % 20 == 3) givers(p, pr);
         Mission m = current(pr);
-        if (m == null || s.paused) return;
+        if (m == null) return;
         Scene sc = scenes.computeIfAbsent(p.getUuid(), Scene::new);
         if (sc.mission == null || !sc.mission.equals(m.id) || sc.step != s.step) enterStep(p, pr, sc, m);
         Step st = step(pr);
@@ -1102,6 +1340,7 @@ public final class Story {
                 net.minecraft.entity.EquipmentSlot.FEET, net.minecraft.entity.EquipmentSlot.MAINHAND}) {
                 if (Registries.ITEM.getId(p.getEquippedStack(slot).getItem()).getPath().contains(want)) met = true;
             }
+            if (g.has("timeout") && now - sc.stepAt > g.get("timeout").getAsLong() * 1000) met = true;
         }
         // talk/take goals are met by interacting (sc.goalMet)
         if (met) completeStep(p, pr, sc, m, st);
@@ -1152,25 +1391,47 @@ public final class Story {
         }
         Notify.toast(p, Text.literal("Mission complete").formatted(Formatting.GOLD, Formatting.BOLD), Text.literal(m.title), 0xE0B96A, "minecraft:writable_book", "story");
         p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.7f, 1f);
-        String next = s.mission.startsWith("@") ? s.mission.substring(1) : null;
-        if (next == null) {
-            for (JsonObject o : m.nextIf) {
-                if (test(p, o.has("if") ? o.getAsJsonObject("if") : null)) {
-                    next = o.get("then").getAsString();
-                    break;
-                }
+        String forced = s.mission.startsWith("@") ? s.mission.substring(1) : null;
+        List<String> next = new ArrayList<>();
+        if (forced != null) next.add(forced);
+        for (JsonObject o : m.nextIf) {
+            if (test(p, o.has("if") ? o.getAsJsonObject("if") : null)) {
+                next.add(o.get("then").getAsString());
+                break;
             }
         }
-        if (next == null) next = m.next;
+        if (m.next != null) next.add(m.next);
+        for (JsonObject o : m.unlock) {
+            if (test(p, o.has("if") ? o.getAsJsonObject("if") : null)) next.add(o.get("id").getAsString());
+        }
         clearScene(sc);
         for (UUID g : sc.guests) guestOf.remove(g);
         sc.guests.clear();
         scenes.remove(p.getUuid());
-        if (next != null && missions.containsKey(next)) {
-            startMission(p, pr, next);
-        } else {
-            s.mission = "";
-            s.step = 0;
+        s.mission = "";
+        s.step = 0;
+        // A memory ends where it began: back to the present.
+        if (m.returnHome && s.back != null) {
+            p.teleport(server.getOverworld(), s.back[0], s.back[1], s.back[2], p.getYaw(), p.getPitch());
+            s.back = null;
+            if (ServerPlayNetworking.canSend(p, Net.StoryCard.ID)) ServerPlayNetworking.send(p, new Net.StoryCard("The present", "The 104th Training Corps"));
+        }
+        String chained = null;
+        for (String id : next) {
+            Mission nm = missions.get(id);
+            if (nm == null || s.done.contains(id)) continue;
+            if (nm.chain || nm.giver == null) {
+                if (chained == null) chained = id;
+                continue;
+            }
+            if (s.available.add(id)) {
+                ActorDef giver = actors.get(nm.giver.get("actor").getAsString());
+                Notify.toast(p, Text.literal("New quest: " + nm.title).formatted(Formatting.GOLD),
+                    Text.literal(giver == null ? "Check your journal" : "Talk to " + giver.name + " (! on your map)"), 0xE0B96A, "minecraft:writable_book", "quest:" + id);
+            }
+        }
+        if (chained != null) startMission(p, pr, chained);
+        else {
             AotRpg.PROFILES.save(p.getUuid());
             send(p, pr);
         }
@@ -1183,9 +1444,27 @@ public final class Story {
         UUID host = phased.get(e.getId());
         if (host == null) return false;
         if (!visibleTo(e, p)) return true;
-        Scene sc = scenes.get(host);
         ServerPlayerEntity hp = server.getPlayerManager().getPlayer(host);
-        if (sc == null || hp == null) return true;
+        if (hp == null) return true;
+        String offer = giverOf(host, e);
+        if (offer != null) {
+            Mission om = missions.get(offer);
+            Scene gs = scenes.computeIfAbsent(host, Scene::new);
+            if (gs.dialogue != null) return true;
+            gs.dialogue = om.giver.has("dialogue") ? om.giver.get("dialogue").getAsString() : "giver:" + offer;
+            Dialogue d = dialogues.get(gs.dialogue);
+            if (d == null) {
+                gs.dialogue = null;
+                return true;
+            }
+            gs.node = d.start;
+            gs.talkedTo = null;
+            gs.suggestions.clear();
+            enterNode(hp, gs, om);
+            return true;
+        }
+        Scene sc = scenes.get(host);
+        if (sc == null) return true;
         Profile pr = pr(hp);
         Mission m = current(pr);
         Step st = step(pr);
@@ -1287,7 +1566,8 @@ public final class Story {
         if (hp == null) return;
         Dialogue d = dialogues.get(sc.dialogue);
         Node n = d.nodes.get(sc.node);
-        Mission m = current(pr(hp));
+        Mission m = sc.dialogue.startsWith("giver:") ? missions.get(sc.dialogue.substring(6)) : current(pr(hp));
+        if (m == null) m = offered(pr(hp));
         if (n == null || m == null) return;
         if (!p.getUuid().equals(host)) {
             if (index >= 0 && index < n.choices.size()) {
@@ -1314,6 +1594,12 @@ public final class Story {
             sc.node = c.next;
             enterNode(hp, sc, m);
         }
+    }
+
+    /** Any quest on offer (for a giver's custom dialogue). */
+    private Mission offered(Profile pr) {
+        for (String id : pr.story.available) if (missions.containsKey(id)) return missions.get(id);
+        return null;
     }
 
     private void endDialogue(ServerPlayerEntity host, Scene sc, Mission m) {
@@ -1386,6 +1672,16 @@ public final class Story {
 
     public void forget(ServerPlayerEntity p) {
         leave(p);
+        Map<String, UUID> mine = givers.remove(p.getUuid());
+        if (mine != null && server != null) {
+            for (UUID u : mine.values()) {
+                Entity e = server.getOverworld().getEntity(u);
+                if (e != null) {
+                    phased.remove(e.getId());
+                    e.discard();
+                }
+            }
+        }
         Scene sc = scenes.remove(p.getUuid());
         if (sc != null) {
             clearScene(sc);
@@ -1435,6 +1731,10 @@ public final class Story {
 
     /** Set the story aside (or pick it back up). The step is kept; the scene is cleared until you resume. */
     public void pause(ServerPlayerEntity p, boolean pause) {
+        if (pause) {
+            abandon(p);
+            return;
+        }
         Profile pr = pr(p);
         if (current(pr) == null || pr.story.paused == pause) return;
         pr.story.paused = pause;
@@ -1490,7 +1790,31 @@ public final class Story {
     public View view(Profile pr) {
         Mission m = current(pr);
         Step st = step(pr);
-        if (m != null && pr.story.paused) return new View(m.chapter, "Story paused. Resume it from your journal", "", false, 0, 0, 0, 0);
+        if (m == null && server != null) {
+            // Between quests: point to the nearest one on offer.
+            ServerPlayerEntity pl = null;
+            for (ServerPlayerEntity x : server.getPlayerManager().getPlayerList()) if (AotRpg.PROFILES.get(x.getUuid()) == pr) pl = x;
+            Mission best = null;
+            Vec3d bestAt = null;
+            double bd = Double.MAX_VALUE;
+            for (String id : pr.story.available) {
+                Mission om = missions.get(id);
+                if (om == null || om.giver == null) continue;
+                Vec3d at = giverAt(server.getOverworld(), om);
+                double d = pl == null ? 0 : pl.getPos().squaredDistanceTo(at);
+                if (d < bd) {
+                    bd = d;
+                    best = om;
+                    bestAt = at;
+                }
+            }
+            if (best != null) {
+                ActorDef g = actors.get(best.giver.get("actor").getAsString());
+                return new View("New quest", "Talk to " + (g == null ? "the quest giver" : g.name) + ": " + best.title, "", true,
+                    (int) bestAt.x, (int) bestAt.y, (int) bestAt.z, best.xp);
+            }
+            return new View("No active quest", pr.story.done.isEmpty() ? "Your story is about to begin" : "Explore. New quests will find you", "", false, 0, 0, 0, 0);
+        }
         if (m == null || st == null) {
             return new View("The Story", pr.story.done.isEmpty() ? "Your story is about to begin" : "More of your story is coming soon", "", false, 0, 0, 0, 0);
         }
@@ -1547,9 +1871,16 @@ public final class Story {
             Mission dm = missions.get(id);
             if (dm != null) done.add(dm.chapter + " · " + dm.title);
         }
+        List<String> offers = new ArrayList<>();
+        for (String id : s.available) {
+            Mission om = missions.get(id);
+            if (om == null) continue;
+            ActorDef g = om.giver == null ? null : actors.get(om.giver.get("actor").getAsString());
+            offers.add(om.title + "|" + (g == null ? "" : g.name) + "|" + om.chapter);
+        }
         ServerPlayNetworking.send(p, new Net.StoryJournal(m == null ? "" : m.chapter, m == null ? "" : m.title,
-            m == null ? "" : s.paused ? "Paused" : threadName(m.thread),
-            st == null ? "" : st.objective, people, deeds, ideology(s), done));
+            m == null ? "" : threadName(m.thread),
+            st == null ? "" : st.objective, people, deeds, ideology(s), done, offers));
     }
 
     /** Words for who you've become (never numbers). */

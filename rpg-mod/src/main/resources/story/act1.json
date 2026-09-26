@@ -75,7 +75,21 @@
     }
    ],
    "xp": 120,
-   "next": "sh2"
+   "next": "sh2",
+   "giver": {
+    "actor": "armin",
+    "at": [
+     2,
+     10
+    ],
+    "place": "cadet-training-camp"
+   },
+   "memory": true,
+   "startAt": [
+    4,
+    8
+   ],
+   "pitch": "You're from Shiganshina too, right? Do you ever think about that morning? The last normal one?"
   },
   {
    "id": "sh2",
@@ -495,7 +509,8 @@
     }
    ],
    "xp": 250,
-   "next": "sh3"
+   "next": "sh3",
+   "chain": true
   },
   {
    "id": "sh3",
@@ -579,13 +594,11 @@
    "complete": [
     {
      "deed": "Watched the reclamation march out, 846"
-    },
-    {
-     "toast": "Next: the Cadet Training Corps"
     }
    ],
    "xp": 150,
-   "next": "tc1"
+   "chain": true,
+   "returnHome": true
   },
   {
    "id": "tr1",
@@ -712,7 +725,21 @@
     }
    ],
    "xp": 120,
-   "next": "tr2"
+   "next": "tr2",
+   "giver": {
+    "actor": "armin",
+    "at": [
+     2,
+     10
+    ],
+    "place": "cadet-training-camp"
+   },
+   "memory": true,
+   "startAt": [
+    0,
+    0
+   ],
+   "pitch": "You grew up in Trost, didn't you? Were you there when the boats came in from Shiganshina?"
   },
   {
    "id": "tr2",
@@ -810,13 +837,10 @@
      }
     }
    ],
-   "complete": [
-    {
-     "toast": "Next: the Cadet Training Corps"
-    }
-   ],
+   "complete": [],
    "xp": 150,
-   "next": "tc1"
+   "chain": true,
+   "returnHome": true
   },
   {
    "id": "rg1",
@@ -869,7 +893,21 @@
    ],
    "complete": [],
    "xp": 120,
-   "next": "rg2"
+   "next": "rg2",
+   "giver": {
+    "actor": "armin",
+    "at": [
+     2,
+     10
+    ],
+    "place": "cadet-training-camp"
+   },
+   "memory": true,
+   "startAt": [
+    0,
+    0
+   ],
+   "pitch": "Ragako's a farming village, right? What was it like, before you came here?"
   },
   {
    "id": "rg2",
@@ -940,13 +978,10 @@
      ]
     }
    ],
-   "complete": [
-    {
-     "toast": "Next: the Cadet Training Corps"
-    }
-   ],
+   "complete": [],
    "xp": 200,
-   "next": "tc1"
+   "chain": true,
+   "returnHome": true
   },
   {
    "id": "in1s",
@@ -1039,13 +1074,24 @@
    "complete": [
     {
      "deed": "Saw how peace is kept in the interior"
-    },
-    {
-     "toast": "Next: the Cadet Training Corps"
     }
    ],
    "xp": 150,
-   "next": "tc1"
+   "giver": {
+    "actor": "armin",
+    "at": [
+     2,
+     10
+    ],
+    "place": "cadet-training-camp"
+   },
+   "memory": true,
+   "returnHome": true,
+   "startAt": [
+    0,
+    0
+   ],
+   "pitch": "You're from the interior, aren't you? What's it actually like in there? I've only ever heard stories."
   },
   {
    "id": "in1m",
@@ -1138,13 +1184,24 @@
    "complete": [
     {
      "deed": "Saw how peace is kept in the interior"
-    },
-    {
-     "toast": "Next: the Cadet Training Corps"
     }
    ],
    "xp": 150,
-   "next": "tc1"
+   "giver": {
+    "actor": "armin",
+    "at": [
+     2,
+     10
+    ],
+    "place": "cadet-training-camp"
+   },
+   "memory": true,
+   "returnHome": true,
+   "startAt": [
+    0,
+    0
+   ],
+   "pitch": "You're from the interior, aren't you? What's it actually like in there? I've only ever heard stories."
   },
   {
    "id": "un1",
@@ -1275,111 +1332,102 @@
    "complete": [
     {
      "deed": "Saw the sky for the first time in years"
-    },
-    {
-     "toast": "Next: the Cadet Training Corps"
     }
    ],
    "xp": 180,
-   "next": "tc1"
+   "giver": {
+    "actor": "armin",
+    "at": [
+     2,
+     10
+    ],
+    "place": "cadet-training-camp"
+   },
+   "memory": true,
+   "returnHome": true,
+   "startAt": [
+    0,
+    0
+   ],
+   "pitch": "Is it true you came up from the Underground? You don't have to talk about it. I just... wondered."
   },
   {
-   "id": "tc1",
-   "title": "Who Are You?",
+   "id": "p0",
+   "title": "Roll Call",
    "chapter": "Act I · The 104th Cadet Corps, 847",
    "thread": "people",
    "purpose": [
     "character",
-    "relationship"
+    "relationship",
+    "war"
    ],
    "place": "cadet-training-camp",
    "level": [
-    2,
-    8
+    1,
+    5
    ],
    "steps": [
     {
-     "objective": "Report to the Cadet Training Camp",
+     "objective": "Wake up",
      "goal": {
-      "goto": [
-       0,
-       0
-      ],
-      "radius": 14
-     },
-     "spawn": [],
-     "start": [],
-     "done": [
-      {
-       "card": {
-        "title": "847",
-        "sub": "The 104th Training Corps"
-       }
-      }
-     ]
-    },
-    {
-     "objective": "Fall in for Instructor Shadis's inspection",
-     "goal": {
-      "talk": "keith",
-      "dialogue": "tc1_keith"
+      "wait": 20
      },
      "spawn": [
       {
-       "actor": "keith",
-       "at": [
-        4,
-        0
-       ],
-       "face": true
-      },
-      {
        "actor": "eren",
        "at": [
-        8,
-        -4
-       ]
-      },
-      {
-       "actor": "mikasa",
-       "at": [
-        8,
-        -3
+        -17,
+        12
        ]
       },
       {
        "actor": "armin",
        "at": [
-        8,
-        -2
-       ]
-      },
-      {
-       "actor": "jean",
-       "at": [
-        8,
-        1
-       ]
-      },
-      {
-       "actor": "marco",
-       "at": [
-        8,
-        2
-       ]
-      },
-      {
-       "actor": "sasha",
-       "at": [
-        10,
-        5
+        -19,
+        12
        ]
       },
       {
        "actor": "connie",
        "at": [
-        8,
-        4
+        -16,
+        8
+       ]
+      },
+      {
+       "actor": "sasha",
+       "at": [
+        -20,
+        8
+       ]
+      },
+      {
+       "actor": "marco",
+       "at": [
+        -15,
+        10
+       ]
+      },
+      {
+       "actor": "jean",
+       "at": [
+        -21,
+        10
+       ]
+      },
+      {
+       "actor": "keith",
+       "at": [
+        10,
+        0
+       ],
+       "face": true
+      },
+      {
+       "actor": "mikasa",
+       "at": [
+        6,
+        -5
        ]
       },
       {
@@ -1392,49 +1440,433 @@
       {
        "actor": "reiner",
        "at": [
-        9,
-        -8
+        8,
+        -4
        ]
       },
       {
        "actor": "bertholdt",
        "at": [
-        9,
-        -9
+        8,
+        -3
        ]
       },
       {
        "actor": "krista",
        "at": [
-        10,
-        -1
+        8,
+        2
        ]
       },
       {
        "actor": "ymir",
        "at": [
-        10,
-        0
+        8,
+        3
        ]
       }
      ],
-     "start": [],
+     "start": [
+      {
+       "card": {
+        "title": "847",
+        "sub": "The 104th Training Corps"
+       }
+      },
+      {
+       "cutscene": {
+        "fade": true,
+        "shots": [
+         {
+          "from": [
+           -18,
+           10
+          ],
+          "h": 0.3,
+          "to": [
+           -18,
+           10
+          ],
+          "h2": 0.9,
+          "look": [
+           -18,
+           10
+          ],
+          "lh": 8,
+          "lookTo": [
+           -10,
+           10
+          ],
+          "lh2": 1.4,
+          "seconds": 4,
+          "sound": "minecraft:block.bell.use",
+          "say": {
+           "who": "keith",
+           "text": "UP! Everyone up! Out of those bunks, now!",
+           "after": 0.6
+          }
+         },
+         {
+          "from": [
+           -24,
+           5
+          ],
+          "h": 3,
+          "to": [
+           -22,
+           7
+          ],
+          "h2": 2.6,
+          "look": [
+           -18,
+           10
+          ],
+          "lh": 1,
+          "seconds": 4,
+          "say": {
+           "who": "connie",
+           "text": "Is he serious? It's still dark out."
+          }
+         },
+         {
+          "from": [
+           -22,
+           14
+          ],
+          "h": 2,
+          "to": [
+           -20,
+           13
+          ],
+          "h2": 2,
+          "look": [
+           -17,
+           12
+          ],
+          "lh": 1.4,
+          "seconds": 3,
+          "say": {
+           "who": "sasha",
+           "text": "Five more minutes... please..."
+          }
+         },
+         {
+          "from": [
+           -6,
+           -16
+          ],
+          "h": 8,
+          "to": [
+           0,
+           -14
+          ],
+          "h2": 7,
+          "look": [
+           6,
+           0
+          ],
+          "lh": 1,
+          "seconds": 5,
+          "sound": "minecraft:block.bell.use",
+          "say": {
+           "who": "keith",
+           "text": "Roll call! Anyone not in line in thirty seconds runs laps until they drop!"
+          }
+         },
+         {
+          "from": [
+           14,
+           4
+          ],
+          "h": 1.9,
+          "to": [
+           13,
+           3
+          ],
+          "h2": 1.8,
+          "look": [
+           10,
+           0
+          ],
+          "lh": 1.7,
+          "seconds": 3,
+          "say": {
+           "who": "keith",
+           "text": "MOVE!"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "eren",
+        "to": [
+         6,
+         -6
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "armin",
+        "to": [
+         6,
+         -4
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "jean",
+        "to": [
+         6,
+         0
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "marco",
+        "to": [
+         6,
+         2
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "connie",
+        "to": [
+         6,
+         4
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "sasha",
+        "to": [
+         6,
+         6
+        ]
+       }
+      }
+     ],
      "done": []
     },
     {
-     "objective": "Find Sasha after dark",
+     "objective": "Fall in! Your place is next to Armin",
      "goal": {
-      "talk": "sasha",
-      "dialogue": "tc1_sasha"
+      "goto": [
+       6,
+       -2
+      ],
+      "radius": 2.5,
+      "timeout": 40,
+      "success": [
+       {
+        "affinity": {
+         "keith": 2
+        }
+       },
+       {
+        "say": {
+         "text": "Hm.",
+         "who": "keith"
+        }
+       }
+      ],
+      "fail": [
+       {
+        "say": {
+         "text": "LATE! You'll be running until you drop, cadet!",
+         "who": "keith"
+        }
+       },
+       {
+        "flag": "late_roll_call"
+       },
+       {
+        "affinity": {
+         "keith": -3
+        }
+       }
+      ]
      },
      "spawn": [],
      "start": [],
      "done": []
+    },
+    {
+     "objective": "Stand at attention. Instructor Shadis is coming down the line",
+     "goal": {
+      "talk": "keith",
+      "dialogue": "tc1_keith"
+     },
+     "spawn": [],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Draw your blades (press G)",
+     "goal": {
+      "wear": "blade",
+      "timeout": 60
+     },
+     "spawn": [],
+     "start": [
+      {
+       "say": {
+        "text": "Blades out! Let's see if you even know how to hold them.",
+        "who": "keith"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Follow the squad to the training field",
+     "goal": {
+      "goto": [
+       -30,
+       18
+      ],
+      "radius": 8
+     },
+     "spawn": [],
+     "start": [
+      {
+       "walk": {
+        "actor": "keith",
+        "to": [
+         -28,
+         16
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "eren",
+        "to": [
+         -27,
+         20
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "armin",
+        "to": [
+         -26,
+         21
+        ]
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Your first titan. Cut the nape",
+     "goal": {
+      "kill": "scene"
+     },
+     "spawn": [
+      {
+       "titans": 1,
+       "at": [
+        -40,
+        24
+       ],
+       "level": 1,
+       "strikes": 1,
+       "spread": 2
+      }
+     ],
+     "start": [
+      {
+       "say": {
+        "text": "The Garrison caught a small one outside the Walls for us. It's slow, it's weak, and it will still eat you. The back of the neck. Go!",
+        "who": "keith"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Report to Instructor Shadis",
+     "goal": {
+      "talk": "keith",
+      "dialogue": "p0_end"
+     },
+     "spawn": [
+      {
+       "actor": "keith",
+       "at": [
+        -28,
+        16
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
     }
    ],
-   "complete": [],
-   "xp": 150,
-   "next": "tc2"
+   "complete": [
+    {
+     "deed": "Survived your first day in the 104th"
+    },
+    {
+     "toast": "You're free until tomorrow. Explore the camp"
+    }
+   ],
+   "xp": 250,
+   "startAt": [
+    -18,
+    10
+   ],
+   "unlock": [
+    {
+     "id": "tc2"
+    },
+    {
+     "id": "sh1",
+     "if": {
+      "origin": "SHIGANSHINA"
+     }
+    },
+    {
+     "id": "tr1",
+     "if": {
+      "origin": "TROST"
+     }
+    },
+    {
+     "id": "rg1",
+     "if": {
+      "origin": "RAGAKO"
+     }
+    },
+    {
+     "id": "in1s",
+     "if": {
+      "origin": "STOHESS"
+     }
+    },
+    {
+     "id": "in1m",
+     "if": {
+      "origin": "MITRAS"
+     }
+    },
+    {
+     "id": "un1",
+     "if": {
+      "origin": "UNDERGROUND"
+     }
+    }
+   ]
   },
   {
    "id": "tc2",
@@ -1452,15 +1884,6 @@
     8
    ],
    "steps": [
-    {
-     "objective": "Put on your ODM harness for the aptitude test (open your inventory with E and wear it)",
-     "goal": {
-      "wear": "odm"
-     },
-     "spawn": [],
-     "start": [],
-     "done": []
-    },
     {
      "objective": "Eren is having trouble on the balance rig",
      "goal": {
@@ -1542,7 +1965,16 @@
    ],
    "complete": [],
    "xp": 180,
-   "next": "tc3"
+   "next": "tc3",
+   "giver": {
+    "actor": "keith",
+    "at": [
+     10,
+     0
+    ],
+    "place": "cadet-training-camp"
+   },
+   "pitch": "Balance test today, cadet. Fail it and you're on a cart back to wherever you came from."
   },
   {
    "id": "tc3",
@@ -1628,7 +2060,16 @@
    ],
    "complete": [],
    "xp": 250,
-   "next": "tc4"
+   "next": "tc4",
+   "giver": {
+    "actor": "jean",
+    "at": [
+     -4,
+     6
+    ],
+    "place": "cadet-training-camp"
+   },
+   "pitch": "A few of us are heading out to the training forest to practice on the real thing. You coming, or are you scared?"
   },
   {
    "id": "tc4",
@@ -1754,11 +2195,23 @@
      "deed": "Graduated from the 104th Cadet Corps"
     },
     {
-     "toast": "Your first posting: Trost District"
+     "card": {
+      "title": "850",
+      "sub": "Your first posting: Trost District"
+     }
     }
    ],
    "xp": 300,
-   "next": "tb1"
+   "next": "tb1",
+   "giver": {
+    "actor": "keith",
+    "at": [
+     10,
+     0
+    ],
+    "place": "cadet-training-camp"
+   },
+   "pitch": "Three years, cadet. Tomorrow you graduate, or you don't. Fall in at dawn."
   },
   {
    "id": "tb1",
@@ -2004,7 +2457,16 @@
    ],
    "complete": [],
    "xp": 250,
-   "next": "tb2"
+   "next": "tb2",
+   "chain": true,
+   "startAt": {
+    "edge": "outer",
+    "frac": 0.5,
+    "rel": [
+     0,
+     0
+    ]
+   }
   },
   {
    "id": "tb2",
@@ -2133,7 +2595,8 @@
     }
    ],
    "xp": 250,
-   "next": "tb3"
+   "next": "tb3",
+   "chain": true
   },
   {
    "id": "tb3",
@@ -2217,7 +2680,8 @@
    ],
    "complete": [],
    "xp": 300,
-   "next": "tb4"
+   "next": "tb4",
+   "chain": true
   },
   {
    "id": "tb4",
@@ -2383,7 +2847,8 @@
    ],
    "complete": [],
    "xp": 350,
-   "next": "tb5"
+   "next": "tb5",
+   "chain": true
   },
   {
    "id": "tb5",
@@ -2456,7 +2921,8 @@
      "chapter": 10
     }
    ],
-   "xp": 500
+   "xp": 500,
+   "chain": true
   }
  ],
  "dialogues": {
@@ -3975,6 +4441,46 @@
     "b": {
      "speaker": "sasha",
      "text": "Okay. We're friends now. That's how it works.",
+     "end": true
+    }
+   }
+  },
+  "p0_end": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "keith",
+     "text": "That's your first day. Most of you won't last the month.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "keith",
+     "text": "{name}. You cut it down. Don't let it go to your head. Tomorrow, the balance rigs.",
+     "choices": [
+      {
+       "text": "Sir!",
+       "effects": [
+        {
+         "affinity": {
+          "keith": 3
+         }
+        }
+       ]
+      },
+      {
+       "text": "How many of us actually make it, sir?",
+       "effects": [
+        {
+         "flag": "asked_odds"
+        }
+       ],
+       "next": "c"
+      }
+     ]
+    },
+    "c": {
+     "speaker": "keith",
+     "text": "Of the ones standing here? Maybe half graduate. Half of those will be dead within a year of it. Dismissed.",
      "end": true
     }
    }

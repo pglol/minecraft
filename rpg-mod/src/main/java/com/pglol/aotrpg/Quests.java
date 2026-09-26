@@ -64,8 +64,8 @@ public final class Quests {
     // ------------------------------------------------------------------ actions
 
     public void action(ServerPlayerEntity p, String id, String action) {
-        if (id.equals("story") && (action.equals("pause") || action.equals("resume"))) {
-            AotRpg.STORY.pause(p, action.equals("pause"));
+        if (id.equals("story") && action.equals("abandon")) {
+            AotRpg.STORY.abandon(p);
             return;
         }
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
@@ -260,6 +260,7 @@ public final class Quests {
         AotRpg.WAR.markers(p, list);
         AotRpg.ACTIVITY.markers(p, list);
         AotRpg.FERRIES.markers(p, list);
+        AotRpg.STORY.markers(p, list);
         Parties.Party party = AotRpg.PARTIES.of(p.getUuid());
         if (party != null) {
             for (UUID m : party.members) {

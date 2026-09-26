@@ -237,24 +237,52 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** One camera shot: glide from -> to while looking from look -> lookTo, over seconds. */
+    public record Shot(double fx, double fy, double fz, double tx, double ty, double tz, double lx, double ly, double lz,
+                       double mx, double my, double mz, float seconds) { }
+
+    /** Server -> client: play a cutscene (fade: open from black). */
+    public record Cutscene(java.util.List<Shot> shots, boolean fade) implements CustomPayload {
+        public static final Id<Cutscene> ID = Net.id("cutscene");
+        public static final PacketCodec<RegistryByteBuf, Cutscene> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.shots.size());
+            for (Shot s : v.shots) {
+                b.writeDouble(s.fx()); b.writeDouble(s.fy()); b.writeDouble(s.fz());
+                b.writeDouble(s.tx()); b.writeDouble(s.ty()); b.writeDouble(s.tz());
+                b.writeDouble(s.lx()); b.writeDouble(s.ly()); b.writeDouble(s.lz());
+                b.writeDouble(s.mx()); b.writeDouble(s.my()); b.writeDouble(s.mz());
+                b.writeFloat(s.seconds());
+            }
+            b.writeBoolean(v.fade);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<Shot> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new Shot(b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(),
+                b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readFloat()));
+            return new Cutscene(l, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Someone you know: name, skin, affinity (-100..100), fate ("" if none). */
     public record Person(String name, String skin, int affinity, String fate) { }
 
     /** Server -> client: the story pages of the journal. */
     public record StoryJournal(String chapter, String title, String thread, String objective, java.util.List<Person> people,
-                               java.util.List<String> deeds, java.util.List<String> ideology, java.util.List<String> done) implements CustomPayload {
+                               java.util.List<String> deeds, java.util.List<String> ideology, java.util.List<String> done,
+                               java.util.List<String> available) implements CustomPayload {
         public static final Id<StoryJournal> ID = Net.id("story_journal");
         public static final PacketCodec<RegistryByteBuf, StoryJournal> CODEC = PacketCodec.of((v, b) -> {
             b.writeString(v.chapter); b.writeString(v.title); b.writeString(v.thread); b.writeString(v.objective);
             b.writeVarInt(v.people.size());
             for (Person p : v.people) { b.writeString(p.name()); b.writeString(p.skin()); b.writeVarInt(p.affinity() + 100); b.writeString(p.fate()); }
-            writeStrings(b, v.deeds); writeStrings(b, v.ideology); writeStrings(b, v.done);
+            writeStrings(b, v.deeds); writeStrings(b, v.ideology); writeStrings(b, v.done); writeStrings(b, v.available);
         }, b -> {
             String c = b.readString(), t = b.readString(), th = b.readString(), o = b.readString();
             int n = Math.min(b.readVarInt(), 256);
             java.util.List<Person> ps = new java.util.ArrayList<>();
             for (int i = 0; i < n; i++) ps.add(new Person(b.readString(), b.readString(), b.readVarInt() - 100, b.readString()));
-            return new StoryJournal(c, t, th, o, ps, readStrings(b), readStrings(b), readStrings(b));
+            return new StoryJournal(c, t, th, o, ps, readStrings(b), readStrings(b), readStrings(b), readStrings(b));
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
@@ -1732,6 +1760,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(Actors.ID, Actors.CODEC);
         PayloadTypeRegistry.playS2C().register(DialogueView.ID, DialogueView.CODEC);
         PayloadTypeRegistry.playS2C().register(StoryJournal.ID, StoryJournal.CODEC);
+        PayloadTypeRegistry.playS2C().register(Cutscene.ID, Cutscene.CODEC);
         PayloadTypeRegistry.playC2S().register(DialoguePick.ID, DialoguePick.CODEC);
         PayloadTypeRegistry.playC2S().register(ChooseRole.ID, ChooseRole.CODEC);
         PayloadTypeRegistry.playS2C().register(ClassHud.ID, ClassHud.CODEC);

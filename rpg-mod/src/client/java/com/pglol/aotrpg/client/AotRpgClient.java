@@ -230,6 +230,9 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof JournalScreen s) s.refresh();
         });
         HudRenderCallback.EVENT.register(com.pglol.aotrpg.client.story.StoryClient::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.Cutscene.ID, (payload, ctx) -> com.pglol.aotrpg.client.story.CutscenePlayer.play(payload));
+        HudRenderCallback.EVENT.register(com.pglol.aotrpg.client.story.CutscenePlayer::render);
+        ClientTickEvents.END_CLIENT_TICK.register(com.pglol.aotrpg.client.story.CutscenePlayer::tick);
         ClientTickEvents.END_CLIENT_TICK.register(com.pglol.aotrpg.client.story.StoryClient::tick);
         ClientPlayNetworking.registerGlobalReceiver(Net.Watchers.ID, (payload, ctx) -> WitnessFx.onView(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(WitnessFx::render);

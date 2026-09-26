@@ -343,6 +343,7 @@ public final class CharacterCreation {
         pr.story = new Story.State();
         pr.story.freeStart = false;
         pr.storyV2 = true;
+        pr.storyV3 = true;
         AotRpg.PROFILES.save(p.getUuid());
 
         p.setInvulnerable(false);

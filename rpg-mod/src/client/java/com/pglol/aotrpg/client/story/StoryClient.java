@@ -94,7 +94,7 @@ public final class StoryClient {
 
     public static void render(DrawContext c, RenderTickCounter tick) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.options.hudHidden) return;
+        if (mc.options.hudHidden && !CutscenePlayer.active()) return;
         int w = c.getScaledWindowWidth(), h = c.getScaledWindowHeight();
         long now = Util.getMeasuringTimeMs();
         // Flash.

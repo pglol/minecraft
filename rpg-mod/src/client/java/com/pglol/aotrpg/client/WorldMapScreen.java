@@ -417,10 +417,10 @@ public class WorldMapScreen extends Screen {
         for (Net.Marker m : ClientState.markers) {
             int x = (int) sx(m.x() + 0.5), y = (int) sy(m.z() + 0.5);
             int col = 0xFF000000 | m.color();
-            if (m.kind().equals("ferry")) {
-                // Ferry stations: a small anchor where they are (never pinned to the edge).
+            if (m.kind().equals("ferry") || m.kind().equals("giver")) {
+                // Ferry stations (anchor) and quest givers (!): where they are, never pinned to the edge.
                 if (x < mapL + 4 || x > mapR - 4 || y < mapT + 4 || y > mapB - 4) continue;
-                c.drawText(textRenderer, Text.literal("⚓"), x - 3, y - 4, col, true);
+                c.drawText(textRenderer, Text.literal(m.kind().equals("giver") ? "!" : "⚓"), x - 3, y - 4, col, true);
                 if (Math.abs(mouseX - x) < 6 && Math.abs(mouseY - y) < 6) {
                     c.drawTooltip(textRenderer, List.of(Text.literal(m.label()).withColor(col),
                         Text.literal(distance(m.x(), m.z())).formatted(Formatting.GRAY)), mouseX, mouseY);

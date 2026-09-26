@@ -9,12 +9,19 @@ def S(objective, goal, spawn=(), start=(), done=(), when=None):
     d = {"objective": objective, "goal": goal, "spawn": list(spawn), "start": list(start), "done": list(done)}
     if when: d["when"] = when
     return d
-def M(id, title, chapter, thread, purpose, place, level, steps, complete=(), next=None, xp=0, nextIf=None):
+def M(id, title, chapter, thread, purpose, place, level, steps, complete=(), next=None, xp=0, nextIf=None, **kw):
     d = {"id": id, "title": title, "chapter": chapter, "thread": thread, "purpose": purpose, "place": place,
          "level": level, "steps": steps, "complete": list(complete), "xp": xp}
     if next: d["next"] = next
     if nextIf: d["nextIf"] = nextIf
+    d.update(kw)
     return d
+def giver(actor, at, place=None, **kw):
+    d = {"actor": actor, "at": at}
+    if place: d["place"] = place
+    d.update(kw)
+    return d
+TC_PLACE = "cadet-training-camp"
 def N(speaker, text, next=None, choices=None, effects=None, end=False):
     d = {"speaker": speaker, "text": text}
     if next: d["next"] = next
@@ -115,7 +122,9 @@ missions.append(M("sh1", "The Last Morning", ch_sh, "people", ["character", "rel
       spawn=[A("armin_child", [6, 10], face=True)]),
     S("Find Eren and Mikasa by the gate", talk("eren_child", "sh1_eren"),
       spawn=[A("eren_child", [-20, 3], face=True), A("mikasa_child", [-20, 5]), A("hannes", [-24, 0])]),
-], complete=[deed("Spent the last quiet morning of 845 with Eren, Mikasa and Armin")], next="sh2", xp=120))
+], complete=[deed("Spent the last quiet morning of 845 with Eren, Mikasa and Armin")], next="sh2", xp=120,
+   giver=giver("armin", [2, 10], TC_PLACE), memory=True, startAt=[4, 8],
+   pitch="You're from Shiganshina too, right? Do you ever think about that morning? The last normal one?"))
 
 dialogues["sh2_carla"] = D("a",
     a=N("carla", "My legs... I can't feel my legs. Eren, Mikasa, go. Go now.", "b"),
@@ -164,7 +173,7 @@ missions.append(M("sh2", "The Day the Wall Fell", ch_sh, "survival", ["war", "ch
       done=[say("The crowd is packed so tight you can barely move. Somewhere in it, someone is calling your name.")]),
     S("Find Armin in the crowd", talk("armin_child", "sh2_boats"),
       spawn=[A("armin_child", E("inner", 0.8, 0, -6), face=True)]),
-], complete=[card("Wall Maria has fallen", "845"), deed("Escaped Shiganshina as Wall Maria fell"), flag("lost_home")], next="sh3", xp=250))
+], complete=[card("Wall Maria has fallen", "845"), deed("Escaped Shiganshina as Wall Maria fell"), flag("lost_home")], next="sh3", xp=250, chain=True))
 
 dialogues["sh3_reclaim"] = D("a",
     a=N("armin_child", "They called Grandpa up this morning. Him and pretty much every adult in the camp.", "b"),
@@ -180,7 +189,7 @@ missions.append(M("sh3", "Refugees", "Act I · Wall Rose, 846", "people", ["char
     S("Find Armin in the refugee camp", talk("armin_child", "sh3_reclaim"),
       spawn=[A("armin_child", E("inner", 0.7, -4, 3), face=True), A("eren_child", E("inner", 0.7, -5, 5)), A("mikasa_child", E("inner", 0.7, -5, 1))],
       start=[{"teleport": E("inner", 0.7)}, card("846", "Refugee camps, Wall Rose")]),
-], complete=[deed("Watched the reclamation march out, 846"), {"toast": "Next: the Cadet Training Corps"}], next="tc1", xp=150))
+], complete=[deed("Watched the reclamation march out, 846")], xp=150, chain=True, returnHome=True))
 
 # =====================================================================================  TROST origin
 TR = "trost-district"; ch_tr = "Act I · Trost, 845"
@@ -207,7 +216,9 @@ missions.append(M("tr1", "News from the South", ch_tr, "people", ["character", "
     S("Talk to the Garrison captain on the dock", talk("garrison_captain", "tr1_captain"),
       spawn=[A("garrison_captain", E("inner", 0.75, -2, 4), face=True), A("refugee", E("inner", 0.75, -3, -3)), A("lotte", E("inner", 0.75, -1, -6))]),
     S("Check on the girl sitting by the crates", talk("lotte", "tr1_lotte")),
-], complete=[deed("Met the refugees from Shiganshina at Trost's gate")], next="tr2", xp=120))
+], complete=[deed("Met the refugees from Shiganshina at Trost's gate")], next="tr2", xp=120,
+   giver=giver("armin", [2, 10], TC_PLACE), memory=True, startAt=[0, 0],
+   pitch="You grew up in Trost, didn't you? Were you there when the boats came in from Shiganshina?"))
 
 dialogues["tr2_baker"] = D("a",
     a=N("baker", "Twenty for a loaf. Don't look at me like that, flour's gone up four times since the boats came in.", "b"),
@@ -224,7 +235,7 @@ missions.append(M("tr2", "Bread and Order", ch_tr, "people", ["character", "futu
     S("Take a loaf from the crate without being seen (crouch, stay out of their line of sight)", {"take": "bread_crate", "unseen": True},
       done=[flag("stole_bread"), ide(mercy=4, independence=4), aff(lotte=8), deed("Stole bread for a hungry refugee girl"), say("...Thank you.", "lotte")],
       when={"flag": "will_steal"}),
-], complete=[{"toast": "Next: the Cadet Training Corps"}], next="tc1", xp=150))
+], xp=150, chain=True, returnHome=True))
 
 # =====================================================================================  RAGAKO origin
 RG = "ragako-village"; ch_rg = "Act I · Ragako, 846"
@@ -241,7 +252,8 @@ dialogues["rg1_tax"] = D("a",
 missions.append(M("rg1", "The Grain Tax", ch_rg, "people", ["faction", "character"], RG, [1, 6], [
     S("Your father is arguing with a Military Police officer", talk("aldo", "rg1_tax"),
       spawn=[A("aldo", [4, 4], face=True), A("tax_collector", [7, 2])], start=[card("846", "Ragako Village")]),
-], next="rg2", xp=120))
+], next="rg2", xp=120, giver=giver("armin", [2, 10], TC_PLACE), memory=True, startAt=[0, 0],
+   pitch="Ragako's a farming village, right? What was it like, before you came here?"))
 dialogues["rg2_aldo"] = D("a",
     a=N("aldo", "My name's on the list. They're sending us to take back Wall Maria.", "b"),
     b=N("aldo", "Two hundred and fifty thousand people. Farmers, mostly. They gave us pitchforks.", choices=[
@@ -258,7 +270,7 @@ missions.append(M("rg2", "The Reclamation", ch_rg, "truth", ["war", "lore", "cha
       start=[say("A Garrison rider comes through the village reading from a list.")]),
     S("Walk with him to the edge of the village", goto([-24, 0], 6), start=[{"follow": "aldo"}],
       done=[{"remove": "aldo"}, say("Around a hundred people came back from the Reclamation. He wasn't one of them.")]),
-], complete=[{"toast": "Next: the Cadet Training Corps"}], next="tc1", xp=200))
+], xp=200, chain=True, returnHome=True))
 
 # =====================================================================================  INTERIOR origin (Stohess / Mitras)
 dialogues["in1_extort"] = D("a",
@@ -292,7 +304,9 @@ for pid, org, mid in (("stohess-district", "Stohess", "in1s"), ("mitras", "Mitra
           spawn=[A("hilde", [5, 6]), A("mp_officer", [5, 3], face=True)], start=[card("845", org)]),
         S("A pastor of the Church of the Walls is preaching nearby", talk("priest", "in1_nick"), spawn=[A("priest", [-10, 10], face=True)]),
         S("A well-dressed man is waving you over", talk("steward", "in1_steward"), spawn=[A("steward", [-4, -8], face=True)]),
-    ], complete=[deed("Saw how peace is kept in the interior"), {"toast": "Next: the Cadet Training Corps"}], next="tc1", xp=150))
+    ], complete=[deed("Saw how peace is kept in the interior")], xp=150,
+       giver=giver("armin", [2, 10], TC_PLACE), memory=True, returnHome=True, startAt=[0, 0],
+       pitch="You're from the interior, aren't you? What's it actually like in there? I've only ever heard stories."))
 
 # =====================================================================================  UNDERGROUND origin
 UG = "underground-city"; ch_ug = "Act I · The Underground, 845"
@@ -322,7 +336,9 @@ missions.append(M("un1", "Beneath Mitras", ch_ug, "survival", ["character", "rel
       done=[flag("has_old_odm"), deed("Stole ODM gear from the Military Police"), say("Told you it'd be easy.", "ferrin")]),
     S("Head for the stairway to the surface", talk("stair_guard", "un2_toll"), spawn=[A("stair_guard", [10, 2], face=True)]),
     S("Slip past the guard while he's not looking", goto([-20, 0], 4, unseen=True), when={"flag": "sneak_stair"}),
-], complete=[deed("Saw the sky for the first time in years"), {"toast": "Next: the Cadet Training Corps"}], next="tc1", xp=180))
+], complete=[deed("Saw the sky for the first time in years")], xp=180,
+   giver=giver("armin", [2, 10], TC_PLACE), memory=True, returnHome=True, startAt=[0, 0],
+   pitch="Is it true you came up from the Underground? You don't have to talk about it. I just... wondered."))
 
 # =====================================================================================  TRAINING (all origins meet)
 TC = "cadet-training-camp"; ch_tc = "Act I · The 104th Cadet Corps, 847"
@@ -343,14 +359,47 @@ dialogues["tc1_sasha"] = D("a",
         C("You keep it. You ran until dark.", "b", [aff(sasha=8)]),
         C("Thanks.", "b", [aff(sasha=4)])]),
     b=N("sasha", "Okay. We're friends now. That's how it works.", end=True))
-missions.append(M("tc1", "Who Are You?", ch_tc, "people", ["character", "relationship"], TC, [2, 8], [
-    S("Report to the Cadet Training Camp", goto([0, 0], 14), done=[card("847", "The 104th Training Corps")]),
-    S("Fall in for Instructor Shadis's inspection", talk("keith", "tc1_keith"),
-      spawn=[A("keith", [4, 0], face=True), A("eren", [8, -4]), A("mikasa", [8, -3]), A("armin", [8, -2]), A("jean", [8, 1]), A("marco", [8, 2]),
-             A("sasha", [10, 5]), A("connie", [8, 4]), A("annie", [8, -6]), A("reiner", [9, -8]), A("bertholdt", [9, -9]),
-             A("krista", [10, -1]), A("ymir", [10, 0])]),
-    S("Find Sasha after dark", talk("sasha", "tc1_sasha")),
-], next="tc2", xp=150))
+dialogues["p0_end"] = D("a",
+    a=N("keith", "That's your first day. Most of you won't last the month.", "b"),
+    b=N("keith", "{name}. You cut it down. Don't let it go to your head. Tomorrow, the balance rigs.", choices=[
+        C("Sir!", None, [aff(keith=3)]),
+        C("How many of us actually make it, sir?", "c", [flag("asked_odds")])]),
+    c=N("keith", "Of the ones standing here? Maybe half graduate. Half of those will be dead within a year of it. Dismissed.", end=True))
+B = [-18, 10]
+wake = {"cutscene": {"fade": True, "shots": [
+    {"from": B, "h": 0.3, "to": B, "h2": 0.9, "look": B, "lh": 8, "lookTo": [-10, 10], "lh2": 1.4, "seconds": 4,
+     "sound": "minecraft:block.bell.use", "say": {"who": "keith", "text": "UP! Everyone up! Out of those bunks, now!", "after": 0.6}},
+    {"from": [-24, 5], "h": 3, "to": [-22, 7], "h2": 2.6, "look": B, "lh": 1, "seconds": 4,
+     "say": {"who": "connie", "text": "Is he serious? It's still dark out."}},
+    {"from": [-22, 14], "h": 2, "to": [-20, 13], "h2": 2, "look": [-17, 12], "lh": 1.4, "seconds": 3,
+     "say": {"who": "sasha", "text": "Five more minutes... please..."}},
+    {"from": [-6, -16], "h": 8, "to": [0, -14], "h2": 7, "look": [6, 0], "lh": 1, "seconds": 5,
+     "sound": "minecraft:block.bell.use",
+     "say": {"who": "keith", "text": "Roll call! Anyone not in line in thirty seconds runs laps until they drop!"}},
+    {"from": [14, 4], "h": 1.9, "to": [13, 3], "h2": 1.8, "look": [10, 0], "lh": 1.7, "seconds": 3,
+     "say": {"who": "keith", "text": "MOVE!"}},
+]}}
+line_up = [{"walk": {"actor": a, "to": [6, r]}} for a, r in (("eren", -6), ("armin", -4), ("jean", 0), ("marco", 2), ("connie", 4), ("sasha", 6))]
+missions.append(M("p0", "Roll Call", "Act I · The 104th Cadet Corps, 847", "people", ["character", "relationship", "war"], TC_PLACE, [1, 5], [
+    S("Wake up", {"wait": 20},
+      spawn=[A("eren", [-17, 12]), A("armin", [-19, 12]), A("connie", [-16, 8]), A("sasha", [-20, 8]), A("marco", [-15, 10]), A("jean", [-21, 10]),
+             A("keith", [10, 0], face=True), A("mikasa", [6, -5]), A("annie", [8, -6]), A("reiner", [8, -4]), A("bertholdt", [8, -3]),
+             A("krista", [8, 2]), A("ymir", [8, 3])],
+      start=[card("847", "The 104th Training Corps"), wake] + line_up),
+    S("Fall in! Your place is next to Armin", goto([6, -2], 2.5, timeout=40,
+        success=[aff(keith=2), say("Hm.", "keith")],
+        fail=[say("LATE! You'll be running until you drop, cadet!", "keith"), flag("late_roll_call"), aff(keith=-3)])),
+    S("Stand at attention. Instructor Shadis is coming down the line", talk("keith", "tc1_keith")),
+    S("Draw your blades (press G)", {"wear": "blade", "timeout": 60}, start=[say("Blades out! Let's see if you even know how to hold them.", "keith")]),
+    S("Follow the squad to the training field", goto([-30, 18], 8),
+      start=[{"walk": {"actor": "keith", "to": [-28, 16]}}, {"walk": {"actor": "eren", "to": [-27, 20]}}, {"walk": {"actor": "armin", "to": [-26, 21]}}]),
+    S("Your first titan. Cut the nape", {"kill": "scene"}, spawn=[T(1, [-40, 24], level=1, strikes=1, spread=2)],
+      start=[say("The Garrison caught a small one outside the Walls for us. It's slow, it's weak, and it will still eat you. The back of the neck. Go!", "keith")]),
+    S("Report to Instructor Shadis", talk("keith", "p0_end"), spawn=[A("keith", [-28, 16], face=True)]),
+], complete=[deed("Survived your first day in the 104th"), {"toast": "You're free until tomorrow. Explore the camp"}], xp=250, startAt=B,
+   unlock=[{"id": "tc2"},
+           {"id": "sh1", "if": {"origin": "SHIGANSHINA"}}, {"id": "tr1", "if": {"origin": "TROST"}}, {"id": "rg1", "if": {"origin": "RAGAKO"}},
+           {"id": "in1s", "if": {"origin": "STOHESS"}}, {"id": "in1m", "if": {"origin": "MITRAS"}}, {"id": "un1", "if": {"origin": "UNDERGROUND"}}]))
 
 dialogues["tc2_eren"] = D("a",
     a=N("eren", "I can't stay up on the rig. Everyone else can do it. If I fail again tomorrow they'll send me back to the fields.", choices=[
@@ -375,11 +424,11 @@ dialogues["tc2_reiner"] = D("a",
     c=N("reiner", "We're soldiers now. That's what matters.", end=True),
     c2=N("reiner", "Small place. You wouldn't have heard of it.", effects=[flag("reiner_evasive")], end=True))
 missions.append(M("tc2", "Balance", ch_tc, "survival", ["character", "relationship", "war"], TC, [2, 8], [
-    S("Put on your ODM harness for the aptitude test (open your inventory with E and wear it)", {"wear": "odm"}),
     S("Eren is having trouble on the balance rig", talk("eren", "tc2_eren"), spawn=[A("eren", [6, 8], face=True), A("mikasa", [7, 10]), A("armin", [5, 10])]),
     S("Annie is training on her own by the fence", talk("annie", "tc2_annie"), spawn=[A("annie", [-6, 8], face=True)]),
     S("Reiner and Bertholdt are by the barracks", talk("reiner", "tc2_reiner"), spawn=[A("reiner", [-2, -10], face=True), A("bertholdt", [-1, -12])]),
-], next="tc3", xp=180))
+], next="tc3", xp=180, giver=giver("keith", [10, 0], TC_PLACE),
+   pitch="Balance test today, cadet. Fail it and you're on a cart back to wherever you came from."))
 
 dialogues["tc3_jean"] = D("a",
     a=N("jean", "Not bad. Top ten get the Military Police, you know. Inside Wall Sina. Real beds. No titans.", choices=[
@@ -395,7 +444,8 @@ missions.append(M("tc3", "The Training Forest", ch_tc, "survival", ["war", "char
     S("Cut the napes of the training titans", {"kill": "scene"}, spawn=[T(3, [-44, 26], strikes=1, spread=10)],
       start=[say("Most kills gets the top score. Try to keep up.", "jean")]),
     S("Jean and Marco are catching their breath", talk("jean", "tc3_jean"), spawn=[A("jean", [-32, 20], face=True), A("marco", [-33, 22])]),
-], next="tc4", xp=250))
+], next="tc4", xp=250, giver=giver("jean", [-4, 6], TC_PLACE),
+   pitch="A few of us are heading out to the training forest to practice on the real thing. You coming, or are you scared?"))
 
 dialogues["tc4_grad"] = D("a",
     a=N("keith", "Top ten. Mikasa Ackerman. Reiner Braun. Bertholdt Hoover. Annie Leonhart. Eren Yeager. Jean Kirstein. Marco Bott. Connie Springer. Sasha Braus. Krista Lenz.", "b"),
@@ -409,7 +459,9 @@ missions.append(M("tc4", "Graduation", "Act I · Graduation, 850", "people", ["c
       spawn=[A("keith", [4, 0], face=True), A("eren", [8, -4]), A("mikasa", [8, -3]), A("armin", [8, -2]), A("jean", [8, 1]), A("marco", [8, 2]),
              A("sasha", [9, 4]), A("connie", [8, 4]), A("annie", [8, -6]), A("reiner", [9, -8]), A("bertholdt", [9, -9]), A("krista", [10, -1])],
       start=[card("850", "Graduation")]),
-], complete=[deed("Graduated from the 104th Cadet Corps"), {"toast": "Your first posting: Trost District"}], next="tb1", xp=300))
+], complete=[deed("Graduated from the 104th Cadet Corps"), card("850", "Your first posting: Trost District")], next="tb1", xp=300,
+   giver=giver("keith", [10, 0], TC_PLACE),
+   pitch="Three years, cadet. Tomorrow you graduate, or you don't. Fall in at dawn."))
 
 # =====================================================================================  TROST (stepping stone)
 ch_tb = "Act I · The Battle of Trost, 850"
@@ -434,7 +486,7 @@ missions.append(M("tb1", "The Colossal Returns", ch_tb, "survival", ["war", "cha
         "success": [fate(thomas="saved at Trost"), aff(thomas=15), deed("Saved Thomas Wagner at Trost"), say("You came back for me...", "thomas")],
         "fail": [fate(thomas="eaten at Trost"), say("THOMAS!", "eren"), flag("failed_thomas")]},
       spawn=[T(1, E("outer", 0.7, 0, 12), spread=2)], start=[say("It's got Thomas!", "connie")]),
-], next="tb2", xp=250))
+], next="tb2", xp=250, chain=True, startAt=E("outer", 0.5)))
 
 dialogues["tb2_dimo"] = D("a",
     a=N("dimo_reeves", "Keep pushing! Do you know what's in this cart? It's worth more than this whole street!", "b"),
@@ -451,7 +503,7 @@ missions.append(M("tb2", "Evacuation", ch_tb, "people", ["war", "character", "fa
       spawn=[A("dimo_reeves", E("inner", 0.75), face=True), A("civilian_f", E("inner", 0.73, 0, 2)), A("civilian_m", E("inner", 0.73, 0, -2))]),
     S("Hold them off while everyone gets through", {"kill": "scene"}, spawn=[T(2, E("inner", 0.35), spread=8)],
       start=[{"walk": {"actor": "civilian_f", "to": E("inner", 0.95)}}, {"walk": {"actor": "civilian_m", "to": E("inner", 0.95, 0, 2)}}]),
-], complete=[ide(mercy=3), {"standing": {"civilians": 5}}, deed("Held the inner gate while Trost was evacuated")], next="tb3", xp=250))
+], complete=[ide(mercy=3), {"standing": {"civilians": 5}}, deed("Held the inner gate while Trost was evacuated")], next="tb3", xp=250, chain=True))
 
 dialogues["tb3_armin"] = D("a",
     a=N("armin", "Our whole squad's gone. Eren... Eren got eaten. He pushed me out of its mouth.", "b"),
@@ -464,7 +516,7 @@ missions.append(M("tb3", "The Supply Depot", ch_tb, "survival", ["war", "relatio
     S("You're almost out of gas. Get to the supply building", goto([8, -18], 8), start=[say("They're all over the supply building. We're out of gas and they're just sitting in there!", "jean")]),
     S("Clear the titans out of the supply building", {"kill": "scene"}, spawn=[T(3, [8, -30], spread=6)]),
     S("Find Armin", talk("armin", "tb3_armin"), spawn=[A("armin", [8, -14], face=True), A("jean", [10, -14])]),
-], next="tb4", xp=300))
+], next="tb4", xp=300, chain=True))
 
 dialogues["tb4_mikasa"] = D("a",
     a=N("mikasa", "He came out of its neck. Eren. He's alive. They're going to call him a monster.", choices=[
@@ -484,7 +536,7 @@ missions.append(M("tb4", "The Rogue Titan", ch_tb, "truth", ["lore", "war", "cha
                  flag("marco_saw_warriors"), deed("Found Marco alive, and three friends acting strangely")],
         fail=[fate(marco="died at Trost"), say("Marco is lying in the street. Half of him. Nobody saw what happened."), flag("marco_dead"),
               deed("Found Marco's body. Nobody saw what happened")])),
-], next="tb5", xp=350))
+], next="tb5", xp=350, chain=True))
 
 dialogues["tb5_erwin"] = D("a",
     a=N("erwin", "Trost has been sealed. A titan carried the boulder into the gate, and that titan was one of our own cadets.", "b"),
@@ -499,7 +551,7 @@ dialogues["tb5_erwin"] = D("a",
 missions.append(M("tb5", "I Thought the Enemy Was Titans", "Act I · Aftermath, 850", "truth", ["future", "faction", "lore"], TR, [5, 14], [
     S("The Survey Corps is recruiting in the square", talk("erwin", "tb5_erwin"),
       spawn=[A("erwin", [-6, 0], face=True), A("levi", [-6, 2]), A("hange", [-6, -2])], start=[card("Aftermath", "Trost, 850")]),
-], complete=[card("Act I: The Walls", "I thought the enemy was titans."), deed("Chose a branch after Trost"), {"chapter": 10}], xp=500))
+], complete=[card("Act I: The Walls", "I thought the enemy was titans."), deed("Chose a branch after Trost"), {"chapter": 10}], xp=500, chain=True))
 
 def dump(name, obj):
     with open(os.path.join(OUT, name), 'w', encoding='utf-8') as f:
@@ -511,7 +563,7 @@ for fn in ("act1.json", "cast.json"):
     txt = open(os.path.join(OUT, fn), encoding="utf-8").read()
     assert "\u2014" not in txt and "—" not in txt and "–" not in txt, fn + " has a dash"
 dump("index.json", {"files": ["cast.json", "act1.json"],
-                    "starts": {"SHIGANSHINA": "sh1", "TROST": "tr1", "RAGAKO": "rg1", "STOHESS": "in1s", "MITRAS": "in1m", "UNDERGROUND": "un1", "default": "tr1"}})
+                    "starts": {"default": "p0"}})
 
 # Validation: dialogues referenced exist, nodes referenced exist, actors exist.
 ids = {m["id"] for m in missions}
