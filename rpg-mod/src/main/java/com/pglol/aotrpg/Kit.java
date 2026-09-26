@@ -38,6 +38,37 @@ public final class Kit {
         return s;
     }
 
+    /**
+     * Dresses a story actor (a cadet, soldier or officer) in what a player of that rank wears: the
+     * uniform, and for anyone who flies, the ODM harness and boots. Nothing of it ever drops.
+     */
+    public static void dress(net.minecraft.entity.mob.MobEntity v, String kit) {
+        Item uniformItem = AotItems.exact("uniform");
+        v.equipStack(net.minecraft.entity.EquipmentSlot.CHEST, uniformItem != null ? new ItemStack(uniformItem)
+            : uniform(Items.LEATHER_CHESTPLATE, 0x6B4F2A, "Cadet Jacket", "Standard issue, 104th Cadet Corps"));
+        if (kit.startsWith("cadet") || kit.startsWith("soldier")) {
+            Item harness = AotItems.exact("odm_gear");
+            v.equipStack(net.minecraft.entity.EquipmentSlot.LEGS, harness != null ? new ItemStack(harness)
+                : uniform(Items.LEATHER_LEGGINGS, 0xE8E0C8, "Training Trousers", ""));
+        }
+        Item boots = AotItems.exact("odm_boots");
+        v.equipStack(net.minecraft.entity.EquipmentSlot.FEET, boots != null ? new ItemStack(boots)
+            : uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "Boots", ""));
+        for (net.minecraft.entity.EquipmentSlot slot : net.minecraft.entity.EquipmentSlot.values()) v.setEquipmentDropChance(slot, 0);
+    }
+
+    /** Blades in both hands (drawn to fight), or put away. */
+    public static void arm(net.minecraft.entity.mob.MobEntity v, boolean drawn) {
+        ItemStack grip = ItemStack.EMPTY;
+        if (drawn) {
+            Item g = AotItems.exact("blade");
+            grip = g != null ? new ItemStack(g) : AotItems.present() ? AotItems.bestStack(1, AotItems.GRIP, "blade") : new ItemStack(Items.IRON_SWORD);
+            if (grip.isEmpty()) grip = new ItemStack(Items.IRON_SWORD);
+        }
+        v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, grip.copy());
+        v.equipStack(net.minecraft.entity.EquipmentSlot.OFFHAND, grip.copy());
+    }
+
     public static void give(ServerPlayerEntity p, Profile pr, int[] camp) {
         // Uniform: the AoT mod's uniform when installed.
         Item uniformItem = AotItems.exact("uniform");

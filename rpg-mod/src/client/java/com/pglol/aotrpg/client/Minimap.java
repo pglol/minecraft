@@ -331,7 +331,10 @@ public final class Minimap {
         int ty = cyy + 18;
         if (obj != null) {
             // The objective, on its own card with room around the words.
-            int cardX = 4, cardW = 150, pad = 6;
+            int pad = 6;
+            Text heading = Ui.heading(obj.chapter());
+            // Wide enough for the chapter line, so nothing runs past the card's edge.
+            int cardX = 4, cardW = Math.max(150, Math.min(240, font.getWidth(heading) + pad * 2 + 3));
             String line = obj.text();
             if (!obj.progress().isEmpty()) line += "  " + obj.progress();
             if (obj.hasTarget()) {
@@ -343,7 +346,8 @@ public final class Minimap {
             c.fill(cardX, ty, cardX + cardW, ty + cardH, 0xB40D0F0D);
             c.fill(cardX, ty, cardX + 2, ty + cardH, 0xFFB8955A);
             int tx = cardX + pad + 1, yy = ty + pad;
-            c.drawText(font, Ui.heading(obj.chapter()), tx, yy, Ui.GOLD, false);
+            c.drawText(font, font.trimToWidth(heading, cardW - pad * 2 - 3).getString().equals(heading.getString()) ? heading.asOrderedText()
+                : net.minecraft.text.OrderedText.concat(net.minecraft.util.Language.getInstance().reorder(font.trimToWidth(heading, cardW - pad * 2 - 12)), Text.literal("…").asOrderedText()), tx, yy, Ui.GOLD, false);
             yy += 12;
             for (var l : lines) {
                 c.drawText(font, l, tx, yy, Ui.CREAM, false);

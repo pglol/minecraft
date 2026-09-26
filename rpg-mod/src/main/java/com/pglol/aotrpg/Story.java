@@ -76,7 +76,7 @@ public final class Story {
 
     // ------------------------------------------------------------------ content
 
-    static final class ActorDef { String name = "?"; String skin = "civilian_m"; boolean watch; String item; }
+    static final class ActorDef { String name = "?"; String skin = "civilian_m"; boolean watch; String item; String kit; }
     static final class Step {
         String objective = "";
         List<JsonObject> spawn = new ArrayList<>();
@@ -209,6 +209,8 @@ public final class Story {
 
     // ------------------------------------------------------------------ scenes (runtime)
 
+    private record PathPt(Vec3d at, Vec3d face, JsonObject say, boolean talk, long pauseMs) { }
+
     private static final class Scene {
         final UUID host;
         String mission;
@@ -219,6 +221,14 @@ public final class Story {
         final Set<String> followers = new HashSet<>();
         final Set<String> patrols = new HashSet<>();
         final Map<String, Vec3d> walks = new HashMap<>();
+        /** Where an actor turns to look once their walk ends. */
+        final Map<String, Vec3d> faces = new HashMap<>();
+        /** Routes: points walked one after another, pausing (and maybe speaking) at each. */
+        final Map<String, java.util.ArrayDeque<PathPt>> paths = new HashMap<>();
+        final Map<String, PathPt> arrive = new HashMap<>();
+        final Map<String, Long> pauses = new HashMap<>();
+        /** Cadets and soldiers in the scene who are up in the air fighting its titans. */
+        final Set<String> fighting = new HashSet<>();
         final Map<String, Long> expire = new HashMap<>();
         boolean spawned, titansSpawned;
         long stepAt;
@@ -327,6 +337,7 @@ public final class Story {
         String placeId = m.place;
         double f = 0, r = 0, dy = 0, frac = -1;
         String gate = null;
+        JsonObject rowSpec = null;
         if (spec != null && spec.isJsonArray() && spec.getAsJsonArray().size() > 0) {
             JsonArray a = spec.getAsJsonArray();
             f = a.get(0).getAsDouble();
@@ -344,6 +355,7 @@ public final class Story {
                 frac = o.has("frac") ? o.get("frac").getAsDouble() : 0.7;
             }
             if (o.has("y")) dy = o.get("y").getAsDouble();
+            if (o.has("row")) rowSpec = o;
         }
         int[] p = placeOf(placeId);
         if (p == null) p = new int[] {0, 70, 0};
@@ -375,9 +387,82 @@ public final class Story {
             }
         }
         double rx = -dz, rz = dx;
+        if (rowSpec != null) {
+            // A place in a formation: one straight line on open, level ground near where it's asked for.
+            int size = rowSpec.has("size") ? rowSpec.get("size").getAsInt() : 9;
+            double spacing = rowSpec.has("spacing") ? rowSpec.get("spacing").getAsDouble() : 1.6;
+            double front = rowSpec.has("front") ? rowSpec.get("front").getAsDouble() : 0;
+            double slot = rowSpec.has("slot") ? rowSpec.get("slot").getAsDouble() : 0;
+            double[] c = row(w, m.id + ":" + rowSpec.get("row").getAsString(), px + dx * f + rx * r, pz + dz * f + rz * r, dx, dz, size, spacing);
+            if (c != null) {
+                double xd = c[0] + rx * slot * spacing + dx * front, zd = c[1] + rz * slot * spacing + dz * front;
+                int top = w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(xd), (int) Math.floor(zd));
+                return new Vec3d(xd, top + dy, zd);
+            }
+            f += front;
+            r += slot * spacing;
+        }
         int x = (int) Math.round(px + dx * f + rx * r), z = (int) Math.round(pz + dz * f + rz * r);
         BlockPos g = ground(w, x, p[1], z);
         return new Vec3d(g.getX() + 0.5, g.getY() + dy, g.getZ() + 0.5);
+    }
+
+    private final Map<String, double[]> rows = new HashMap<>();
+
+    /**
+     * Finds (once) a straight row for a formation near (bx, bz), running across the forward
+     * direction: every place in it, and the strip in front where an instructor walks, on level solid
+     * ground with nothing standing next to it (no posts, trees or walls). Null until it's loaded.
+     */
+    private double[] row(ServerWorld w, String key, double bx, double bz, double dx, double dz, int size, double spacing) {
+        double[] have = rows.get(key);
+        if (have != null) return have;
+        double rx = -dz, rz = dx;
+        int n = size / 2;
+        List<int[]> cand = new ArrayList<>();
+        for (int a = -14; a <= 14; a++) for (int b = -14; b <= 14; b++) cand.add(new int[] {a, b});
+        cand.sort(java.util.Comparator.comparingInt(o -> o[0] * o[0] + o[1] * o[1]));
+        for (int[] o : cand) {
+            double cx = bx + dx * o[0] + rx * o[1], cz = bz + dz * o[0] + rz * o[1];
+            if (!w.isChunkLoaded((int) Math.floor(cx) >> 4, (int) Math.floor(cz) >> 4)) return null;
+            int y0 = w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(cx), (int) Math.floor(cz));
+            boolean ok = true;
+            for (int k = -n - 1; k <= n + 1 && ok; k++) {
+                for (double fo : new double[] {-1.5, 0, 1.5, 3}) {
+                    int x = (int) Math.floor(cx + rx * k * spacing + dx * fo), z = (int) Math.floor(cz + rz * k * spacing + dz * fo);
+                    if (!openGround(w, x, z, y0)) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            if (ok) {
+                double[] c = {cx, cz};
+                rows.put(key, c);
+                return c;
+            }
+        }
+        return null;
+    }
+
+    private static boolean openGround(ServerWorld w, int x, int z, int y0) {
+        if (!w.isChunkLoaded(x >> 4, z >> 4)) return false;
+        int top = w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+        if (Math.abs(top - y0) > 1) return false;
+        BlockPos g = new BlockPos(x, top - 1, z);
+        var gs = w.getBlockState(g);
+        if (!gs.getFluidState().isEmpty() || !gs.isSolidBlock(w, g)) return false;
+        if (w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING, x, z) > top + 3) return false;
+        int[][] around = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] a : around) if (w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x + a[0], z + a[1]) > top + 1) return false;
+        return true;
+    }
+
+    private static void faceTo(Entity e, Vec3d pt) {
+        float yaw = (float) (MathHelper.atan2(pt.z - e.getZ(), pt.x - e.getX()) * MathHelper.DEGREES_PER_RADIAN) - 90;
+        e.setYaw(yaw);
+        e.setHeadYaw(yaw);
+        if (e instanceof LivingEntity le) le.setBodyYaw(yaw);
     }
 
     /** Street level near the place's height (not rooftops); underground stays underground. */
@@ -570,8 +655,27 @@ public final class Story {
                 case "walk" -> {
                     JsonObject o = v.getAsJsonObject();
                     if (sc != null) {
-                        sc.followers.remove(o.get("actor").getAsString());
-                        sc.walks.put(o.get("actor").getAsString(), resolve(w, m, o.get("to")));
+                        String a = o.get("actor").getAsString();
+                        sc.followers.remove(a);
+                        sc.walks.put(a, resolve(w, m, o.get("to")));
+                        if (o.has("face")) sc.faces.put(a, resolve(w, m, o.get("face")));
+                        else sc.faces.remove(a);
+                    }
+                }
+                case "path" -> {
+                    JsonObject o = v.getAsJsonObject();
+                    if (sc != null) {
+                        String a = o.get("actor").getAsString();
+                        sc.followers.remove(a);
+                        sc.walks.remove(a);
+                        java.util.ArrayDeque<PathPt> q = new java.util.ArrayDeque<>();
+                        for (JsonElement pe : o.getAsJsonArray("points")) {
+                            JsonObject po = pe.getAsJsonObject();
+                            q.add(new PathPt(resolve(w, m, po.get("at")), po.has("face") ? resolve(w, m, po.get("face")) : null,
+                                po.has("say") ? po.getAsJsonObject("say") : null, po.has("talk") && po.get("talk").getAsBoolean(),
+                                (long) ((po.has("pause") ? po.get("pause").getAsDouble() : 0.6) * 1000)));
+                        }
+                        sc.paths.put(a, q);
                     }
                 }
                 case "titan_actor" -> {
@@ -695,6 +799,8 @@ public final class Story {
         v.setCustomNameVisible(true);
         v.addCommandTag("aot_aid:" + id);
         if (def.watch || (o.has("watch") && o.get("watch").getAsBoolean())) v.addCommandTag(WATCH);
+        // Cadets and soldiers wear what you wear: uniform, harness and boots.
+        if (def.kit != null) Kit.dress(v, def.kit);
         tagPhased(v, sc);
         w.spawnEntity(v);
         phased.put(v.getId(), sc.host);
@@ -1172,22 +1278,59 @@ public final class Story {
                 despawnActor(sc, e.getKey());
             }
         }
+        fight(sc, host, ticks);
         for (String id : sc.followers) {
+            if (sc.fighting.contains(id)) continue;
             Entity e = actorEntity(sc, id);
             if (e == null) continue;
             double d = e.squaredDistanceTo(host);
             if (d > 40 * 40 || e.getWorld() != host.getWorld()) e.requestTeleport(host.getX() + 1.5, host.getY(), host.getZ() + 1.5);
             else if (d > 3.5 * 3.5) step(e, host.getPos(), 0.28);
         }
+        List<String> arrived = new ArrayList<>();
         for (var it = sc.walks.entrySet().iterator(); it.hasNext(); ) {
             var wk = it.next();
-            Entity e = actorEntity(sc, wk.getKey());
-            if (e == null || e.getPos().squaredDistanceTo(wk.getValue()) < 1) {
+            String id = wk.getKey();
+            if (sc.fighting.contains(id)) continue;
+            Entity e = actorEntity(sc, id);
+            if (e == null) {
                 it.remove();
                 continue;
             }
-            step(e, wk.getValue(), 0.22);
+            Vec3d to = wk.getValue();
+            double hx = to.x - e.getX(), hz = to.z - e.getZ();
+            if (hx * hx + hz * hz < 0.0025) {
+                // There: stand exactly on the mark and turn the way the scene wants.
+                e.refreshPositionAndAngles(to.x, e.getY(), to.z, e.getYaw(), 0);
+                Vec3d face = sc.faces.remove(id);
+                if (face != null) faceTo(e, face);
+                it.remove();
+                arrived.add(id);
+                continue;
+            }
+            step(e, to, 0.22);
         }
+        long nowMs = System.currentTimeMillis();
+        for (String id : arrived) {
+            PathPt pt = sc.arrive.remove(id);
+            if (pt == null) continue;
+            sc.pauses.put(id, nowMs + pt.pauseMs());
+            if (pt.say() != null) line(sc, host, pt.say().has("who") ? pt.say().get("who").getAsString() : id, pt.say().get("text").getAsString());
+            if (pt.talk()) {
+                Entity e = actorEntity(sc, id);
+                if (e != null) interact(host, e);
+            }
+        }
+        for (var pe : sc.paths.entrySet()) {
+            String id = pe.getKey();
+            if (pe.getValue().isEmpty() || sc.walks.containsKey(id) || sc.arrive.containsKey(id)) continue;
+            if (nowMs < sc.pauses.getOrDefault(id, 0L)) continue;
+            PathPt pt = pe.getValue().poll();
+            sc.walks.put(id, pt.at());
+            if (pt.face() != null) sc.faces.put(id, pt.face());
+            sc.arrive.put(id, pt);
+        }
+        sc.paths.values().removeIf(java.util.ArrayDeque::isEmpty);
         for (String id : sc.patrols) {
             Entity e = actorEntity(sc, id);
             if (e == null) continue;
@@ -1280,6 +1423,75 @@ public final class Story {
     }
 
     /** Moves an AI-less actor a step toward a point, facing where it walks. */
+    /**
+     * Cadets and soldiers in a scene fight its titans: blades out, up at the nape on their gear,
+     * circling behind and cutting. They wear a titan down but leave the last one for you to finish.
+     */
+    private void fight(Scene sc, ServerPlayerEntity host, int ticks) {
+        ServerWorld w = host.getServerWorld();
+        List<LivingEntity> live = new ArrayList<>();
+        for (UUID u : sc.titans) {
+            if (w.getEntity(u) instanceof LivingEntity t && t.isAlive()) live.add(t);
+        }
+        for (var a : sc.actors.entrySet()) {
+            String id = a.getKey();
+            ActorDef def = actors.get(id);
+            if (def == null || def.kit == null || !(def.kit.startsWith("cadet") || def.kit.startsWith("soldier"))) continue;
+            if (!(w.getEntity(a.getValue()) instanceof MobEntity v)) continue;
+            LivingEntity t = null;
+            double bd = 48 * 48;
+            for (LivingEntity x : live) {
+                double d = x.squaredDistanceTo(v);
+                if (d < bd) {
+                    bd = d;
+                    t = x;
+                }
+            }
+            if (t == null) {
+                if (sc.fighting.remove(id)) {
+                    v.setNoGravity(false);
+                    Kit.arm(v, false);
+                }
+                continue;
+            }
+            if (sc.fighting.add(id)) {
+                Kit.arm(v, true);
+                v.setNoGravity(true);
+                sc.walks.remove(id);
+            }
+            int seed = id.hashCode() & 1023;
+            double ang = Math.toRadians(t.getBodyYaw() + 180 + Math.sin(ticks / 25.0 + seed) * 55);
+            double r = t.getWidth() / 2 + 1.4;
+            Vec3d spot = new Vec3d(t.getX() - Math.sin(ang) * r, t.getY() + t.getHeight() * 0.82, t.getZ() + Math.cos(ang) * r);
+            Vec3d d = spot.subtract(v.getPos());
+            double len = d.length();
+            Vec3d next = len < 0.6 ? spot : v.getPos().add(d.multiply(0.6 / len));
+            v.refreshPositionAndAngles(next.x, next.y, next.z, v.getYaw(), 0);
+            faceTo(v, new Vec3d(t.getX(), v.getY(), t.getZ()));
+            if (ticks % 4 == seed % 4) w.spawnParticles(ParticleTypes.CLOUD, v.getX(), v.getY() + 0.9, v.getZ(), 1, 0.1, 0.1, 0.1, 0.01);
+            if (len < 2.5 && ticks % 32 == seed % 32) {
+                v.swingHand(net.minecraft.util.Hand.MAIN_HAND);
+                w.spawnParticles(ParticleTypes.SWEEP_ATTACK, t.getX() - Math.sin(ang) * (r - 1), spot.y, t.getZ() + Math.cos(ang) * (r - 1), 1, 0, 0, 0, 0);
+                w.playSound(null, v.getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 0.8f, 1.1f);
+                float max = t.getMaxHealth();
+                // The last titan standing is yours: they only wear it down.
+                float floor = live.size() > 1 ? 0 : max * 0.25f;
+                float left = Math.max(floor, t.getHealth() - max * 0.07f);
+                if (left < t.getHealth()) {
+                    if (left <= 0) {
+                        var src = v.getDamageSources().mobAttack(v);
+                        t.setHealth(0);
+                        t.onDeath(src);
+                        w.spawnParticles(ParticleTypes.CLOUD, t.getX(), t.getY() + t.getHeight() * 0.8, t.getZ(), 30, 0.6, 0.6, 0.6, 0.05);
+                    } else {
+                        t.setHealth(left);
+                        w.spawnParticles(ParticleTypes.CLOUD, spot.x, spot.y, spot.z, 6, 0.3, 0.3, 0.3, 0.02);
+                    }
+                }
+            }
+        }
+    }
+
     private static void step(Entity e, Vec3d to, double speed) {
         Vec3d d = to.subtract(e.getPos());
         double len = Math.hypot(d.x, d.z);

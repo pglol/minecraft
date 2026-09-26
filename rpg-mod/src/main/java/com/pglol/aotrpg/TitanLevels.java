@@ -217,7 +217,27 @@ public final class TitanLevels {
 
     public void slashed(ServerPlayerEntity p, Entity target) {
         LivingEntity t = root(target) ? (LivingEntity) target : part(target) ? owner(target) : null;
-        if (t != null) swings.put(t.getUuid(), new Swing(p, System.currentTimeMillis(), nape(target)));
+        if (t != null) swings.put(t.getUuid(), new Swing(p, System.currentTimeMillis(), nape(target) || napeAssist(p, t)));
+    }
+
+    /**
+     * Small and crawling titans have a nape hitbox too small or too low to hit reliably. A cut on
+     * one of them still counts as a nape cut when it comes from behind at neck height, or from on
+     * top of a crawler.
+     */
+    static boolean napeAssist(ServerPlayerEntity p, LivingEntity t) {
+        double h = t.getHeight();
+        String path = Registries.ENTITY_TYPE.getId(t.getType()).getPath();
+        boolean crawler = path.contains("crawl") || t.getWidth() > h * 1.1;
+        if (h > 10 && !crawler) return false;
+        double dx = p.getX() - t.getX(), dz = p.getZ() - t.getZ();
+        double len = Math.hypot(dx, dz);
+        double yaw = Math.toRadians(t.getBodyYaw());
+        double fx = -Math.sin(yaw), fz = Math.cos(yaw);
+        boolean behind = len < 0.5 || (dx * fx + dz * fz) / len < 0.1;
+        double rel = (p.getY() - t.getY()) / Math.max(1, h);
+        if (crawler) return rel >= 0.55 || (behind && rel >= 0.15);
+        return behind && rel >= 0.45;
     }
 
     /** A blade just struck this titan's nape (Danny's nape passes its hit on to the titan). */

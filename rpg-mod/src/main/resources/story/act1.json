@@ -1417,53 +1417,102 @@
       },
       {
        "actor": "keith",
-       "at": [
-        10,
-        0
-       ],
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 0,
+        "front": 5
+       },
        "face": true
       },
       {
        "actor": "mikasa",
-       "at": [
-        6,
-        -5
-       ]
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -6,
+        "front": 0
+       }
       },
       {
        "actor": "annie",
-       "at": [
-        8,
-        -6
-       ]
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -5,
+        "front": 0
+       }
       },
       {
        "actor": "reiner",
-       "at": [
-        8,
-        -4
-       ]
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -4,
+        "front": 0
+       }
       },
       {
        "actor": "bertholdt",
-       "at": [
-        8,
-        -3
-       ]
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -3,
+        "front": 0
+       }
       },
       {
        "actor": "krista",
-       "at": [
-        8,
-        2
-       ]
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 5,
+        "front": 0
+       }
       },
       {
        "actor": "ymir",
-       "at": [
-        8,
-        3
-       ]
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 6,
+        "front": 0
+       }
       }
      ],
      "start": [
@@ -1600,69 +1649,346 @@
       },
       {
        "walk": {
+        "actor": "mikasa",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -6,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -6,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "annie",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -5,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -5,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "reiner",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -4,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -4,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "bertholdt",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -3,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -3,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
         "actor": "eren",
-        "to": [
-         6,
-         -6
-        ]
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -2,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -2,
+         "front": 12
+        }
        }
       },
       {
        "walk": {
         "actor": "armin",
-        "to": [
-         6,
-         -4
-        ]
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -1,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -1,
+         "front": 12
+        }
        }
       },
       {
        "walk": {
         "actor": "jean",
-        "to": [
-         6,
-         0
-        ]
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 1,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 1,
+         "front": 12
+        }
        }
       },
       {
        "walk": {
         "actor": "marco",
-        "to": [
-         6,
-         2
-        ]
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 2,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 2,
+         "front": 12
+        }
        }
       },
       {
        "walk": {
         "actor": "connie",
-        "to": [
-         6,
-         4
-        ]
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 3,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 3,
+         "front": 12
+        }
        }
       },
       {
        "walk": {
         "actor": "sasha",
-        "to": [
-         6,
-         6
-        ]
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 4,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 4,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "krista",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 5,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 5,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "ymir",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 6,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 6,
+         "front": 12
+        }
        }
       }
      ],
      "done": []
     },
     {
-     "objective": "Fall in! Your place is next to Armin",
+     "objective": "Fall in! Your place is between Armin and Jean",
      "goal": {
-      "goto": [
-       6,
-       -2
-      ],
-      "radius": 2.5,
+      "goto": {
+       "row": "roll",
+       "rel": [
+        6,
+        0
+       ],
+       "size": 13,
+       "spacing": 1.6,
+       "slot": 0,
+       "front": 0
+      },
+      "radius": 1.5,
       "timeout": 40,
       "success": [
        {
@@ -1705,7 +2031,180 @@
       "dialogue": "tc1_keith"
      },
      "spawn": [],
-     "start": [],
+     "start": [
+      {
+       "path": {
+        "actor": "keith",
+        "points": [
+         {
+          "at": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -7,
+           "front": 1.8
+          },
+          "face": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -6,
+           "front": 0
+          },
+          "pause": 1.0
+         },
+         {
+          "at": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -5,
+           "front": 1.8
+          },
+          "face": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -5,
+           "front": 0
+          },
+          "pause": 1.6
+         },
+         {
+          "at": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -3,
+           "front": 1.8
+          },
+          "face": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -3,
+           "front": 0
+          },
+          "pause": 1.2
+         },
+         {
+          "at": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -1,
+           "front": 1.8
+          },
+          "face": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -1,
+           "front": 0
+          },
+          "pause": 2.2,
+          "say": {
+           "who": "keith",
+           "text": "You! Name!"
+          }
+         },
+         {
+          "at": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -1,
+           "front": 1.8
+          },
+          "pause": 2.4,
+          "say": {
+           "who": "armin",
+           "text": "Armin Arlert, sir! From Shiganshina!"
+          }
+         },
+         {
+          "at": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -1,
+           "front": 1.8
+          },
+          "pause": 2.0,
+          "say": {
+           "who": "keith",
+           "text": "Arlert. You look like the wind could knock you over. We'll see."
+          }
+         },
+         {
+          "at": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 1.8
+          },
+          "face": {
+           "row": "roll",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 0
+          },
+          "talk": true
+         }
+        ]
+       }
+      }
+     ],
      "done": []
     },
     {

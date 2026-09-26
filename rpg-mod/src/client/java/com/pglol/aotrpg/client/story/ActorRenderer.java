@@ -40,6 +40,12 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
     static final class Person extends LivingEntityRenderer<VillagerEntity, PlayerEntityModel<VillagerEntity>> {
         Person(EntityRendererFactory.Context ctx) {
             super(ctx, new PlayerEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER), false), 0.5f);
+            // What they wear and hold, drawn like a player's: uniform, harness, boots and blades.
+            addFeature(new net.minecraft.client.render.entity.feature.ArmorFeatureRenderer<>(this,
+                new net.minecraft.client.render.entity.model.ArmorEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER_INNER_ARMOR)),
+                new net.minecraft.client.render.entity.model.ArmorEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER_OUTER_ARMOR)),
+                ctx.getModelManager()));
+            addFeature(new net.minecraft.client.render.entity.feature.HeldItemFeatureRenderer<>(this, ctx.getHeldItemRenderer()));
         }
 
         @Override
@@ -51,6 +57,10 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
         @Override
         public void render(VillagerEntity e, float yaw, float tickDelta, MatrixStack ms, VertexConsumerProvider vc, int light) {
             this.model.sneaking = e.isInSneakingPose();
+            // Blades held out in front, like a cadet in the air, rather than hanging.
+            boolean armed = !e.getMainHandStack().isEmpty();
+            this.model.rightArmPose = armed ? net.minecraft.client.render.entity.model.BipedEntityModel.ArmPose.ITEM : net.minecraft.client.render.entity.model.BipedEntityModel.ArmPose.EMPTY;
+            this.model.leftArmPose = !e.getOffHandStack().isEmpty() ? net.minecraft.client.render.entity.model.BipedEntityModel.ArmPose.ITEM : net.minecraft.client.render.entity.model.BipedEntityModel.ArmPose.EMPTY;
             super.render(e, yaw, tickDelta, ms, vc, light);
         }
 

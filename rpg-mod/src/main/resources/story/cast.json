@@ -18,92 +18,114 @@
   },
   "hannes": {
    "name": "Hannes",
-   "skin": "hannes"
+   "skin": "hannes",
+   "kit": "officer"
   },
   "eren": {
    "name": "Eren Yeager",
-   "skin": "eren_cadet"
+   "skin": "eren_cadet",
+   "kit": "cadet"
   },
   "mikasa": {
    "name": "Mikasa Ackerman",
-   "skin": "mikasa_cadet"
+   "skin": "mikasa_cadet",
+   "kit": "cadet"
   },
   "armin": {
    "name": "Armin Arlert",
-   "skin": "armin_cadet"
+   "skin": "armin_cadet",
+   "kit": "cadet"
   },
   "jean": {
    "name": "Jean Kirstein",
-   "skin": "jean"
+   "skin": "jean",
+   "kit": "cadet"
   },
   "marco": {
    "name": "Marco Bott",
-   "skin": "marco"
+   "skin": "marco",
+   "kit": "cadet"
   },
   "connie": {
    "name": "Connie Springer",
-   "skin": "connie"
+   "skin": "connie",
+   "kit": "cadet"
   },
   "sasha": {
    "name": "Sasha Braus",
-   "skin": "sasha"
+   "skin": "sasha",
+   "kit": "cadet"
   },
   "reiner": {
    "name": "Reiner Braun",
-   "skin": "reiner"
+   "skin": "reiner",
+   "kit": "cadet"
   },
   "bertholdt": {
    "name": "Bertholdt Hoover",
-   "skin": "bertholdt"
+   "skin": "bertholdt",
+   "kit": "cadet"
   },
   "annie": {
    "name": "Annie Leonhart",
-   "skin": "annie"
+   "skin": "annie",
+   "kit": "cadet"
   },
   "krista": {
    "name": "Krista Lenz",
-   "skin": "krista"
+   "skin": "krista",
+   "kit": "cadet"
   },
   "ymir": {
    "name": "Ymir",
-   "skin": "ymir"
+   "skin": "ymir",
+   "kit": "cadet"
   },
   "thomas": {
    "name": "Thomas Wagner",
-   "skin": "thomas"
+   "skin": "thomas",
+   "kit": "cadet"
   },
   "samuel": {
    "name": "Samuel",
-   "skin": "samuel"
+   "skin": "samuel",
+   "kit": "cadet"
   },
   "keith": {
    "name": "Instructor Shadis",
-   "skin": "keith"
+   "skin": "keith",
+   "kit": "officer"
   },
   "erwin": {
    "name": "Commander Erwin Smith",
-   "skin": "erwin"
+   "skin": "erwin",
+   "kit": "soldier"
   },
   "levi": {
    "name": "Captain Levi",
-   "skin": "levi"
+   "skin": "levi",
+   "kit": "soldier"
   },
   "hange": {
    "name": "Squad Leader Hange",
-   "skin": "hange"
+   "skin": "hange",
+   "kit": "soldier"
   },
   "pixis": {
    "name": "Commander Pixis",
-   "skin": "pixis"
+   "skin": "pixis",
+   "kit": "officer"
   },
   "garrison_captain": {
    "name": "Captain Woermann",
-   "skin": "garrison_captain"
+   "skin": "garrison_captain",
+   "kit": "soldier"
   },
   "garrison_soldier": {
    "name": "Garrison Soldier",
    "skin": "garrison_soldier",
-   "watch": true
+   "watch": true,
+   "kit": "soldier"
   },
   "lotte": {
    "name": "Lotte",

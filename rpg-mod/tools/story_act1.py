@@ -379,17 +379,32 @@ wake = {"cutscene": {"fade": True, "shots": [
     {"from": [14, 4], "h": 1.9, "to": [13, 3], "h2": 1.8, "look": [10, 0], "lh": 1.7, "seconds": 3,
      "say": {"who": "keith", "text": "MOVE!"}},
 ]}}
-line_up = [{"walk": {"actor": a, "to": [6, r]}} for a, r in (("eren", -6), ("armin", -4), ("jean", 0), ("marco", 2), ("connie", 4), ("sasha", 6))]
+# Roll call: one straight line of thirteen on open ground (the engine finds a clear strip near the
+# spot asked for), you in the middle between Armin and Jean, everyone facing the instructor.
+def R(slot, front=0):
+    return {"row": "roll", "rel": [6, 0], "size": 13, "spacing": 1.6, "slot": slot, "front": front}
+ROLL = ["mikasa", "annie", "reiner", "bertholdt", "eren", "armin", None, "jean", "marco", "connie", "sasha", "krista", "ymir"]
+SLOT = {a: i - 6 for i, a in enumerate(ROLL) if a}
+line_up = [{"walk": {"actor": a, "to": R(k), "face": R(k, 12)}} for a, k in SLOT.items()]
+inspect = {"path": {"actor": "keith", "points": [
+    {"at": R(-7, 1.8), "face": R(-6), "pause": 1.0},
+    {"at": R(-5, 1.8), "face": R(-5), "pause": 1.6},
+    {"at": R(-3, 1.8), "face": R(-3), "pause": 1.2},
+    {"at": R(-1, 1.8), "face": R(-1), "pause": 2.2, "say": {"who": "keith", "text": "You! Name!"}},
+    {"at": R(-1, 1.8), "pause": 2.4, "say": {"who": "armin", "text": "Armin Arlert, sir! From Shiganshina!"}},
+    {"at": R(-1, 1.8), "pause": 2.0, "say": {"who": "keith", "text": "Arlert. You look like the wind could knock you over. We'll see."}},
+    {"at": R(0, 1.8), "face": R(0), "talk": True},
+]}}
 missions.append(M("p0", "Roll Call", "Act I · The 104th Cadet Corps, 847", "people", ["character", "relationship", "war"], TC_PLACE, [1, 5], [
     S("Wake up", {"wait": 20},
       spawn=[A("eren", [-17, 12]), A("armin", [-19, 12]), A("connie", [-16, 8]), A("sasha", [-20, 8]), A("marco", [-15, 10]), A("jean", [-21, 10]),
-             A("keith", [10, 0], face=True), A("mikasa", [6, -5]), A("annie", [8, -6]), A("reiner", [8, -4]), A("bertholdt", [8, -3]),
-             A("krista", [8, 2]), A("ymir", [8, 3])],
+             A("keith", R(0, 5), face=True), A("mikasa", R(-6)), A("annie", R(-5)), A("reiner", R(-4)), A("bertholdt", R(-3)),
+             A("krista", R(5)), A("ymir", R(6))],
       start=[card("847", "The 104th Training Corps"), wake] + line_up),
-    S("Fall in! Your place is next to Armin", goto([6, -2], 2.5, timeout=40,
+    S("Fall in! Your place is between Armin and Jean", goto(R(0), 1.5, timeout=40,
         success=[aff(keith=2), say("Hm.", "keith")],
         fail=[say("LATE! You'll be running until you drop, cadet!", "keith"), flag("late_roll_call"), aff(keith=-3)])),
-    S("Stand at attention. Instructor Shadis is coming down the line", talk("keith", "tc1_keith")),
+    S("Stand at attention. Instructor Shadis is coming down the line", talk("keith", "tc1_keith"), start=[inspect]),
     S("Draw your blades (press G)", {"wear": "blade", "timeout": 60}, start=[say("Blades out! Let's see if you even know how to hold them.", "keith")]),
     S("Follow the squad to the training field", goto([-30, 18], 8),
       start=[{"walk": {"actor": "keith", "to": [-28, 16]}}, {"walk": {"actor": "eren", "to": [-27, 20]}}, {"walk": {"actor": "armin", "to": [-26, 21]}}]),
@@ -557,6 +572,15 @@ def dump(name, obj):
     with open(os.path.join(OUT, name), 'w', encoding='utf-8') as f:
         json.dump(obj, f, indent=1, ensure_ascii=False)
 
+# What each wears: cadets and soldiers fly (uniform, harness, boots, and blades when they fight);
+# officers and instructors wear the uniform only.
+for k in ("eren", "mikasa", "armin", "jean", "marco", "connie", "sasha", "reiner", "bertholdt", "annie", "krista", "ymir",
+          "thomas", "samuel"):
+    cast[k]["kit"] = "cadet"
+for k in ("levi", "hange", "erwin", "garrison_captain", "garrison_soldier"):
+    cast[k]["kit"] = "soldier"
+for k in ("keith", "pixis", "hannes"):
+    cast[k]["kit"] = "officer"
 dump("cast.json", {"actors": cast})
 dump("act1.json", {"missions": missions, "dialogues": dialogues})
 for fn in ("act1.json", "cast.json"):
