@@ -69,6 +69,7 @@ public final class AotRpg implements ModInitializer {
     public static final Stats STATS = new Stats();
     public static final Regiments REGIMENTS = new Regiments();
     public static final Raids RAID_BOSSES = new Raids();
+    public static final TitanActivity ACTIVITY = new TitanActivity();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final Season SEASON = new Season();
@@ -448,6 +449,7 @@ public final class AotRpg implements ModInitializer {
             STATS.open(server);
             REGIMENTS.open(server);
             RAID_BOSSES.open(server);
+            ACTIVITY.open(server);
             HOMES.open(server);
             MODES.open(server);
             SEASON.open(server);
@@ -604,6 +606,7 @@ public final class AotRpg implements ModInitializer {
         WAR.tick(ticks);
         TITAN_LEVELS.tick(server, ticks);
         RAID_BOSSES.tick(ticks);
+        ACTIVITY.tick(ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {
             PROFILES.saveAll();
@@ -627,6 +630,7 @@ public final class AotRpg implements ModInitializer {
         // Danny's nape kill may carry no attacker: credit whoever just cut this titan.
         ServerPlayerEntity killer = attacker instanceof ServerPlayerEntity atk ? atk : TITAN_LEVELS.lastStriker(dead);
         WAVES.onKill(killer, dead);
+        ACTIVITY.onKill(killer, dead);
         if (killer == null) return;
         long xp = Math.max(15, Math.round(10 + dead.getMaxHealth() / 4));
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);

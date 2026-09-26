@@ -254,6 +254,7 @@ public final class Quests {
         int[] w = waypoints.get(p.getUuid());
         if (w != null) list.add(new Net.Marker("mark", "Your mark", w[0], w[1], w[2], 0x55C8FF));
         AotRpg.WAR.markers(p, list);
+        AotRpg.ACTIVITY.markers(p, list);
         Parties.Party party = AotRpg.PARTIES.of(p.getUuid());
         if (party != null) {
             for (UUID m : party.members) {
