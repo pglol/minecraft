@@ -151,6 +151,11 @@ public final class ProfileStore {
                     if (p.companion == null) p.companion = "";
                     if (p.respawn == null) p.respawn = "";
                     if (p.explored == null) p.explored = new java.util.HashSet<>();
+                    if (p.story == null || !p.storyV2) {
+                        // The story was rebuilt: every character starts it again (levels and gear untouched).
+                        p.story = new Story.State();
+                        p.storyV2 = true;
+                    }
                     if (p.discovered == null) {
                         // Towns explored for exploration quests count as found.
                         p.discovered = new java.util.HashSet<>();

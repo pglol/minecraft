@@ -59,6 +59,7 @@ jobs:
               javap -p -cp "$j" net.minecraft.entity.passive.AbstractHorseEntity | grep -E " openInventory"
               javap -p -cp "$j" net.minecraft.entity.Entity | grep -E " damage\("
               javap -p -cp "$j" net.minecraft.entity.LivingEntity | grep -E " damage\("
+              javap -p -cp "$j" 'net.minecraft.server.world.ServerChunkLoadingManager$EntityTracker' | grep -E "updateTrackedStatus|stopTracking| entity" || echo "EntityTracker not found"
               break
             fi
           done

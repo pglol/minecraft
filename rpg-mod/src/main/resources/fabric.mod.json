@@ -13,6 +13,7 @@
   },
   "mixins": [
     "aot_rpg.mixins.json",
+    "aot_rpg.phase.mixins.json",
     {"config": "aot_rpg.client.mixins.json", "environment": "client"}
   ],
   "depends": {

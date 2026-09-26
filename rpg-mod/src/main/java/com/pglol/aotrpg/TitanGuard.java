@@ -60,7 +60,7 @@ public final class TitanGuard {
     }
 
     private static boolean wanderingTitan(Entity e) {
-        if (!(e instanceof LivingEntity) || !AotRpg.isTitan(e) || HomeRaids.raider(e) || FactionWar.eventTitan(e) || Raids.raidMob(e) || TitanActivity.managed(e)) return false;
+        if (!(e instanceof LivingEntity) || !AotRpg.isTitan(e) || HomeRaids.raider(e) || FactionWar.eventTitan(e) || Raids.raidMob(e) || TitanActivity.managed(e) || Story.phased(e)) return false;
         String path = Registries.ENTITY_TYPE.getId(e.getType()).getPath();
         for (String s : SHIFTERS) if (path.contains(s)) return false;
         for (Entity p : e.getPassengerList()) if (p instanceof PlayerEntity) return false;

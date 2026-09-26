@@ -340,6 +340,9 @@ public final class CharacterCreation {
         pr.cls = PlayerClass.of(s.discipline);
         pr.skills = new java.util.HashSet<>();
         pr.chapter = 1;
+        pr.story = new Story.State();
+        pr.story.freeStart = false;
+        pr.storyV2 = true;
         AotRpg.PROFILES.save(p.getUuid());
 
         p.setInvulnerable(false);

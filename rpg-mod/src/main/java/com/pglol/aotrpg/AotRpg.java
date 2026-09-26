@@ -249,6 +249,16 @@ public final class AotRpg implements ModInitializer {
             !(entity instanceof net.minecraft.entity.passive.AbstractHorseEntity h) || !HORSES.spare(h));
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
             !(entity instanceof ServerPlayerEntity sp) || DOWNED.allowDeath(sp, source, amount));
+        // A scene's titans and actors only touch the players in that scene (and vice versa).
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            net.minecraft.entity.Entity att = source.getAttacker();
+            if (att == null) return true;
+            net.minecraft.entity.Entity root = TitanLevels.rootOf(att);
+            if (root == null) root = att;
+            if (entity instanceof ServerPlayerEntity victim && Story.phased(root)) return Story.visibleTo(root, victim);
+            if (att instanceof ServerPlayerEntity hitter && Story.phased(entity)) return Story.visibleTo(entity, hitter);
+            return true;
+        });
         net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, target, hit) ->
             player instanceof ServerPlayerEntity sp && DOWNED.isDowned(sp) ? ActionResult.FAIL : ActionResult.PASS);
         net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player, world, hand) -> {
@@ -351,6 +361,7 @@ public final class AotRpg implements ModInitializer {
             PROFILES.save(p.getUuid());
             p.playSoundToPlayer(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.MASTER, 0.6f, 1.2f);
         });
+        ServerPlayNetworking.registerGlobalReceiver(Net.DialoguePick.ID, (payload, ctx) -> STORY.pick(ctx.player(), payload.index()));
         ServerPlayNetworking.registerGlobalReceiver(Net.FerryGo.ID, (payload, ctx) -> FERRIES.go(ctx.player(), payload.dest()));
         ServerPlayNetworking.registerGlobalReceiver(Net.UseAbility.ID, (payload, ctx) -> CLASSES.use(ctx.player(), payload.slot()));
         ServerPlayNetworking.registerGlobalReceiver(Net.ChooseRole.ID, (payload, ctx) -> {
@@ -441,6 +452,7 @@ public final class AotRpg implements ModInitializer {
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (world.isClient || hand != net.minecraft.util.Hand.MAIN_HAND || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
+            if (STORY.interact(sp, entity)) return ActionResult.SUCCESS;
             if (Raids.commander(entity)) {
                 RAID_BOSSES.talk(sp);
                 return ActionResult.SUCCESS;
@@ -468,6 +480,7 @@ public final class AotRpg implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             PROFILES.open(server);
             DOWNED.open(server);
+            STORY.open(server);
             CLASSES.open(server);
             FERRIES.open(server);
             FOG.open(server);
@@ -567,6 +580,7 @@ public final class AotRpg implements ModInitializer {
             CLASSES.forget(p.getUuid());
             FOG.forget(p.getUuid());
             WITNESS.forget(p.getUuid());
+            STORY.forget(p);
             HORSES.forget(p);
             COINS.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
@@ -592,6 +606,7 @@ public final class AotRpg implements ModInitializer {
             // Triple T titans never walk this world (whatever spawned them).
             else if (!world.isClient && TitanTypes.banned(entity)) entity.discard();
             else if (!world.isClient && ESTATE.stray(entity)) entity.discard();
+            else if (!world.isClient && STORY.stray(entity)) entity.discard();
         });
 
         ServerTickEvents.END_SERVER_TICK.register(this::tick);

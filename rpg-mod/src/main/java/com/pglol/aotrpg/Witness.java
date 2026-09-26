@@ -88,6 +88,13 @@ public final class Witness {
         return e.isAlive() && (e instanceof MerchantEntity || e instanceof IronGolemEntity);
     }
 
+    /** A watcher this player can be seen by: townsfolk, or a story guard in their own scene. */
+    private static boolean watcherFor(LivingEntity e, ServerPlayerEntity p) {
+        if (!watcher(e)) return false;
+        if (e.getCommandTags().contains(Story.ACTOR)) return Story.watcherActor(e) && Story.visibleTo(e, p);
+        return !Ferries.ferryman(e) && !Raids.commander(e);
+    }
+
     /** Can this person see (or hear) the player right now? */
     public static boolean sees(LivingEntity npc, ServerPlayerEntity p) {
         if (p.isInvisible() || p.isSpectator()) return false;
@@ -102,6 +109,42 @@ public final class Witness {
         if (to.lengthSquared() < 1e-4) return true;
         if (look.dotProduct(to.normalize()) < CONE_COS) return false;
         return npc.canSee(p);
+    }
+
+    /** Someone has fully noticed this player (story stealth fails). */
+    public boolean alerted(ServerPlayerEntity p) {
+        State s = states.get(p.getUuid());
+        if (s == null) return false;
+        for (Eye e : s.eyes.values()) if (e.level >= 1f) return true;
+        return false;
+    }
+
+    /** Anyone able to see this player right now (checked on the spot). */
+    public boolean seenByAny(ServerPlayerEntity p) {
+        for (LivingEntity npc : p.getServerWorld().getEntitiesByClass(LivingEntity.class, p.getBoundingBox().expand(24), n -> watcherFor(n, p))) {
+            if (sees(npc, p)) return true;
+        }
+        return false;
+    }
+
+    /** Everyone who sees this player now becomes fully alert. */
+    public void alert(ServerPlayerEntity p) {
+        State s = st(p);
+        for (LivingEntity npc : p.getServerWorld().getEntitiesByClass(LivingEntity.class, p.getBoundingBox().expand(24), n -> watcherFor(n, p))) {
+            if (!sees(npc, p)) continue;
+            Eye e = s.eyes.computeIfAbsent(npc.getId(), k -> new Eye());
+            e.level = 1;
+            e.sees = true;
+            e.alertedAt = System.currentTimeMillis();
+        }
+        send(p, s);
+    }
+
+    /** Forget all awareness (after a stealth retry). */
+    public void calm(ServerPlayerEntity p) {
+        State s = st(p);
+        s.eyes.clear();
+        send(p, s);
     }
 
     /** How many people can see this player now (for story stealth). */
@@ -119,7 +162,7 @@ public final class Witness {
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             Profile pr = AotRpg.PROFILES.get(p.getUuid());
             State s = st(p);
-            if (!pr.created || p.isCreative() || p.isSpectator() || !inTown(p)) {
+            if (!pr.created || p.isCreative() || p.isSpectator() || !(inTown(p) || AotRpg.STORY.stealth(p))) {
                 if (!s.eyes.isEmpty() || !s.sentEmpty) {
                     s.eyes.clear();
                     send(p, s);
@@ -130,7 +173,7 @@ public final class Witness {
             if (armed && s.drawnSince == 0) s.drawnSince = now;
             if (!armed) s.drawnSince = 0;
             ServerWorld w = p.getServerWorld();
-            List<LivingEntity> near = w.getEntitiesByClass(LivingEntity.class, p.getBoundingBox().expand(24), Witness::watcher);
+            List<LivingEntity> near = w.getEntitiesByClass(LivingEntity.class, p.getBoundingBox().expand(24), n -> watcherFor(n, p));
             Map<Integer, Eye> next = new HashMap<>();
             float wanted = pr.bounty > 0 ? 1.5f : 1f;
             int alerted = 0;
@@ -189,7 +232,7 @@ public final class Witness {
         if (p.isCreative() || !inTown(p)) return false;
         State s = st(p);
         LivingEntity witness = null;
-        for (LivingEntity npc : p.getServerWorld().getEntitiesByClass(LivingEntity.class, p.getBoundingBox().expand(24), Witness::watcher)) {
+        for (LivingEntity npc : p.getServerWorld().getEntitiesByClass(LivingEntity.class, p.getBoundingBox().expand(24), n -> watcherFor(n, p))) {
             if (sees(npc, p)) {
                 witness = npc;
                 Eye e = s.eyes.computeIfAbsent(npc.getId(), k -> new Eye());

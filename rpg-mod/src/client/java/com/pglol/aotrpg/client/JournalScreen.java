@@ -12,7 +12,7 @@ import java.util.List;
 
 /** The quest journal: active quests (and the story), quests on offer, and finished ones. */
 public class JournalScreen extends Screen {
-    private static final String[] TABS = {"Active", "Available", "Completed"};
+    private static final String[] TABS = {"Your Story", "Active", "Field Work", "Completed"};
     private static int tab;
     private static String selected = "main";
     private int left, top, w, h, listW, scroll;
@@ -35,11 +35,11 @@ public class JournalScreen extends Screen {
         List<Net.QuestView> l = new ArrayList<>();
         for (Net.QuestView q : ClientState.quests) {
             boolean main = q.id().equals("main");
-            if (tab == 0 && (main || q.state() == 1)) l.add(q);
-            if (tab == 1 && !main && q.state() == 0) l.add(q);
-            if (tab == 2 && !main && q.state() == 2) l.add(q);
+            if (tab == 1 && (main || q.state() == 1)) l.add(q);
+            if (tab == 2 && !main && q.state() == 0) l.add(q);
+            if (tab == 3 && !main && q.state() == 2) l.add(q);
         }
-        if (tab == 1) l.sort(Comparator.comparingInt(Net.QuestView::level));
+        if (tab == 2) l.sort(Comparator.comparingInt(Net.QuestView::level));
         return l;
     }
 
@@ -68,7 +68,7 @@ public class JournalScreen extends Screen {
             tab = i;
             count = list().size();
             tab = old;
-            addDrawableChild(new AotButton(left + i * 104, top - 22, 100, 20, Ui.heading(TABS[i] + " (" + count + ")"), () -> {
+            addDrawableChild(new AotButton(left + i * 104, top - 22, 100, 20, Ui.heading(i == 0 ? TABS[i] : TABS[i] + " (" + count + ")"), () -> {
                 tab = t;
                 scroll = 0;
                 List<Net.QuestView> l = list();
@@ -77,6 +77,18 @@ public class JournalScreen extends Screen {
             }).selected(tab == i));
         }
         addDrawableChild(new AotButton(left + w - 20, top - 22, 20, 20, Text.literal("✕"), this::close));
+        if (tab == 0) {
+            Net.QuestView main = null;
+            for (Net.QuestView mq : ClientState.quests) if (mq.id().equals("main")) main = mq;
+            if (main != null && main.hasTarget()) {
+                Net.QuestView mm = main;
+                addDrawableChild(new AotButton(left + 8, top + 118, 90, 18, Text.literal("Show on map"), () -> {
+                    WorldMapScreen.focus(mm.x(), mm.z());
+                    client.setScreen(new WorldMapScreen());
+                }));
+            }
+            return;
+        }
 
         Net.QuestView q = current();
         if (q == null) return;
@@ -110,13 +122,13 @@ public class JournalScreen extends Screen {
 
     private void act(Net.QuestView q, String action) {
         ClientPlayNetworking.send(new Net.QuestAction(q.id(), action));
-        if (action.equals("accept")) tab = 0;
+        if (action.equals("accept")) tab = 1;
     }
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (super.mouseClicked(mx, my, button)) return true;
-        if (mx >= left && mx < left + listW && my >= top + 6 && my < top + h - 6) {
+        if (tab != 0 && mx >= left && mx < left + listW && my >= top + 6 && my < top + h - 6) {
             int i = (int) ((my - top - 6) / ROW) + scroll;
             List<Net.QuestView> l = list();
             if (i >= 0 && i < l.size()) {
@@ -150,6 +162,10 @@ public class JournalScreen extends Screen {
         Ui.crest(c, width / 2 - 11, 3, 22, 0.9f);
         Ui.text(c, Ui.title("QUEST JOURNAL"), width / 2f, 27, 1.2f, Ui.GOLD, true);
 
+        if (tab == 0) {
+            drawStory(c);
+            return;
+        }
         Ui.panel(c, left, top, listW, h);
         List<Net.QuestView> l = list();
         int y = top + 6;
@@ -197,6 +213,65 @@ public class JournalScreen extends Screen {
         }
         if (!q.highlightedBy().isEmpty()) {
             c.drawTextWithShadow(textRenderer, Text.literal("★ Highlighted for your party by " + q.highlightedBy()), dx + 8, ty + 48, 0xFFD070FF);
+        }
+    }
+
+    /** Your Story: where you are in it, who you've become, the people you know, what you've done. */
+    private void drawStory(DrawContext c) {
+        var j = com.pglol.aotrpg.client.story.StoryClient.journal;
+        int half = w / 2 - 5;
+        Ui.panel(c, left, top, half, h);
+        Ui.panel(c, left + half + 10, top, w - half - 10, h);
+        int x = left + 8, y = top + 8;
+        if (j == null) {
+            Ui.text(c, Text.literal("Your story will appear here."), x, y, 1f, Ui.MUTED, false);
+            return;
+        }
+        Ui.text(c, Ui.heading(j.chapter().isEmpty() ? "The Story" : j.chapter()), x, y, 0.8f, Ui.MUTED, false);
+        Ui.text(c, Ui.title(j.title().isEmpty() ? "Between chapters" : j.title()), x, y + 11, 1.1f, Ui.GOLD, false);
+        if (!j.thread().isEmpty()) {
+            int col = j.thread().equals("Survival") ? 0xFFC8604A : j.thread().equals("Truth") ? 0xFF9AB8D8 : 0xFFA8B87A;
+            Ui.text(c, Text.literal("◆ " + j.thread()), x, y + 28, 0.75f, col, false);
+        }
+        Ui.divider(c, x, y + 40, half - 16);
+        int ty = Ui.wrapped(c, Text.literal(j.objective().isEmpty() ? "More of your story is coming soon." : j.objective()), x, y + 48, half - 16, Ui.CREAM);
+        int iy = Math.max(ty + 34, top + 144);
+        Ui.text(c, Ui.heading("Who you've become"), x, iy, 0.85f, Ui.GOLD, false);
+        iy += 12;
+        for (String s : j.ideology()) {
+            Ui.text(c, Text.literal("· " + s), x + 2, iy, 0.8f, Ui.CREAM, false);
+            iy += 10;
+        }
+        iy += 6;
+        Ui.text(c, Ui.heading("Chronicle"), x, iy, 0.85f, Ui.GOLD, false);
+        iy += 12;
+        if (j.deeds().isEmpty()) Ui.text(c, Text.literal("Nothing yet."), x + 2, iy, 0.75f, Ui.MUTED, false);
+        for (String d : j.deeds()) {
+            if (iy > top + h - 14) break;
+            iy = Ui.wrapped(c, Text.literal("· " + d), x + 2, iy, half - 18, 0xFFB8B2A2) + 2;
+        }
+        // People.
+        int px = left + half + 18, py = top + 8, pw = w - half - 26;
+        Ui.text(c, Ui.heading("People"), px, py, 0.85f, Ui.GOLD, false);
+        py += 14;
+        if (j.people().isEmpty()) Ui.text(c, Text.literal("You haven't met anyone who matters yet."), px, py, 0.75f, Ui.MUTED, false);
+        for (var p : j.people()) {
+            if (py > top + h - 24) break;
+            var tex = com.pglol.aotrpg.client.story.StoryClient.skinTexture(p.skin());
+            c.drawTexture(tex, px, py, 16, 16, 8, 8, 8, 8, 64, 64);
+            c.drawTexture(tex, px, py, 16, 16, 40, 8, 8, 8, 64, 64);
+            Ui.text(c, Text.literal(p.name()), px + 22, py, 0.85f, Ui.CREAM, false);
+            int a = p.affinity();
+            String feel = a >= 40 ? "Trusts you" : a >= 15 ? "Fond of you" : a > -15 ? "Knows you" : a > -40 ? "Wary of you" : "Resents you";
+            int col = a >= 15 ? 0xFF8FCB6A : a > -15 ? Ui.MUTED : 0xFFC8604A;
+            String line = feel + (p.fate().isEmpty() ? "" : "  ·  " + p.fate());
+            Ui.text(c, Text.literal(line), px + 22, py + 9, 0.7f, col, false);
+            int bw = pw - 24, bx = px + 22 + bw / 2;
+            c.fill(px + 22, py + 17, px + 22 + bw, py + 18, 0x40FFFFFF);
+            int fill = (int) (bw / 2f * Math.abs(a) / 100f);
+            if (a >= 0) c.fill(bx, py + 17, bx + fill, py + 18, col);
+            else c.fill(bx - fill, py + 17, bx, py + 18, col);
+            py += 24;
         }
     }
 }

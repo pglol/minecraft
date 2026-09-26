@@ -164,6 +164,114 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    // ---- story
+
+    /** Server -> client: a chapter card (serif title over the screen). */
+    public record StoryCard(String title, String sub) implements CustomPayload {
+        public static final Id<StoryCard> ID = Net.id("story_card");
+        public static final PacketCodec<RegistryByteBuf, StoryCard> CODEC = PacketCodec.of((v, b) -> { b.writeString(v.title); b.writeString(v.sub); },
+            b -> new StoryCard(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: a line of speech or narration, shown as film subtitles. */
+    public record StoryLine(String speaker, String skin, String text) implements CustomPayload {
+        public static final Id<StoryLine> ID = Net.id("story_line");
+        public static final PacketCodec<RegistryByteBuf, StoryLine> CODEC = PacketCodec.of((v, b) -> { b.writeString(v.speaker); b.writeString(v.skin); b.writeString(v.text); },
+            b -> new StoryLine(b.readString(), b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: a screen effect ("shake" or "flash") for this many seconds. */
+    public record StoryFx(String kind, float seconds) implements CustomPayload {
+        public static final Id<StoryFx> ID = Net.id("story_fx");
+        public static final PacketCodec<RegistryByteBuf, StoryFx> CODEC = PacketCodec.of((v, b) -> { b.writeString(v.kind); b.writeFloat(v.seconds); },
+            b -> new StoryFx(b.readString(), b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** A story actor on the client: its entity and the skin to draw it with. */
+    public record ActorInfo(int entity, String skin) { }
+
+    /** Server -> client: the actors in your scene. */
+    public record Actors(java.util.List<ActorInfo> list) implements CustomPayload {
+        public static final Id<Actors> ID = Net.id("story_actors");
+        public static final PacketCodec<RegistryByteBuf, Actors> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.list.size());
+            for (ActorInfo a : v.list) { b.writeVarInt(a.entity()); b.writeString(a.skin()); }
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 256);
+            java.util.List<ActorInfo> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new ActorInfo(b.readVarInt(), b.readString()));
+            return new Actors(l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** A dialogue choice: index, text, tag ("Lie", "Charisma"...), whether it can be taken, who suggested it. */
+    public record ChoiceView(int index, String text, String tag, boolean enabled, String suggestedBy) { }
+
+    /** Server -> client: the dialogue on screen (open false closes it). */
+    public record DialogueView(boolean open, String speaker, String skin, String text, java.util.List<ChoiceView> choices, boolean host, String hostName) implements CustomPayload {
+        public static final Id<DialogueView> ID = Net.id("dialogue");
+        public static final PacketCodec<RegistryByteBuf, DialogueView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeBoolean(v.open); b.writeString(v.speaker); b.writeString(v.skin); b.writeString(v.text);
+            b.writeVarInt(v.choices.size());
+            for (ChoiceView c : v.choices) { b.writeVarInt(c.index()); b.writeString(c.text()); b.writeString(c.tag()); b.writeBoolean(c.enabled()); b.writeString(c.suggestedBy()); }
+            b.writeBoolean(v.host); b.writeString(v.hostName);
+        }, b -> {
+            boolean open = b.readBoolean();
+            String sp = b.readString(), skin = b.readString(), text = b.readString();
+            int n = Math.min(b.readVarInt(), 16);
+            java.util.List<ChoiceView> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new ChoiceView(b.readVarInt(), b.readString(), b.readString(), b.readBoolean(), b.readString()));
+            return new DialogueView(open, sp, skin, text, l, b.readBoolean(), b.readString());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: pick a dialogue choice (-1 continue). A guest's pick is a suggestion. */
+    public record DialoguePick(int index) implements CustomPayload {
+        public static final Id<DialoguePick> ID = Net.id("dialogue_pick");
+        public static final PacketCodec<RegistryByteBuf, DialoguePick> CODEC = PacketCodec.of((v, b) -> b.writeVarInt(v.index + 1), b -> new DialoguePick(b.readVarInt() - 1));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Someone you know: name, skin, affinity (-100..100), fate ("" if none). */
+    public record Person(String name, String skin, int affinity, String fate) { }
+
+    /** Server -> client: the story pages of the journal. */
+    public record StoryJournal(String chapter, String title, String thread, String objective, java.util.List<Person> people,
+                               java.util.List<String> deeds, java.util.List<String> ideology, java.util.List<String> done) implements CustomPayload {
+        public static final Id<StoryJournal> ID = Net.id("story_journal");
+        public static final PacketCodec<RegistryByteBuf, StoryJournal> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.chapter); b.writeString(v.title); b.writeString(v.thread); b.writeString(v.objective);
+            b.writeVarInt(v.people.size());
+            for (Person p : v.people) { b.writeString(p.name()); b.writeString(p.skin()); b.writeVarInt(p.affinity() + 100); b.writeString(p.fate()); }
+            writeStrings(b, v.deeds); writeStrings(b, v.ideology); writeStrings(b, v.done);
+        }, b -> {
+            String c = b.readString(), t = b.readString(), th = b.readString(), o = b.readString();
+            int n = Math.min(b.readVarInt(), 256);
+            java.util.List<Person> ps = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) ps.add(new Person(b.readString(), b.readString(), b.readVarInt() - 100, b.readString()));
+            return new StoryJournal(c, t, th, o, ps, readStrings(b), readStrings(b), readStrings(b));
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    private static void writeStrings(PacketByteBuf b, java.util.List<String> l) {
+        int n = Math.min(l.size(), 200);
+        b.writeVarInt(n);
+        for (int i = 0; i < n; i++) b.writeString(l.get(i));
+    }
+
+    private static java.util.List<String> readStrings(PacketByteBuf b) {
+        int n = Math.min(b.readVarInt(), 200);
+        java.util.List<String> l = new java.util.ArrayList<>();
+        for (int i = 0; i < n; i++) l.add(b.readString());
+        return l;
+    }
+
     /** One person watching you: entity id, awareness 0..1, flags (1 sees you now, 2 alerted). */
     public record Watcher(int entity, float level, int flags) { }
 
@@ -1618,6 +1726,13 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(FerryView.ID, FerryView.CODEC);
         PayloadTypeRegistry.playS2C().register(Explored.ID, Explored.CODEC);
         PayloadTypeRegistry.playS2C().register(Watchers.ID, Watchers.CODEC);
+        PayloadTypeRegistry.playS2C().register(StoryCard.ID, StoryCard.CODEC);
+        PayloadTypeRegistry.playS2C().register(StoryLine.ID, StoryLine.CODEC);
+        PayloadTypeRegistry.playS2C().register(StoryFx.ID, StoryFx.CODEC);
+        PayloadTypeRegistry.playS2C().register(Actors.ID, Actors.CODEC);
+        PayloadTypeRegistry.playS2C().register(DialogueView.ID, DialogueView.CODEC);
+        PayloadTypeRegistry.playS2C().register(StoryJournal.ID, StoryJournal.CODEC);
+        PayloadTypeRegistry.playC2S().register(DialoguePick.ID, DialoguePick.CODEC);
         PayloadTypeRegistry.playC2S().register(ChooseRole.ID, ChooseRole.CODEC);
         PayloadTypeRegistry.playS2C().register(ClassHud.ID, ClassHud.CODEC);
     }

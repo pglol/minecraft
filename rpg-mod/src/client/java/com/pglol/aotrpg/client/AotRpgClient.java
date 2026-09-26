@@ -218,6 +218,19 @@ public final class AotRpgClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_ENTITIES.register(TitanPlates::render);
         HudRenderCallback.EVENT.register(TitanPlates::renderHud);
         AbilityBar.register();
+        net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(net.minecraft.entity.EntityType.VILLAGER,
+            com.pglol.aotrpg.client.story.ActorRenderer::new);
+        ClientPlayNetworking.registerGlobalReceiver(Net.Actors.ID, (payload, ctx) -> com.pglol.aotrpg.client.story.StoryClient.onActors(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.StoryCard.ID, (payload, ctx) -> com.pglol.aotrpg.client.story.StoryClient.onCard(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.StoryLine.ID, (payload, ctx) -> com.pglol.aotrpg.client.story.StoryClient.onLine(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.StoryFx.ID, (payload, ctx) -> com.pglol.aotrpg.client.story.StoryClient.onFx(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.DialogueView.ID, (payload, ctx) -> com.pglol.aotrpg.client.story.StoryClient.onDialogue(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.StoryJournal.ID, (payload, ctx) -> {
+            com.pglol.aotrpg.client.story.StoryClient.journal = payload;
+            if (ctx.client().currentScreen instanceof JournalScreen s) s.refresh();
+        });
+        HudRenderCallback.EVENT.register(com.pglol.aotrpg.client.story.StoryClient::render);
+        ClientTickEvents.END_CLIENT_TICK.register(com.pglol.aotrpg.client.story.StoryClient::tick);
         ClientPlayNetworking.registerGlobalReceiver(Net.Watchers.ID, (payload, ctx) -> WitnessFx.onView(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(WitnessFx::render);
         HudRenderCallback.EVENT.register(WitnessFx::renderHud);

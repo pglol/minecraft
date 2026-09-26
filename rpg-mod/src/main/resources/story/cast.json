@@ -1,0 +1,184 @@
+{
+ "actors": {
+  "eren_child": {
+   "name": "Eren",
+   "skin": "eren_child"
+  },
+  "mikasa_child": {
+   "name": "Mikasa",
+   "skin": "mikasa_child"
+  },
+  "armin_child": {
+   "name": "Armin",
+   "skin": "armin_child"
+  },
+  "carla": {
+   "name": "Carla Yeager",
+   "skin": "carla"
+  },
+  "hannes": {
+   "name": "Hannes",
+   "skin": "hannes"
+  },
+  "eren": {
+   "name": "Eren Yeager",
+   "skin": "eren_cadet"
+  },
+  "mikasa": {
+   "name": "Mikasa Ackerman",
+   "skin": "mikasa_cadet"
+  },
+  "armin": {
+   "name": "Armin Arlert",
+   "skin": "armin_cadet"
+  },
+  "jean": {
+   "name": "Jean Kirstein",
+   "skin": "jean"
+  },
+  "marco": {
+   "name": "Marco Bott",
+   "skin": "marco"
+  },
+  "connie": {
+   "name": "Connie Springer",
+   "skin": "connie"
+  },
+  "sasha": {
+   "name": "Sasha Braus",
+   "skin": "sasha"
+  },
+  "reiner": {
+   "name": "Reiner Braun",
+   "skin": "reiner"
+  },
+  "bertholdt": {
+   "name": "Bertholdt Hoover",
+   "skin": "bertholdt"
+  },
+  "annie": {
+   "name": "Annie Leonhart",
+   "skin": "annie"
+  },
+  "krista": {
+   "name": "Krista Lenz",
+   "skin": "krista"
+  },
+  "ymir": {
+   "name": "Ymir",
+   "skin": "ymir"
+  },
+  "thomas": {
+   "name": "Thomas Wagner",
+   "skin": "thomas"
+  },
+  "samuel": {
+   "name": "Samuel",
+   "skin": "samuel"
+  },
+  "keith": {
+   "name": "Instructor Shadis",
+   "skin": "keith"
+  },
+  "erwin": {
+   "name": "Commander Erwin Smith",
+   "skin": "erwin"
+  },
+  "levi": {
+   "name": "Captain Levi",
+   "skin": "levi"
+  },
+  "hange": {
+   "name": "Squad Leader Hange",
+   "skin": "hange"
+  },
+  "pixis": {
+   "name": "Commander Pixis",
+   "skin": "pixis"
+  },
+  "garrison_captain": {
+   "name": "Captain Woermann",
+   "skin": "garrison_captain"
+  },
+  "garrison_soldier": {
+   "name": "Garrison Soldier",
+   "skin": "garrison_soldier",
+   "watch": true
+  },
+  "lotte": {
+   "name": "Lotte",
+   "skin": "refugee_child"
+  },
+  "refugee": {
+   "name": "Refugee",
+   "skin": "refugee"
+  },
+  "baker": {
+   "name": "Baker Ulm",
+   "skin": "baker",
+   "watch": true
+  },
+  "bread_crate": {
+   "name": "Bread crate",
+   "item": "minecraft:barrel"
+  },
+  "aldo": {
+   "name": "Aldo",
+   "skin": "farmer"
+  },
+  "tax_collector": {
+   "name": "MP Tax Collector",
+   "skin": "mp_soldier"
+  },
+  "hilde": {
+   "name": "Hilde",
+   "skin": "civilian_f"
+  },
+  "mp_officer": {
+   "name": "MP Officer Djel",
+   "skin": "mp_officer"
+  },
+  "priest": {
+   "name": "Pastor Nick",
+   "skin": "priest"
+  },
+  "steward": {
+   "name": "Steward Oswin",
+   "skin": "noble"
+  },
+  "ferrin": {
+   "name": "Ferrin",
+   "skin": "smuggler"
+  },
+  "mp_guard1": {
+   "name": "Military Police",
+   "skin": "mp_soldier",
+   "watch": true
+  },
+  "mp_guard2": {
+   "name": "Military Police",
+   "skin": "mp_soldier",
+   "watch": true
+  },
+  "gear_pack": {
+   "name": "ODM gear pack",
+   "item": "minecraft:chest"
+  },
+  "stair_guard": {
+   "name": "Stairway Guard",
+   "skin": "mp_soldier"
+  },
+  "dimo_reeves": {
+   "name": "Dimo Reeves",
+   "skin": "merchant"
+  },
+  "civilian_f": {
+   "name": "Frightened woman",
+   "skin": "civilian_f"
+  },
+  "civilian_m": {
+   "name": "Townsman",
+   "skin": "civilian_m"
+  }
+ }
+}

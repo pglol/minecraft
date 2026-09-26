@@ -1,0 +1,4508 @@
+{
+ "missions": [
+  {
+   "id": "sh1",
+   "title": "The Last Morning",
+   "chapter": "Act I · Shiganshina, 845",
+   "thread": "people",
+   "purpose": [
+    "character",
+    "relationship",
+    "lore"
+   ],
+   "place": "shiganshina-district",
+   "level": [
+    1,
+    5
+   ],
+   "steps": [
+    {
+     "objective": "Find Armin by the canal — the older boys have been at him again",
+     "goal": {
+      "talk": "armin_child",
+      "dialogue": "sh1_armin"
+     },
+     "spawn": [
+      {
+       "actor": "armin_child",
+       "at": [
+        6,
+        10
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Find Eren and Mikasa near the outer gate",
+     "goal": {
+      "talk": "eren_child",
+      "dialogue": "sh1_eren"
+     },
+     "spawn": [
+      {
+       "actor": "eren_child",
+       "at": [
+        -20,
+        3
+       ],
+       "face": true
+      },
+      {
+       "actor": "mikasa_child",
+       "at": [
+        -20,
+        5
+       ]
+      },
+      {
+       "actor": "hannes",
+       "at": [
+        -24,
+        0
+       ]
+      }
+     ],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "deed": "Spent the last quiet morning of 845 with Eren, Mikasa and Armin"
+    }
+   ],
+   "xp": 120,
+   "next": "sh2"
+  },
+  {
+   "id": "sh2",
+   "title": "The Day the Wall Fell",
+   "chapter": "Act I · Shiganshina, 845",
+   "thread": "survival",
+   "purpose": [
+    "war",
+    "character",
+    "future"
+   ],
+   "place": "shiganshina-district",
+   "level": [
+    1,
+    5
+   ],
+   "steps": [
+    {
+     "objective": "Walk home along the main street",
+     "goal": {
+      "goto": [
+       -5,
+       -8
+      ],
+      "radius": 7
+     },
+     "spawn": [],
+     "start": [],
+     "done": [
+      {
+       "shake": 3
+      },
+      {
+       "flash": 0.6
+      },
+      {
+       "titan_actor": {
+        "id": "colossal",
+        "shifter": "colossal",
+        "at": {
+         "gate": "outer",
+         "rel": [
+          -16,
+          0
+         ]
+        },
+        "seconds": 30
+       }
+      },
+      {
+       "sound": {
+        "id": "minecraft:entity.lightning_bolt.thunder",
+        "volume": 2
+       }
+      },
+      {
+       "fx": {
+        "type": "steam",
+        "at": {
+         "gate": "outer",
+         "rel": [
+          -10,
+          0
+         ]
+        }
+       }
+      },
+      {
+       "say": {
+        "text": "A bolt of lightning from a clear sky. A hand of bare muscle grips the top of the Wall."
+       }
+      }
+     ]
+    },
+    {
+     "objective": "Look toward the outer gate",
+     "goal": {
+      "wait": 4
+     },
+     "spawn": [],
+     "start": [],
+     "done": [
+      {
+       "fx": {
+        "type": "explosion",
+        "at": {
+         "gate": "outer",
+         "rel": [
+          4,
+          0
+         ]
+        }
+       }
+      },
+      {
+       "shake": 2
+      },
+      {
+       "card": {
+        "title": "845",
+        "sub": "The Colossal Titan"
+       }
+      },
+      {
+       "say": {
+        "text": "The gate bursts inward. Boulders rain across the district."
+       }
+      }
+     ]
+    },
+    {
+     "objective": "Run to Eren's house — Carla is trapped",
+     "goal": {
+      "goto": [
+       -12,
+       14
+      ],
+      "radius": 6
+     },
+     "spawn": [
+      {
+       "actor": "carla",
+       "at": [
+        -12,
+        14
+       ]
+      },
+      {
+       "actor": "eren_child",
+       "at": [
+        -11,
+        12
+       ]
+      },
+      {
+       "actor": "mikasa_child",
+       "at": [
+        -13,
+        12
+       ]
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Help Carla",
+     "goal": {
+      "talk": "carla",
+      "dialogue": "sh2_carla"
+     },
+     "spawn": [],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "A titan is coming down the street — cut it down!",
+     "goal": {
+      "kill": "scene"
+     },
+     "spawn": [
+      {
+       "titans": 2,
+       "at": [
+        -4,
+        16
+       ],
+       "level": 1,
+       "strikes": 1,
+       "spread": 6
+      },
+      {
+       "actor": "hannes",
+       "at": [
+        -10,
+        10
+       ]
+      }
+     ],
+     "start": [
+      {
+       "say": {
+        "text": "A titan with a fixed, smiling face lumbers toward the house."
+       }
+      },
+      {
+       "say": {
+        "text": "I can't — kid, if you've got blades, now's the time!",
+        "who": "hannes"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Get to the evacuation boats at the inner gate",
+     "goal": {
+      "goto": {
+       "gate": "inner",
+       "rel": [
+        -6,
+        0
+       ]
+      },
+      "radius": 9
+     },
+     "spawn": [],
+     "start": [
+      {
+       "remove": "carla"
+      },
+      {
+       "follow": "eren_child"
+      },
+      {
+       "follow": "mikasa_child"
+      },
+      {
+       "say": {
+        "text": "Behind you, the house falls quiet."
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Find Armin at the boats",
+     "goal": {
+      "talk": "armin_child",
+      "dialogue": "sh2_boats"
+     },
+     "spawn": [
+      {
+       "actor": "armin_child",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         -4,
+         3
+        ]
+       },
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "card": {
+      "title": "Wall Maria has fallen",
+      "sub": "845"
+     }
+    },
+    {
+     "deed": "Escaped Shiganshina as Wall Maria fell"
+    },
+    {
+     "flag": "lost_home"
+    }
+   ],
+   "xp": 250,
+   "next": "sh3"
+  },
+  {
+   "id": "sh3",
+   "title": "Refugees",
+   "chapter": "Act I · Wall Rose, 846",
+   "thread": "people",
+   "purpose": [
+    "character",
+    "faction",
+    "lore"
+   ],
+   "place": "trost-district",
+   "level": [
+    1,
+    6
+   ],
+   "steps": [
+    {
+     "objective": "Find Armin among the refugees",
+     "goal": {
+      "talk": "armin_child",
+      "dialogue": "sh3_reclaim"
+     },
+     "spawn": [
+      {
+       "actor": "armin_child",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         12,
+         4
+        ]
+       },
+       "face": true
+      },
+      {
+       "actor": "eren_child",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         13,
+         6
+        ]
+       }
+      },
+      {
+       "actor": "mikasa_child",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         13,
+         2
+        ]
+       }
+      }
+     ],
+     "start": [
+      {
+       "teleport": {
+        "gate": "inner",
+        "rel": [
+         8,
+         0
+        ]
+       }
+      },
+      {
+       "card": {
+        "title": "846",
+        "sub": "Refugee camps, Wall Rose"
+       }
+      }
+     ],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "deed": "Watched the Wall Maria reclamation march out, 846"
+    },
+    {
+     "toast": "Next: the Cadet Training Corps"
+    }
+   ],
+   "xp": 150,
+   "next": "tc1"
+  },
+  {
+   "id": "tr1",
+   "title": "News from the South",
+   "chapter": "Act I · Trost, 845",
+   "thread": "people",
+   "purpose": [
+    "character",
+    "relationship",
+    "lore"
+   ],
+   "place": "trost-district",
+   "level": [
+    1,
+    6
+   ],
+   "steps": [
+    {
+     "objective": "The refugee boats are coming in at the inner gate — go and see",
+     "goal": {
+      "goto": {
+       "gate": "inner",
+       "rel": [
+        8,
+        0
+       ]
+      },
+      "radius": 10
+     },
+     "spawn": [],
+     "start": [],
+     "done": [
+      {
+       "card": {
+        "title": "845",
+        "sub": "Trost District"
+       }
+      }
+     ]
+    },
+    {
+     "objective": "Speak to the Garrison captain",
+     "goal": {
+      "talk": "garrison_captain",
+      "dialogue": "tr1_captain"
+     },
+     "spawn": [
+      {
+       "actor": "garrison_captain",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         10,
+         4
+        ]
+       },
+       "face": true
+      },
+      {
+       "actor": "refugee",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         12,
+         -3
+        ]
+       }
+      },
+      {
+       "actor": "lotte",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         9,
+         -5
+        ]
+       }
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Speak to the girl sitting alone",
+     "goal": {
+      "talk": "lotte",
+      "dialogue": "tr1_lotte"
+     },
+     "spawn": [],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "deed": "Met the refugees of Shiganshina at Trost's gate"
+    }
+   ],
+   "xp": 120,
+   "next": "tr2"
+  },
+  {
+   "id": "tr2",
+   "title": "Bread and Order",
+   "chapter": "Act I · Trost, 845",
+   "thread": "people",
+   "purpose": [
+    "character",
+    "future",
+    "relationship"
+   ],
+   "place": "trost-district",
+   "level": [
+    1,
+    6
+   ],
+   "steps": [
+    {
+     "objective": "Take Lotte to the market for food",
+     "goal": {
+      "talk": "baker",
+      "dialogue": "tr2_baker"
+     },
+     "spawn": [
+      {
+       "actor": "baker",
+       "at": [
+        4,
+        6
+       ],
+       "face": true
+      },
+      {
+       "actor": "bread_crate",
+       "at": [
+        6,
+        9
+       ]
+      },
+      {
+       "actor": "lotte",
+       "at": [
+        8,
+        3
+       ],
+       "follow": true
+      },
+      {
+       "actor": "garrison_soldier",
+       "at": [
+        0,
+        -4
+       ],
+       "patrol": true
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Take a loaf from the crate without anyone seeing you (crouch, stay out of their sight)",
+     "goal": {
+      "take": "bread_crate",
+      "unseen": true
+     },
+     "spawn": [],
+     "start": [],
+     "done": [
+      {
+       "flag": "stole_bread"
+      },
+      {
+       "ideology": {
+        "mercy": 4,
+        "independence": 4
+       }
+      },
+      {
+       "affinity": {
+        "lotte": 8
+       }
+      },
+      {
+       "deed": "Stole bread for a starving refugee girl"
+      },
+      {
+       "say": {
+        "text": "You're amazing...",
+        "who": "lotte"
+       }
+      }
+     ],
+     "when": {
+      "flag": "will_steal"
+     }
+    }
+   ],
+   "complete": [
+    {
+     "toast": "Next: the Cadet Training Corps"
+    }
+   ],
+   "xp": 150,
+   "next": "tc1"
+  },
+  {
+   "id": "rg1",
+   "title": "The Grain Tax",
+   "chapter": "Act I · Ragako, 846",
+   "thread": "people",
+   "purpose": [
+    "faction",
+    "character"
+   ],
+   "place": "ragako-village",
+   "level": [
+    1,
+    6
+   ],
+   "steps": [
+    {
+     "objective": "Your father is arguing with a man in a Military Police coat",
+     "goal": {
+      "talk": "aldo",
+      "dialogue": "rg1_tax"
+     },
+     "spawn": [
+      {
+       "actor": "aldo",
+       "at": [
+        4,
+        4
+       ],
+       "face": true
+      },
+      {
+       "actor": "tax_collector",
+       "at": [
+        7,
+        2
+       ]
+      }
+     ],
+     "start": [
+      {
+       "card": {
+        "title": "846",
+        "sub": "Ragako Village"
+       }
+      }
+     ],
+     "done": []
+    }
+   ],
+   "complete": [],
+   "xp": 120,
+   "next": "rg2"
+  },
+  {
+   "id": "rg2",
+   "title": "The Reclamation",
+   "chapter": "Act I · Ragako, 846",
+   "thread": "truth",
+   "purpose": [
+    "war",
+    "lore",
+    "character",
+    "future"
+   ],
+   "place": "ragako-village",
+   "level": [
+    1,
+    6
+   ],
+   "steps": [
+    {
+     "objective": "A Garrison courier is reading out names — find your father",
+     "goal": {
+      "talk": "aldo",
+      "dialogue": "rg2_aldo"
+     },
+     "spawn": [
+      {
+       "actor": "aldo",
+       "at": [
+        2,
+        6
+       ],
+       "face": true
+      }
+     ],
+     "start": [
+      {
+       "say": {
+        "text": "A Garrison courier rides through with a list of names."
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Walk him to the edge of the village",
+     "goal": {
+      "goto": [
+       -24,
+       0
+      ],
+      "radius": 6
+     },
+     "spawn": [],
+     "start": [
+      {
+       "follow": "aldo"
+      }
+     ],
+     "done": [
+      {
+       "remove": "aldo"
+      },
+      {
+       "say": {
+        "text": "Of the two hundred and fifty thousand, about a hundred came back. He was not one of them."
+       }
+      }
+     ]
+    }
+   ],
+   "complete": [
+    {
+     "toast": "Next: the Cadet Training Corps"
+    }
+   ],
+   "xp": 200,
+   "next": "tc1"
+  },
+  {
+   "id": "in1s",
+   "title": "The Pleasant Side of the Wall",
+   "chapter": "Act I · Stohess, 845",
+   "thread": "people",
+   "purpose": [
+    "faction",
+    "character",
+    "lore"
+   ],
+   "place": "stohess-district",
+   "level": [
+    1,
+    6
+   ],
+   "steps": [
+    {
+     "objective": "There's trouble at a bakery stall in the market",
+     "goal": {
+      "talk": "mp_officer",
+      "dialogue": "in1_extort"
+     },
+     "spawn": [
+      {
+       "actor": "hilde",
+       "at": [
+        5,
+        6
+       ]
+      },
+      {
+       "actor": "mp_officer",
+       "at": [
+        5,
+        3
+       ],
+       "face": true
+      }
+     ],
+     "start": [
+      {
+       "card": {
+        "title": "845",
+        "sub": "Stohess"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Pastor Nick of the Church of the Walls is preaching nearby",
+     "goal": {
+      "talk": "priest",
+      "dialogue": "in1_nick"
+     },
+     "spawn": [
+      {
+       "actor": "priest",
+       "at": [
+        -10,
+        10
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "A noble's steward wants a word with you",
+     "goal": {
+      "talk": "steward",
+      "dialogue": "in1_steward"
+     },
+     "spawn": [
+      {
+       "actor": "steward",
+       "at": [
+        -4,
+        -8
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "deed": "Saw how the interior keeps its peace"
+    },
+    {
+     "toast": "Next: the Cadet Training Corps"
+    }
+   ],
+   "xp": 150,
+   "next": "tc1"
+  },
+  {
+   "id": "in1m",
+   "title": "The Pleasant Side of the Wall",
+   "chapter": "Act I · Mitras, 845",
+   "thread": "people",
+   "purpose": [
+    "faction",
+    "character",
+    "lore"
+   ],
+   "place": "mitras",
+   "level": [
+    1,
+    6
+   ],
+   "steps": [
+    {
+     "objective": "There's trouble at a bakery stall in the market",
+     "goal": {
+      "talk": "mp_officer",
+      "dialogue": "in1_extort"
+     },
+     "spawn": [
+      {
+       "actor": "hilde",
+       "at": [
+        5,
+        6
+       ]
+      },
+      {
+       "actor": "mp_officer",
+       "at": [
+        5,
+        3
+       ],
+       "face": true
+      }
+     ],
+     "start": [
+      {
+       "card": {
+        "title": "845",
+        "sub": "Mitras"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Pastor Nick of the Church of the Walls is preaching nearby",
+     "goal": {
+      "talk": "priest",
+      "dialogue": "in1_nick"
+     },
+     "spawn": [
+      {
+       "actor": "priest",
+       "at": [
+        -10,
+        10
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "A noble's steward wants a word with you",
+     "goal": {
+      "talk": "steward",
+      "dialogue": "in1_steward"
+     },
+     "spawn": [
+      {
+       "actor": "steward",
+       "at": [
+        -4,
+        -8
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "deed": "Saw how the interior keeps its peace"
+    },
+    {
+     "toast": "Next: the Cadet Training Corps"
+    }
+   ],
+   "xp": 150,
+   "next": "tc1"
+  },
+  {
+   "id": "un1",
+   "title": "Beneath Mitras",
+   "chapter": "Act I · The Underground, 845",
+   "thread": "survival",
+   "purpose": [
+    "character",
+    "relationship",
+    "future"
+   ],
+   "place": "underground-city",
+   "level": [
+    1,
+    6
+   ],
+   "steps": [
+    {
+     "objective": "Ferrin the smuggler wants to see you",
+     "goal": {
+      "talk": "ferrin",
+      "dialogue": "un1_ferrin"
+     },
+     "spawn": [
+      {
+       "actor": "ferrin",
+       "at": [
+        3,
+        3
+       ],
+       "face": true
+      }
+     ],
+     "start": [
+      {
+       "card": {
+        "title": "845",
+        "sub": "The Underground"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Take the gear pack from the MP guard post unseen (crouch; stay out of their sight)",
+     "goal": {
+      "take": "gear_pack",
+      "unseen": true
+     },
+     "spawn": [
+      {
+       "actor": "mp_guard1",
+       "at": [
+        18,
+        6
+       ],
+       "patrol": true
+      },
+      {
+       "actor": "mp_guard2",
+       "at": [
+        22,
+        -2
+       ],
+       "patrol": true
+      },
+      {
+       "actor": "gear_pack",
+       "at": [
+        20,
+        2
+       ]
+      }
+     ],
+     "start": [],
+     "done": [
+      {
+       "flag": "has_old_odm"
+      },
+      {
+       "deed": "Stole ODM gear from the Military Police in the Underground"
+      },
+      {
+       "say": {
+        "text": "Ha! Told you it'd fly.",
+        "who": "ferrin"
+       }
+      }
+     ]
+    },
+    {
+     "objective": "Reach the stairway to the surface",
+     "goal": {
+      "talk": "stair_guard",
+      "dialogue": "un2_toll"
+     },
+     "spawn": [
+      {
+       "actor": "stair_guard",
+       "at": [
+        10,
+        2
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Slip past the guard while his back is turned",
+     "goal": {
+      "goto": [
+       -20,
+       0
+      ],
+      "radius": 4,
+      "unseen": true
+     },
+     "spawn": [],
+     "start": [],
+     "done": [],
+     "when": {
+      "flag": "sneak_stair"
+     }
+    }
+   ],
+   "complete": [
+    {
+     "deed": "Saw the sky for the first time in years"
+    },
+    {
+     "toast": "Next: the Cadet Training Corps"
+    }
+   ],
+   "xp": 180,
+   "next": "tc1"
+  },
+  {
+   "id": "tc1",
+   "title": "Who Are You?",
+   "chapter": "Act I · The 104th Cadet Corps, 847",
+   "thread": "people",
+   "purpose": [
+    "character",
+    "relationship"
+   ],
+   "place": "cadet-training-camp",
+   "level": [
+    2,
+    8
+   ],
+   "steps": [
+    {
+     "objective": "Report to the Cadet Training Camp",
+     "goal": {
+      "goto": [
+       0,
+       0
+      ],
+      "radius": 14
+     },
+     "spawn": [],
+     "start": [],
+     "done": [
+      {
+       "card": {
+        "title": "847",
+        "sub": "The 104th Training Corps"
+       }
+      }
+     ]
+    },
+    {
+     "objective": "Fall in for Instructor Shadis's inspection",
+     "goal": {
+      "talk": "keith",
+      "dialogue": "tc1_keith"
+     },
+     "spawn": [
+      {
+       "actor": "keith",
+       "at": [
+        4,
+        0
+       ],
+       "face": true
+      },
+      {
+       "actor": "eren",
+       "at": [
+        8,
+        -4
+       ]
+      },
+      {
+       "actor": "mikasa",
+       "at": [
+        8,
+        -3
+       ]
+      },
+      {
+       "actor": "armin",
+       "at": [
+        8,
+        -2
+       ]
+      },
+      {
+       "actor": "jean",
+       "at": [
+        8,
+        1
+       ]
+      },
+      {
+       "actor": "marco",
+       "at": [
+        8,
+        2
+       ]
+      },
+      {
+       "actor": "sasha",
+       "at": [
+        10,
+        5
+       ]
+      },
+      {
+       "actor": "connie",
+       "at": [
+        8,
+        4
+       ]
+      },
+      {
+       "actor": "annie",
+       "at": [
+        8,
+        -6
+       ]
+      },
+      {
+       "actor": "reiner",
+       "at": [
+        9,
+        -8
+       ]
+      },
+      {
+       "actor": "bertholdt",
+       "at": [
+        9,
+        -9
+       ]
+      },
+      {
+       "actor": "krista",
+       "at": [
+        10,
+        -1
+       ]
+      },
+      {
+       "actor": "ymir",
+       "at": [
+        10,
+        0
+       ]
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Find Sasha after sundown",
+     "goal": {
+      "talk": "sasha",
+      "dialogue": "tc1_sasha"
+     },
+     "spawn": [],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [],
+   "xp": 150,
+   "next": "tc2"
+  },
+  {
+   "id": "tc2",
+   "title": "Balance",
+   "chapter": "Act I · The 104th Cadet Corps, 847",
+   "thread": "survival",
+   "purpose": [
+    "character",
+    "relationship",
+    "war"
+   ],
+   "place": "cadet-training-camp",
+   "level": [
+    2,
+    8
+   ],
+   "steps": [
+    {
+     "objective": "Put on your ODM harness for the aptitude test",
+     "goal": {
+      "wear": "odm"
+     },
+     "spawn": [],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Eren is struggling on the balance rig",
+     "goal": {
+      "talk": "eren",
+      "dialogue": "tc2_eren"
+     },
+     "spawn": [
+      {
+       "actor": "eren",
+       "at": [
+        6,
+        8
+       ],
+       "face": true
+      },
+      {
+       "actor": "mikasa",
+       "at": [
+        7,
+        10
+       ]
+      },
+      {
+       "actor": "armin",
+       "at": [
+        5,
+        10
+       ]
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Annie is training alone by the fence",
+     "goal": {
+      "talk": "annie",
+      "dialogue": "tc2_annie"
+     },
+     "spawn": [
+      {
+       "actor": "annie",
+       "at": [
+        -6,
+        8
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Reiner and Bertholdt are by the barracks",
+     "goal": {
+      "talk": "reiner",
+      "dialogue": "tc2_reiner"
+     },
+     "spawn": [
+      {
+       "actor": "reiner",
+       "at": [
+        -2,
+        -10
+       ],
+       "face": true
+      },
+      {
+       "actor": "bertholdt",
+       "at": [
+        -1,
+        -12
+       ]
+      }
+     ],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [],
+   "xp": 180,
+   "next": "tc3"
+  },
+  {
+   "id": "tc3",
+   "title": "The Training Forest",
+   "chapter": "Act I · The 104th Cadet Corps, 847",
+   "thread": "survival",
+   "purpose": [
+    "war",
+    "character",
+    "relationship"
+   ],
+   "place": "cadet-training-camp",
+   "level": [
+    3,
+    8
+   ],
+   "steps": [
+    {
+     "objective": "Head out to the training forest",
+     "goal": {
+      "goto": [
+       -30,
+       20
+      ],
+      "radius": 10
+     },
+     "spawn": [],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Cut the napes of the training titans",
+     "goal": {
+      "kill": "scene"
+     },
+     "spawn": [
+      {
+       "titans": 3,
+       "at": [
+        -36,
+        24
+       ],
+       "strikes": 1,
+       "spread": 10
+      }
+     ],
+     "start": [
+      {
+       "say": {
+        "text": "Race you, {first}! Most napes gets the top spot!",
+        "who": "jean"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Jean and Marco are catching their breath",
+     "goal": {
+      "talk": "jean",
+      "dialogue": "tc3_jean"
+     },
+     "spawn": [
+      {
+       "actor": "jean",
+       "at": [
+        -32,
+        20
+       ],
+       "face": true
+      },
+      {
+       "actor": "marco",
+       "at": [
+        -33,
+        22
+       ]
+      }
+     ],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [],
+   "xp": 250,
+   "next": "tc4"
+  },
+  {
+   "id": "tc4",
+   "title": "Graduation",
+   "chapter": "Act I · Graduation, 850",
+   "thread": "people",
+   "purpose": [
+    "character",
+    "future"
+   ],
+   "place": "cadet-training-camp",
+   "level": [
+    3,
+    10
+   ],
+   "steps": [
+    {
+     "objective": "Graduation day — fall in",
+     "goal": {
+      "talk": "keith",
+      "dialogue": "tc4_grad"
+     },
+     "spawn": [
+      {
+       "actor": "keith",
+       "at": [
+        4,
+        0
+       ],
+       "face": true
+      },
+      {
+       "actor": "eren",
+       "at": [
+        8,
+        -4
+       ]
+      },
+      {
+       "actor": "mikasa",
+       "at": [
+        8,
+        -3
+       ]
+      },
+      {
+       "actor": "armin",
+       "at": [
+        8,
+        -2
+       ]
+      },
+      {
+       "actor": "jean",
+       "at": [
+        8,
+        1
+       ]
+      },
+      {
+       "actor": "marco",
+       "at": [
+        8,
+        2
+       ]
+      },
+      {
+       "actor": "sasha",
+       "at": [
+        9,
+        4
+       ]
+      },
+      {
+       "actor": "connie",
+       "at": [
+        8,
+        4
+       ]
+      },
+      {
+       "actor": "annie",
+       "at": [
+        8,
+        -6
+       ]
+      },
+      {
+       "actor": "reiner",
+       "at": [
+        9,
+        -8
+       ]
+      },
+      {
+       "actor": "bertholdt",
+       "at": [
+        9,
+        -9
+       ]
+      },
+      {
+       "actor": "krista",
+       "at": [
+        10,
+        -1
+       ]
+      }
+     ],
+     "start": [
+      {
+       "card": {
+        "title": "850",
+        "sub": "Graduation of the 104th"
+       }
+      }
+     ],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "deed": "Graduated from the 104th Cadet Corps"
+    },
+    {
+     "toast": "Your first posting: Trost District"
+    }
+   ],
+   "xp": 300,
+   "next": "tb1"
+  },
+  {
+   "id": "tb1",
+   "title": "The Colossal Returns",
+   "chapter": "Act I · The Battle of Trost, 850",
+   "thread": "survival",
+   "purpose": [
+    "war",
+    "character"
+   ],
+   "place": "trost-district",
+   "level": [
+    5,
+    12
+   ],
+   "steps": [
+    {
+     "objective": "Report to your cannon squad near Trost's outer gate",
+     "goal": {
+      "goto": {
+       "gate": "outer",
+       "rel": [
+        14,
+        0
+       ]
+      },
+      "radius": 12
+     },
+     "spawn": [
+      {
+       "actor": "eren",
+       "at": {
+        "gate": "outer",
+        "rel": [
+         16,
+         2
+        ]
+       },
+       "face": true
+      },
+      {
+       "actor": "sasha",
+       "at": {
+        "gate": "outer",
+        "rel": [
+         16,
+         -2
+        ]
+       }
+      },
+      {
+       "actor": "connie",
+       "at": {
+        "gate": "outer",
+        "rel": [
+         17,
+         -3
+        ]
+       }
+      },
+      {
+       "actor": "samuel",
+       "at": {
+        "gate": "outer",
+        "rel": [
+         17,
+         3
+        ]
+       }
+      },
+      {
+       "actor": "thomas",
+       "at": {
+        "gate": "outer",
+        "rel": [
+         18,
+         1
+        ]
+       }
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Talk to Eren",
+     "goal": {
+      "talk": "eren",
+      "dialogue": "tb1_eren"
+     },
+     "spawn": [],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Brace yourself!",
+     "goal": {
+      "wait": 5
+     },
+     "spawn": [],
+     "start": [
+      {
+       "say": {
+        "text": "It's HIM. The Colossal Titan!",
+        "who": "eren"
+       }
+      },
+      {
+       "fx": {
+        "type": "steam",
+        "at": {
+         "gate": "outer",
+         "rel": [
+          -8,
+          0
+         ]
+        }
+       }
+      }
+     ],
+     "done": [
+      {
+       "fx": {
+        "type": "explosion",
+        "at": {
+         "gate": "outer",
+         "rel": [
+          2,
+          0
+         ]
+        }
+       }
+      },
+      {
+       "shake": 2
+      },
+      {
+       "say": {
+        "text": "The outer gate explodes inward. Boulders hammer the district."
+       }
+      }
+     ]
+    },
+    {
+     "objective": "Titans are pouring through the gate — cut them down",
+     "goal": {
+      "kill": "scene"
+     },
+     "spawn": [
+      {
+       "titans": 3,
+       "at": {
+        "gate": "outer",
+        "rel": [
+         20,
+         0
+        ]
+       },
+       "spread": 10
+      }
+     ],
+     "start": [
+      {
+       "remove": "colossal"
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "A titan has Thomas! Kill it before it's too late",
+     "goal": {
+      "kill": "scene",
+      "timeout": 30,
+      "success": [
+       {
+        "fate": {
+         "thomas": "saved at Trost"
+        }
+       },
+       {
+        "affinity": {
+         "thomas": 15
+        }
+       },
+       {
+        "deed": "Saved Thomas Wagner from a titan at Trost"
+       },
+       {
+        "say": {
+         "text": "You — you came back for me...",
+         "who": "thomas"
+        }
+       }
+      ],
+      "fail": [
+       {
+        "fate": {
+         "thomas": "eaten at Trost"
+        }
+       },
+       {
+        "say": {
+         "text": "THOMAS!",
+         "who": "eren"
+        }
+       },
+       {
+        "flag": "failed_thomas"
+       }
+      ]
+     },
+     "spawn": [
+      {
+       "titans": 1,
+       "at": {
+        "gate": "outer",
+        "rel": [
+         30,
+         8
+        ]
+       },
+       "spread": 2
+      }
+     ],
+     "start": [
+      {
+       "say": {
+        "text": "It's got Thomas!",
+        "who": "connie"
+       }
+      }
+     ],
+     "done": []
+    }
+   ],
+   "complete": [],
+   "xp": 250,
+   "next": "tb2"
+  },
+  {
+   "id": "tb2",
+   "title": "Evacuation",
+   "chapter": "Act I · The Battle of Trost, 850",
+   "thread": "people",
+   "purpose": [
+    "war",
+    "character",
+    "faction"
+   ],
+   "place": "trost-district",
+   "level": [
+    5,
+    12
+   ],
+   "steps": [
+    {
+     "objective": "The inner gate is jammed — civilians are trapped",
+     "goal": {
+      "talk": "dimo_reeves",
+      "dialogue": "tb2_dimo"
+     },
+     "spawn": [
+      {
+       "actor": "dimo_reeves",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         10,
+         0
+        ]
+       },
+       "face": true
+      },
+      {
+       "actor": "civilian_f",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         12,
+         2
+        ]
+       }
+      },
+      {
+       "actor": "civilian_m",
+       "at": {
+        "gate": "inner",
+        "rel": [
+         12,
+         -2
+        ]
+       }
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Hold the gate while the civilians escape",
+     "goal": {
+      "kill": "scene"
+     },
+     "spawn": [
+      {
+       "titans": 2,
+       "at": {
+        "gate": "inner",
+        "rel": [
+         30,
+         0
+        ]
+       },
+       "spread": 8
+      }
+     ],
+     "start": [
+      {
+       "walk": {
+        "actor": "civilian_f",
+        "to": {
+         "gate": "inner",
+         "rel": [
+          -6,
+          0
+         ]
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "civilian_m",
+        "to": {
+         "gate": "inner",
+         "rel": [
+          -6,
+          2
+         ]
+        }
+       }
+      }
+     ],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "ideology": {
+      "mercy": 3
+     }
+    },
+    {
+     "standing": {
+      "civilians": 5
+     }
+    },
+    {
+     "deed": "Held the inner gate while Trost's civilians escaped"
+    }
+   ],
+   "xp": 250,
+   "next": "tb3"
+  },
+  {
+   "id": "tb3",
+   "title": "The Supply Depot",
+   "chapter": "Act I · The Battle of Trost, 850",
+   "thread": "survival",
+   "purpose": [
+    "war",
+    "relationship"
+   ],
+   "place": "trost-district",
+   "level": [
+    5,
+    12
+   ],
+   "steps": [
+    {
+     "objective": "Your gas is almost out — reach the supply HQ",
+     "goal": {
+      "goto": [
+       8,
+       -18
+      ],
+      "radius": 8
+     },
+     "spawn": [],
+     "start": [
+      {
+       "say": {
+        "text": "The HQ is swarming! We're out of gas and they're just sitting in there!",
+        "who": "jean"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Clear the titans from the supply HQ",
+     "goal": {
+      "kill": "scene"
+     },
+     "spawn": [
+      {
+       "titans": 3,
+       "at": [
+        8,
+        -18
+       ],
+       "spread": 6
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Find Armin",
+     "goal": {
+      "talk": "armin",
+      "dialogue": "tb3_armin"
+     },
+     "spawn": [
+      {
+       "actor": "armin",
+       "at": [
+        8,
+        -14
+       ],
+       "face": true
+      },
+      {
+       "actor": "jean",
+       "at": [
+        10,
+        -14
+       ]
+      }
+     ],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [],
+   "xp": 300,
+   "next": "tb4"
+  },
+  {
+   "id": "tb4",
+   "title": "The Rogue Titan",
+   "chapter": "Act I · The Battle of Trost, 850",
+   "thread": "truth",
+   "purpose": [
+    "lore",
+    "war",
+    "character",
+    "future"
+   ],
+   "place": "trost-district",
+   "level": [
+    5,
+    12
+   ],
+   "steps": [
+    {
+     "objective": "Find the titan that's fighting titans",
+     "goal": {
+      "goto": [
+       -10,
+       10
+      ],
+      "radius": 14
+     },
+     "spawn": [],
+     "start": [],
+     "done": [
+      {
+       "titan_actor": {
+        "id": "rogue",
+        "shifter": "attack",
+        "at": [
+         -18,
+         12
+        ],
+        "seconds": 25
+       }
+      },
+      {
+       "shake": 2
+      },
+      {
+       "sound": {
+        "id": "minecraft:entity.ravager.roar",
+        "volume": 2,
+        "pitch": 0.6
+       }
+      },
+      {
+       "say": {
+        "text": "A titan roars, and tears another apart with its bare hands."
+       }
+      }
+     ]
+    },
+    {
+     "objective": "Watch",
+     "goal": {
+      "wait": 6
+     },
+     "spawn": [],
+     "start": [
+      {
+       "flash": 1.5
+      }
+     ],
+     "done": [
+      {
+       "say": {
+        "text": "Steam pours from its neck. Someone is inside it."
+       }
+      }
+     ]
+    },
+    {
+     "objective": "Mikasa is on the rooftop",
+     "goal": {
+      "talk": "mikasa",
+      "dialogue": "tb4_mikasa"
+     },
+     "spawn": [
+      {
+       "actor": "mikasa",
+       "at": [
+        -12,
+        6
+       ],
+       "face": true
+      }
+     ],
+     "start": [],
+     "done": []
+    },
+    {
+     "objective": "Marco is missing — search the rooftops near the depot (hurry)",
+     "goal": {
+      "goto": [
+       18,
+       -25
+      ],
+      "radius": 6,
+      "timeout": 60,
+      "success": [
+       {
+        "fate": {
+         "marco": "alive"
+        }
+       },
+       {
+        "affinity": {
+         "marco": 15
+        }
+       },
+       {
+        "spawn": {
+         "actor": "marco",
+         "at": [
+          18,
+          -24
+         ],
+         "face": true
+        }
+       },
+       {
+        "say": {
+         "text": "{first}? I'm fine. Reiner, Annie and Bertholdt were just here. They were acting... strange.",
+         "who": "marco"
+        }
+       },
+       {
+        "flag": "marco_saw_warriors"
+       },
+       {
+        "deed": "Found Marco alive — and three friends acting strangely"
+       }
+      ],
+      "fail": [
+       {
+        "fate": {
+         "marco": "died at Trost"
+        }
+       },
+       {
+        "say": {
+         "text": "Half of Marco's body lies in the street. No one saw what happened."
+        }
+       },
+       {
+        "flag": "marco_dead"
+       },
+       {
+        "deed": "Found Marco's body. No one saw what happened"
+       }
+      ]
+     },
+     "spawn": [],
+     "start": [],
+     "done": []
+    }
+   ],
+   "complete": [],
+   "xp": 350,
+   "next": "tb5"
+  },
+  {
+   "id": "tb5",
+   "title": "I Thought the Enemy Was Titans",
+   "chapter": "Act I · Aftermath, 850",
+   "thread": "truth",
+   "purpose": [
+    "future",
+    "faction",
+    "lore"
+   ],
+   "place": "trost-district",
+   "level": [
+    5,
+    14
+   ],
+   "steps": [
+    {
+     "objective": "The Survey Corps is recruiting in the square",
+     "goal": {
+      "talk": "erwin",
+      "dialogue": "tb5_erwin"
+     },
+     "spawn": [
+      {
+       "actor": "erwin",
+       "at": [
+        -6,
+        0
+       ],
+       "face": true
+      },
+      {
+       "actor": "levi",
+       "at": [
+        -6,
+        2
+       ]
+      },
+      {
+       "actor": "hange",
+       "at": [
+        -6,
+        -2
+       ]
+      }
+     ],
+     "start": [
+      {
+       "card": {
+        "title": "Aftermath",
+        "sub": "Trost, 850"
+       }
+      }
+     ],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "card": {
+      "title": "ACT I — THE WALLS",
+      "sub": "I thought the enemy was titans."
+     }
+    },
+    {
+     "deed": "Chose a branch after Trost"
+    },
+    {
+     "chapter": 10
+    }
+   ],
+   "xp": 500
+  }
+ ],
+ "dialogues": {
+  "sh1_armin": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "armin_child",
+     "text": "Oh — {first}. You didn't see that, did you? They say wanting to go outside the Walls is heresy.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "armin_child",
+     "text": "Look — Grandpa's book. Beyond the Walls there's water that burns, plains of ice, and a sea of salt so wide no merchant could ever buy it all.",
+     "choices": [
+      {
+       "text": "The outside? That's heresy, Armin. The Walls keep us alive.",
+       "effects": [
+        {
+         "affinity": {
+          "armin_child": -3
+         }
+        },
+        {
+         "ideology": {
+          "paradis": 5,
+          "independence": -3
+         }
+        },
+        {
+         "flag": "walls_faithful"
+        }
+       ],
+       "next": "c1"
+      },
+      {
+       "text": "A sea of salt... I want to see it too.",
+       "effects": [
+        {
+         "affinity": {
+          "armin_child": 8
+         }
+        },
+        {
+         "ideology": {
+          "independence": 5,
+          "paradis": -3
+         }
+        },
+        {
+         "flag": "dreams_outside"
+        }
+       ],
+       "next": "c2"
+      },
+      {
+       "text": "Who hit you? I'll go and have a word with them.",
+       "effects": [
+        {
+         "affinity": {
+          "armin_child": 4
+         }
+        },
+        {
+         "ideology": {
+          "mercy": 4
+         }
+        },
+        {
+         "flag": "armin_defended"
+        }
+       ],
+       "next": "c3"
+      }
+     ]
+    },
+    "c1": {
+     "speaker": "armin_child",
+     "text": "...Maybe. But a hundred years is a long time to live in a birdcage.",
+     "end": true
+    },
+    "c2": {
+     "speaker": "armin_child",
+     "text": "Really? Then let's go together someday — you, me, Eren and Mikasa!",
+     "effects": [
+      {
+       "flag": "promise_outside"
+      }
+     ],
+     "end": true
+    },
+    "c3": {
+     "speaker": "armin_child",
+     "text": "Eren already chased them off. And then Mikasa chased them off harder.",
+     "end": true
+    }
+   }
+  },
+  "sh1_eren": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "hannes",
+     "text": "Ha! Look who it is. Don't look at me like that, kid. If the Wall ever gets kicked in, we'll do our jobs. It's been a hundred years.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "eren_child",
+     "text": "A hundred years of drinking! You're Garrison. You're supposed to be ready!",
+     "next": "c"
+    },
+    "c": {
+     "speaker": "eren_child",
+     "text": "{first}, tell him. People who never leave the Walls are just livestock.",
+     "choices": [
+      {
+       "text": "Eren's right. We're cattle in a pen.",
+       "effects": [
+        {
+         "affinity": {
+          "eren_child": 6,
+          "hannes": -3
+         }
+        },
+        {
+         "ideology": {
+          "independence": 5
+         }
+        }
+       ],
+       "next": "d1"
+      },
+      {
+       "text": "Leave him be, Eren. Peace isn't a crime.",
+       "effects": [
+        {
+         "affinity": {
+          "hannes": 6,
+          "eren_child": -3
+         }
+        },
+        {
+         "ideology": {
+          "mercy": 3,
+          "paradis": 3
+         }
+        }
+       ],
+       "next": "d2"
+      },
+      {
+       "text": "Mr. Hannes — what would you do if it really broke?",
+       "effects": [
+        {
+         "affinity": {
+          "hannes": 3
+         }
+        },
+        {
+         "flag": "asked_hannes"
+        }
+       ],
+       "next": "d3"
+      }
+     ]
+    },
+    "d1": {
+     "speaker": "mikasa_child",
+     "text": "Eren. Your mother is waiting.",
+     "end": true
+    },
+    "d2": {
+     "speaker": "hannes",
+     "text": "Ha! At least one of you has sense. Go on home before Carla skins you both.",
+     "end": true
+    },
+    "d3": {
+     "speaker": "hannes",
+     "text": "...Run to the boats, kid. Don't look back. That's what I'd tell you. Now scram.",
+     "end": true
+    }
+   }
+  },
+  "sh2_carla": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "carla",
+     "text": "Eren! Mikasa! {first} — take them and RUN!",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "eren_child",
+     "text": "No! We can lift it — Mom, give me your hand!",
+     "choices": [
+      {
+       "text": "Pull at the beam with Eren.",
+       "effects": [
+        {
+         "ideology": {
+          "mercy": 5
+         }
+        },
+        {
+         "affinity": {
+          "eren_child": 8,
+          "carla": 5
+         }
+        },
+        {
+         "flag": "tried_carla"
+        }
+       ],
+       "next": "c1"
+      },
+      {
+       "text": "Carla's right. Grab Mikasa and go!",
+       "effects": [
+        {
+         "ideology": {
+          "independence": -3
+         }
+        },
+        {
+         "affinity": {
+          "mikasa_child": 4,
+          "eren_child": -4
+         }
+        }
+       ],
+       "next": "c2"
+      },
+      {
+       "text": "I'll find a soldier!",
+       "effects": [
+        {
+         "flag": "fetched_hannes"
+        }
+       ],
+       "next": "c3"
+      }
+     ]
+    },
+    "c1": {
+     "speaker": null,
+     "text": "The beam won't move. The ground shakes with footsteps.",
+     "next": "d"
+    },
+    "c2": {
+     "speaker": "mikasa_child",
+     "text": "...Eren. Come on.",
+     "next": "d"
+    },
+    "c3": {
+     "speaker": null,
+     "text": "You run into the street and straight into Hannes.",
+     "next": "d"
+    },
+    "d": {
+     "speaker": "hannes",
+     "text": "Carla! I've got this — kids, get back!",
+     "next": "e"
+    },
+    "e": {
+     "speaker": "carla",
+     "text": "Hannes, take the children. Please. ...Eren. Mikasa. You have to live.",
+     "effects": [
+      {
+       "fate": {
+        "carla": "killed at Shiganshina"
+       }
+      }
+     ],
+     "end": true
+    }
+   }
+  },
+  "sh2_boats": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "armin_child",
+     "text": "{first}! Eren! Mikasa! Where's — where's your mother?",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "eren_child",
+     "text": "I'll kill them. Every last one of them. I'll wipe them off the face of this earth!",
+     "choices": [
+      {
+       "text": "I'll be there beside you, Eren.",
+       "effects": [
+        {
+         "affinity": {
+          "eren_child": 8
+         }
+        },
+        {
+         "ideology": {
+          "paradis": 6,
+          "mercy": -3
+         }
+        },
+        {
+         "flag": "vowed_with_eren"
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "Hate won't bring her back.",
+       "effects": [
+        {
+         "affinity": {
+          "eren_child": -3,
+          "armin_child": 4
+         }
+        },
+        {
+         "ideology": {
+          "mercy": 5
+         }
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "(Say nothing. Hold Mikasa's hand.)",
+       "effects": [
+        {
+         "affinity": {
+          "mikasa_child": 8
+         }
+        }
+       ],
+       "next": "c"
+      }
+     ]
+    },
+    "c": {
+     "speaker": null,
+     "text": "The boats pull away from the burning district. Behind the gate, Wall Maria has fallen.",
+     "end": true
+    }
+   }
+  },
+  "sh3_reclaim": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "armin_child",
+     "text": "Grandpa's been called up. The government's sending two hundred and fifty thousand refugees to 'retake' Wall Maria.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "armin_child",
+     "text": "No one expects them back. There isn't enough food for all of us, so...",
+     "choices": [
+      {
+       "text": "They're sending the hungry to die so the rest can eat.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 6,
+          "paradis": -3
+         }
+        },
+        {
+         "affinity": {
+          "armin_child": 5
+         }
+        },
+        {
+         "flag": "saw_reclamation_truth"
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "Someone has to try to take the land back.",
+       "effects": [
+        {
+         "ideology": {
+          "paradis": 5,
+          "independence": -3
+         }
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "Then we become strong enough that no one else is sent to die.",
+       "effects": [
+        {
+         "affinity": {
+          "eren_child": 5
+         }
+        },
+        {
+         "ideology": {
+          "mercy": 3
+         }
+        },
+        {
+         "flag": "joined_for_others"
+        }
+       ],
+       "next": "c"
+      }
+     ]
+    },
+    "c": {
+     "speaker": "eren_child",
+     "text": "We're joining the Cadet Corps. All three of us. {first} — you're coming too, aren't you?",
+     "choices": [
+      {
+       "text": "Of course.",
+       "effects": [
+        {
+         "affinity": {
+          "eren_child": 3,
+          "mikasa_child": 3
+         }
+        }
+       ],
+       "next": "d"
+      },
+      {
+       "text": "I'll join. But for my own reasons.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 5
+         }
+        }
+       ],
+       "next": "d"
+      }
+     ]
+    },
+    "d": {
+     "speaker": "mikasa_child",
+     "text": "Then we go together.",
+     "end": true
+    }
+   }
+  },
+  "tr1_captain": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "garrison_captain",
+     "text": "Stand back, civilian! Wall Maria has fallen. Shiganshina is gone. These people have nothing.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "garrison_captain",
+     "text": "Make yourself useful or get out of the way.",
+     "choices": [
+      {
+       "text": "I'll help carry the wounded.",
+       "effects": [
+        {
+         "ideology": {
+          "mercy": 6
+         }
+        },
+        {
+         "standing": {
+          "garrison": 3
+         }
+        },
+        {
+         "affinity": {
+          "garrison_captain": 3
+         }
+        }
+       ],
+       "next": "c1"
+      },
+      {
+       "text": "Keep the crowd back? I can do that.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": -5
+         }
+        },
+        {
+         "standing": {
+          "garrison": 5
+         }
+        }
+       ],
+       "next": "c2"
+      },
+      {
+       "text": "How does a Wall that stood a hundred years just... fall?",
+       "effects": [
+        {
+         "flag": "asked_how_wall_fell"
+        },
+        {
+         "affinity": {
+          "garrison_captain": -2
+         }
+        }
+       ],
+       "next": "c3"
+      }
+     ]
+    },
+    "c1": {
+     "speaker": "garrison_captain",
+     "text": "Good. The girl over there lost her whole family. Start with her.",
+     "end": true
+    },
+    "c2": {
+     "speaker": "garrison_captain",
+     "text": "Hm. Maybe you're Garrison material. Watch that girl — she's been sitting there for an hour.",
+     "end": true
+    },
+    "c3": {
+     "speaker": "garrison_captain",
+     "text": "A titan fifty meters tall. That's all anyone saw. Now move!",
+     "end": true
+    }
+   }
+  },
+  "tr1_lotte": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "lotte",
+     "text": "...Are there titans here too?",
+     "choices": [
+      {
+       "text": "Not here. The Walls are strong. You're safe.",
+       "effects": [
+        {
+         "ideology": {
+          "mercy": 3,
+          "paradis": 3
+         }
+        },
+        {
+         "affinity": {
+          "lotte": 6
+         }
+        },
+        {
+         "flag": "lotte_comforted"
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "I don't know. But I'll look out for you.",
+       "effects": [
+        {
+         "affinity": {
+          "lotte": 10
+         }
+        },
+        {
+         "ideology": {
+          "mercy": 5
+         }
+        },
+        {
+         "flag": "lotte_protected"
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "Where are your parents?",
+       "effects": [
+        {
+         "affinity": {
+          "lotte": 2
+         }
+        }
+       ],
+       "next": "c"
+      }
+     ]
+    },
+    "b": {
+     "speaker": "lotte",
+     "text": "My name's Lotte. I'm going to remember you.",
+     "end": true
+    },
+    "c": {
+     "speaker": "lotte",
+     "text": "Mama pushed me onto the boat. She said she'd be on the next one.",
+     "next": "c2"
+    },
+    "c2": {
+     "speaker": null,
+     "text": "There is no next boat.",
+     "next": "b",
+     "effects": [
+      {
+       "flag": "lotte_orphan"
+      }
+     ]
+    }
+   }
+  },
+  "tr2_baker": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "baker",
+     "text": "Bread's five times what it was last week. Blame the refugees — every mouth from Maria is another mouth here.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "lotte",
+     "text": "{first}... I haven't eaten since the boat.",
+     "choices": [
+      {
+       "text": "Buy her a loaf. [10 Marks]",
+       "effects": [
+        {
+         "pay": 10
+        },
+        {
+         "ideology": {
+          "mercy": 5
+         }
+        },
+        {
+         "affinity": {
+          "lotte": 8
+         }
+        },
+        {
+         "deed": "Bought bread for a starving refugee"
+        }
+       ],
+       "next": "c1",
+       "requires": {
+        "marks": 10
+       }
+      },
+      {
+       "text": "(Whisper) I'll get you some. Wait here.",
+       "effects": [
+        {
+         "flag": "will_steal"
+        },
+        {
+         "ideology": {
+          "independence": 5
+         }
+        }
+       ],
+       "next": "c2"
+      },
+      {
+       "text": "Rules are rules. Wait for the ration line.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": -5,
+          "paradis": 2
+         }
+        },
+        {
+         "affinity": {
+          "lotte": -5
+         }
+        },
+        {
+         "flag": "refused_lotte"
+        }
+       ],
+       "next": "c3"
+      }
+     ]
+    },
+    "c1": {
+     "speaker": "baker",
+     "text": "Hmph. Kind of you.",
+     "end": true
+    },
+    "c2": {
+     "speaker": "lotte",
+     "text": "Be careful...",
+     "end": true
+    },
+    "c3": {
+     "speaker": "lotte",
+     "text": "...Okay.",
+     "end": true
+    }
+   }
+  },
+  "rg1_tax": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "aldo",
+     "text": "The Military Police want a third of the harvest. For the refugees, they say.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "tax_collector",
+     "text": "By order of the Crown: grain for Wall Rose's refugees. Or would your family rather explain to the King why it hoards?",
+     "choices": [
+      {
+       "text": "Take it. People are starving.",
+       "effects": [
+        {
+         "ideology": {
+          "mercy": 5,
+          "paradis": 3
+         }
+        },
+        {
+         "standing": {
+          "mp": 2
+         }
+        }
+       ],
+       "next": "c1"
+      },
+      {
+       "text": "A third? Half this village will starve by winter.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 6
+         }
+        },
+        {
+         "affinity": {
+          "aldo": 6
+         }
+        },
+        {
+         "standing": {
+          "mp": -4
+         }
+        },
+        {
+         "flag": "defied_tax"
+        }
+       ],
+       "next": "c2"
+      },
+      {
+       "text": "Perhaps the Crown's granaries in Mitras could spare some first?",
+       "effects": [
+        {
+         "flag": "shamed_mp"
+        },
+        {
+         "standing": {
+          "mp": -2
+         }
+        },
+        {
+         "affinity": {
+          "aldo": 8
+         }
+        }
+       ],
+       "next": "c3",
+       "requires": {
+        "charisma": 3
+       },
+       "tag": "Charisma"
+      }
+     ]
+    },
+    "c1": {
+     "speaker": "tax_collector",
+     "text": "Sensible.",
+     "end": true
+    },
+    "c2": {
+     "speaker": "tax_collector",
+     "text": "Careful, farmer's child. Words like that get people remembered.",
+     "end": true
+    },
+    "c3": {
+     "speaker": "tax_collector",
+     "text": "...A quarter, then. And I'll remember your face.",
+     "effects": [
+      {
+       "flag": "tax_reduced"
+      }
+     ],
+     "end": true
+    }
+   }
+  },
+  "rg2_aldo": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "aldo",
+     "text": "They've drafted me. The Wall Maria Reclamation Operation. Two hundred and fifty thousand of us.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "aldo",
+     "text": "Farmers with pikes against titans. They don't mean for us to come back. They mean to have fewer mouths.",
+     "choices": [
+      {
+       "text": "Then don't go. I'll hide you in the barn.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 8
+         }
+        },
+        {
+         "affinity": {
+          "aldo": 6
+         }
+        },
+        {
+         "flag": "hid_father"
+        }
+       ],
+       "next": "c1"
+      },
+      {
+       "text": "Why are we sacrificing thousands to protect these walls?",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 5,
+          "paradis": -5
+         }
+        },
+        {
+         "flag": "questions_walls"
+        }
+       ],
+       "next": "c2"
+      },
+      {
+       "text": "Come back, Father. Promise me.",
+       "effects": [
+        {
+         "affinity": {
+          "aldo": 8
+         }
+        }
+       ],
+       "next": "c3"
+      }
+     ]
+    },
+    "c1": {
+     "speaker": "aldo",
+     "text": "And have them burn the farm and take you instead? No. Listen to me.",
+     "next": "d"
+    },
+    "c2": {
+     "speaker": "aldo",
+     "text": "Because the people in the middle need someone between them and the titans. That's always been us.",
+     "next": "d"
+    },
+    "c3": {
+     "speaker": "aldo",
+     "text": "...I'll try.",
+     "next": "d"
+    },
+    "d": {
+     "speaker": "aldo",
+     "text": "Join the military. Not to hide behind a wall — go where the decisions are made, and make better ones.",
+     "effects": [
+      {
+       "fate": {
+        "aldo": "lost in the Reclamation"
+       }
+      },
+      {
+       "deed": "Watched your father march to the Reclamation, 846"
+      }
+     ],
+     "end": true
+    }
+   }
+  },
+  "in1_extort": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "hilde",
+     "text": "Please — I paid the permit last month—",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "mp_officer",
+     "text": "And this month the permit costs more. The refugees need feeding, you see. So do I.",
+     "next": "c"
+    },
+    "c": {
+     "speaker": "mp_officer",
+     "text": "Something to say, citizen?",
+     "choices": [
+      {
+       "text": "Leave her alone. That's theft in a uniform.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 6,
+          "mercy": 4
+         }
+        },
+        {
+         "standing": {
+          "mp": -6
+         }
+        },
+        {
+         "affinity": {
+          "hilde": 10,
+          "mp_officer": -10
+         }
+        },
+        {
+         "flag": "defied_mp"
+        }
+       ],
+       "next": "d1"
+      },
+      {
+       "text": "Here — take this, and let her be. [20 Marks]",
+       "effects": [
+        {
+         "pay": 20
+        },
+        {
+         "ideology": {
+          "mercy": 5
+         }
+        },
+        {
+         "affinity": {
+          "hilde": 6
+         }
+        },
+        {
+         "flag": "paid_mp"
+        }
+       ],
+       "next": "d2",
+       "requires": {
+        "marks": 20
+       }
+      },
+      {
+       "text": "Nothing, officer.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": -4
+         }
+        },
+        {
+         "affinity": {
+          "hilde": -4
+         }
+        },
+        {
+         "flag": "ignored_corruption"
+        }
+       ],
+       "next": "d3"
+      },
+      {
+       "text": "Do you know who my family is?",
+       "effects": [
+        {
+         "standing": {
+          "mp": 2
+         }
+        },
+        {
+         "affinity": {
+          "hilde": 3
+         }
+        },
+        {
+         "flag": "noble_leverage"
+        }
+       ],
+       "next": "d4",
+       "requires": {
+        "origin": "MITRAS",
+        "hidden": true
+       },
+       "tag": "Noble"
+      }
+     ]
+    },
+    "d1": {
+     "speaker": "mp_officer",
+     "text": "Brave. Brave people go missing in Stohess all the time.",
+     "end": true
+    },
+    "d2": {
+     "speaker": "mp_officer",
+     "text": "Generous. The Crown thanks you.",
+     "end": true
+    },
+    "d3": {
+     "speaker": "mp_officer",
+     "text": "Smart.",
+     "end": true
+    },
+    "d4": {
+     "speaker": "mp_officer",
+     "text": "...My apologies. We'll say no more.",
+     "end": true
+    }
+   }
+  },
+  "in1_nick": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "priest",
+     "text": "The Walls are the work of God. To question them is to spit on the hand that shields you.",
+     "choices": [
+      {
+       "text": "What are the Walls made of, Pastor?",
+       "effects": [
+        {
+         "flag": "asked_nick_walls"
+        },
+        {
+         "ideology": {
+          "independence": 3
+         }
+        }
+       ],
+       "next": "b1"
+      },
+      {
+       "text": "Praise the Walls.",
+       "effects": [
+        {
+         "ideology": {
+          "paradis": 5,
+          "independence": -3
+         }
+        },
+        {
+         "affinity": {
+          "priest": 6
+         }
+        },
+        {
+         "flag": "church_favor"
+        }
+       ],
+       "next": "b2"
+      },
+      {
+       "text": "Then why did one of them break?",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 5
+         }
+        },
+        {
+         "affinity": {
+          "priest": -6
+         }
+        }
+       ],
+       "next": "b3"
+      }
+     ]
+    },
+    "b1": {
+     "speaker": "priest",
+     "text": "...That is not for us to know. Some truths are only safe in the dark.",
+     "effects": [
+      {
+       "flag": "nick_hides_something"
+      }
+     ],
+     "end": true
+    },
+    "b2": {
+     "speaker": "priest",
+     "text": "Bless you, child.",
+     "end": true
+    },
+    "b3": {
+     "speaker": "priest",
+     "text": "God tested the faithless of Maria. Do not be among them.",
+     "end": true
+    }
+   }
+  },
+  "in1_steward": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "steward",
+     "text": "My lord takes an interest in promising young people. Graduate in the top ten of the Cadet Corps and there's a place for you in the Military Police. The interior. Safety. Comfort.",
+     "choices": [
+      {
+       "text": "I'll do it.",
+       "effects": [
+        {
+         "ideology": {
+          "paradis": 3
+         }
+        },
+        {
+         "standing": {
+          "mp": 5
+         }
+        },
+        {
+         "flag": "mp_patron"
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "And if I want to see what's outside?",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 5
+         }
+        },
+        {
+         "flag": "wants_outside"
+        }
+       ],
+       "next": "b"
+      }
+     ]
+    },
+    "b": {
+     "speaker": "steward",
+     "text": "Then you'll see it from the inside of a titan. Good day.",
+     "end": true
+    }
+   }
+  },
+  "un1_ferrin": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "ferrin",
+     "text": "You want out of this hole, you need wings. The MP keep a gear pack at the guard post by the market. Old model, but it flies.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "ferrin",
+     "text": "Walk in, take it, walk out. Don't let the guards see you. And don't let them see a blade in your hand.",
+     "choices": [
+      {
+       "text": "And what's your cut?",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 3
+         }
+        },
+        {
+         "affinity": {
+          "ferrin": 3
+         }
+        }
+       ],
+       "next": "c1"
+      },
+      {
+       "text": "Stealing from the Military Police? Count me in.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 6
+         }
+        },
+        {
+         "flag": "underground_thief"
+        }
+       ],
+       "next": "c2"
+      },
+      {
+       "text": "There has to be another way up.",
+       "effects": [
+        {
+         "ideology": {
+          "mercy": 3
+         }
+        },
+        {
+         "affinity": {
+          "ferrin": -3
+         }
+        },
+        {
+         "flag": "reluctant_thief"
+        }
+       ],
+       "next": "c3"
+      }
+     ]
+    },
+    "c1": {
+     "speaker": "ferrin",
+     "text": "Half of whatever it's worth to you. Go on.",
+     "end": true
+    },
+    "c2": {
+     "speaker": "ferrin",
+     "text": "Now we're talking.",
+     "end": true
+    },
+    "c3": {
+     "speaker": "ferrin",
+     "text": "Sure. Pay the stairway toll like a good citizen. It's only three months' wages.",
+     "end": true
+    }
+   }
+  },
+  "un2_toll": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "stair_guard",
+     "text": "Stairway to the surface. Toll's three hundred Marks. No toll, no daylight.",
+     "choices": [
+      {
+       "text": "Pay the toll. [300 Marks]",
+       "effects": [
+        {
+         "pay": 300
+        },
+        {
+         "ideology": {
+          "independence": -3
+         }
+        }
+       ],
+       "next": "b1",
+       "requires": {
+        "marks": 300
+       }
+      },
+      {
+       "text": "I'm expected at the Cadet Corps. Want to explain to Instructor Shadis why I'm late?",
+       "effects": [
+        {
+         "flag": "talked_past"
+        }
+       ],
+       "next": "b2",
+       "requires": {
+        "charisma": 3
+       },
+       "tag": "Charisma"
+      },
+      {
+       "text": "(Show him the gear pack — then fly straight past him.)",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 5
+         }
+        },
+        {
+         "standing": {
+          "mp": -3
+         }
+        },
+        {
+         "flag": "flew_out"
+        }
+       ],
+       "next": "b3",
+       "requires": {
+        "flag": "has_old_odm"
+       }
+      },
+      {
+       "text": "(Walk away — and wait for his back to turn.)",
+       "effects": [
+        {
+         "flag": "sneak_stair"
+        }
+       ],
+       "next": "b4"
+      }
+     ]
+    },
+    "b1": {
+     "speaker": "stair_guard",
+     "text": "Enjoy the sun.",
+     "end": true
+    },
+    "b2": {
+     "speaker": "stair_guard",
+     "text": "...Go. Before I change my mind.",
+     "end": true
+    },
+    "b3": {
+     "speaker": "stair_guard",
+     "text": "Hey! HEY! Stop!",
+     "end": true
+    },
+    "b4": {
+     "speaker": "stair_guard",
+     "text": "Thought so.",
+     "end": true
+    }
+   }
+  },
+  "tc1_keith": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "keith",
+     "text": "YOU! WHO ARE YOU?! WHERE ARE YOU FROM?! WHY ARE YOU HERE?!",
+     "choices": [
+      {
+       "text": "{name}, sir! From Shiganshina! I'm here to kill every titan alive!",
+       "effects": [
+        {
+         "ideology": {
+          "paradis": 4
+         }
+        },
+        {
+         "flag": "motive_revenge"
+        }
+       ],
+       "next": "b",
+       "requires": {
+        "origin": "SHIGANSHINA",
+        "hidden": true
+       }
+      },
+      {
+       "text": "{name}, sir! Trost! To protect the people inside the Walls!",
+       "effects": [
+        {
+         "ideology": {
+          "mercy": 3
+         }
+        },
+        {
+         "flag": "motive_protect"
+        }
+       ],
+       "next": "b",
+       "requires": {
+        "origin": "TROST",
+        "hidden": true
+       }
+      },
+      {
+       "text": "{name}, sir! Ragako! To change how this army spends its people!",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 6
+         }
+        },
+        {
+         "affinity": {
+          "keith": -2
+         }
+        },
+        {
+         "flag": "motive_change"
+        }
+       ],
+       "next": "b",
+       "requires": {
+        "origin": "RAGAKO",
+        "hidden": true
+       }
+      },
+      {
+       "text": "{name}, sir! {origin}! To earn a place in the Military Police!",
+       "effects": [
+        {
+         "standing": {
+          "mp": 3
+         }
+        },
+        {
+         "flag": "motive_mp"
+        }
+       ],
+       "next": "b",
+       "requires": {
+        "origin": [
+         "STOHESS",
+         "MITRAS"
+        ],
+        "hidden": true
+       }
+      },
+      {
+       "text": "{name}, sir! From the Underground! To see the sky and never go back!",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 4
+         }
+        },
+        {
+         "flag": "motive_sky"
+        }
+       ],
+       "next": "b",
+       "requires": {
+        "origin": "UNDERGROUND",
+        "hidden": true
+       }
+      },
+      {
+       "text": "{name}, sir! To find out what's really out there!",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 3,
+          "paradis": -3
+         }
+        },
+        {
+         "flag": "motive_truth"
+        }
+       ],
+       "next": "b"
+      }
+     ]
+    },
+    "b": {
+     "speaker": "keith",
+     "text": "Hmph. We'll see if you're still standing in three years.",
+     "next": "c"
+    },
+    "c": {
+     "speaker": null,
+     "text": "Down the line, a girl bites into a stolen potato in front of the entire corps.",
+     "next": "d"
+    },
+    "d": {
+     "speaker": "keith",
+     "text": "...YOU! What do you think you're doing?!",
+     "next": "e"
+    },
+    "e": {
+     "speaker": "sasha",
+     "text": "It was going to go to waste, sir! So I — here. Half?",
+     "end": true
+    }
+   }
+  },
+  "tc1_sasha": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "sasha",
+     "text": "{first}! You didn't laugh when he made me run till sundown. Here — the other half of the potato. I'm Sasha. Sasha Braus, from Dauper.",
+     "choices": [
+      {
+       "text": "Eat it. You earned it running laps.",
+       "effects": [
+        {
+         "affinity": {
+          "sasha": 8
+         }
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "I'll take it.",
+       "effects": [
+        {
+         "affinity": {
+          "sasha": 4
+         }
+        }
+       ],
+       "next": "b"
+      }
+     ]
+    },
+    "b": {
+     "speaker": "sasha",
+     "text": "Hehe. Friends, then!",
+     "end": true
+    }
+   }
+  },
+  "tc2_eren": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "eren",
+     "text": "I can't stay upright on the rigs. If I fail this, they send me home. I can't go home. There IS no home.",
+     "choices": [
+      {
+       "text": "Let me look at your belt... the buckle's cracked.",
+       "effects": [
+        {
+         "flag": "noticed_belt"
+        },
+        {
+         "affinity": {
+          "eren": 10
+         }
+        },
+        {
+         "deed": "Found the broken belt that almost sent Eren home"
+        }
+       ],
+       "next": "b1"
+      },
+      {
+       "text": "Try again. Tighten your core, lean forward.",
+       "effects": [
+        {
+         "affinity": {
+          "eren": 4
+         }
+        }
+       ],
+       "next": "b2"
+      },
+      {
+       "text": "Maybe you're not cut out for this.",
+       "effects": [
+        {
+         "affinity": {
+          "eren": -10,
+          "jean": 4
+         }
+        },
+        {
+         "flag": "doubted_eren"
+        }
+       ],
+       "next": "b3"
+      }
+     ]
+    },
+    "b1": {
+     "speaker": "eren",
+     "text": "It — it IS broken! {first}, you're a lifesaver!",
+     "end": true
+    },
+    "b2": {
+     "speaker": "eren",
+     "text": "...Okay. One more time.",
+     "end": true
+    },
+    "b3": {
+     "speaker": "eren",
+     "text": "Say that again when I'm in the Survey Corps.",
+     "end": true
+    }
+   }
+  },
+  "tc2_annie": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "annie",
+     "text": "Hand-to-hand. They don't score it, so nobody takes it seriously. You want to learn, or just watch?",
+     "choices": [
+      {
+       "text": "Teach me.",
+       "effects": [
+        {
+         "affinity": {
+          "annie": 8
+         }
+        },
+        {
+         "flag": "trained_with_annie"
+        }
+       ],
+       "next": "b1"
+      },
+      {
+       "text": "Why bother, if it isn't scored?",
+       "effects": [
+        {
+         "affinity": {
+          "annie": 3
+         }
+        },
+        {
+         "flag": "asked_annie_why"
+        }
+       ],
+       "next": "b2"
+      }
+     ]
+    },
+    "b1": {
+     "speaker": "annie",
+     "text": "Feet here. Your weight goes through the hip, not the arm. ...Again.",
+     "effects": [
+      {
+       "xp": 60
+      }
+     ],
+     "end": true
+    },
+    "b2": {
+     "speaker": "annie",
+     "text": "Because my father said so. And because the whole world is against us, so you'd better be able to stand on your own.",
+     "effects": [
+      {
+       "flag": "annie_whole_world"
+      }
+     ],
+     "end": true
+    }
+   }
+  },
+  "tc2_reiner": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "reiner",
+     "text": "{first}, right? Good work on the rigs. Where'd you say you were from?",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "bertholdt",
+     "text": "Reiner and I are from a mountain village... in Wall Maria. It's... not there anymore.",
+     "choices": [
+      {
+       "text": "Like the Shiganshina kids, then. I'm sorry.",
+       "effects": [
+        {
+         "ideology": {
+          "mercy": 3
+         }
+        },
+        {
+         "affinity": {
+          "reiner": 6,
+          "bertholdt": 6
+         }
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "Which village? I've never heard of any mountain village.",
+       "effects": [
+        {
+         "flag": "asked_reiner_village"
+        },
+        {
+         "affinity": {
+          "bertholdt": -3
+         }
+        }
+       ],
+       "next": "c2"
+      }
+     ]
+    },
+    "c": {
+     "speaker": "reiner",
+     "text": "We're soldiers now. Whatever happened back home, we carry it forward.",
+     "end": true
+    },
+    "c2": {
+     "speaker": "reiner",
+     "text": "...A small one. You wouldn't know it.",
+     "effects": [
+      {
+       "flag": "reiner_evasive"
+      }
+     ],
+     "end": true
+    }
+   }
+  },
+  "tc3_jean": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "jean",
+     "text": "Tch. Not bad. The top ten get the Military Police. The interior. Real beds. No titans. That's the dream, isn't it?",
+     "choices": [
+      {
+       "text": "It's your dream. Mine's outside the Walls.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 4
+         }
+        },
+        {
+         "affinity": {
+          "jean": -2,
+          "eren": 3
+         }
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "Honestly? Safety sounds good.",
+       "effects": [
+        {
+         "ideology": {
+          "paradis": 3
+         }
+        },
+        {
+         "affinity": {
+          "jean": 6
+         }
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "The best soldiers going furthest from the titans — doesn't that seem backwards?",
+       "effects": [
+        {
+         "affinity": {
+          "jean": 2
+         }
+        },
+        {
+         "ideology": {
+          "independence": 3
+         }
+        },
+        {
+         "flag": "backwards_mp"
+        }
+       ],
+       "next": "b"
+      }
+     ]
+    },
+    "b": {
+     "speaker": "marco",
+     "text": "I want to serve the King in the Military Police. Doesn't that sound... noble?",
+     "choices": [
+      {
+       "text": "It does, Marco.",
+       "effects": [
+        {
+         "affinity": {
+          "marco": 6
+         }
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "Just make sure the MP deserve you.",
+       "effects": [
+        {
+         "affinity": {
+          "marco": 4
+         }
+        },
+        {
+         "flag": "warned_marco"
+        }
+       ],
+       "next": "c"
+      }
+     ]
+    },
+    "c": {
+     "speaker": "jean",
+     "text": "Marco, you're too honest for your own good.",
+     "end": true
+    }
+   }
+  },
+  "tc4_grad": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "keith",
+     "text": "The top ten graduates: Mikasa Ackerman. Reiner Braun. Bertholdt Hoover. Annie Leonhart. Eren Yeager. Jean Kirstein. Marco Bott. Connie Springer. Sasha Braus. Krista Lenz.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "keith",
+     "text": "{name}. A hair short of the ten. Your file says—",
+     "next": "c"
+    },
+    "c": {
+     "speaker": "keith",
+     "text": "...'Doesn't quit.' That will matter more than rank where you're going. You choose your branch after your first posting. Dismissed.",
+     "choices": [
+      {
+       "text": "Salute: fist over the heart.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": -2
+         }
+        },
+        {
+         "affinity": {
+          "keith": 4
+         }
+        }
+       ]
+      },
+      {
+       "text": "Ask him why he left the Survey Corps.",
+       "effects": [
+        {
+         "flag": "asked_shadis"
+        },
+        {
+         "ideology": {
+          "independence": 2
+         }
+        }
+       ],
+       "next": "d"
+      }
+     ]
+    },
+    "d": {
+     "speaker": "keith",
+     "text": "Because I was ordinary, cadet. Don't let anyone tell you that's a crime. Now get out.",
+     "end": true
+    }
+   }
+  },
+  "tb1_eren": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "eren",
+     "text": "Five years. Tomorrow we pick our branches, and I'm joining the Survey Corps. Nothing's changed.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "sasha",
+     "text": "I stole some meat from the officers' stores! We can split it tonight!",
+     "choices": [
+      {
+       "text": "Sasha, they'll hang you.",
+       "effects": [
+        {
+         "affinity": {
+          "sasha": 3
+         }
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "Save me the biggest piece.",
+       "effects": [
+        {
+         "affinity": {
+          "sasha": 6
+         }
+        }
+       ],
+       "next": "c"
+      }
+     ]
+    },
+    "c": {
+     "speaker": null,
+     "text": "Lightning splits a clear sky.",
+     "effects": [
+      {
+       "shake": 3
+      },
+      {
+       "flash": 1
+      },
+      {
+       "titan_actor": {
+        "id": "colossal",
+        "shifter": "colossal",
+        "at": {
+         "gate": "outer",
+         "rel": [
+          -14,
+          0
+         ]
+        },
+        "seconds": 30
+       }
+      },
+      {
+       "sound": {
+        "id": "minecraft:entity.lightning_bolt.thunder",
+        "volume": 2
+       }
+      },
+      {
+       "card": {
+        "title": "THE BATTLE OF TROST",
+        "sub": "850"
+       }
+      }
+     ],
+     "end": true
+    }
+   }
+  },
+  "tb2_dimo": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "dimo_reeves",
+     "text": "Push! Push the cart through! My goods are worth more than all your lives put together!",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "civilian_f",
+     "text": "Please — the titans are coming, we can't get past!",
+     "choices": [
+      {
+       "text": "Move that cart, or I move you.",
+       "effects": [
+        {
+         "ideology": {
+          "independence": 5
+         }
+        },
+        {
+         "standing": {
+          "garrison": 2
+         }
+        },
+        {
+         "affinity": {
+          "dimo_reeves": -10
+         }
+        },
+        {
+         "flag": "threatened_reeves"
+        }
+       ],
+       "next": "c1"
+      },
+      {
+       "text": "Your goods are worthless if you're eaten, Mr. Reeves. Move it and live.",
+       "effects": [
+        {
+         "affinity": {
+          "dimo_reeves": 5
+         }
+        },
+        {
+         "flag": "reeves_persuaded"
+        }
+       ],
+       "next": "c2",
+       "requires": {
+        "charisma": 3
+       },
+       "tag": "Charisma"
+      },
+      {
+       "text": "Everyone! Help me push it through!",
+       "effects": [
+        {
+         "ideology": {
+          "mercy": 5,
+          "independence": -2
+         }
+        },
+        {
+         "flag": "pushed_cart"
+        }
+       ],
+       "next": "c3"
+      }
+     ]
+    },
+    "c1": {
+     "speaker": "dimo_reeves",
+     "text": "...All right! All right! Pull it back!",
+     "end": true
+    },
+    "c2": {
+     "speaker": "dimo_reeves",
+     "text": "...Hm. You have a point. PULL BACK!",
+     "end": true
+    },
+    "c3": {
+     "speaker": null,
+     "text": "Together, the crowd heaves the cart through the gate.",
+     "end": true
+    }
+   }
+  },
+  "tb3_armin": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "armin",
+     "text": "{first}... Eren's squad. They're gone. Eren was eaten saving me.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "armin",
+     "text": "And then a titan appeared that was killing other titans. It's still out there.",
+     "choices": [
+      {
+       "text": "Then it's a weapon. We use it.",
+       "effects": [
+        {
+         "ideology": {
+          "paradis": 5,
+          "independence": 3
+         }
+        },
+        {
+         "flag": "use_rogue"
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "A titan is a titan, Armin.",
+       "effects": [
+        {
+         "ideology": {
+          "paradis": 2,
+          "mercy": -3
+         }
+        }
+       ],
+       "next": "c"
+      },
+      {
+       "text": "Titans don't fight titans. Something's wrong here.",
+       "effects": [
+        {
+         "flag": "doubt_titans"
+        },
+        {
+         "ideology": {
+          "independence": 3
+         }
+        }
+       ],
+       "next": "c"
+      }
+     ]
+    },
+    "c": {
+     "speaker": "armin",
+     "text": "We can lure it toward the HQ. Mikasa's already out there.",
+     "end": true
+    }
+   }
+  },
+  "tb4_mikasa": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "mikasa",
+     "text": "Eren came out of the titan's neck. Alive. They'll call him a monster. They'll try to kill him.",
+     "choices": [
+      {
+       "text": "Then they'll have to go through me.",
+       "effects": [
+        {
+         "affinity": {
+          "mikasa": 10,
+          "eren": 8
+         }
+        },
+        {
+         "ideology": {
+          "paradis": 4
+         }
+        },
+        {
+         "flag": "defended_eren"
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "Mikasa... maybe they're right to be afraid.",
+       "effects": [
+        {
+         "affinity": {
+          "mikasa": -10
+         }
+        },
+        {
+         "ideology": {
+          "independence": -3
+         }
+        },
+        {
+         "flag": "feared_eren"
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "If humans can become titans... then what are titans?",
+       "effects": [
+        {
+         "flag": "titans_are_human_q"
+        },
+        {
+         "ideology": {
+          "independence": 4,
+          "paradis": -2
+         }
+        }
+       ],
+       "next": "b"
+      }
+     ]
+    },
+    "b": {
+     "speaker": "mikasa",
+     "text": "Then stay close. Whatever happens next, stay close.",
+     "effects": [
+      {
+       "deed": "Saw Eren Yeager emerge from a titan at Trost"
+      }
+     ],
+     "end": true
+    }
+   }
+  },
+  "tb5_erwin": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": "erwin",
+     "text": "Trost has been sealed. Eren Yeager's titan carried the boulder. For the first time, humanity has taken ground back from the titans.",
+     "next": "b"
+    },
+    "b": {
+     "speaker": "erwin",
+     "text": "I won't lie to you. Join the Survey Corps and most of you will be dead within a year. But what we find out there may be the truth of this world.",
+     "next": "c"
+    },
+    "c": {
+     "speaker": "levi",
+     "text": "Choose. And don't regret it.",
+     "choices": [
+      {
+       "text": "The Survey Corps.",
+       "effects": [
+        {
+         "faction": "SURVEY_CORPS"
+        },
+        {
+         "standing": {
+          "scouts": 10
+         }
+        },
+        {
+         "ideology": {
+          "independence": 3
+         }
+        },
+        {
+         "flag": "branch_survey"
+        }
+       ],
+       "next": "d1"
+      },
+      {
+       "text": "The Garrison. Someone has to hold the Walls.",
+       "effects": [
+        {
+         "faction": "GARRISON"
+        },
+        {
+         "standing": {
+          "garrison": 10
+         }
+        },
+        {
+         "flag": "branch_garrison"
+        }
+       ],
+       "next": "d2"
+      },
+      {
+       "text": "The Military Police.",
+       "effects": [
+        {
+         "faction": "MILITARY_POLICE"
+        },
+        {
+         "standing": {
+          "mp": 10
+         }
+        },
+        {
+         "flag": "branch_mp"
+        }
+       ],
+       "next": "d3"
+      }
+     ]
+    },
+    "d1": {
+     "speaker": "erwin",
+     "text": "Then dedicate your heart.",
+     "end": true
+    },
+    "d2": {
+     "speaker": "erwin",
+     "text": "The Walls are in good hands.",
+     "end": true
+    },
+    "d3": {
+     "speaker": "erwin",
+     "text": "The interior needs honest soldiers. More than you know.",
+     "end": true
+    }
+   }
+  }
+ }
+}

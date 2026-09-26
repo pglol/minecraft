@@ -1,0 +1,15 @@
+{
+ "files": [
+  "cast.json",
+  "act1.json"
+ ],
+ "starts": {
+  "SHIGANSHINA": "sh1",
+  "TROST": "tr1",
+  "RAGAKO": "rg1",
+  "STOHESS": "in1s",
+  "MITRAS": "in1m",
+  "UNDERGROUND": "un1",
+  "default": "tr1"
+ }
+}

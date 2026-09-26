@@ -473,6 +473,39 @@ final class Commands {
             AotRpg.HOMES.action(c.getSource().getPlayerOrThrow(), "manage", -1, "");
             return 1;
         })));
+        d.register(CommandManager.literal("story").executes(c -> {
+            var p = c.getSource().getPlayerOrThrow();
+            AotRpg.STORY.send(p, AotRpg.PROFILES.get(p.getUuid()));
+            var v = AotRpg.STORY.view(AotRpg.PROFILES.get(p.getUuid()));
+            p.sendMessage(Text.literal(v.chapter() + ": ").formatted(Formatting.GOLD).append(Text.literal(v.text()).formatted(Formatting.WHITE)), false);
+            return 1;
+        }).then(CommandManager.literal("begin").executes(c -> {
+            AotRpg.STORY.freeTravel(c.getSource().getPlayerOrThrow());
+            return 1;
+        })).then(CommandManager.literal("join").then(CommandManager.argument("host", net.minecraft.command.argument.EntityArgumentType.player()).executes(c -> {
+            AotRpg.STORY.join(c.getSource().getPlayerOrThrow(), net.minecraft.command.argument.EntityArgumentType.getPlayer(c, "host"));
+            return 1;
+        }))).then(CommandManager.literal("leave").executes(c -> {
+            AotRpg.STORY.leave(c.getSource().getPlayerOrThrow());
+            return 1;
+        })).then(CommandManager.literal("skip").requires(s -> s.hasPermissionLevel(2)).executes(c -> {
+            AotRpg.STORY.skip(c.getSource().getPlayerOrThrow());
+            return 1;
+        })).then(CommandManager.literal("reset").requires(s -> s.hasPermissionLevel(2)).executes(c -> {
+            AotRpg.STORY.reset(c.getSource().getPlayerOrThrow(), null);
+            c.getSource().sendFeedback(() -> Text.literal("Story restarted."), false);
+            return 1;
+        })).then(CommandManager.literal("goto").requires(s -> s.hasPermissionLevel(2))
+            .then(CommandManager.argument("mission", com.mojang.brigadier.arguments.StringArgumentType.word())
+                .suggests((c, b) -> net.minecraft.command.CommandSource.suggestMatching(AotRpg.STORY.missionIds(), b))
+                .executes(c -> {
+                    AotRpg.STORY.reset(c.getSource().getPlayerOrThrow(), com.mojang.brigadier.arguments.StringArgumentType.getString(c, "mission"));
+                    return 1;
+                }))).then(CommandManager.literal("reload").requires(s -> s.hasPermissionLevel(2)).executes(c -> {
+            AotRpg.STORY.load();
+            c.getSource().sendFeedback(() -> Text.literal("Story content reloaded (see the server log for problems)."), false);
+            return 1;
+        })));
         d.register(CommandManager.literal("bounty").executes(c -> {
             var p = c.getSource().getPlayerOrThrow();
             long b = AotRpg.PROFILES.get(p.getUuid()).bounty;

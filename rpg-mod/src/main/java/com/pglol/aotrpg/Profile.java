@@ -78,6 +78,9 @@ public final class Profile {
     public java.util.Set<Long> explored = new java.util.HashSet<>();
     /** Marks owed for crimes seen in town (a drawn weapon, theft). */
     public long bounty;
+    /** The character's own story (missions, choices, people, deeds), and whether it's on the new story. */
+    public Story.State story = new Story.State();
+    public boolean storyV2;
     public boolean skillsV3;
 
     public int stat(Stat s) {
