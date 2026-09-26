@@ -102,11 +102,15 @@ public final class TitanLevels {
         long now = System.currentTimeMillis();
         napes.values().removeIf(n -> now - n.lastAt > 60_000);
         swings.values().removeIf(s -> now - s.at() > 10_000);
+        if (rated.size() > 4000) rated.clear();
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             ServerWorld w = p.getServerWorld();
             List<Net.TitanTag> tags = new ArrayList<>();
             for (Entity e : w.getOtherEntities(p, new Box(p.getBlockPos()).expand(96, 96, 96), TitanLevels::root)) {
-                if (level(e) <= 0) assign((LivingEntity) e, p);
+                // Levels follow who is around: re-rated every 20 s, but never mid-fight.
+                Nape cut = napes.get(e.getUuid());
+                boolean fighting = cut != null && now - cut.lastAt < STRIKE_MEMORY_MS;
+                if (level(e) <= 0 || (!fighting && now - rated.getOrDefault(e.getUuid(), 0L) > 20_000)) assign((LivingEntity) e, p);
                 unboost((LivingEntity) e);
                 Nape n = napes.get(e.getUuid());
                 int strikes = n != null && now - n.lastAt < STRIKE_MEMORY_MS ? n.strikes : 0;
@@ -117,17 +121,30 @@ public final class TitanLevels {
         }
     }
 
+    private final Map<UUID, Long> rated = new HashMap<>();
+
     private void assign(LivingEntity t, ServerPlayerEntity near) {
+        rated.put(t.getUuid(), System.currentTimeMillis());
+        t.getCommandTags().removeIf(tag -> tag.startsWith(LV) || tag.startsWith(PARTY));
         var r = t.getRandom();
         int area = AotRpg.PLACES.levelAt(t.getX(), t.getZ());
         int ref = AotRpg.PROFILES.get(near.getUuid()).level;
         int size = 1;
         Parties.Party party = AotRpg.PARTIES.of(near.getUuid());
         if (party != null) {
-            size = Math.min(Parties.MAX, party.members.size());
-            for (UUID m : party.members) ref = Math.max(ref, AotRpg.PROFILES.get(m).level);
+            size = 0;
+            for (UUID m : party.members) {
+                ServerPlayerEntity o = near.getServer().getPlayerManager().getPlayer(m);
+                if (o != null && o.getWorld() == t.getWorld() && o.squaredDistanceTo(t) < 128 * 128) size++;
+            }
+            size = Math.max(1, Math.min(Parties.MAX, size));
+            // Only members online and nearby raise the level (an offline veteran doesn't).
+            for (UUID m : party.members) {
+                ServerPlayerEntity o = near.getServer().getPlayerManager().getPlayer(m);
+                if (o != null && o.getWorld() == t.getWorld() && o.squaredDistanceTo(t) < 128 * 128) ref = Math.max(ref, AotRpg.PROFILES.get(m).level);
+            }
         }
-        int lv = Math.max(area, ref) + r.nextInt(3) + (TitanGuard.isShifter(t) ? 5 : 0) + (t.hasCustomName() ? 3 : 0);
+        int lv = Math.max(area, ref) + Math.floorMod(t.getUuid().hashCode(), 3) + (TitanGuard.isShifter(t) ? 5 : 0) + (t.hasCustomName() ? 3 : 0);
         lv = Math.max(1, Math.min(99, lv));
         t.addCommandTag(LV + lv);
         t.addCommandTag(PARTY + size);

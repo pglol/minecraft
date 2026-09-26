@@ -200,18 +200,53 @@ public final class Places {
         return best;
     }
 
-    /** The level of the nearest area (the middle of its range), 1 when unknown. */
-    public int levelAt(double x, double z) {
+    private static final java.util.Set<String> WILDS = java.util.Set.of("Outside the Walls", "Northern Highlands", "Southern Reaches", "Sand Barrens");
+
+    private Net.Area named(String name) {
+        for (Net.Area a : areas()) if (a.name().equals(name)) return a;
+        return null;
+    }
+
+    /**
+     * The region a point lies in, as the entry titles have it: a town or camp you are right at,
+     * otherwise the ring between the walls, or beyond Wall Maria the open wilds (Outside the
+     * Walls, the Highlands at the island's ends), or Marley across the sea.
+     */
+    public Net.Area areaAt(double x, double z) {
+        int[] w = walls;
+        double d = Math.hypot(x, z);
+        Net.Area marley = nearest(x, z, 900, "marley");
+        if (marley != null && (w == null || d > w[2] * 1.3)) return marley;
+        if (w != null && d > w[2] + 40) {
+            Net.Area town = nearest(x, z, 90, "town", "camp", "cave");
+            if (town != null) return town;
+            double edge = w[2] + 1500;
+            Net.Area a = z < -edge ? named("Northern Highlands") : z > edge ? named("Southern Reaches") : null;
+            if (a != null) return a;
+            Net.Area sand = named("Sand Barrens");
+            if (sand != null && Math.hypot(sand.x() - x, sand.z() - z) < 450) return sand;
+            Net.Area out = named("Outside the Walls");
+            if (out != null) return out;
+        }
+        Net.Area town = nearest(x, z, 150, "town", "camp", "cave", "landmark");
+        if (town != null) return town;
         Net.Area best = null;
         double bd = Double.MAX_VALUE;
         for (Net.Area a : areas()) {
-            double d = (a.x() - x) * (a.x() - x) + (a.z() - z) * (a.z() - z);
-            if (d < bd) {
-                bd = d;
+            if (WILDS.contains(a.name()) || a.look().equals("marley") || a.look().equals("sea")) continue;
+            double dd = (a.x() - x) * (a.x() - x) + (a.z() - z) * (a.z() - z);
+            if (dd < bd) {
+                bd = dd;
                 best = a;
             }
         }
-        return best == null ? 1 : Math.max(1, (best.min() + best.max()) / 2);
+        return best;
+    }
+
+    /** The level of the region here (the middle of its range), 1 when unknown. */
+    public int levelAt(double x, double z) {
+        Net.Area a = areaAt(x, z);
+        return a == null ? 1 : Math.max(1, (a.min() + a.max()) / 2);
     }
 
     public Net.Area area(String id) {

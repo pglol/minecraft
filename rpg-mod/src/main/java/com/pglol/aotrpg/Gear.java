@@ -315,7 +315,12 @@ public final class Gear {
         // Harder places pay better: up to a few levels past you (or your party's best), locked until you catch up.
         int ref = lv;
         Parties.Party party = AotRpg.PARTIES.of(p.getUuid());
-        if (party != null) for (UUID m : party.members) ref = Math.max(ref, AotRpg.PROFILES.get(m).level);
+        if (party != null) {
+            for (UUID m : party.members) {
+                ServerPlayerEntity o = p.getServer().getPlayerManager().getPlayer(m);
+                if (o != null && o.getWorld() == p.getWorld() && o.squaredDistanceTo(p) < 128 * 128) ref = Math.max(ref, AotRpg.PROFILES.get(m).level);
+            }
+        }
         Random r = p.getRandom();
         int base = Math.max(1, Math.min(source, ref + 4) + bonus + r.nextInt(3) - 1);
         base = Math.min(base, Math.max(lv + 3, Math.min(source, ref) + 5));
