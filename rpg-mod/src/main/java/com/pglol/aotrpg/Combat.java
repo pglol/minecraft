@@ -12,31 +12,31 @@ import net.minecraft.server.network.ServerPlayerEntity;
  * player or titan sends you a hit marker: melee slash or gunshot, and whether it was a kill.
  */
 public final class Combat {
-    private boolean reapplying;
+    /**
+     * Gear Power and combat abilities scale a hit's damage. This changes the amount as the hit
+     * arrives (LivingEntity mixin) instead of cancelling it and dealing a new one: Danny's AoT
+     * reads whether its hit landed (a nape strike only kills if the blow went through), so a
+     * cancelled-and-replaced hit counted as a miss and upgraded blades could not kill titans.
+     */
+    public static float scale(LivingEntity entity, net.minecraft.entity.damage.DamageSource source, float amount) {
+        if (amount <= 0 || entity.getWorld().isClient) return amount;
+        double mult = 1;
+        if (source.getAttacker() instanceof ServerPlayerEntity attacker && attacker != entity) {
+            // Gear power counts only when the character is high enough level for the weapon.
+            if (Gear.canUse(attacker, attacker.getMainHandStack())) mult *= 1 + Gear.power(attacker.getMainHandStack());
+            mult *= AotRpg.ABILITIES.outgoing(attacker, entity, source);
+        }
+        if (entity instanceof ServerPlayerEntity def) mult *= AotRpg.ABILITIES.incoming(def);
+        return Math.abs(mult - 1) < 1e-4 ? amount : (float) (amount * mult);
+    }
 
     public void register() {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
-            if (reapplying || amount <= 0) return true;
+            if (amount <= 0) return true;
             ServerPlayerEntity def = entity instanceof ServerPlayerEntity sp ? sp : null;
             if (def != null && AotRpg.ABILITIES.dodge(def, source)) return false;
-            double mult = 1;
-            if (source.getAttacker() instanceof ServerPlayerEntity attacker && attacker != entity) {
-                // Gear power counts only when the character is high enough level for the weapon.
-                if (Gear.canUse(attacker, attacker.getMainHandStack())) mult *= 1 + Gear.power(attacker.getMainHandStack());
-                mult *= AotRpg.ABILITIES.outgoing(attacker, entity, source);
-            }
-            if (def != null) {
-                mult *= AotRpg.ABILITIES.incoming(def);
-                if (AotRpg.ABILITIES.lastStand(def, (float) (amount * mult))) return false;
-            }
-            if (Math.abs(mult - 1) < 1e-4) return true;
-            reapplying = true;
-            try {
-                entity.damage(source, (float) (amount * mult));
-            } finally {
-                reapplying = false;
-            }
-            return false;
+            // (The amount here is already scaled by scale(), from the LivingEntity mixin.)
+            return def == null || !AotRpg.ABILITIES.lastStand(def, amount);
         });
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             if (source.getAttacker() instanceof ServerPlayerEntity killer) AotRpg.ABILITIES.onKill(killer, entity);
