@@ -350,7 +350,7 @@ public final class AotRpg implements ModInitializer {
             PROFILES.save(p.getUuid());
             p.playSoundToPlayer(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.MASTER, 0.6f, 1.2f);
         });
-        ServerPlayNetworking.registerGlobalReceiver(Net.FerryGo.ID, (payload, ctx) -> FERRIES.go(ctx.player(), payload.id()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.FerryGo.ID, (payload, ctx) -> FERRIES.go(ctx.player(), payload.dest()));
         ServerPlayNetworking.registerGlobalReceiver(Net.UseAbility.ID, (payload, ctx) -> CLASSES.use(ctx.player(), payload.slot()));
         ServerPlayNetworking.registerGlobalReceiver(Net.ChooseRole.ID, (payload, ctx) -> {
             if (payload.cls() >= 0 && payload.cls() < PlayerClass.values().length) CLASSES.choose(ctx.player(), PlayerClass.values()[payload.cls()]);

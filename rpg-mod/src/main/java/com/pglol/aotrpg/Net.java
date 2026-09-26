@@ -199,10 +199,10 @@ public final class Net {
     }
 
     /** Client -> server: sail to this station id (or "home"). */
-    public record FerryGo(String id) implements CustomPayload {
-        public static final Id<FerryGo> ID = id("ferry_go");
+    public record FerryGo(String dest) implements CustomPayload {
+        public static final Id<FerryGo> ID = Net.id("ferry_go");
         public static final PacketCodec<RegistryByteBuf, FerryGo> CODEC =
-            PacketCodec.of((v, b) -> b.writeString(v.id), b -> new FerryGo(b.readString()));
+            PacketCodec.of((v, b) -> b.writeString(v.dest), b -> new FerryGo(b.readString()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
