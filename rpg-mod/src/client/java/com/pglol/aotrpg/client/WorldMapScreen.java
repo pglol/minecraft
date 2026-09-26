@@ -227,7 +227,7 @@ public class WorldMapScreen extends Screen {
                     (int) cx(), (int) cy() + 5, Ui.CREAM);
             }
         }
-        drawFog(c);
+        // The map is open: no fog over unexplored land (discovery still unlocks ferries).
         if (showFactions) drawFactions(c);
         drawFires(c);
         drawAreas(c, mouseX, mouseY);
@@ -373,7 +373,7 @@ public class WorldMapScreen extends Screen {
 
     private void drawAreas(DrawContext c, int mouseX, int mouseY) {
         List<Net.Area> order = new ArrayList<>();
-        for (Net.Area a : ClientState.areas) if (labelVisible(a) && ClientState.explored(a.x(), a.z())) order.add(a);
+        for (Net.Area a : ClientState.areas) if (labelVisible(a)) order.add(a);
         order.sort((p, q) -> importance(q) != importance(p) ? importance(q) - importance(p) : q.prio() - p.prio());
         List<int[]> placed = new ArrayList<>();
         Net.Area hover = null;
