@@ -129,6 +129,36 @@ public final class Gear {
         return Rarity.COMMON;
     }
 
+    /** Where a wearable goes (head, chest, legs, feet), or null for anything held. */
+    public static net.minecraft.entity.EquipmentSlot wornSlot(ItemStack s) {
+        net.minecraft.item.Equipment eq = net.minecraft.item.Equipment.fromStack(s);
+        if (eq == null) return null;
+        var slot = eq.getSlotType();
+        return slot.getType() == net.minecraft.entity.EquipmentSlot.Type.HUMANOID_ARMOR ? slot : null;
+    }
+
+    private static List<Item> clothing;
+
+    /** Danny's AoT clothing (uniforms, coats, cloaks, boots, hats): the only armor that drops. */
+    public static List<Item> clothing() {
+        if (clothing != null && !clothing.isEmpty()) return clothing;
+        List<Item> out = new ArrayList<>();
+        for (Item it : net.minecraft.registry.Registries.ITEM) {
+            Identifier id = net.minecraft.registry.Registries.ITEM.getId(it);
+            if (!id.getNamespace().equals("dannys-aot") || id.getPath().equals("odm_gear") || id.getPath().contains("spawn_egg")) continue;
+            if (wornSlot(new ItemStack(it)) != null) out.add(it);
+        }
+        clothing = out;
+        return out;
+    }
+
+    private static ItemStack armorBase(Random r, Rarity rarity, int ilvl) {
+        List<Item> cl = clothing();
+        if (!cl.isEmpty()) return new ItemStack(cl.get(r.nextInt(cl.size())));
+        int reach = Math.min(ARMORS.length, 2 + ilvl / 12 + rarity.ordinal());
+        return new ItemStack(ARMORS[r.nextInt(reach)]);
+    }
+
     /** A new piece of gear of this rarity and item level. */
     public static ItemStack roll(Random r, Rarity rarity, int ilvl) {
         boolean weapon = r.nextFloat() < 0.5f;
@@ -140,10 +170,12 @@ public final class Gear {
             // Rare ODM blades and APG guns: the gear that matters against titans and in PvP.
             s = new ItemStack(aot);
         } else {
-            Item[] pool = weapon ? WEAPONS : ARMORS;
-            // Better bases turn up at higher item levels.
-            int reach = Math.min(pool.length, 2 + ilvl / 12 + rarity.ordinal());
-            s = new ItemStack(pool[r.nextInt(reach)]);
+            if (weapon) {
+                int reach = Math.min(WEAPONS.length, 2 + ilvl / 12 + rarity.ordinal());
+                s = new ItemStack(WEAPONS[r.nextInt(reach)]);
+            } else {
+                s = armorBase(r, rarity, ilvl);
+            }
         }
         NbtCompound g = new NbtCompound();
         g.putString("rarity", rarity.name());
@@ -167,8 +199,7 @@ public final class Gear {
 
     /** A new armor piece (the forge). */
     public static ItemStack rollArmor(Random r, Rarity rarity, int ilvl) {
-        int reach = Math.min(ARMORS.length, 4 + ilvl / 12 + rarity.ordinal());
-        return finish(r, new ItemStack(ARMORS[r.nextInt(reach)]), rarity, ilvl);
+        return finish(r, armorBase(r, rarity, ilvl), rarity, ilvl);
     }
 
     private static ItemStack finish(Random r, ItemStack s, Rarity rarity, int ilvl) {
@@ -198,10 +229,10 @@ public final class Gear {
         }
         int ilvl = g.getInt("ilvl"), up = g.getInt("up");
         Random r = Random.create(g.getLong("seed"));
-        boolean weapon = !(s.getItem() instanceof ArmorItem);
+        net.minecraft.entity.EquipmentSlot worn = wornSlot(s);
+        boolean weapon = worn == null;
         Affix[] pool = weapon ? WEAPON : ARMOR;
-        AttributeModifierSlot slot = weapon ? AttributeModifierSlot.MAINHAND
-            : AttributeModifierSlot.forEquipmentSlot(((ArmorItem) s.getItem()).getSlotType());
+        AttributeModifierSlot slot = weapon ? AttributeModifierSlot.MAINHAND : AttributeModifierSlot.forEquipmentSlot(worn);
 
         // Start from the item's own stats (sword damage, armour points) and add the bonuses.
         AttributeModifiersComponent base = s.getItem().getComponents().getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS,

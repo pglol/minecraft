@@ -268,11 +268,18 @@ public final class Satchel {
     /** Buttons in the satchel: equip, use, drop, list on the Global Market. */
     public void action(ServerPlayerEntity p, String action, int slot, long arg) {
         SimpleInventory bag = get(p.getUuid());
+        if (action.equals("store")) {
+            store(p, bag, (int) arg);
+            return;
+        }
         if (slot < 0 || slot >= bag.size()) return;
         ItemStack s = bag.getStack(slot);
         if (s.isEmpty()) return;
         switch (action) {
-            case "equip" -> equip(p, bag, slot, s);
+            case "equip" -> {
+                if (arg >= 0) equipTo(p, bag, slot, s, (int) arg);
+                else equip(p, bag, slot, s);
+            }
             case "use" -> {
                 if (!s.contains(DataComponentTypes.FOOD) && !(s.getItem() instanceof net.minecraft.item.PotionItem)) break;
                 ItemStack one = s.split(1);
@@ -294,6 +301,77 @@ public final class Satchel {
         send(p, false);
     }
 
+    /** Worn and loadout places: 0-8 the loadout, 40 the off hand, 100-103 feet, legs, chest, head. */
+    public static final int OFF = 40, ARMOR = 100;
+
+    public static net.minecraft.entity.EquipmentSlot armorSlot(int target) {
+        return switch (target - ARMOR) {
+            case 0 -> net.minecraft.entity.EquipmentSlot.FEET;
+            case 1 -> net.minecraft.entity.EquipmentSlot.LEGS;
+            case 2 -> net.minecraft.entity.EquipmentSlot.CHEST;
+            case 3 -> net.minecraft.entity.EquipmentSlot.HEAD;
+            default -> null;
+        };
+    }
+
+    /** Can this item go in that place? */
+    public static boolean fitsPlace(net.minecraft.entity.LivingEntity p, ItemStack s, int target) {
+        if (s.isEmpty()) return true;
+        if (target >= ARMOR) {
+            var es = armorSlot(target);
+            return es != null && p.getPreferredEquipmentSlot(s) == es;
+        }
+        if (target == OFF) return Loadout.isGrip(s) || s.getItem() instanceof net.minecraft.item.ShieldItem;
+        return target >= 0 && target < 9 && Loadout.fits(Loadout.SLOTS[target], s);
+    }
+
+    private static ItemStack placed(ServerPlayerEntity p, int target) {
+        if (target >= ARMOR) return armorSlot(target) == null ? ItemStack.EMPTY : p.getEquippedStack(armorSlot(target));
+        if (target == OFF) return p.getOffHandStack();
+        return target >= 0 && target < 9 ? p.getInventory().main.get(target) : ItemStack.EMPTY;
+    }
+
+    private static void place(ServerPlayerEntity p, int target, ItemStack s) {
+        if (target >= ARMOR) p.equipStack(armorSlot(target), s);
+        else if (target == OFF) p.setStackInHand(net.minecraft.util.Hand.OFF_HAND, s);
+        else p.getInventory().main.set(target, s);
+        p.getInventory().markDirty();
+    }
+
+    /** Puts a satchel item in the place the player chose; what was there comes back to the satchel. */
+    private void equipTo(ServerPlayerEntity p, SimpleInventory bag, int slot, ItemStack s, int target) {
+        if (target != OFF && (target < 0 || target >= 9) && armorSlot(target) == null) return;
+        if (Gear.isGear(s) && !Gear.canUse(p, s)) {
+            Notify.toast(p, Text.literal("Locked").formatted(net.minecraft.util.Formatting.RED),
+                Text.literal("Needs level " + Gear.requiredLevel(s)), 0xC0463A, null, null);
+            return;
+        }
+        if (!fitsPlace(p, s, target)) {
+            Notify.toast(p, Text.literal("Doesn't go there").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, null, null);
+            return;
+        }
+        ItemStack old = placed(p, target).copy();
+        place(p, target, s);
+        bag.setStack(slot, old);
+    }
+
+    /** Takes what is in a loadout, off-hand or armor place back into the satchel. */
+    private void store(ServerPlayerEntity p, SimpleInventory bag, int target) {
+        if (target != OFF && (target < 0 || target >= 9) && armorSlot(target) == null) return;
+        ItemStack s = placed(p, target);
+        if (s.isEmpty() || isStory(s)) return;
+        ItemStack copy = s.copy();
+        ItemStack rest = bag.addStack(copy);
+        if (!rest.isEmpty()) {
+            Notify.toast(p, Text.literal("Satchel full").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, null, null);
+            if (rest.getCount() == s.getCount()) return;
+        }
+        place(p, target, rest);
+        bag.markDirty();
+        save(p.getUuid());
+        send(p, false);
+    }
+
     /** Armor to its slot; anything else to the loadout slot made for it (what was there comes back). */
     private void equip(ServerPlayerEntity p, SimpleInventory bag, int slot, ItemStack s) {
         if (Gear.isGear(s) && !Gear.canUse(p, s)) {
@@ -301,8 +379,8 @@ public final class Satchel {
                 Text.literal("Needs level " + Gear.requiredLevel(s)), 0xC0463A, null, null);
             return;
         }
-        if (s.getItem() instanceof net.minecraft.item.ArmorItem armor) {
-            var es = armor.getSlotType();
+        var es = p.getPreferredEquipmentSlot(s);
+        if (es.getType() == net.minecraft.entity.EquipmentSlot.Type.HUMANOID_ARMOR) {
             ItemStack old = p.getEquippedStack(es);
             p.equipStack(es, s);
             bag.setStack(slot, old);

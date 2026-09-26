@@ -13,6 +13,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,30 +42,60 @@ public final class GameHints {
         return k == null ? "?" : k.getBoundKeyLocalizedText().getString().toUpperCase(java.util.Locale.ROOT);
     }
 
-    /**
-     * Are these grips out of blades? Danny's grips keep their blade state in the item; this reads the
-     * usual signs (a spent durability bar, or a blade/loaded count at zero in the item's data).
-     */
-    public static boolean bladesSpent(ItemStack s) {
-        if (!com.pglol.aotrpg.Loadout.isGrip(s) || com.pglol.aotrpg.AotItems.isApgGun(s)) return false;
-        if (s.isDamageable() && s.getDamage() >= s.getMaxDamage() - 1) return true;
-        NbtComponent c = s.get(DataComponentTypes.CUSTOM_DATA);
-        if (c == null) return false;
-        return spent(c.copyNbt());
+    private static final java.util.regex.Pattern COUNT = java.util.regex.Pattern.compile("([a-z][a-z ]*?)\\s*:?\\s*(\\d+)\\s*/\\s*(\\d+)");
+    private static ItemStack lastStack = ItemStack.EMPTY;
+    private static long lastCheck;
+    private static int lastState;
+
+    private static List<String> lines(ItemStack s) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        List<String> out = new java.util.ArrayList<>();
+        if (mc.player == null || mc.world == null) return out;
+        for (Text t : s.getTooltip(net.minecraft.item.Item.TooltipContext.create(mc.world), mc.player,
+            net.minecraft.item.tooltip.TooltipType.BASIC)) out.add(t.getString().toLowerCase(java.util.Locale.ROOT));
+        return out;
     }
 
-    private static boolean spent(NbtCompound n) {
-        for (String k : n.getKeys()) {
-            String lk = k.toLowerCase(java.util.Locale.ROOT);
-            NbtElement e = n.get(k);
-            if (e instanceof NbtCompound inner) {
-                if (spent(inner)) return true;
-                continue;
+    /**
+     * What a weapon needs, read from its own tooltip: 1 = blades spent (a loaded grip says "press R
+     * to eject blade" and shows its durability), 2 = gun empty (an ammo count at 0), 0 = fine.
+     */
+    public static int needsReload(ItemStack s) {
+        if (s.isEmpty() || !com.pglol.aotrpg.AotItems.isAot(s)) return 0;
+        long now = Util.getMeasuringTimeMs();
+        if (s == lastStack && now - lastCheck < 250) return lastState;
+        lastStack = s;
+        lastCheck = now;
+        lastState = compute(s);
+        return lastState;
+    }
+
+    private static int compute(ItemStack s) {
+        boolean gun = com.pglol.aotrpg.AotItems.isApgGun(s);
+        boolean grip = !gun && com.pglol.aotrpg.Loadout.isGrip(s);
+        if (!gun && !grip) return 0;
+        List<String> ls = lines(s);
+        boolean eject = false, durability = false, durabilityZero = false, ammoZero = false;
+        for (String l : ls) {
+            if (l.contains("eject")) eject = true;
+            if (l.contains("durability")) {
+                durability = true;
+                java.util.regex.Matcher m = COUNT.matcher(l);
+                if (m.find() && Integer.parseInt(m.group(2)) <= 0) durabilityZero = true;
             }
-            if (!(lk.contains("blade") || lk.contains("loaded") || lk.contains("ammo"))) continue;
-            if (e instanceof net.minecraft.nbt.AbstractNbtNumber num && num.doubleValue() <= 0) return true;
+            if (l.contains("thunder")) continue;
+            java.util.regex.Matcher m = COUNT.matcher(l);
+            while (m.find()) {
+                String label = m.group(1);
+                if ((label.contains("ammo") || label.contains("cartridge") || label.contains("bullet") || label.contains("shot")
+                    || label.contains("round") || label.contains("loaded") || label.contains("charge")) && Integer.parseInt(m.group(2)) <= 0) {
+                    ammoZero = true;
+                }
+            }
+            if (gun && l.contains("to reload")) ammoZero = true;
         }
-        return false;
+        if (grip) return durabilityZero || (!eject && !durability) ? 1 : 0;
+        return ammoZero ? 2 : 0;
     }
 
     private static boolean ready(String id, long restMs) {
@@ -75,7 +106,9 @@ public final class GameHints {
     private static String[] pick(MinecraftClient mc) {
         var pl = mc.player;
         ItemStack main = pl.getMainHandStack();
-        if (bladesSpent(main) || bladesSpent(pl.getOffHandStack())) return new String[] {"reload", "(" + reloadKey() + " to reload blades)"};
+        int need = needsReload(main);
+        if (need == 1) return new String[] {"reload", "(" + reloadKey() + " to reload blades)"};
+        if (need == 2) return new String[] {"reload", "(" + reloadKey() + " to reload APG)"};
         if (ClientState.stamina >= 0 && ClientState.stamina < ClientState.maxStamina * 0.15f && ready("stamina", 45_000)) {
             return new String[] {"stamina", "Stamina low: land and catch your breath"};
         }

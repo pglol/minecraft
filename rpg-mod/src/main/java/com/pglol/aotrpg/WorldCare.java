@@ -178,8 +178,15 @@ public final class WorldCare {
             || s.isOf(Blocks.MOVING_PISTON) || s.isOf(Blocks.FROSTED_ICE);
     }
 
+    /** Fires lit on protected land (a shifter's rampage, burning titans): put out after a few seconds. */
+    private final Map<Long, Long> fires = new java.util.HashMap<>();
+
     /** Called from the World mixin before any block change on the server. */
     public void beforeChange(ServerWorld w, BlockPos pos, BlockState next) {
+        if ((next.isOf(Blocks.FIRE) || next.isOf(Blocks.SOUL_FIRE)) && config.protect && w.getRegistryKey() == World.OVERWORLD
+            && quiet.get() == 0 && !inBuildZone(pos.getX(), pos.getZ()) && !HomePlots.ownedAt(pos) && fires.size() < 20000) {
+            fires.putIfAbsent(pos.asLong(), w.getTime());
+        }
         // Cheapest checks first: this runs for every block change on the server.
         boolean destroyed = next.isAir() || next.getBlock() instanceof FluidBlock || next.isOf(Blocks.FIRE) || next.isOf(Blocks.SOUL_FIRE);
         if (!destroyed && mobTicking <= 0) return;
@@ -215,6 +222,31 @@ public final class WorldCare {
         }
     }
 
+    /** Puts out fires on protected land that have burned for 3 seconds (they never spread through town). */
+    private void snuff() {
+        ServerWorld w = server.getOverworld();
+        long now = w.getTime();
+        quiet(true);
+        try {
+            for (var it = fires.entrySet().iterator(); it.hasNext(); ) {
+                var e = it.next();
+                if (now - e.getValue() < 60) continue;
+                it.remove();
+                BlockPos pos = BlockPos.fromLong(e.getKey());
+                if (!w.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) continue;
+                BlockState s = w.getBlockState(pos);
+                if (s.isOf(Blocks.FIRE) || s.isOf(Blocks.SOUL_FIRE)) {
+                    w.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
+                    if (w.random.nextInt(4) == 0) {
+                        w.spawnParticles(net.minecraft.particle.ParticleTypes.SMOKE, pos.getX() + 0.5, pos.getY() + 0.3, pos.getZ() + 0.5, 3, 0.2, 0.1, 0.2, 0.01);
+                    }
+                }
+            }
+        } finally {
+            quiet(false);
+        }
+    }
+
     /** A block an operator removed on purpose stays removed. */
     public void forget(BlockPos pos) {
         changed.remove(pos.asLong());
@@ -228,17 +260,19 @@ public final class WorldCare {
     /** Once a second: restore what is due, bottom up, away from players. */
     public void tick(long ticks, boolean force) {
         mobTicking = 0; // safety: never left raised by an entity that crashed mid-tick
+        if (!fires.isEmpty() && ticks % 20 == 3) snuff();
         if (changed.isEmpty() || (!config.regen && !force)) return;
         if (ticks % (20 * 300) == 0) save();
         if (!force && ticks % 20 != 0) return;
         ServerWorld w = server.getOverworld();
         long now = w.getTime();
-        long delay = config.regenDelaySeconds * 20L;
+        // Towns mend quickly (at most a minute after the damage).
+        long delay = Math.min(config.regenDelaySeconds, 60) * 20L;
         List<Map.Entry<Long, Entry>> due = new ArrayList<>();
         for (var e : changed.entrySet()) if (force || now - e.getValue().at() >= delay) due.add(e);
         if (due.isEmpty()) return;
         due.sort((a, b) -> Integer.compare(BlockPos.unpackLongY(a.getKey()), BlockPos.unpackLongY(b.getKey())));
-        int budget = force ? Integer.MAX_VALUE : Math.max(1, config.blocksPerSecond);
+        int budget = force ? Integer.MAX_VALUE : Math.max(160, config.blocksPerSecond);
         quiet(true);
         try {
             for (var e : due) {

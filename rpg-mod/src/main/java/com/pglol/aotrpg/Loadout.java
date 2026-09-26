@@ -55,8 +55,8 @@ public final class Loadout {
     public enum Kind {
         MELEE("Melee", "ODM grips, blades, swords, axes"),
         RANGED("Ranged", "APG gun, bows, crossbows, muskets"),
-        SIDEARM("Sidearm", "A second weapon or a shield"),
-        TOOL("Tool", "Pickaxes, shovels, fishing rods, shears"),
+        SIDEARM("Sidearm", "A second ranged weapon"),
+        TOOL("Tool", "Gas canisters, pickaxes, fishing rods, shears"),
         HEAL("Heal", "Food, meals and potions. [H] uses it instantly"),
         MOUNT("Mount", "Saddle, lead, horse armor, horse treats"),
         SIGNAL("Signal", "Flare gun and flares, torches, spyglass, maps"),
@@ -121,9 +121,10 @@ public final class Loadout {
         String p = aot(s);
         return switch (k) {
             case MELEE -> isMelee(s);
-            case RANGED -> isRanged(s);
-            case SIDEARM -> isMelee(s) || isRanged(s) || i instanceof ShieldItem;
-            case TOOL -> i instanceof MiningToolItem || i instanceof ShearsItem || i instanceof FishingRodItem
+            case RANGED -> isRanged(s) && !isMelee(s);
+            // The sidearm sits with the ranged pair: a second gun, never a blade.
+            case SIDEARM -> isRanged(s) && !isMelee(s);
+            case TOOL -> AotItems.isGas(s) || i instanceof MiningToolItem || i instanceof ShearsItem || i instanceof FishingRodItem
                 || i instanceof FlintAndSteelItem || i instanceof BrushItem || i instanceof BucketItem;
             case HEAL -> isHeal(s);
             case MOUNT -> i instanceof SaddleItem || i instanceof LeadItem || i instanceof AnimalArmorItem || i instanceof OnAStickItem

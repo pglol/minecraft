@@ -339,6 +339,8 @@ public final class AotRpg implements ModInitializer {
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, be) -> {
             if (!world.isClient && player instanceof ServerPlayerEntity sp && FURNITURE.onBreak(sp, pos)) return false;
             if (CARE.canBuild(player, pos)) return true;
+            // Anyone may put out a fire.
+            if (state.getBlock() instanceof net.minecraft.block.AbstractFireBlock) return true;
             CARE.deny(player);
             return false;
         });

@@ -101,11 +101,13 @@ public final class TitanLevels {
         if (ticks % 20 != 11) return;
         long now = System.currentTimeMillis();
         napes.values().removeIf(n -> now - n.lastAt > 60_000);
+        swings.values().removeIf(s -> now - s.at() > 10_000);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             ServerWorld w = p.getServerWorld();
             List<Net.TitanTag> tags = new ArrayList<>();
             for (Entity e : w.getOtherEntities(p, new Box(p.getBlockPos()).expand(96, 96, 96), TitanLevels::root)) {
                 if (level(e) <= 0) assign((LivingEntity) e, p);
+                unboost((LivingEntity) e);
                 Nape n = napes.get(e.getUuid());
                 int strikes = n != null && now - n.lastAt < STRIKE_MEMORY_MS ? n.strikes : 0;
                 tags.add(new Net.TitanTag(e.getId(), level(e), strikes, needed(p, (LivingEntity) e)));
@@ -129,17 +131,56 @@ public final class TitanLevels {
         lv = Math.max(1, Math.min(99, lv));
         t.addCommandTag(LV + lv);
         t.addCommandTag(PARTY + size);
-        // Health and strength grow with level, and with the size of the party it was met by.
-        double hp = 0.06 * lv + 0.35 * (size - 1);
-        EntityAttributeInstance h = t.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
-        if (h != null && !h.hasModifier(HP_MOD)) {
-            h.addPersistentModifier(new EntityAttributeModifier(HP_MOD, hp, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE));
-            t.setHealth(t.getMaxHealth());
-        }
+        // Strength grows with level. (Health stays as Danny's mod sets it: its nape blow is sized
+        // to it; toughness comes from the nape strikes a titan takes instead.)
         EntityAttributeInstance d = t.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE);
         if (d != null && !d.hasModifier(DMG_MOD)) {
             d.addPersistentModifier(new EntityAttributeModifier(DMG_MOD, 0.035 * lv, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE));
         }
+    }
+
+    /** Titans levelled by the first version got extra health that outlasted the nape blow: take it back. */
+    private static void unboost(LivingEntity t) {
+        EntityAttributeInstance h = t.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
+        if (h != null && h.hasModifier(HP_MOD)) {
+            h.removeModifier(HP_MOD);
+            if (t.getHealth() > t.getMaxHealth()) t.setHealth(t.getMaxHealth());
+        }
+    }
+
+    /** Who last swung a blade at each titan (reported by the client's slash), for napes hit without a named attacker. */
+    private record Swing(ServerPlayerEntity by, long at, boolean nape) { }
+
+    private final Map<UUID, Swing> swings = new HashMap<>();
+
+    public void slashed(ServerPlayerEntity p, Entity target) {
+        LivingEntity t = root(target) ? (LivingEntity) target : part(target) ? owner(target) : null;
+        if (t != null) swings.put(t.getUuid(), new Swing(p, System.currentTimeMillis(), nape(target)));
+    }
+
+    /** A blade just struck this titan's nape (Danny's nape passes its hit on to the titan). */
+    private boolean napeSlashed(Entity titan) {
+        Swing s = swings.get(titan.getUuid());
+        return s != null && s.nape() && System.currentTimeMillis() - s.at() < 400;
+    }
+
+    /** The player behind a nape hit: the named attacker, else whoever just slashed it, else the nearest fighter. */
+    private ServerPlayerEntity striker(DamageSource source, LivingEntity titan, Entity hit) {
+        if (source.getAttacker() instanceof ServerPlayerEntity p) return p;
+        if (source.getSource() instanceof ServerPlayerEntity p) return p;
+        Swing s = swings.get(titan.getUuid());
+        if (s != null && System.currentTimeMillis() - s.at() < 1500 && s.by().isAlive()) return s.by();
+        ServerPlayerEntity best = null;
+        double bd = 16 * 16;
+        for (ServerPlayerEntity p : ((ServerWorld) titan.getWorld()).getPlayers()) {
+            if (p.isSpectator() || p.isCreative() && !p.hasPermissionLevel(2)) continue;
+            double d = p.squaredDistanceTo(hit);
+            if (d < bd) {
+                bd = d;
+                best = p;
+            }
+        }
+        return best;
     }
 
     /** How strong a striker is against titans: their level, and their weapon if they can use it. */
@@ -198,17 +239,19 @@ public final class TitanLevels {
      * counted instead, until enough have landed.
      */
     public boolean strike(Entity hit, DamageSource source, float amount) {
-        if (hit.getWorld().isClient || amount <= 0 || !(source.getAttacker() instanceof ServerPlayerEntity p)) return false;
+        if (hit.getWorld().isClient || amount <= 0) return false;
         LivingEntity titan;
         if (part(hit)) {
             if (!nape(hit)) return false;
             titan = owner(hit);
-        } else if (root(hit) && amount >= ((LivingEntity) hit).getHealth()) {
+        } else if (root(hit) && (amount >= ((LivingEntity) hit).getHealth() || napeSlashed(hit))) {
             titan = (LivingEntity) hit;
         } else {
             return false;
         }
         if (titan == null || !titan.isAlive() || TitanGuard.isShifter(titan) && titan.hasPassengers()) return false;
+        ServerPlayerEntity p = striker(source, titan, hit);
+        if (p == null) return false;
         long now = System.currentTimeMillis();
         Nape n = napes.computeIfAbsent(titan.getUuid(), k -> new Nape());
         if (now < n.approvedUntil) return false;

@@ -134,6 +134,11 @@ public final class AotItems {
         return false;
     }
 
+    /** ODM gas canisters: held to refill the gear's gas. */
+    public static boolean isGas(ItemStack s) {
+        return isAot(s) && path(s).contains("gas_canister");
+    }
+
     public static boolean isApgGun(ItemStack s) {
         return isAot(s) && path(s).contains("apg_gun");
     }

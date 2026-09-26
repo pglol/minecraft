@@ -36,6 +36,25 @@ public final class BagScreen extends Screen {
     private int selected = -1, scroll;
     private int gx, gy, cols, rows, cw, ch, detailX, detailW;
     private TextFieldWidget price;
+    private int equipRow = -1;
+
+    private ItemStack placed(int t) {
+        if (client == null || client.player == null) return ItemStack.EMPTY;
+        if (t >= Satchel.ARMOR) return client.player.getEquippedStack(Satchel.armorSlot(t));
+        if (t == Satchel.OFF) return client.player.getOffHandStack();
+        return client.player.getInventory().main.get(t);
+    }
+
+    private static String placeName(int t) {
+        return switch (t) {
+            case 103 -> "Head";
+            case 102 -> "Chest";
+            case 101 -> "Legs";
+            case 100 -> "Feet";
+            case Satchel.OFF -> "Off hand";
+            default -> Loadout.SLOTS[t].title + " (" + (t + 1) + ")";
+        };
+    }
 
     public BagScreen() {
         super(Text.literal("Satchel"));
@@ -56,9 +75,11 @@ public final class BagScreen extends Screen {
     public static int category(ItemStack s) {
         Item i = s.getItem();
         if (Satchel.isStory(s)) return 6;
-        if (s.getItem() instanceof ArmorItem || (Gear.isGear(s) && s.getItem() instanceof ArmorItem)) return 1;
+        var pl = net.minecraft.client.MinecraftClient.getInstance().player;
+        if (s.getItem() instanceof ArmorItem
+            || (pl != null && pl.getPreferredEquipmentSlot(s).getType() == net.minecraft.entity.EquipmentSlot.Type.HUMANOID_ARMOR)) return 1;
         if (Loadout.isMelee(s) || Loadout.isRanged(s) || i instanceof net.minecraft.item.ShieldItem) return 0;
-        if (AotItems.isSupply(s) || i == Items.ARROW || i == Items.SPECTRAL_ARROW) return 2;
+        if (AotItems.isSupply(s) || AotItems.isGas(s) || i == Items.ARROW || i == Items.SPECTRAL_ARROW) return 2;
         if (s.contains(DataComponentTypes.FOOD) || i instanceof PotionItem || Loadout.isHeal(s)) return 3;
         if (Loadout.fits(Loadout.Kind.MOUNT, s) || Loadout.fits(Loadout.Kind.TOOL, s) || Loadout.fits(Loadout.Kind.SIGNAL, s)) return 5;
         return 4;
@@ -104,7 +125,21 @@ public final class BagScreen extends Screen {
         cw = 36;
         ch = 46;
         cols = Math.max(3, (detailX - 10 - gx) / (cw + 5));
-        rows = Math.max(1, (height - 34 - gy) / (ch + 5));
+        rows = Math.max(1, (height - 64 - gy) / (ch + 5));
+        // What you wear and carry: click to put it back in the satchel.
+        int[] order = {103, 102, 101, 100, Satchel.OFF, 0, 1, 2, 3, 4, 5, 6, 7, 8};
+        int sx = gx + 100;
+        for (int i = 0; i < order.length; i++) {
+            int t = order[i];
+            ItemStack cur = placed(t);
+            AotButton b = addDrawableChild(new AotButton(sx + i * 22 + (i >= 5 ? 6 : 0), height - 27, 20, 20, Text.empty(), () -> {
+                if (!placed(t).isEmpty()) act("store", -1, t);
+            }));
+            if (!cur.isEmpty()) b.icon(cur.copy());
+            b.accent = t >= Satchel.ARMOR ? Ui.TRIM : t == Satchel.OFF ? Ui.GOLD : LoadoutUi.color(Loadout.SLOTS[t]);
+            b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(placeName(t)
+                + (cur.isEmpty() ? " (empty)" : ": " + cur.getName().getString() + "\nClick to put it in the satchel"))));
+        }
         // Category tabs across the top.
         int tw = 22, tx = width / 2 - (TABS.length * (tw + 4)) / 2;
         for (int i = 0; i < TABS.length; i++) {
@@ -120,7 +155,7 @@ public final class BagScreen extends Screen {
             b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(TABS[i])));
         }
         addDrawableChild(new AotButton(width - 30, 8, 22, 22, Text.literal("✕"), this::close));
-        addDrawableChild(new AotButton(gx, height - 26, 90, 18, Text.literal("Sort: " + SORTS[sort]), () -> {
+        addDrawableChild(new AotButton(gx + 100 + 14 * 22 + 16, height - 26, 90, 18, Text.literal("Sort: " + SORTS[sort]), () -> {
             sort = (sort + 1) % SORTS.length;
             clearAndInit();
         }));
@@ -129,19 +164,29 @@ public final class BagScreen extends Screen {
         if (!s.isEmpty()) {
             int bx = detailX + 8, bw = detailW - 16, by = height - 30;
             boolean usable = s.contains(DataComponentTypes.FOOD) || s.getItem() instanceof PotionItem;
-            boolean equippable = s.getItem() instanceof ArmorItem || category(s) != 4 && category(s) != 6 && !usable || Loadout.isHeal(s);
             int slot = selected;
+            // Where it can go: pick the place (what is there now comes back to the satchel).
+            java.util.List<Integer> places = new java.util.ArrayList<>();
+            for (int t : new int[] {103, 102, 101, 100, Satchel.OFF, 0, 1, 2, 3, 4, 5, 6, 7, 8}) {
+                if (client.player != null && Satchel.fitsPlace(client.player, s, t)) places.add(t);
+            }
+            int py = by - 50;
+            for (int i = 0; i < places.size() && i < 8; i++) {
+                int t = places.get(i);
+                ItemStack cur = placed(t);
+                AotButton b = addDrawableChild(new AotButton(bx + i * 22, py, 20, 20, Text.empty(), () -> act("equip", slot, t)));
+                if (!cur.isEmpty()) b.icon(cur.copy());
+                b.accent = Ui.GOLD;
+                b.active = !GearUi.locked(s);
+                b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Equip to " + placeName(t)
+                    + (cur.isEmpty() ? "" : "\n(swaps with " + cur.getName().getString() + ")"))));
+            }
+            equipRow = places.isEmpty() ? -1 : py;
             if (!Satchel.isStory(s)) {
                 AotButton drop = addDrawableChild(new AotButton(bx, by, 44, 18, Text.literal("Drop"), () -> act("drop", slot, 0)));
                 drop.accent = Ui.RED;
             }
             int rx = bx + bw;
-            if (equippable) {
-                AotButton eq = addDrawableChild(new AotButton(rx - 60, by, 60, 18, Text.literal(s.getItem() instanceof ArmorItem ? "Equip" : "To loadout"),
-                    () -> act("equip", slot, 0)));
-                eq.active = !GearUi.locked(s);
-                rx -= 64;
-            }
             if (usable) {
                 addDrawableChild(new AotButton(rx - 44, by, 44, 18, Text.literal("Use"), () -> act("use", slot, 0)));
             }
@@ -228,6 +273,9 @@ public final class BagScreen extends Screen {
             c.fill(bx, ty, bx + 2, ty + th, Ui.GOLD);
         }
         detail(c);
+        Ui.text(c, Ui.heading("Worn & loadout"), gx, height - 21, 0.8f, Ui.GOLD, false);
+        Ui.text(c, Text.literal("click to take off"), gx, height - 12, 0.55f, Ui.MUTED, false);
+        if (equipRow >= 0) Ui.text(c, Ui.heading("Equip to"), detailX + 8, equipRow - 11, 0.8f, 0xFF3A3020, false);
     }
 
     private void card(DrawContext c, ItemStack s, int x, int y, boolean sel, boolean hov) {
@@ -261,6 +309,7 @@ public final class BagScreen extends Screen {
         if (s.isEmpty()) {
             Ui.panel(c, x, y, w, 60);
             Ui.text(c, Text.literal("Pick an item to see it."), x + w / 2f, y + 26, 0.8f, Ui.MUTED, true);
+        equipRow = -1;
             return;
         }
         int q = quality(s);
@@ -286,9 +335,10 @@ public final class BagScreen extends Screen {
         List<Text> lines = client.player == null ? List.of()
             : s.getTooltip(net.minecraft.item.Item.TooltipContext.create(client.world), client.player, TooltipType.BASIC);
         int ly = y + 86;
-        for (int i = 1; i < lines.size() && ly < height - 64; i++) {
+        int bottom = equipRow >= 0 ? equipRow - 14 : height - 64;
+        for (int i = 1; i < lines.size() && ly < bottom; i++) {
             for (var ord : textRenderer.wrapLines(lines.get(i), (int) ((w - 12) / 0.75f))) {
-                if (ly >= height - 64) break;
+                if (ly >= bottom) break;
                 var mm = c.getMatrices();
                 mm.push();
                 mm.translate(x + 6, ly, 0);
