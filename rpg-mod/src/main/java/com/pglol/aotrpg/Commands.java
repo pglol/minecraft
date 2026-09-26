@@ -146,6 +146,17 @@ final class Commands {
                 if (!ok) c.getSource().sendError(Text.literal("A Call to Arms is already running, or that town id is unknown."));
                 return ok ? 1 : 0;
             }))))
+            .then(CommandManager.literal("repair").executes(c -> {
+                ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                int n = Repair.free(p);
+                c.getSource().sendFeedback(() -> Text.literal("Mended " + n + " piece" + (n == 1 ? "" : "s") + " of gear."), false);
+                return n;
+            }).then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                ServerPlayerEntity p = EntityArgumentType.getPlayer(c, "player");
+                int n = Repair.free(p);
+                c.getSource().sendFeedback(() -> Text.literal("Mended " + n + " piece" + (n == 1 ? "" : "s") + " of " + p.getName().getString() + "'s gear."), true);
+                return n;
+            })))
             .then(CommandManager.literal("raid").executes(c -> {
                 boolean ok = AotRpg.RAIDS.forceStart(c.getSource().getPlayerOrThrow());
                 if (!ok) c.getSource().sendError(Text.literal("You need to own a property plot (and no raid running there)."));

@@ -157,6 +157,10 @@ public final class BagScreen extends Screen {
             b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(TABS[i])));
         }
         addDrawableChild(new AotButton(width - 30, 8, 22, 22, Text.literal("✕"), this::close));
+        AotButton mendAll = addDrawableChild(new AotButton(246, 11, 90, 16, Text.literal("Mend all"), () -> act("repairall", -1, 0)));
+        mendAll.accent = 0xFF5BD35B;
+        mendAll.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+            "At home: mend everything you carry and wear. Weapons take iron, armor and clothing take leather, plus a small fee.")));
         addDrawableChild(new AotButton(150, 11, 90, 16, Text.literal("Sort: " + SORTS[sort]), () -> {
             sort = (sort + 1) % SORTS.length;
             clearAndInit();
@@ -193,6 +197,15 @@ public final class BagScreen extends Screen {
             int rx = bx + bw;
             if (usable) {
                 addDrawableChild(new AotButton(rx - 44, by, 44, 18, Text.literal("Use"), () -> act("use", slot, 0)));
+                rx -= 48;
+            }
+            com.pglol.aotrpg.Repair.Cost cost = com.pglol.aotrpg.Repair.cost(s);
+            if (cost != null) {
+                AotButton rp = addDrawableChild(new AotButton(rx - 56, by, 56, 18, Text.literal("Mend"), () -> act("repair", slot, 0)));
+                rp.accent = 0xFF5BD35B;
+                rp.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Mend at home: " + cost.marks() + " Marks"
+                    + (cost.iron() > 0 ? ", " + cost.iron() + " iron ingot" + (cost.iron() == 1 ? "" : "s") : "")
+                    + (cost.leather() > 0 ? ", " + cost.leather() + " leather" : ""))));
             }
             if (!Satchel.isStory(s)) {
                 // List it on the Global Market.

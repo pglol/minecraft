@@ -272,6 +272,11 @@ public final class Satchel {
             store(p, bag, (int) arg);
             return;
         }
+        if (action.equals("repairall")) {
+            Repair.all(p);
+            send(p, false);
+            return;
+        }
         if (action.equals("storecursor")) {
             // An item carried on the cursor, dropped on the Satchel button.
             var h = p.currentScreenHandler;
@@ -306,6 +311,7 @@ public final class Satchel {
                 p.dropItem(s, false, true);
             }
             case "list" -> AotRpg.EXCHANGE.list(p, BAG + slot, arg);
+            case "repair" -> Repair.one(p, s);
             default -> { }
         }
         bag.markDirty();
