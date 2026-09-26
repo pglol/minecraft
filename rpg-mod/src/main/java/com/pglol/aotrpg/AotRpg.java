@@ -76,6 +76,7 @@ public final class AotRpg implements ModInitializer {
     public static final Downed DOWNED = new Downed();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
+    public static final OdmBoost ODM = new OdmBoost();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -214,6 +215,7 @@ public final class AotRpg implements ModInitializer {
             return net.minecraft.util.TypedActionResult.pass(stack);
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.OdmJump.ID, (payload, ctx) -> ODM.boost(ctx.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(Net.FurnitureAction.ID, (payload, ctx) ->
             FURNITURE.action(ctx.player(), payload.action(), payload.piece(), payload.action().equals("place") ? net.minecraft.util.math.BlockPos.fromLong(payload.at()) : null));
         ServerPlayNetworking.registerGlobalReceiver(Net.SkillReset.ID, (payload, ctx) -> {
@@ -570,6 +572,7 @@ public final class AotRpg implements ModInitializer {
             ROLES.forget(p);
             HOMES.forget(p);
             GRAB.forget(p);
+            ODM.forget(p.getUuid());
             PROGRESSION.forgetHunger(p);
             PROGRESSION.removeBar(p);
             FISHING.forget(p.getUuid());
@@ -650,6 +653,7 @@ public final class AotRpg implements ModInitializer {
             WAVES.tick(p, ticks);
             if (PROFILES.get(p.getUuid()).created) ROLES.tick(p, ticks);
             GRAB.tick(p, ticks);
+            ODM.tick(p, ticks);
             FURNITURE.tick(p, ticks);
             GUARD_FIGHT.tick(p, ticks);
             ABILITIES.tick(p);

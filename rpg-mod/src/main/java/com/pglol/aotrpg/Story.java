@@ -278,6 +278,26 @@ public final class Story {
 
     private final Map<UUID, UUID> lastMoment = new HashMap<>();
 
+    /**
+     * Someone stepped into or out of a story moment: reconsider, for each other player in the
+     * world, whether the two of them can see each other (only those two trackers, nothing else).
+     */
+    private static void refreshPlayers(ServerPlayerEntity p) {
+        try {
+            Object mgr = p.getServerWorld().getChunkManager().chunkLoadingManager;
+            if (!(mgr instanceof com.pglol.aotrpg.mixin.phase.ChunkLoadingManagerAccessor acc)) return;
+            var trackers = acc.aotrpg$trackers();
+            Object mine = trackers.get(p.getId());
+            for (ServerPlayerEntity o : p.getServerWorld().getPlayers()) {
+                if (o == p) continue;
+                if (mine instanceof com.pglol.aotrpg.PhaseTracker t) t.aotrpg$refresh(o);
+                if (trackers.get(o.getId()) instanceof com.pglol.aotrpg.PhaseTracker t) t.aotrpg$refresh(p);
+            }
+        } catch (RuntimeException ignored) {
+            // Without the phasing hooks, players simply show up again when they next move.
+        }
+    }
+
     /** True once a character has lived their first memory and come back: the rest of the world opens up. */
     public static boolean free(State s) {
         if (s.flags.contains("prologue_done")) return true;
@@ -1185,6 +1205,7 @@ public final class Story {
             ActorDef def = actors.getOrDefault(who, new ActorDef());
             VillagerEntity v = EntityType.VILLAGER.create(w);
             if (v == null) continue;
+            at = settle(w, at, null, null);
             v.refreshPositionAndAngles(at.x, at.y, at.z, 0, 0);
             v.setAiDisabled(true);
             v.setInvulnerable(true);
@@ -1316,7 +1337,7 @@ public final class Story {
             if (!java.util.Objects.equals(now, was)) {
                 if (now == null) lastMoment.remove(p.getUuid());
                 else lastMoment.put(p.getUuid(), now);
-                p.getServerWorld().getChunkManager().updatePosition(p);
+                refreshPlayers(p);
             }
         }
         if (s.mission.startsWith("@")) {

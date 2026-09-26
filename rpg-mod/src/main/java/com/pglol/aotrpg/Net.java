@@ -1021,6 +1021,30 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Client -> server: an ODM double jump just fired (kind: 0 dash, 1 straight up, 2 flip; yaw of travel). */
+    public record OdmJump(int kind, float yaw) implements CustomPayload {
+        public static final Id<OdmJump> ID = id("odm_jump");
+        public static final PacketCodec<RegistryByteBuf, OdmJump> CODEC = PacketCodec.of((v, b) -> { b.writeVarInt(v.kind); b.writeFloat(v.yaw); },
+            b -> new OdmJump(b.readVarInt(), b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> nearby clients: someone's ODM move, to animate them. */
+    public record OdmMove(int entity, int kind, float yaw) implements CustomPayload {
+        public static final Id<OdmMove> ID = id("odm_move");
+        public static final PacketCodec<RegistryByteBuf, OdmMove> CODEC = PacketCodec.of((v, b) -> { b.writeVarInt(v.entity); b.writeVarInt(v.kind); b.writeFloat(v.yaw); },
+            b -> new OdmMove(b.readVarInt(), b.readVarInt(), b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: are you wearing ODM gear, and how much gas is in it (0..1, -1 unknown). */
+    public record OdmState(boolean gear, float gas) implements CustomPayload {
+        public static final Id<OdmState> ID = id("odm_state");
+        public static final PacketCodec<RegistryByteBuf, OdmState> CODEC = PacketCodec.of((v, b) -> { b.writeBoolean(v.gear); b.writeFloat(v.gas); },
+            b -> new OdmState(b.readBoolean(), b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record Struggle() implements CustomPayload {
         public static final Id<Struggle> ID = id("struggle");
         public static final PacketCodec<RegistryByteBuf, Struggle> CODEC = PacketCodec.unit(new Struggle());
@@ -1711,6 +1735,9 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(CharacterList.ID, CharacterList.CODEC);
         PayloadTypeRegistry.playC2S().register(CharacterAction.ID, CharacterAction.CODEC);
         PayloadTypeRegistry.playC2S().register(Struggle.ID, Struggle.CODEC);
+        PayloadTypeRegistry.playC2S().register(OdmJump.ID, OdmJump.CODEC);
+        PayloadTypeRegistry.playS2C().register(OdmMove.ID, OdmMove.CODEC);
+        PayloadTypeRegistry.playS2C().register(OdmState.ID, OdmState.CODEC);
         PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
         PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);
         PayloadTypeRegistry.playC2S().register(ToggleSheath.ID, ToggleSheath.CODEC);
