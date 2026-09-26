@@ -482,6 +482,12 @@ final class Commands {
         }).then(CommandManager.literal("begin").executes(c -> {
             AotRpg.STORY.freeTravel(c.getSource().getPlayerOrThrow());
             return 1;
+        })).then(CommandManager.literal("pause").executes(c -> {
+            AotRpg.STORY.pause(c.getSource().getPlayerOrThrow(), true);
+            return 1;
+        })).then(CommandManager.literal("resume").executes(c -> {
+            AotRpg.STORY.pause(c.getSource().getPlayerOrThrow(), false);
+            return 1;
         })).then(CommandManager.literal("join").then(CommandManager.argument("host", net.minecraft.command.argument.EntityArgumentType.player()).executes(c -> {
             AotRpg.STORY.join(c.getSource().getPlayerOrThrow(), net.minecraft.command.argument.EntityArgumentType.getPlayer(c, "host"));
             return 1;

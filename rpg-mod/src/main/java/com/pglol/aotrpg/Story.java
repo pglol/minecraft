@@ -65,6 +65,8 @@ public final class Story {
         public double mercy, paradis, independence;
         public List<String> deeds = new ArrayList<>();
         public boolean begun;
+        /** Set aside by the player: the step is kept, the scene and its waypoint are hidden. */
+        public boolean paused;
         public boolean freeStart = true;
     }
 
@@ -866,7 +868,7 @@ public final class Story {
             return;
         }
         Mission m = current(pr);
-        if (m == null) return;
+        if (m == null || s.paused) return;
         Scene sc = scenes.computeIfAbsent(p.getUuid(), Scene::new);
         if (sc.mission == null || !sc.mission.equals(m.id) || sc.step != s.step) enterStep(p, pr, sc, m);
         Step st = step(pr);
@@ -1431,6 +1433,18 @@ public final class Story {
         AotRpg.PROFILES.save(p.getUuid());
     }
 
+    /** Set the story aside (or pick it back up). The step is kept; the scene is cleared until you resume. */
+    public void pause(ServerPlayerEntity p, boolean pause) {
+        Profile pr = pr(p);
+        if (current(pr) == null || pr.story.paused == pause) return;
+        pr.story.paused = pause;
+        if (pause) forget(p);
+        AotRpg.PROFILES.save(p.getUuid());
+        Notify.toast(p, Text.literal(pause ? "Story paused" : "Story resumed").formatted(Formatting.GOLD),
+            Text.literal(pause ? "Your progress is kept · resume from the journal or /story resume" : current(pr).title), 0xE0B96A, "minecraft:writable_book", "story");
+        send(p, pr);
+    }
+
     /** Operators: skip the current step. */
     public void skip(ServerPlayerEntity p) {
         Profile pr = pr(p);
@@ -1476,6 +1490,7 @@ public final class Story {
     public View view(Profile pr) {
         Mission m = current(pr);
         Step st = step(pr);
+        if (m != null && pr.story.paused) return new View(m.chapter, "Story paused. Resume it from your journal", "", false, 0, 0, 0, 0);
         if (m == null || st == null) {
             return new View("The Story", pr.story.done.isEmpty() ? "Your story is about to begin" : "More of your story is coming soon", "", false, 0, 0, 0, 0);
         }
@@ -1532,7 +1547,8 @@ public final class Story {
             Mission dm = missions.get(id);
             if (dm != null) done.add(dm.chapter + " · " + dm.title);
         }
-        ServerPlayNetworking.send(p, new Net.StoryJournal(m == null ? "" : m.chapter, m == null ? "" : m.title, m == null ? "" : threadName(m.thread),
+        ServerPlayNetworking.send(p, new Net.StoryJournal(m == null ? "" : m.chapter, m == null ? "" : m.title,
+            m == null ? "" : s.paused ? "Paused" : threadName(m.thread),
             st == null ? "" : st.objective, people, deeds, ideology(s), done));
     }
 

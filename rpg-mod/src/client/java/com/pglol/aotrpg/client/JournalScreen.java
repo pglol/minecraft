@@ -78,6 +78,13 @@ public class JournalScreen extends Screen {
         }
         addDrawableChild(new AotButton(left + w - 20, top - 22, 20, 20, Text.literal("✕"), this::close));
         if (tab == 0) {
+            var sj = com.pglol.aotrpg.client.story.StoryClient.journal;
+            if (sj != null && !sj.title().isEmpty()) {
+                boolean paused = sj.thread().equals("Paused");
+                AotButton pb = addDrawableChild(new AotButton(left + 102, top + 118, 110, 18, Text.literal(paused ? "Resume story" : "Pause story"),
+                    () -> ClientPlayNetworking.send(new Net.QuestAction("story", paused ? "resume" : "pause"))));
+                pb.accent = paused ? 0xFF5BD35B : Ui.GOLD;
+            }
             Net.QuestView main = null;
             for (Net.QuestView mq : ClientState.quests) if (mq.id().equals("main")) main = mq;
             if (main != null && main.hasTarget()) {

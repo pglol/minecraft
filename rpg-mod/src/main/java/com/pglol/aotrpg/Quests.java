@@ -64,6 +64,10 @@ public final class Quests {
     // ------------------------------------------------------------------ actions
 
     public void action(ServerPlayerEntity p, String id, String action) {
+        if (id.equals("story") && (action.equals("pause") || action.equals("resume"))) {
+            AotRpg.STORY.pause(p, action.equals("pause"));
+            return;
+        }
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         if (!pr.created) return;
         Def d = defs.get(id);
