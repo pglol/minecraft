@@ -368,7 +368,15 @@ Anything else that destroys blocks (titans, explosions, fire, mobs) is remembere
 Commands:
 - `/character` or **K**: character sheet and skill tree. Spend stat points and skill points here.
 
-Skills: three branches (Blade, Mobility, Survival) of four skills, unlocked at levels 1/10/20/35. You get 1 skill point at enlistment and 1 more every 5 levels.
+Skills: three general trees (Blade, Mobility, Survival) and four class trees (Infantry, Tank, Medic, Recon), each eight tiers deep with forks. Every tree is open to everyone: grow however you like. Skill points: 1 at enlistment, 1 every 2 levels and 1 more every 10 (61 at level 100).
+
+Roles: choose the role you play and show (Character > Roles, free, any time out of combat and outside a boss raid). It appears by your name, on the party HUD and in raid lineups (which say what the team is missing), and puts its class's abilities on your keys: **Z** and **X** actives, **V** the ultimate. Ultimates charge by dealing and taking damage, healing, reviving and felling titans (twice as fast during Call to Arms, boss raids and hordes).
+- Infantry (DPS): Blade Rush, War Cry, *Humanity's Strongest* (10s of +60% damage, nape strikes count double).
+- Tank: Provoke, Bulwark (squad damage shield), *Armored Resolve* (60% less damage, can't be grabbed).
+- Medic: Field Dressing (heals or speeds a revive), Sanctuary, *Blessing of the Walls* (revive and fully heal everyone near).
+- Recon: Hunter's Mark (+15% damage, can halve nape strikes needed), Smoke Bomb, *Hunter's Eye* (slow and reveal all foes).
+
+Lone Wolf: with no one else within 40 blocks you're fighting alone and the game leans your way: titans hit 35% softer, napes need one strike fewer, you break out of a grip in 8 strikes, ultimates charge 25% faster, you're more likely to be downed than killed, and when downed you can pick yourself up by holding Sneak for 5s (every 2 minutes). Each class tree also has a solo capstone (Lone Blade, Last Bastion, Self-Sufficient, Lone Scout).
 
 Stamina: sprinting and attacking drain it and resting refills it. At zero you are exhausted: no sprinting and slowed until it recovers. Endurance and some skills raise it.
 - `/character reset`: delete your own character and create a new one (asks you to confirm; no second starter kit).

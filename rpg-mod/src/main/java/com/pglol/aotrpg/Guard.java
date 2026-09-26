@@ -165,6 +165,9 @@ public final class Guard {
                     fx(w, FX_CLASH, mid, att);
                     att.sendMessage(Text.literal("CLASH").formatted(Formatting.GOLD, Formatting.BOLD), true);
                     def.sendMessage(Text.literal("CLASH").formatted(Formatting.GOLD, Formatting.BOLD), true);
+                    for (ServerPlayerEntity c : new ServerPlayerEntity[] {att, def}) {
+                        if (AotRpg.PROFILES.get(c.getUuid()).has(Skill.BLADE_DANCER)) AotRpg.STAMINA.spend(c, -20);
+                    }
                     return false;
                 }
             }
@@ -172,11 +175,12 @@ public final class Guard {
             if (!(entity instanceof ServerPlayerEntity def) || !guarding(def) || !inFront(def, src)) return true;
             boolean titan = AotRpg.isTitan(src);
             Profile dp = AotRpg.PROFILES.get(def.getUuid());
-            float cost = (amount * (titan ? 3f : 5f) + 4) * (dp.has(Skill.BULWARK) ? 0.65f : 1f);
+            float cost = (amount * (titan ? 3f : 5f) + 4) * (dp.has(Skill.BULWARK) ? 0.65f : 1f) * (dp.has(Skill.TNK_STALWART) ? 0.75f : 1f);
             Vec3d at = def.getEyePos().add(def.getRotationVec(1f).multiply(0.7)).subtract(0, 0.4, 0);
             if (AotRpg.STAMINA.spend(def, cost)) {
                 fx(w, FX_BLOCK, at, def);
                 AotRpg.ABILITIES.blocked(def);
+                AotRpg.CLASSES.blocked(def);
                 if (titan) {
                     // Titans are too strong to stop: the guard only softens the blow.
                     push(def, src, 0.8);

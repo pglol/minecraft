@@ -72,6 +72,12 @@ public final class Raids {
     /** Where raiders go back to (the Raid Commander they left from), claimed when they respawn after falling. */
     private final Map<UUID, Vec3d> returns = new HashMap<>();
 
+    /** Is this player in a boss raid right now? */
+    public boolean inRaid(UUID id) {
+        for (Raid r : raids) if (!r.over && r.players.contains(id)) return true;
+        return false;
+    }
+
     /** A raider who fell: they wake back at the commander, with their team, not at a recovery post. */
     public Vec3d takeReturn(UUID id) {
         return returns.remove(id);
@@ -147,7 +153,12 @@ public final class Raids {
         List<Net.RaidBoss> list = new ArrayList<>();
         for (Boss b : BOSSES) list.add(new Net.RaidBoss(b.id(), b.name(), b.level(), TitanTypes.shifter(b.shifter()) != null));
         List<String> party = new ArrayList<>();
-        for (ServerPlayerEntity m : partyHere(p)) party.add(AotRpg.PROFILES.get(m.getUuid()).name + " · Lv " + AotRpg.PROFILES.get(m.getUuid()).level);
+        List<ServerPlayerEntity> here = partyHere(p);
+        for (ServerPlayerEntity m : here) {
+            Profile mp = AotRpg.PROFILES.get(m.getUuid());
+            party.add(mp.cls().tag() + " " + mp.name + " · Lv " + mp.level + " · " + mp.cls().title);
+        }
+        party.add("» " + Classes.lineup(here));
         Raid r = raidOf(p.getUuid());
         ServerPlayNetworking.send(p, new Net.RaidView(list, party, r == null ? "" : r.boss.name() + " (" + DIFFS[r.diff] + ")", open));
     }

@@ -39,7 +39,7 @@ public final class Stamina {
         } else if (s.rest > 0) {
             s.rest--;
         } else {
-            float regen = 0.55f * (pr.has(Skill.DEEP_BREATH) ? 1.4f : 1f);
+            float regen = 0.55f * (pr.has(Skill.DEEP_BREATH) ? 1.4f : 1f) * (pr.has(Skill.RCN_GAS) ? 1.25f : 1f);
             s.value += regen;
         }
         s.value = Math.max(0, Math.min(max, s.value));
@@ -59,7 +59,7 @@ public final class Stamina {
     public void attack(ServerPlayerEntity p, Profile pr) {
         if (!pr.created) return;
         State s = state(p, pr);
-        s.value = Math.max(0, s.value - 4);
+        s.value = Math.max(0, s.value - (pr.has(Skill.GAS_DISCIPLINE) ? 3.2f : 4));
         s.rest = 20;
     }
 
@@ -69,6 +69,7 @@ public final class Stamina {
         if (!pr.created) return true;
         State s = state(p, pr);
         s.rest = 25;
+        if (amount > 0 && pr.has(Skill.GAS_DISCIPLINE)) amount *= 0.8f;
         if (s.value < amount) return false;
         s.value -= amount;
         return true;

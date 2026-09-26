@@ -36,7 +36,7 @@ public final class NamePlates {
         Net.PartyMember party = ClientState.partyMember(player.getUuid());
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         Text name = Ui.heading(r.name());
-        String disc = r.discipline() >= 0 && r.discipline() < Discipline.values().length ? Discipline.values()[r.discipline()].title : "";
+        com.pglol.aotrpg.PlayerClass role = r.cls() >= 0 && r.cls() < com.pglol.aotrpg.PlayerClass.values().length ? com.pglol.aotrpg.PlayerClass.values()[r.cls()] : null;
         net.minecraft.text.MutableText sub = Text.empty();
         // Regiment tag, in the regiment's colour.
         if (!r.regiment().isEmpty()) {
@@ -47,7 +47,7 @@ public final class NamePlates {
             sub.append(Ui.heading(new String[] {"SC", "GAR", "MP"}[r.faction()]).withColor(FactionScreen.COLORS[r.faction()]))
                 .append(Text.literal(" · ").withColor(0xFF8F8A7A));
         }
-        sub.append(Text.literal("Lv " + r.level() + "  ").withColor(Ui.GOLD)).append(Text.literal(disc).withColor(Ui.disciplineColor(r.discipline())));
+        sub.append(Text.literal("Lv " + r.level() + "  ").withColor(Ui.GOLD)).append(role == null ? Text.empty() : Text.literal(role.tag() + " " + role.title).withColor(role.color));
         int w = Math.max(tr.getWidth(name), tr.getWidth(sub)) + 12;
         int h = party != null ? 25 : 22;
 

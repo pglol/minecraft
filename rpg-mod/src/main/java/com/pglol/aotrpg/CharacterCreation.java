@@ -336,6 +336,8 @@ public final class CharacterCreation {
         pr.points = START_POINTS - s.spent();
         pr.skillPoints = Skill.pointsForLevel(1);
         pr.skillsV2 = true;
+        pr.skillsV3 = true;
+        pr.cls = PlayerClass.of(s.discipline);
         pr.skills = new java.util.HashSet<>();
         pr.chapter = 1;
         AotRpg.PROFILES.save(p.getUuid());

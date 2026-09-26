@@ -149,7 +149,7 @@ public class RpgInventoryScreen extends InventoryScreen {
         c.fill(x + 4, y + 8, x + 5, y + 78, 0x80B8955A);
         for (Slot s : handler.slots) if (armorSlot(s)) Ui.slot(c, x + s.x - 1, y + s.y - 1);
         if (p != null) {
-            Ui.text(c, Text.literal(p.disciplineEnum().title), x + w - 16, y + 70, 0.7f, Ui.disciplineColor(p.discipline()), true);
+            Ui.text(c, Text.literal(p.role().tag() + " " + p.role().title), x + w - 16, y + 70, 0.7f, p.role().color, true);
         }
         Ui.divider(c, x + 8, y + 84, w - 16);
 

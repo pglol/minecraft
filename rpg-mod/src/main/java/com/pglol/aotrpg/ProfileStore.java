@@ -155,7 +155,14 @@ public final class ProfileStore {
                         p.skills.clear();
                         if (p.created) p.skillPoints = Skill.pointsForLevel(p.level);
                         p.skillsV2 = true;
+                        p.skillsV3 = true;
                     }
+                    if (!p.skillsV3) {
+                        // Class trees arrived with more skill points per level: grant the difference.
+                        if (p.created) p.skillPoints += Math.max(0, Skill.pointsForLevel(p.level) - (1 + p.level / 3));
+                        p.skillsV3 = true;
+                    }
+                    if (p.cls == null && p.created) p.cls = PlayerClass.of(p.discipline);
                     if (p.orders == null) p.orders = new java.util.HashMap<>();
                     if (p.faction == null) p.faction = "";
                     if (p.unlockedModes == null) p.unlockedModes = new java.util.HashSet<>();

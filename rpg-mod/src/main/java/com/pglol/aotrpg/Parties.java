@@ -313,7 +313,7 @@ public final class Parties {
                 Profile pr = AotRpg.PROFILES.get(m);
                 boolean online = mp != null;
                 list.add(new Net.PartyMember(m, name(m), pr.created ? pr.level : 0,
-                    pr.created ? pr.discipline.ordinal() : -1,
+                    pr.created ? pr.cls().ordinal() : -1,
                     online ? mp.getHealth() : 0, online ? mp.getMaxHealth() : 20,
                     online ? AotRpg.STAMINA.fraction(m) : 0, online, m.equals(party.leader),
                     online ? mp.getX() : 0, online ? mp.getY() : 0, online ? mp.getZ() : 0,

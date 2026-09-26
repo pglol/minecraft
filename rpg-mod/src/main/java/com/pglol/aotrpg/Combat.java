@@ -25,9 +25,11 @@ public final class Combat {
             // Gear power counts only when the character is high enough level for the weapon.
             if (Gear.canUse(attacker, attacker.getMainHandStack())) mult *= 1 + Gear.power(attacker.getMainHandStack());
             mult *= AotRpg.ABILITIES.outgoing(attacker, entity, source);
+            mult *= AotRpg.CLASSES.outgoing(attacker, entity, source);
         }
         if (entity instanceof ServerPlayerEntity def) {
             mult *= AotRpg.ABILITIES.incoming(def);
+            mult *= AotRpg.CLASSES.incoming(def, source);
             // Titans hit hard, and far harder when they outrank you; in their grip it's worse still.
             net.minecraft.entity.Entity vehicle = def.getVehicle();
             boolean eaten = vehicle != null && AotRpg.isTitan(vehicle);
@@ -51,9 +53,15 @@ public final class Combat {
             return def == null || !AotRpg.ABILITIES.lastStand(def, amount);
         });
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
-            if (source.getAttacker() instanceof ServerPlayerEntity killer) AotRpg.ABILITIES.onKill(killer, entity);
+            if (source.getAttacker() instanceof ServerPlayerEntity killer) {
+                AotRpg.ABILITIES.onKill(killer, entity);
+                AotRpg.CLASSES.onKill(killer, entity);
+            }
         });
-        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> AotRpg.ABILITIES.afterHit(entity, source, taken));
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
+            AotRpg.ABILITIES.afterHit(entity, source, taken);
+            AotRpg.CLASSES.afterHit(entity, source, taken);
+        });
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
             if (!(source.getAttacker() instanceof ServerPlayerEntity attacker) || attacker == entity || taken <= 0) return;
             if (!(entity instanceof PlayerEntity) && !AotRpg.isTitan(entity) && !(entity instanceof net.minecraft.entity.mob.HostileEntity)) return;

@@ -55,8 +55,8 @@ public final class RpgHud {
         c.drawTextWithShadow(Ui.font(), name, x + 6, y + 5, Ui.CREAM);
         Text lv = Ui.title("Lv " + p.level());
         c.drawTextWithShadow(Ui.font(), lv, x + W - 6 - Ui.font().getWidth(lv), y + 5, Ui.GOLD);
-        String disc = p.disciplineEnum().title;
-        c.drawTextWithShadow(Ui.font(), Text.literal(disc), x + 6, y + 16, Ui.disciplineColor(p.discipline()));
+        String disc = p.role().tag() + " " + p.role().title;
+        c.drawTextWithShadow(Ui.font(), Text.literal(disc), x + 6, y + 16, p.role().color);
         c.drawTextWithShadow(Ui.font(), Text.literal(" · " + p.originEnum().title),
             x + 6 + Ui.font().getWidth(disc), y + 16, Ui.MUTED);
 

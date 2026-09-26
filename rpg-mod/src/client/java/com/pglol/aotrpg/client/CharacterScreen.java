@@ -47,12 +47,12 @@ public class CharacterScreen extends Screen {
         w = Math.min(440, width - 20);
         left = (width - w) / 2;
         top = 86;
-        h = Math.min(tab == 1 ? 330 : 300, height - top - 8);
+        h = Math.min(tab == 0 ? 300 : 392, height - top - 8);
 
-        String[] tabs = {"Attributes", "Skills"};
+        String[] tabs = {"Attributes", "Skills", "Roles"};
         for (int i = 0; i < tabs.length; i++) {
             int t = i;
-            String label = tabs[i] + (i == 0 && p.points() > 0 ? "  •" + p.points() : i == 1 && p.skillPoints() > 0 ? "  •" + p.skillPoints() : "");
+            String label = tabs[i] + (i == 0 && p.points() > 0 ? "  •" + p.points() : i >= 1 && p.skillPoints() > 0 ? "  •" + p.skillPoints() : "");
             addDrawableChild(new AotButton(left + i * 104, top - 22, 100, 20, Ui.heading(label), () -> {
                 tab = t;
                 clearAndInit();
@@ -71,7 +71,18 @@ public class CharacterScreen extends Screen {
                     () -> ClientPlayNetworking.send(new Net.SpendPoint(s.ordinal()))));
             }
         } else {
-            for (Skill s : Skill.values()) addDrawableChild(new SkillNode(s, nodeX(s), nodeY(s)));
+            for (Skill s : Skill.values()) if (shown(s.branch)) addDrawableChild(new SkillNode(s, nodeX(s), nodeY(s)));
+            if (tab == 2) {
+                int colW = w / 4;
+                for (com.pglol.aotrpg.PlayerClass rc : com.pglol.aotrpg.PlayerClass.values()) {
+                    boolean mine = p.role() == rc;
+                    AotButton b = addDrawableChild(new AotButton(left + rc.ordinal() * colW + 4, top + 6, colW - 8, 18,
+                        Text.literal(rc.tag() + " " + rc.title).withColor(rc.color), () -> {
+                            if (ClientState.profile.role() != rc) ClientPlayNetworking.send(new Net.ChooseRole(rc.ordinal()));
+                        }).selected(mine));
+                    b.accent = rc.color;
+                }
+            }
             long cost = Skill.resetCost(p.skillResets());
             int left3 = Skill.MAX_RESETS - p.skillResets();
             AotButton reset = addDrawableChild(new AotButton(left + 8, top + h - 24, 190, 18,
@@ -87,7 +98,7 @@ public class CharacterScreen extends Screen {
                 }));
             if (confirmReset) reset.setMessage(Text.literal("Click again to reset (" + (cost == 0 ? "free" : cost + " Marks") + ")"));
             reset.accent = Ui.RED;
-            reset.active = left3 > 0 && p.skills() != 0;
+            reset.active = left3 > 0 && p.anySkill();
         }
     }
 
@@ -95,14 +106,34 @@ public class CharacterScreen extends Screen {
         return top + 28 + i * 30;
     }
 
+    /** Skills tab: the general trees; Roles tab: the four class trees. */
+    private boolean shown(Skill.Branch b) {
+        return tab == 1 ? b.cls == null : tab == 2 && b.cls != null;
+    }
+
+    private int columns() {
+        return tab == 2 ? 4 : 3;
+    }
+
+    private int column(Skill.Branch b) {
+        return tab == 2 ? b.cls.ordinal() : b.ordinal();
+    }
+
+    private int treeTop() {
+        return top + (tab == 2 ? 52 : 34);
+    }
+
+    private int step() {
+        return Math.max(24, Math.min(42, (top + h - (tab == 2 ? 72 : 44) - treeTop()) / Skill.TIERS));
+    }
+
     private int nodeX(Skill s) {
-        int colW = w / 3;
-        return left + s.branch.ordinal() * colW + colW / 2 - 11 + s.lane * 40;
+        int colW = w / columns();
+        return left + column(s.branch) * colW + colW / 2 - 11 + s.lane * (tab == 2 ? 30 : 40);
     }
 
     private int nodeY(Skill s) {
-        int step = Math.max(34, Math.min(46, (h - 72) / Skill.TIERS));
-        return top + 34 + s.tier * step;
+        return treeTop() + s.tier * step();
     }
 
     @Override
@@ -114,7 +145,7 @@ public class CharacterScreen extends Screen {
         // Header
         Ui.text(c, Ui.title(p.name()), width / 2f, 6, 1.8f, Ui.GOLD, true);
         Text sub = Text.literal("Level " + p.level() + " ").withColor(Ui.CREAM)
-            .append(Text.literal(p.disciplineEnum().title).withColor(Ui.disciplineColor(p.discipline())))
+            .append(Text.literal(p.role().tag() + " " + p.role().title).withColor(p.role().color))
             .append(Text.literal("  ·  " + p.originEnum().title + "  ·  Titans slain: " + p.titanKills()).withColor(Ui.MUTED));
         c.drawCenteredTextWithShadow(textRenderer, sub, width / 2, 26, 0xFFFFFFFF);
         int bw = 220;
@@ -188,13 +219,20 @@ public class CharacterScreen extends Screen {
         String pts = p.skillPoints() + " skill point" + (p.skillPoints() == 1 ? "" : "s");
         c.drawTextWithShadow(textRenderer, Text.literal(pts), left + w - 10 - textRenderer.getWidth(pts), top + 9,
             p.skillPoints() > 0 ? Ui.GOLD : Ui.MUTED);
-        c.drawTextWithShadow(textRenderer, Ui.heading("Skills"), left + 10, top + 9, Ui.GOLD);
-        int colW = w / 3;
+        if (tab == 1) c.drawTextWithShadow(textRenderer, Ui.heading("Skills"), left + 10, top + 9, Ui.GOLD);
+        int colW = w / columns();
         for (Skill.Branch b : Skill.Branch.values()) {
-            int cx = left + b.ordinal() * colW + colW / 2;
+            if (!shown(b)) continue;
+            int col = column(b);
+            int cx = left + col * colW + colW / 2;
             Text t = Ui.heading(b.title);
-            c.drawTextWithShadow(textRenderer, t, cx - textRenderer.getWidth(t) / 2, top + 20, b.color);
-            if (b.ordinal() > 0) c.fill(left + b.ordinal() * colW, top + 18, left + b.ordinal() * colW + 1, top + h - 8, 0x307A6139);
+            if (tab == 2) {
+                String sub = b.cls.role + (p.role() == b.cls ? " · your role" : "");
+                Ui.text(c, Text.literal(sub), cx, top + 29, 0.6f, p.role() == b.cls ? Ui.GOLD : Ui.MUTED, true);
+            } else {
+                c.drawTextWithShadow(textRenderer, t, cx - textRenderer.getWidth(t) / 2, top + 20, b.color);
+            }
+            if (col > 0) c.fill(left + col * colW, top + 18, left + col * colW + 1, top + h - 30, 0x307A6139);
             // Connectors from each skill to the ones below it (forks branch out and join again).
             for (int tier = 1; tier < Skill.TIERS; tier++) {
                 for (Skill s : Skill.at(b, tier)) {
@@ -211,17 +249,24 @@ public class CharacterScreen extends Screen {
             // Points spent in this branch.
             int spent = 0;
             for (Skill s : Skill.values()) if (s.branch == b && p.has(s)) spent += s.cost;
-            if (spent > 0) {
+            if (spent > 0 && tab == 1) {
                 String sp = spent + " pts";
                 c.drawTextWithShadow(textRenderer, Text.literal(sp), cx - textRenderer.getWidth(sp) / 2, top + h - 38, b.color);
             }
+        }
+        if (tab == 2) {
+            com.pglol.aotrpg.PlayerClass r = p.role();
+            String line = r.blurb + "  Z " + r.abilities[0] + " · X " + r.abilities[1] + " · V " + r.abilities[2];
+            Ui.text(c, Text.literal("Every tree is open to you. Your role decides your Z / X / V abilities and what others see."),
+                left + w / 2f, top + h - 44, 0.55f, Ui.MUTED, true);
+            Ui.text(c, Text.literal(line), left + w / 2f, top + h - 36, 0.55f, r.color, true);
         }
     }
 
     @Override
     public void render(DrawContext c, int mouseX, int mouseY, float delta) {
         super.render(c, mouseX, mouseY, delta);
-        if (tab == 1) {
+        if (tab >= 1) {
             for (var el : children()) {
                 if (el instanceof SkillNode n && n.isHovered()) c.drawTooltip(textRenderer, n.tooltip(), mouseX, mouseY);
             }
@@ -243,7 +288,7 @@ public class CharacterScreen extends Screen {
 
         private boolean available() {
             Net.Sync p = ClientState.profile;
-            return !learned() && p.skillPoints() >= skill.cost && p.level() >= skill.level && skill.unlockedBy(p::has);
+            return skill.blocked(p.level(), p.skillPoints(), p::has) == null;
         }
 
         List<Text> tooltip() {
@@ -252,6 +297,9 @@ public class CharacterScreen extends Screen {
             l.add(Text.literal(skill.title).formatted(Formatting.GOLD, Formatting.BOLD));
             l.add(Text.literal(skill.branch.title + " · Tier " + (skill.tier + 1)).formatted(Formatting.DARK_GRAY));
             l.add(Text.literal(skill.effect).formatted(Formatting.GREEN));
+            if (skill.slot() >= 0 && skill.branch.cls != p.role()) {
+                l.add(Text.literal("On your keys while your role is " + skill.branch.cls.title).formatted(Formatting.DARK_AQUA));
+            }
             if (learned()) {
                 l.add(Text.literal("Learned").formatted(Formatting.GOLD));
                 return l;

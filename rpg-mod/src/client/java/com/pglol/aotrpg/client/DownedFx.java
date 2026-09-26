@@ -184,11 +184,14 @@ public final class DownedFx {
         Ui.text(c, Text.literal(hint), w / 2f, by + 22, 1f, d.pressing() ? 0xFFFFB0A0 : 0xFFD8CFC0, true);
         if (d.revive() > 0) {
             String who = d.reviver().isEmpty() ? "A comrade" : d.reviver();
-            String t = who + " is bringing you back…";
+            String t = who.equals("@self") ? "Picking yourself up…" : who + " is bringing you back…";
             Ui.text(c, Text.literal(t), w / 2f, h / 2 + 22, 1f, 0xFFFFD76A, true);
             int rx = w / 2 - 60, ry = h / 2 + 34;
             c.fill(rx - 1, ry - 1, rx + 121, ry + 5, 0xC0000000);
             c.fill(rx, ry, rx + Math.round(120 * d.revive()), ry + 4, 0xFFFFD76A);
+        } else if (d.reviver().equals("@alone")) {
+            String t = "Alone — keep holding SNEAK for 5s to pick yourself up";
+            Ui.text(c, Text.literal(t), w / 2f, h / 2 + 22, 0.85f, 0xFFFFD76A, true);
         } else {
             String t = "Call for help — a comrade can crouch beside you to revive";
             Ui.text(c, Text.literal(t), w / 2f, h / 2 + 22, 0.85f, 0xFFB0A890, true);

@@ -60,6 +60,7 @@ public final class Progression {
             if (sk.attribute != null) set(p, sk.attribute, "skill_" + sk.name().toLowerCase(), pr.has(sk) ? sk.amount : 0, sk.op());
         }
         set(p, EntityAttributes.GENERIC_JUMP_STRENGTH, "skill_wings_jump", pr.has(Skill.WINGS_OF_FREEDOM) ? 0.15 : 0, mul);
+        set(p, EntityAttributes.GENERIC_ARMOR_TOUGHNESS, "skill_battle_toughness", pr.has(Skill.BATTLE_HARDENED) ? 2 : 0, add);
         set(p, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, "skill_unbreakable_kb", pr.has(Skill.UNBREAKABLE) ? 0.25 : 0, add);
         if (p.getHealth() > p.getMaxHealth()) p.setHealth(p.getMaxHealth());
     }
@@ -95,7 +96,7 @@ public final class Progression {
             pr.xp -= Profile.xpForNext(pr.level);
             pr.level++;
             pr.points++;
-            if (pr.level % 3 == 0) pr.skillPoints++;
+            pr.skillPoints += Skill.pointsForLevel(pr.level) - Skill.pointsForLevel(pr.level - 1);
             up = true;
         }
         if (pr.level >= MAX_LEVEL) pr.xp = 0;
@@ -103,7 +104,7 @@ public final class Progression {
             apply(p, pr);
             AotRpg.NAMETAGS.update(p, pr);
             Titles.show(p, Text.literal("LEVEL UP").formatted(Formatting.GOLD, Formatting.BOLD),
-                Text.literal("Level " + pr.level + "  ·  +1 stat point" + (pr.level % 3 == 0 ? ", +1 skill point" : "")
+                Text.literal("Level " + pr.level + "  ·  +1 stat point" + (pr.level % 10 == 0 ? ", +2 skill points" : pr.level % 2 == 0 ? ", +1 skill point" : "")
                     + (AotRpg.hasClient(p) ? "  (K)" : "  (/character)")).formatted(Formatting.YELLOW), 10, 50, 20);
             p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1.1f);
         }

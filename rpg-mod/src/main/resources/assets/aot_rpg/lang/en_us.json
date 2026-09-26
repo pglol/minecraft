@@ -10,5 +10,8 @@
   "key.aot_rpg.lockon": "Lock on / unlock (drag the mouse to switch target)",
   "key.aot_rpg.horse": "Call / send away your horse",
   "key.aot_rpg.guard": "Guard / block (hold, optional: right click with a blade also guards)",
-  "key.aot_rpg.sheath": "Draw / sheathe ODM grips"
+  "key.aot_rpg.sheath": "Draw / sheathe ODM grips",
+  "key.aot_rpg.ability1": "Role ability 1",
+  "key.aot_rpg.ability2": "Role ability 2",
+  "key.aot_rpg.ultimate": "Role ultimate"
 }

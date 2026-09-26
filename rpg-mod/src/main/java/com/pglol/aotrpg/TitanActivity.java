@@ -56,6 +56,15 @@ public final class TitanActivity {
     private final Map<String, Long> caveReady = new HashMap<>();
     private MinecraftServer server;
 
+    /** Is this player near a horde or hunting the abnormal right now? */
+    public boolean inEvent(net.minecraft.server.network.ServerPlayerEntity p) {
+        if (horde != null && System.currentTimeMillis() < horde.until) {
+            double dx = p.getX() - horde.x, dz = p.getZ() - horde.z;
+            if (dx * dx + dz * dz < 160 * 160) return true;
+        }
+        return abnormal != null && System.currentTimeMillis() < abUntil && abHunters.contains(p.getUuid());
+    }
+
     public void open(MinecraftServer server) {
         this.server = server;
         horde = null;

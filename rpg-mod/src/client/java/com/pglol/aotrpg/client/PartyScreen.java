@@ -107,6 +107,7 @@ public final class PartyScreen extends Screen {
             Net.RosterEntry r = ClientState.roster.get(p.getUuid());
             Ui.text(c, Text.literal(r != null ? r.name() : p.getName().getString()), left + 12, y + 5, 1f, Ui.CREAM, false);
             if (r != null) Ui.text(c, Text.literal("Lv " + r.level()), left + w - 130, y + 5, 0.9f, Ui.GOLD, false);
+            if (r != null) Ui.text(c, RoleUi.badge(r.cls()), left + w - 190, y + 5, 0.9f, 0xFFFFFFFF, false);
             y += 22;
         }
     }

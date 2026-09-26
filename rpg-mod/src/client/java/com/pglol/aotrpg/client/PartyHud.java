@@ -40,7 +40,8 @@ public final class PartyHud {
         boolean on = m.online();
         c.fill(x, y, x + W, y + H, on ? 0xC80D110E : 0x900D0D0D);
         c.drawBorder(x, y, W, H, m.leader() ? Ui.GOLD : Ui.BORDER);
-        int accent = m.discipline() >= 0 ? Ui.disciplineColor(m.discipline()) : Ui.MUTED;
+        com.pglol.aotrpg.PlayerClass role = m.discipline() >= 0 && m.discipline() < com.pglol.aotrpg.PlayerClass.values().length ? com.pglol.aotrpg.PlayerClass.values()[m.discipline()] : null;
+        int accent = role != null ? role.color : Ui.MUTED;
         c.fill(x + 1, y + 1, x + 3, y + H - 1, on ? accent : Ui.DIM);
 
         String name = (m.leader() ? "★ " : "") + m.name();
@@ -66,7 +67,7 @@ public final class PartyHud {
             c.drawTextWithShadow(Ui.font(), Text.literal("Lv " + m.level()), x + 6, y + 15, Ui.DIM);
             return;
         }
-        String sub = m.level() > 0 ? "Lv " + m.level() + " " + Discipline.values()[m.discipline()].title : "Creating character";
+        String sub = m.level() > 0 ? "Lv " + m.level() + " " + (role == null ? "" : role.tag() + " " + role.title) : "Creating character";
         c.drawTextWithShadow(Ui.font(), Text.literal(sub), x + 6, y + 12, accent);
         float hp = m.maxHealth() > 0 ? m.health() / m.maxHealth() : 0;
         int hpColor = hp < 0.3f ? 0xFFE0442F : Ui.HP;

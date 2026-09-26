@@ -31,6 +31,7 @@ public final class Abilities {
         long lastHit, riposteUntil, afterimageReady, lastStandReady;
         Vec3d lastPos;
         double speed;
+        final Map<UUID, Long> met = new HashMap<>();
     }
 
     private final Map<UUID, State> states = new HashMap<>();
@@ -96,6 +97,13 @@ public final class Abilities {
                 burst(target, ParticleTypes.ENCHANTED_HIT, 16);
             }
         }
+        if (pr.has(Skill.ACKERMAN_INSTINCT) && melee) {
+            s.met.values().removeIf(t -> now - t > 30_000);
+            if (s.met.put(target.getUuid(), now) == null) {
+                m *= 1.5;
+                burst(target, ParticleTypes.ENCHANTED_HIT, 10);
+            }
+        }
         if (pr.has(Skill.EXECUTIONER) && target.getHealth() < target.getMaxHealth() * 0.3f) m *= 1.3 + 0.004 * lv;
         if (pr.has(Skill.MOMENTUM) && s.speed > 0.55) m *= 1.2 + 0.003 * lv;
         if (pr.has(Skill.AERIAL_ACE) && !att.isOnGround() && !att.hasVehicle()) m *= 1.25 + 0.003 * lv;
@@ -104,7 +112,9 @@ public final class Abilities {
 
     /** Damage multiplier for a hit this player takes. */
     public double incoming(ServerPlayerEntity def) {
-        return pr(def).has(Skill.UNBREAKABLE) && def.getHealth() < def.getMaxHealth() / 2 ? 0.85 : 1;
+        double m = pr(def).has(Skill.UNBREAKABLE) && def.getHealth() < def.getMaxHealth() / 2 ? 0.85 : 1;
+        if (pr(def).has(Skill.SLIPSTREAM) && st(def).speed > 0.55) m *= 0.85;
+        return m;
     }
 
     /** Evasion: may cancel a melee hit outright. */
@@ -113,6 +123,10 @@ public final class Abilities {
         if (!pr.has(Skill.EVASION) || source.getAttacker() == null || !Combat.melee(source)) return false;
         if (def.getRandom().nextDouble() >= 0.08 + 0.001 * pr.level) return false;
         callout(def, "DODGED", Formatting.GREEN);
+        if (pr.has(Skill.FREEDOMS_WINGS)) {
+            def.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 40, 2, false, false, true));
+            AotRpg.CLASSES.cutCooldowns(def, 2000);
+        }
         burst(def, ParticleTypes.CLOUD, 10);
         def.getWorld().playSound(null, def.getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_NODAMAGE, SoundCategory.PLAYERS, 1f, 1.4f);
         return true;
@@ -124,7 +138,7 @@ public final class Abilities {
         State s = st(def);
         long now = System.currentTimeMillis();
         if (now < s.lastStandReady) return false;
-        s.lastStandReady = now + 90_000;
+        s.lastStandReady = now + (pr(def).has(Skill.INDOMITABLE) ? 45_000 : 90_000);
         def.setHealth(1);
         def.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, 3, false, true, true));
         callout(def, "LAST STAND", Formatting.RED);

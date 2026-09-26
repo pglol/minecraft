@@ -204,6 +204,8 @@ public final class TitanLevels {
         double m = 1 + 0.03 * tl;
         m *= gap > 0 ? 1 + 0.12 * gap : Math.max(0.5, 1 + 0.03 * gap);
         if (eaten) m *= 2;
+        // Lone Wolf: fighting alone, titans hit softer.
+        if (Classes.alone(p)) m *= 0.65;
         return Math.min(40, m);
     }
 
@@ -271,6 +273,8 @@ public final class TitanLevels {
         n = Math.max(1, Math.min(6, n));
         if (TitanGuard.isShifter(t)) n += 2;
         n += (partySize(t) - 1) / 2;
+        // Lone Wolf: one strike fewer when you're fighting it alone.
+        if (Classes.alone(p) && n > 1) n--;
         return Math.max(1, Math.min(9, n));
     }
 
@@ -322,7 +326,7 @@ public final class TitanLevels {
         // One strike per swing: Danny's blades can report several hits for one cut.
         if (now - n.lastAt < 180) return true;
         // Twin Cut blades count each nape strike twice.
-        n.strikes += Gear.napeStrikes(p, p.getMainHandStack());
+        n.strikes += Gear.napeStrikes(p, p.getMainHandStack()) + AotRpg.CLASSES.napeBonus(p, titan);
         n.lastAt = now;
         int need = needed(p, titan);
         ServerWorld w = (ServerWorld) titan.getWorld();

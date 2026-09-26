@@ -145,7 +145,7 @@ public class AotPauseScreen extends Screen {
         if (p != null) {
             Ui.text(c, Ui.heading(p.name()), cx + cw / 2f, cy + 60, 1.1f, Ui.CREAM, true);
             Text sub = Text.literal("Level " + p.level() + " ").withColor(Ui.GOLD)
-                .append(Text.literal(p.disciplineEnum().title).withColor(Ui.disciplineColor(p.discipline())));
+                .append(Text.literal(p.role().tag() + " " + p.role().title).withColor(p.role().color));
             c.drawCenteredTextWithShadow(textRenderer, sub, cx + cw / 2, cy + 74, 0xFFFFFFFF);
             Ui.bar(c, cx + 16, cy + 86, cw - 32, 4, p.need() > 0 ? (float) p.xp() / p.need() : 1, Ui.XP);
             Ui.divider(c, cx + 12, cy + 98, cw - 24);

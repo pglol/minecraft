@@ -60,7 +60,7 @@ public final class Nametags {
                 Roles.tag(pr), Roles.tagColor(pr), pr.rp && (pr.role == null || pr.role.isEmpty()),
                 Factions.of(pr) == null ? -1 : Factions.of(pr).ordinal(),
                 AotRpg.REGIMENTS.of(p.getUuid()) == null ? "" : AotRpg.REGIMENTS.of(p.getUuid()).tag,
-                AotRpg.REGIMENTS.of(p.getUuid()) == null ? 0 : AotRpg.REGIMENTS.of(p.getUuid()).color));
+                AotRpg.REGIMENTS.of(p.getUuid()) == null ? 0 : AotRpg.REGIMENTS.of(p.getUuid()).color, pr.cls().ordinal()));
         }
         Net.Roster roster = new Net.Roster(list);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {

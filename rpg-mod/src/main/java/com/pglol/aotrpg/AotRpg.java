@@ -86,6 +86,7 @@ public final class AotRpg implements ModInitializer {
     public static final Guard GUARD_FIGHT = new Guard();
     public static final Coins COINS = new Coins();
     public static final Abilities ABILITIES = new Abilities();
+    public static final Classes CLASSES = new Classes();
     public static final Horses HORSES = new Horses();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
@@ -347,12 +348,16 @@ public final class AotRpg implements ModInitializer {
             PROFILES.save(p.getUuid());
             p.playSoundToPlayer(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.MASTER, 0.6f, 1.2f);
         });
+        ServerPlayNetworking.registerGlobalReceiver(Net.UseAbility.ID, (payload, ctx) -> CLASSES.use(ctx.player(), payload.slot()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.ChooseRole.ID, (payload, ctx) -> {
+            if (payload.cls() >= 0 && payload.cls() < PlayerClass.values().length) CLASSES.choose(ctx.player(), PlayerClass.values()[payload.cls()]);
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.Learn.ID, (payload, ctx) -> {
             ServerPlayerEntity p = ctx.player();
             Profile pr = PROFILES.get(p.getUuid());
             if (!pr.created || payload.skill() < 0 || payload.skill() >= Skill.values().length) return;
             Skill sk = Skill.values()[payload.skill()];
-            if (pr.has(sk) || pr.skillPoints < sk.cost || pr.level < sk.level || !sk.unlockedBy(pr::has)) return;
+            if (sk.blocked(pr.level, pr.skillPoints, pr::has) != null) return;
             pr.skillPoints -= sk.cost;
             pr.skills.add(sk);
             PROGRESSION.apply(p, pr);
@@ -446,6 +451,7 @@ public final class AotRpg implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             PROFILES.open(server);
             DOWNED.open(server);
+            CLASSES.open(server);
             PLACES.load(server);
             SATCHEL.open(server);
             QUESTS.load(server);
@@ -538,6 +544,7 @@ public final class AotRpg implements ModInitializer {
             CROWD.forget(p.getUuid());
             GUARD_FIGHT.forget(p.getUuid());
             ABILITIES.forget(p.getUuid());
+            CLASSES.forget(p.getUuid());
             HORSES.forget(p);
             COINS.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
@@ -593,6 +600,7 @@ public final class AotRpg implements ModInitializer {
         MARKET.tick(ticks);
         EXCHANGE.tick(ticks);
         DOWNED.tick(ticks);
+        CLASSES.tick(ticks);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);

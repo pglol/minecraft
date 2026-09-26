@@ -39,8 +39,8 @@ public final class Net {
 
     /** Server -> client: everything the HUD and character screen show. */
     public record Sync(String name, int origin, int discipline, int level, long xp, long need, int points,
-                       int skillPoints, int[] base, int[] total, int titanKills, int chapter, long skills,
-                       int[] crafts, int skillResets)
+                       int skillPoints, int[] base, int[] total, int titanKills, int chapter, long[] skills,
+                       int[] crafts, int skillResets, int cls)
             implements CustomPayload {
         public static final Id<Sync> ID = id("sync");
         public static final PacketCodec<RegistryByteBuf, Sync> CODEC = PacketCodec.of(Sync::write, Sync::read);
@@ -59,20 +59,29 @@ public final class Net {
             b.writeIntArray(total);
             b.writeVarInt(titanKills);
             b.writeVarInt(chapter);
-            b.writeLong(skills);
+            b.writeLongArray(skills);
             b.writeIntArray(crafts);
             b.writeVarInt(skillResets);
+            b.writeVarInt(cls);
         }
 
         private static Sync read(PacketByteBuf b) {
             return new Sync(b.readString(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarLong(),
                 b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readIntArray(), b.readIntArray(),
-                b.readVarInt(), b.readVarInt(), b.readLong(), b.readIntArray(), b.readVarInt());
+                b.readVarInt(), b.readVarInt(), b.readLongArray(), b.readIntArray(), b.readVarInt(), b.readVarInt());
         }
 
         public Origin originEnum() { return Origin.values()[origin]; }
         public Discipline disciplineEnum() { return Discipline.values()[discipline]; }
-        public boolean has(Skill s) { return (skills & (1L << s.ordinal())) != 0; }
+        public boolean has(Skill s) {
+            int i = s.ordinal() >> 6;
+            return i < skills.length && (skills[i] & (1L << (s.ordinal() & 63))) != 0;
+        }
+        public boolean anySkill() {
+            for (long l : skills) if (l != 0) return true;
+            return false;
+        }
+        public PlayerClass role() { return PlayerClass.values()[Math.max(0, Math.min(PlayerClass.values().length - 1, cls))]; }
 
         public static Sync of(Profile p) {
             int[] base = new int[Stat.values().length], total = new int[base.length];
@@ -80,10 +89,10 @@ public final class Net {
                 base[s.ordinal()] = p.stat(s);
                 total[s.ordinal()] = p.total(s);
             }
-            long mask = 0;
-            for (Skill s : p.skills) mask |= 1L << s.ordinal();
+            long[] mask = new long[(Skill.values().length + 63) / 64];
+            for (Skill s : p.skills) mask[s.ordinal() >> 6] |= 1L << (s.ordinal() & 63);
             return new Sync(p.name, p.origin.ordinal(), p.discipline.ordinal(), p.level, p.xp, Profile.xpForNext(p.level),
-                p.points, p.skillPoints, base, total, p.titanKills, p.chapter, mask, crafts(p), p.skillResets);
+                p.points, p.skillPoints, base, total, p.titanKills, p.chapter, mask, crafts(p), p.skillResets, p.cls().ordinal());
         }
 
         /** Smithing, fishing, cooking: level * 1000 + progress to the next level in thousandths. */
@@ -129,6 +138,32 @@ public final class Net {
     }
 
     /** Client -> server: learn a skill. */
+    /** Client -> server: use ability slot 0 (Z), 1 (X) or 2 (the ultimate, V). */
+    public record UseAbility(int slot) implements CustomPayload {
+        public static final Id<UseAbility> ID = id("use_ability");
+        public static final PacketCodec<RegistryByteBuf, UseAbility> CODEC =
+            PacketCodec.of((v, b) -> b.writeVarInt(v.slot), b -> new UseAbility(b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: choose the role you play and show. */
+    public record ChooseRole(int cls) implements CustomPayload {
+        public static final Id<ChooseRole> ID = id("choose_role");
+        public static final PacketCodec<RegistryByteBuf, ChooseRole> CODEC =
+            PacketCodec.of((v, b) -> b.writeVarInt(v.cls), b -> new ChooseRole(b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: your ability bar: role, learned slots, cooldowns (ms), ultimate charge and time left, alone, in an event. */
+    public record ClassHud(int cls, int mask, int[] cdLeft, int[] cdMax, float charge, int ultLeft, boolean alone, boolean event) implements CustomPayload {
+        public static final Id<ClassHud> ID = id("class_hud");
+        public static final PacketCodec<RegistryByteBuf, ClassHud> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.cls); b.writeVarInt(v.mask); b.writeIntArray(v.cdLeft); b.writeIntArray(v.cdMax);
+            b.writeFloat(v.charge); b.writeVarInt(v.ultLeft); b.writeBoolean(v.alone); b.writeBoolean(v.event);
+        }, b -> new ClassHud(b.readVarInt(), b.readVarInt(), b.readIntArray(), b.readIntArray(), b.readFloat(), b.readVarInt(), b.readBoolean(), b.readBoolean()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record Learn(int skill) implements CustomPayload {
         public static final Id<Learn> ID = id("learn");
         public static final PacketCodec<RegistryByteBuf, Learn> CODEC =
@@ -176,7 +211,7 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp, int faction, String regiment, int regimentColor) { }
+    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp, int faction, String regiment, int regimentColor, int cls) { }
 
     /** Server -> client: character names of everyone online, for name plates. */
     public record Roster(java.util.List<RosterEntry> players) implements CustomPayload {
@@ -194,11 +229,12 @@ public final class Net {
                 b.writeVarInt(e.faction() + 1);
                 b.writeString(e.regiment());
                 b.writeInt(e.regimentColor());
+                b.writeVarInt(e.cls());
             }
         }, b -> {
             int n = Math.min(b.readVarInt(), 1000);
             java.util.List<RosterEntry> l = new java.util.ArrayList<>(n);
-            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean(), b.readVarInt() - 1, b.readString(), b.readInt()));
+            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean(), b.readVarInt() - 1, b.readString(), b.readInt(), b.readVarInt()));
             return new Roster(l);
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -1516,5 +1552,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(Create.ID, Create.CODEC);
         PayloadTypeRegistry.playC2S().register(SpendPoint.ID, SpendPoint.CODEC);
         PayloadTypeRegistry.playC2S().register(Learn.ID, Learn.CODEC);
+        PayloadTypeRegistry.playC2S().register(UseAbility.ID, UseAbility.CODEC);
+        PayloadTypeRegistry.playC2S().register(ChooseRole.ID, ChooseRole.CODEC);
+        PayloadTypeRegistry.playS2C().register(ClassHud.ID, ClassHud.CODEC);
     }
 }

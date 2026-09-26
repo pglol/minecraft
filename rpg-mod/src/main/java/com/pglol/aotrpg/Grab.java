@@ -45,7 +45,9 @@ public final class Grab {
         s[1] = (int) now;
         s[0]++;
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_WEAK, SoundCategory.PLAYERS, 0.6f, 1.3f);
-        if (s[0] < NEEDED) return;
+        int need = Classes.alone(p) ? 8 : NEEDED;
+        if (AotRpg.PROFILES.get(p.getUuid()).has(Skill.TNK_ANCHOR)) need = Math.max(4, need / 2);
+        if (s[0] < need) return;
         progress.remove(p.getUuid());
         Entity titan = p.getVehicle();
         p.stopRiding();

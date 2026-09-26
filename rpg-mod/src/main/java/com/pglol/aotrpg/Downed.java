@@ -30,10 +30,13 @@ import java.util.UUID;
  * enough to kill outright; Second Wind on armor makes going down, rather than dying, likelier.
  */
 public final class Downed {
-    public static final float BLEED_S = 25, REVIVE_S = 4;
+    public static final float BLEED_S = 25, REVIVE_S = 4, SELF_S = 5;
+    /** Alone and downed: when you may next pick yourself up. */
+    private final Map<UUID, Long> selfReady = new HashMap<>();
 
     private static final class State {
-        float left = BLEED_S;
+        float left = BLEED_S, max = BLEED_S;
+        float self;
         float revive;
         UUID reviver;
         DamageSource cause;
@@ -76,6 +79,11 @@ public final class Downed {
         double overkill = amount / Math.max(1f, p.getMaxHealth());
         double chance = titan ? (overkill > 2 ? 0.12 : 0.30) : (overkill > 2 ? 0.35 : 0.60);
         chance += secondWind(p);
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (pr.has(Skill.RESILIENCE)) chance += 0.15;
+        boolean alone = Classes.alone(p);
+        if (alone) chance += 0.10;
+        if (alone && pr.has(Skill.MED_LONE)) chance += 0.20;
         if (p.getRandom().nextDouble() >= Math.min(0.9, chance)) return true;
         down(p, source);
         return false;
@@ -83,6 +91,7 @@ public final class Downed {
 
     private void down(ServerPlayerEntity p, DamageSource cause) {
         State s = new State();
+        if (AotRpg.PROFILES.get(p.getUuid()).has(Skill.RESILIENCE)) s.left = s.max = BLEED_S + 10;
         s.cause = cause;
         s.since = System.currentTimeMillis();
         downed.put(p.getUuid(), s);
@@ -138,9 +147,22 @@ public final class Downed {
                 helper = o;
                 break;
             }
+            if (helper == null && pressing && Classes.alone(p) && System.currentTimeMillis() >= selfReady.getOrDefault(p.getUuid(), 0L)) {
+                // Alone: hold your wounds long enough and you pick yourself up.
+                s.self += 1f / (SELF_S * 20);
+                if (ticks % 5 == 0) w.spawnParticles(ParticleTypes.END_ROD, p.getX(), p.getY() + 0.4, p.getZ(), 1, 0.3, 0.2, 0.3, 0.01);
+                if (s.self >= 1) {
+                    it.remove();
+                    selfReady.put(p.getUuid(), System.currentTimeMillis() + 120_000);
+                    revive(p, p);
+                    continue;
+                }
+            } else if (!pressing) {
+                s.self = Math.max(0, s.self - 0.02f);
+            }
             if (helper != null) {
                 s.reviver = helper.getUuid();
-                s.revive += 1f / (REVIVE_S * 20);
+                s.revive += 1f / ((AotRpg.PROFILES.get(helper.getUuid()).has(Skill.MED_QUICK) ? 2.5f : REVIVE_S) * 20);
                 if (ticks % 4 == 0) {
                     w.spawnParticles(ParticleTypes.END_ROD, p.getX(), p.getY() + 0.4, p.getZ(), 2, 0.4, 0.3, 0.4, 0.02);
                     w.spawnParticles(new DustParticleEffect(new Vector3f(1f, 0.85f, 0.35f), 1f), helper.getX(), helper.getY() + 1, helper.getZ(), 2, 0.3, 0.3, 0.3, 0);
@@ -159,8 +181,9 @@ public final class Downed {
                 bleedOut(p, s);
                 continue;
             }
-            view.add(new Net.DownedEntry(p.getId(), s.left, BLEED_S, s.revive, pressing,
-                s.reviver == null ? "" : AotRpg.PROFILES.get(s.reviver).name));
+            boolean selfing = s.reviver == null && s.self > 0;
+            view.add(new Net.DownedEntry(p.getId(), s.left, s.max, selfing ? s.self : s.revive, pressing,
+                selfing ? "@self" : s.reviver == null ? (Classes.alone(p) ? "@alone" : "") : AotRpg.PROFILES.get(s.reviver).name));
         }
         if (ticks % 2 != 0) return;
         Net.DownedView msg = new Net.DownedView(view);
@@ -184,6 +207,14 @@ public final class Downed {
         w.playSound(null, p.getBlockPos(), SoundEvents.ITEM_TOTEM_USE, SoundCategory.PLAYERS, 0.7f, 1.3f);
         w.playSound(null, p.getBlockPos(), SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 0.8f, 1.6f);
         String me = AotRpg.PROFILES.get(p.getUuid()).name, them = AotRpg.PROFILES.get(by.getUuid()).name;
+        if (by == p) {
+            p.setHealth(Math.max(4, p.getMaxHealth() * 0.2f));
+            Notify.toast(p, Text.literal("Back on your feet").formatted(Formatting.GOLD, Formatting.BOLD),
+                Text.literal("You picked yourself up · again in 2 minutes"), 0xF2C14E, "minecraft:totem_of_undying", "downed");
+            sendClear(p);
+            return;
+        }
+        AotRpg.CLASSES.revived(by);
         Notify.toast(p, Text.literal("Revived!").formatted(Formatting.GOLD, Formatting.BOLD),
             Text.literal(them + " brought you back"), 0xF2C14E, "minecraft:totem_of_undying", "downed");
         Notify.toast(by, Text.literal("You saved " + me).formatted(Formatting.GOLD, Formatting.BOLD),
@@ -214,6 +245,32 @@ public final class Downed {
                 if (ServerPlayNetworking.canSend(o, Net.DownedView.ID)) ServerPlayNetworking.send(o, msg);
             }
         }
+    }
+
+    /** Pushes a downed player's revive along (a Medic's Field Dressing). */
+    public void boost(ServerPlayerEntity p, ServerPlayerEntity by, float amount) {
+        State s = downed.get(p.getUuid());
+        if (s == null) return;
+        s.reviver = by.getUuid();
+        s.revive += amount;
+        if (s.revive >= 1) {
+            downed.remove(p.getUuid());
+            revive(p, by);
+        }
+    }
+
+    /** Revives every downed player within r blocks (a Medic's ultimate). Returns how many. */
+    public int reviveAll(ServerPlayerEntity by, double r) {
+        int n = 0;
+        for (var it = downed.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            ServerPlayerEntity p = server.getPlayerManager().getPlayer(e.getKey());
+            if (p == null || p == by || p.getWorld() != by.getWorld() || p.squaredDistanceTo(by) > r * r) continue;
+            it.remove();
+            revive(p, by);
+            n++;
+        }
+        return n;
     }
 
     /** Leaving while downed counts as bleeding out (no dodging death by logging off). */

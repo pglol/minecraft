@@ -70,6 +70,9 @@ public final class Profile {
     public String companion = "";
     /** Where you wake after falling: "" the nearest recovery post, "home" your property (or house). */
     public String respawn = "";
+    /** The role shown to others and put on Z/X/V (Infantry, Tank, Medic, Recon); whether class trees granted points. */
+    public PlayerClass cls;
+    public boolean skillsV3;
 
     public int stat(Stat s) {
         return stats.getOrDefault(s, 0);
@@ -81,6 +84,10 @@ public final class Profile {
         if (origin != null && origin.bonusStat == s) v++;
         if (origin == Origin.UNDERGROUND && s == Stat.STRENGTH) v++;
         return v;
+    }
+
+    public PlayerClass cls() {
+        return cls != null ? cls : PlayerClass.of(discipline);
     }
 
     public boolean has(Skill s) {
