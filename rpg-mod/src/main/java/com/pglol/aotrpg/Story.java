@@ -993,17 +993,23 @@ public final class Story {
     }
 
     /**
-     * A story scene keeps its own titans: wandering ones (not event or raid titans) that come
-     * within 96 blocks of the scene's players are sent off, so a scene isn't gatecrashed.
+     * A story scene keeps its own titans: while you're at the scene, wandering titans (not event,
+     * raid or hunt titans) within 64 blocks of it are sent off, so it isn't gatecrashed. Anywhere
+     * else the world's titans are left alone.
      */
     private void calm(Scene sc, ServerPlayerEntity host) {
+        // Only where the scene is actually playing out: around the step's spot, while you're there.
+        if (!sc.spawned || sc.mission == null) return;
+        Mission m = missions.get(sc.mission);
+        Step st = m == null ? null : step(AotRpg.PROFILES.get(host.getUuid()));
+        if (st == null) return;
         ServerWorld w = host.getServerWorld();
+        Vec3d anchor = anchor(w, m, st);
+        if (anchor == null || host.getPos().squaredDistanceTo(anchor) > 80 * 80) return;
         List<Entity> gone = new ArrayList<>();
-        for (ServerPlayerEntity x : members(sc)) {
-            if (x.getWorld() != w) continue;
-            for (Entity e : w.getOtherEntities(x, x.getBoundingBox().expand(96, 64, 96), TitanGuard::wanderingTitan)) {
-                if (!phased.containsKey(e.getId())) gone.add(e);
-            }
+        net.minecraft.util.math.Box area = new net.minecraft.util.math.Box(anchor.x - 64, anchor.y - 48, anchor.z - 64, anchor.x + 64, anchor.y + 64, anchor.z + 64);
+        for (Entity e : w.getEntitiesByClass(Entity.class, area, TitanGuard::wanderingTitan)) {
+            if (!phased.containsKey(e.getId())) gone.add(e);
         }
         for (Entity e : gone) {
             w.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + e.getHeight() / 2, e.getZ(), 12, e.getWidth() / 2, e.getHeight() / 3, e.getWidth() / 2, 0.02);
