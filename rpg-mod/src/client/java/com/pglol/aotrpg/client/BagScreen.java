@@ -122,14 +122,15 @@ public final class BagScreen extends Screen {
         detailW = Math.min(170, width / 3);
         detailX = width - detailW - 14;
         gx = 14;
-        gy = 44;
-        cw = 36;
-        ch = 46;
+        gy = 70;
+        cw = 32;
+        ch = 32;
         cols = Math.max(3, (detailX - 10 - gx) / (cw + 5));
         rows = Math.max(1, (height - 66 - gy) / (ch + 5));
         // What you wear and carry: click to put it back in the satchel.
         int[] order = {103, 102, 101, 100, Satchel.OFF, 0, 1, 2, 3, 4, 5, 6, 7, 8};
-        int ts = 24, sx = gx, sy = height - 40;
+        // Tiles shrink on narrow screens so the band never runs under the detail page.
+        int ts = Math.max(16, Math.min(24, (detailX - 12 - gx - 20 - 13 * 3) / 14)), sx = gx, sy = height - 40;
         stripX = new int[order.length];
         for (int i = 0; i < order.length; i++) {
             int t = order[i];
@@ -143,10 +144,11 @@ public final class BagScreen extends Screen {
                 + (cur.isEmpty() ? " (empty)" : ": " + cur.getName().getString() + "\nClick to put it back in the satchel"))));
         }
         // Category tabs across the top.
-        int tw = 22, tx = width / 2 - (TABS.length * (tw + 4)) / 2;
+        // Row two: category tabs on the left, sort and mend on the right, never sharing space.
+        int tw = 22, tx = gx;
         for (int i = 0; i < TABS.length; i++) {
             int t = i;
-            AotButton b = addDrawableChild(new AotButton(tx + i * (tw + 4), 8, tw, 22, Text.empty(), () -> {
+            AotButton b = addDrawableChild(new AotButton(tx + i * (tw + 4), 38, tw, 22, Text.empty(), () -> {
                 tab = t;
                 scroll = 0;
                 selected = -1;
@@ -156,12 +158,15 @@ public final class BagScreen extends Screen {
             b.selected = tab == i;
             b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(TABS[i])));
         }
-        addDrawableChild(new AotButton(width - 30, 8, 22, 22, Text.literal("✕"), this::close));
-        AotButton mendAll = addDrawableChild(new AotButton(246, 11, 90, 16, Text.literal("Mend all"), () -> act("repairall", -1, 0)));
+        addDrawableChild(new AotButton(width - 30, 5, 20, 20, Text.literal("✕"), this::close));
+        int tabsEnd = tx + TABS.length * (tw + 4);
+        int hb = Math.max(44, Math.min(84, (width - 14 - tabsEnd - 16) / 2));
+        int mx = width - 14 - hb;
+        AotButton mendAll = addDrawableChild(new AotButton(mx, 41, hb, 16, Text.literal(hb >= 70 ? "Mend all" : "Mend"), () -> act("repairall", -1, 0)));
         mendAll.accent = 0xFF5BD35B;
         mendAll.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
             "At home: mend everything you carry and wear. Weapons take iron, armor and clothing take leather, plus a small fee.")));
-        addDrawableChild(new AotButton(150, 11, 90, 16, Text.literal("Sort: " + SORTS[sort]), () -> {
+        addDrawableChild(new AotButton(mx - hb - 6, 41, hb, 16, Text.literal(hb >= 70 ? "Sort: " + SORTS[sort] : SORTS[sort]), () -> {
             sort = (sort + 1) % SORTS.length;
             clearAndInit();
         }));
@@ -251,29 +256,23 @@ public final class BagScreen extends Screen {
 
     // ------------------------------------------------------------------ drawing
 
-    private static int rarityBg(int q) {
-        return switch (q) {
-            case 1 -> 0xFF3F7A4E;
-            case 2 -> 0xFF4468A8;
-            case 3 -> 0xFF7A4CA8;
-            case 4 -> 0xFFB8792E;
-            default -> 0xFF6A6860;
-        };
-    }
-
     @Override
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
-        Ui.backdrop(c, width, height);
-        c.fill(0, 0, width, 36, 0xC0101410);
-        c.fill(0, 36, width, 37, 0x80B8955A);
-        Ui.text(c, Ui.title("SATCHEL"), 14, 10, 1.1f, Ui.GOLD, false);
-        Ui.text(c, Text.literal("/ " + TABS[tab]), 14, 23, 0.8f, Ui.CREAM, false);
-        String load = "Load " + ClientState.bag.size() + " / " + ClientState.bagSize;
-        Ui.text(c, Text.literal(load), width - 38 - textRenderer.getWidth(load), 15, 1f,
-            ClientState.bag.size() >= ClientState.bagSize ? Ui.RED : Ui.GOLD, false);
+        Ui.planks(c, width, height);
+        // A leather strap across the top with the title and how full the satchel is.
+        c.fill(0, 0, width, 30, Ui.LEATHER);
+        c.fill(0, 30, width, 31, 0xFF0A0706);
+        for (int i = 4; i < width - 4; i += 4) c.fill(i, 26, i + 2, 27, Ui.STITCH);
+        Text title = Ui.title("Satchel");
+        c.drawText(textRenderer, title, gx, 11, Ui.GOLD, false);
+        c.drawText(textRenderer, Text.literal("·  " + TABS[tab]), gx + textRenderer.getWidth(title) + 8, 11, Ui.CREAM, false);
+        String load = ClientState.bag.size() + " / " + ClientState.bagSize;
+        int lx = width - 40 - textRenderer.getWidth(load);
+        c.drawText(textRenderer, load, lx, 11, ClientState.bag.size() >= ClientState.bagSize ? Ui.RED : Ui.CREAM, false);
+        c.drawText(textRenderer, "Load", lx - 6 - textRenderer.getWidth("Load"), 11, Ui.MUTED, false);
 
         List<Integer> list = shown();
-        if (list.isEmpty()) Ui.text(c, Text.literal("Nothing here yet."), gx + 4, gy + 6, 0.9f, Ui.MUTED, false);
+        if (list.isEmpty()) c.drawText(textRenderer, "Nothing here yet.", gx + 4, gy + 6, Ui.MUTED, false);
         for (int i = 0; i < rows * cols; i++) {
             int idx = scroll * cols + i;
             if (idx >= list.size()) break;
@@ -285,91 +284,113 @@ public final class BagScreen extends Screen {
         int total = (list.size() + cols - 1) / cols;
         if (total > rows) {
             int bx = detailX - 8, bh = rows * (ch + 5);
-            c.fill(bx, gy, bx + 2, gy + bh, 0x40FFFFFF);
+            c.fill(bx, gy, bx + 2, gy + bh, 0x30FFE8C0);
             int th = Math.max(10, bh * rows / total), ty = gy + (bh - th) * scroll / Math.max(1, total - rows);
-            c.fill(bx, ty, bx + 2, ty + th, Ui.GOLD);
+            c.fill(bx, ty, bx + 2, ty + th, 0xFF8C7248);
         }
         detail(c);
         // The worn & loadout band along the bottom, with its three groups named.
-        c.fill(0, height - 58, detailX - 8, height, 0xB0101410);
-        c.fill(0, height - 58, detailX - 8, height - 57, 0x80B8955A);
+        int band = detailX - 8;
+        c.fill(0, height - 60, band, height, Ui.LEATHER);
+        c.fill(0, height - 60, band, height - 59, 0xFF0A0706);
+        for (int i = 4; i < band - 4; i += 4) c.fill(i, height - 57, i + 2, height - 56, Ui.STITCH);
         if (stripX.length == 14) {
-            Ui.text(c, Ui.heading("Armor"), stripX[0], height - 53, 0.7f, Ui.GOLD, false);
-            Ui.text(c, Ui.heading("Hand"), stripX[4], height - 53, 0.7f, Ui.GOLD, false);
-            Ui.text(c, Ui.heading("Loadout  ·  click a slot to put it back in the satchel"), stripX[5], height - 53, 0.7f, Ui.GOLD, false);
+            c.drawText(textRenderer, Ui.heading("Worn"), stripX[0], height - 52, Ui.GOLD, false);
+            c.drawText(textRenderer, Ui.heading("Hand"), stripX[4], height - 52, Ui.GOLD, false);
+            Text lo = Ui.heading("Loadout");
+            c.drawText(textRenderer, lo, stripX[5], height - 52, Ui.GOLD, false);
+            String tip = "click to put back";
+            if (stripX[5] + textRenderer.getWidth(lo) + 8 + textRenderer.getWidth(tip) < band - 6) {
+                c.drawText(textRenderer, tip, stripX[5] + textRenderer.getWidth(lo) + 8, height - 52, Ui.MUTED, false);
+            }
         }
-        if (equipRow >= 0) Ui.text(c, Ui.heading("Equip to"), detailX + 8, equipRow - 11, 0.8f, 0xFF3A3020, false);
+        if (equipRow >= 0) c.drawText(textRenderer, Ui.heading("Equip to"), detailX + 8, equipRow - 12, Ui.GOLD, false);
     }
 
+    /** An item in its socket: a dark recess, the item, a thin enamel line in its rarity underneath. */
     private void card(DrawContext c, ItemStack s, int x, int y, boolean sel, boolean hov) {
         int q = quality(s);
-        c.fill(x, y, x + cw, y + ch - 12, rarityBg(q));
-        c.fillGradient(x, y, x + cw, y + ch - 12, 0x30FFFFFF, 0x00000000);
-        c.fill(x, y + ch - 12, x + cw, y + ch, 0xFFE8DFC8);
+        int tone = Ui.rarityTone(q);
+        Ui.socket(c, x, y, cw);
+        if (q > 0) c.fillGradient(x + 1, y + 1, x + cw - 1, y + ch - 1, 0x00000000, (tone & 0xFFFFFF) | 0x28000000);
+        c.fill(x + 3, y + ch - 3, x + cw - 3, y + ch - 2, tone);
         var m = c.getMatrices();
         m.push();
-        m.translate(x + cw / 2f - 12, y + 5, 0);
+        m.translate(x + (cw - 24) / 2f, y + (ch - 24) / 2f - 1, 0);
         m.scale(1.5f, 1.5f, 1);
         c.drawItem(s, 0, 0);
         m.pop();
-        String foot = Gear.isGear(s) ? "Lv. " + level(s) : s.getCount() > 1 ? String.valueOf(s.getCount()) : "";
-        if (!foot.isEmpty()) Ui.text(c, Text.literal(foot), x + cw / 2f, y + ch - 10, 0.7f, 0xFF3A3020, true);
-        if (GearUi.rarity(s) >= 0) {
-            String stars = "★".repeat(GearUi.rarity(s) + 1);
-            Ui.text(c, Text.literal(stars), x + cw / 2f, y + ch - 20, 0.55f, 0xFFFFD76A, true);
+        m.push();
+        m.translate(0, 0, 200);
+        if (Gear.isGear(s)) {
+            String lv = String.valueOf(level(s));
+            Ui.text(c, Text.literal(lv), x + 4, y + 4, 0.6f, GearUi.locked(s) ? 0xFFE07A6A : 0xFFD8CFB8, false);
+        } else if (s.getCount() > 1) {
+            String n = String.valueOf(s.getCount());
+            Ui.text(c, Text.literal(n), x + cw - 4 - textRenderer.getWidth(n) * 0.7f, y + ch - 10, 0.7f, 0xFFEDE3C8, false);
         }
-        if (GearUi.locked(s)) {
-            c.fill(x, y, x + cw, y + ch, 0x60801010);
-            Ui.text(c, Text.literal("LOCKED"), x + cw / 2f, y + 2, 0.5f, 0xFFFF8A8A, true);
-        }
-        if (sel) c.drawBorder(x - 1, y - 1, cw + 2, ch + 2, 0xFFFFFFFF);
-        else if (hov) c.drawBorder(x - 1, y - 1, cw + 2, ch + 2, 0xA0FFFFFF);
+        m.pop();
+        if (GearUi.locked(s)) c.fill(x + 1, y + 1, x + cw - 1, y + ch - 1, 0x50601010);
+        if (sel) c.drawBorder(x - 1, y - 1, cw + 2, ch + 2, 0xFFE0B96A);
+        else if (hov) c.drawBorder(x - 1, y - 1, cw + 2, ch + 2, 0x908C7248);
     }
 
+    /** The chosen item on a leather page: its name in its rarity, a picture, and what it says about itself. */
     private void detail(DrawContext c) {
         ItemStack s = selected >= 0 ? ClientState.bag.getOrDefault(selected, ItemStack.EMPTY) : ItemStack.EMPTY;
-        int x = detailX, y = gy, w = detailW, h = height - gy - 8;
+        int x = detailX, y = gy, w = detailW, h = height - y - 8;
         if (s.isEmpty()) {
-            Ui.panel(c, x, y, w, 60);
-            Ui.text(c, Text.literal("Pick an item to see it."), x + w / 2f, y + 26, 0.8f, Ui.MUTED, true);
-        equipRow = -1;
+            Ui.leather(c, x, y, w, 50);
+            String t = "Pick an item to see it.";
+            c.drawText(textRenderer, t, x + (w - textRenderer.getWidth(t)) / 2, y + 21, Ui.MUTED, false);
+            equipRow = -1;
             return;
         }
         int q = quality(s);
-        c.fill(x, y, x + w, y + 22, rarityBg(q));
-        Ui.text(c, Text.literal(textRenderer.trimToWidth(s.getName().getString(), (int) ((w - 12) / 1.05f))), x + 6, y + 6, 1.05f, 0xFFFFFFFF, false);
-        c.fill(x, y + 22, x + w, y + h, 0xF0E8DFC8);
-        // Big picture and the headline facts.
-        c.fill(x, y + 22, x + w, y + 80, (rarityBg(q) & 0x00FFFFFF) | 0x90000000);
+        int tone = Ui.rarityTone(q);
+        Ui.leather(c, x, y, w, h);
+        // Name, trimmed to the page, with a rarity line under it.
+        String name = textRenderer.trimToWidth(s.getName().getString(), w - 16);
+        c.drawText(textRenderer, name, x + 8, y + 9, q > 0 ? brighten(tone) : Ui.CREAM, false);
+        c.fill(x + 8, y + 20, x + w - 8, y + 21, tone);
+        // Picture in a recess, facts beside it.
+        Ui.well(c, x + w - 58, y + 26, 50, 50);
         var m = c.getMatrices();
         m.push();
-        m.translate(x + w - 56, y + 28, 0);
+        m.translate(x + w - 57, y + 27, 0);
         m.scale(3f, 3f, 1);
         c.drawItem(s, 0, 0);
         m.pop();
-        Ui.text(c, Text.literal(TABS[category(s)]), x + 6, y + 27, 0.75f, 0xFFEDE3C8, false);
+        c.drawText(textRenderer, TABS[category(s)], x + 8, y + 28, Ui.MUTED, false);
         if (Gear.isGear(s)) {
-            Ui.text(c, Ui.title("Lv. " + level(s)), x + 6, y + 40, 1.3f, GearUi.locked(s) ? 0xFFFF6A6A : 0xFFFFFFFF, false);
-            Ui.text(c, Text.literal("★".repeat(GearUi.rarity(s) + 1)), x + 6, y + 58, 1f, 0xFFFFD76A, false);
+            Ui.text(c, Ui.title("Level " + level(s)), x + 8, y + 42, 1.1f, GearUi.locked(s) ? 0xFFE07A6A : Ui.CREAM, false);
+            String grade = new String[] {"Common", "Uncommon", "Rare", "Epic", "Legendary"}[Math.max(0, Math.min(4, GearUi.rarity(s)))];
+            c.drawText(textRenderer, grade, x + 8, y + 58, brighten(tone), false);
         } else if (s.getCount() > 1) {
-            Ui.text(c, Ui.title("x" + s.getCount()), x + 6, y + 40, 1.3f, 0xFFFFFFFF, false);
+            Ui.text(c, Ui.title("× " + s.getCount()), x + 8, y + 42, 1.1f, Ui.CREAM, false);
         }
+        c.fill(x + 8, y + 82, x + w - 8, y + 83, 0x40000000);
         // Everything else the item says about itself.
         List<Text> lines = client.player == null ? List.of()
             : s.getTooltip(net.minecraft.item.Item.TooltipContext.create(client.world), client.player, TooltipType.BASIC);
-        int ly = y + 86;
-        int bottom = equipRow >= 0 ? equipRow - 14 : height - 64;
+        int ly = y + 88;
+        int bottom = equipRow >= 0 ? equipRow - 16 : height - 64;
         for (int i = 1; i < lines.size() && ly < bottom; i++) {
-            for (var ord : textRenderer.wrapLines(lines.get(i), (int) ((w - 12) / 0.75f))) {
+            for (var ord : textRenderer.wrapLines(lines.get(i), (int) ((w - 16) / 0.75f))) {
                 if (ly >= bottom) break;
                 var mm = c.getMatrices();
                 mm.push();
-                mm.translate(x + 6, ly, 0);
+                mm.translate(x + 8, ly, 0);
                 mm.scale(0.75f, 0.75f, 1);
-                c.drawText(textRenderer, ord, 0, 0, 0xFF3A3020, false);
+                c.drawText(textRenderer, ord, 0, 0, 0xFFD8CFB8, false);
                 mm.pop();
                 ly += 8;
             }
         }
+    }
+
+    private static int brighten(int c) {
+        int r = Math.min(255, (c >> 16 & 255) * 5 / 4 + 20), g = Math.min(255, (c >> 8 & 255) * 5 / 4 + 20), b = Math.min(255, (c & 255) * 5 / 4 + 20);
+        return 0xFF000000 | r << 16 | g << 8 | b;
     }
 }

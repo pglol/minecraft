@@ -22,24 +22,27 @@ public class RpgInventoryScreen extends InventoryScreen {
 
     public RpgInventoryScreen(PlayerEntity player) {
         super(player);
-        backgroundWidth = 176;
-        backgroundHeight = 212;
+        backgroundWidth = W;
+        backgroundHeight = H;
     }
 
     // Loadout layout inside the panel (frame top-left of each slot). Hotbar 0-8 and the off hand (40).
+    // One leather case, two columns: you and your armour on the left, the loadout on the right.
+    // Sized to fit GUI scale 2 to 4 on common screens without anything overlapping.
+    private static final int W = 312, H = 172, RIGHT_C = 233;
     private static final int OFFHAND = 40;
     private static final int[][] FRAMES = new int[41][];
     static {
-        FRAMES[0] = new int[] {29, 97};          // Melee
-        FRAMES[OFFHAND] = new int[] {49, 97};    // Off hand / twin grip
-        FRAMES[1] = new int[] {109, 97};         // Ranged
-        FRAMES[2] = new int[] {129, 97};         // Sidearm
-        FRAMES[3] = new int[] {49, 123};         // Tool
-        FRAMES[4] = new int[] {79, 123};         // Heal (centre)
-        FRAMES[5] = new int[] {109, 123};        // Mount
-        FRAMES[6] = new int[] {49, 146};         // Signal
-        FRAMES[7] = new int[] {79, 146};         // Free
-        FRAMES[8] = new int[] {109, 146};        // Free
+        FRAMES[0] = new int[] {172, 38};         // Melee
+        FRAMES[OFFHAND] = new int[] {192, 38};   // Off hand / twin grip
+        FRAMES[1] = new int[] {256, 38};         // Ranged
+        FRAMES[2] = new int[] {276, 38};         // Sidearm
+        FRAMES[3] = new int[] {198, 68};         // Tool
+        FRAMES[4] = new int[] {224, 68};         // Heal (centre)
+        FRAMES[5] = new int[] {250, 68};         // Mount
+        FRAMES[6] = new int[] {198, 94};         // Signal
+        FRAMES[7] = new int[] {224, 94};         // Free
+        FRAMES[8] = new int[] {250, 94};         // Free
     }
 
     /** Vanilla positions of every slot, to put back when the screen closes. */
@@ -66,7 +69,7 @@ public class RpgInventoryScreen extends InventoryScreen {
         for (Slot s : handler.slots) {
             original.putIfAbsent(s, new int[] {s.x, s.y});
             if (playerSlot(s)) move(s, FRAMES[s.getIndex()][0] + 1, FRAMES[s.getIndex()][1] + 1);
-            else if (armorSlot(s)) move(s, 8, 8 + (39 - s.getIndex()) * 18);
+            else if (armorSlot(s)) move(s, 11, 30 + (39 - s.getIndex()) * 20);
             else move(s, -10000, -10000);
         }
     }
@@ -87,10 +90,10 @@ public class RpgInventoryScreen extends InventoryScreen {
             if (el instanceof net.minecraft.client.gui.widget.TexturedButtonWidget b) remove(b);
         }
         x = (width - backgroundWidth) / 2;
-        y = (height - backgroundHeight) / 2 + 6;
-        satchelButton = addDrawableChild(new AotButton(x + 8, y + 170, 76, 14, Text.literal("Satchel [B]"),
+        y = (height - backgroundHeight) / 2;
+        satchelButton = addDrawableChild(new AotButton(x + 170, y + 146, 62, 16, Text.literal("Satchel [B]"),
             () -> net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new Net.OpenSatchel())));
-        skillsButton = addDrawableChild(new AotButton(x + backgroundWidth - 84, y + 170, 76, 14, Text.literal("Skills [K]"),
+        skillsButton = addDrawableChild(new AotButton(x + 236, y + 146, 64, 16, Text.literal("Skills [K]"),
             () -> client.setScreen(new CharacterScreen(0))));
         layout();
     }
@@ -126,85 +129,82 @@ public class RpgInventoryScreen extends InventoryScreen {
     protected void drawBackground(DrawContext c, float delta, int mouseX, int mouseY) {
         int x = this.x, y = this.y, w = backgroundWidth, h = backgroundHeight;
         Net.Sync p = ClientState.profile;
+        var pl = client.player;
+        var font = textRenderer;
+        Ui.leather(c, x, y, w, h);
 
-        // Header: level crest on the left, name in the middle, purse on the right.
-        Ui.panel(c, x, y - 19, 34, 17);
-        Ui.crest(c, x + 5, y - 19, 17, 0.35f);
-        if (p != null) Ui.text(c, Ui.title(String.valueOf(p.level())), x + 17, y - 15, 1f, Ui.GOLD, true);
-        int tabW = 104, tabX = x + 38;
-        Ui.panel(c, tabX, y - 19, tabW, 17);
-        Text head = Ui.heading(p != null ? p.name() : "Inventory");
-        c.drawTextWithShadow(textRenderer, Text.literal(textRenderer.trimToWidth(head.getString(), tabW - 8)).setStyle(head.getStyle()),
-            tabX + 4, y - 14, Ui.GOLD);
-        Text purse = Text.literal(String.format(Locale.ROOT, "%,d", ClientState.marks)).withColor(0xFFE0B96A);
-        int pw = Math.max(30, textRenderer.getWidth(purse) + 10);
-        Ui.panel(c, x + w - pw, y - 19, pw, 17);
-        c.drawTextWithShadow(textRenderer, purse, x + w - pw + 5, y - 14, Ui.GOLD);
+        // Header: level in a small well, name and role, the purse on the right. All centred on one line.
+        int hy = y + 7;
+        String lv = p != null ? String.valueOf(p.level()) : "-";
+        int lw = Math.max(16, font.getWidth(lv) + 8);
+        Ui.well(c, x + 8, y + 4, lw, 14);
+        c.drawText(font, lv, x + 8 + (lw - font.getWidth(lv)) / 2, hy, Ui.GOLD, false);
+        int nx = x + 8 + lw + 6;
+        Text name = Ui.heading(p != null ? p.name() : "Inventory");
+        c.drawText(font, name, nx, hy, Ui.CREAM, false);
+        nx += font.getWidth(name) + 6;
+        if (p != null) c.drawText(font, Text.literal(p.role().tag() + " " + p.role().title), nx, hy, p.role().color, false);
+        String purse = String.format(Locale.ROOT, "%,d", ClientState.marks);
+        int px = x + w - 10 - font.getWidth(purse);
+        c.drawText(font, purse, px, hy, Ui.GOLD, false);
+        Glyphs.draw(c, px - 10, hy, Glyphs.COIN, 0xFF8C6A2E, 0xFFE0B96A);
+        c.fill(x + 6, y + 21, x + w - 6, y + 22, 0x70000000);
+        c.fill(x + 6, y + 22, x + w - 6, y + 23, 0x18FFE8C0);
 
-        Ui.panel(c, x, y, w, h);
-        // Your figure between the armor column and the armor rating.
-        c.fillGradient(x + 28, y + 4, x + w - 28, y + 82, 0x30B8955A, 0x08000000);
-        Ui.crest(c, x + w / 2 - 26, y + 14, 52, 0.12f);
-        InventoryScreen.drawEntity(c, x + 30, y + 4, x + w - 30, y + 82, 32, 0.0625f, mouseXf, mouseYf, client.player);
-        c.fill(x + 4, y + 8, x + 5, y + 78, 0x80B8955A);
-        for (Slot s : handler.slots) if (armorSlot(s)) Ui.slot(c, x + s.x - 1, y + s.y - 1);
-        if (p != null) {
-            Ui.text(c, Text.literal(p.role().tag() + " " + p.role().title), x + w - 16, y + 70, 0.7f, p.role().color, true);
-        }
-        Ui.divider(c, x + 8, y + 84, w - 16);
+        // Left: armour down the side, your figure beside it, your numbers below.
+        for (Slot s : handler.slots) if (armorSlot(s)) Ui.socket(c, x + s.x - 1, y + s.y - 1, 18);
+        Ui.well(c, x + 34, y + 28, 116, 80);
+        c.fillGradient(x + 35, y + 29, x + 149, y + 107, 0x18E0B96A, 0x00000000);
+        Ui.crest(c, x + 92 - 26, y + 42, 52, 0.08f);
+        InventoryScreen.drawEntity(c, x + 36, y + 30, x + 148, y + 106, 34, 0.0625f, mouseXf, mouseYf, pl);
 
-        Ui.text(c, Ui.heading("Melee"), x + 47, y + 88, 0.8f, LoadoutUi.color(com.pglol.aotrpg.Loadout.Kind.MELEE), true);
-        Ui.text(c, Ui.heading("Ranged"), x + 129, y + 88, 0.8f, LoadoutUi.color(com.pglol.aotrpg.Loadout.Kind.RANGED), true);
-        // Shield with the armor value.
-        int sx = x + w / 2 - 14, sy = y + 90;
-        c.fill(sx, sy, sx + 28, sy + 20, 0xF0151A16);
-        LoadoutUi.chevronDown(c, sx, sy + 20, 28, 0xF0151A16);
-        c.drawBorder(sx, sy, 28, 20, Ui.TRIM);
-        Ui.text(c, Ui.heading("AR"), sx + 14, sy + 3, 0.6f, Ui.MUTED, true);
-        Ui.text(c, Ui.title(String.valueOf(client.player.getArmor())), sx + 14, sy + 10, 1.1f, Ui.CREAM, true);
-        // Sheath state under the melee pair.
-        Net.SheathState st = ClientState.sheaths.get(client.player.getUuid());
-        String key = AotRpgClient.sheathKey().getBoundKeyLocalizedText().getString();
-        String state = com.pglol.aotrpg.Loadout.isGrip(client.player.getOffHandStack()) ? "Drawn · " + key
-            : st != null && st.count() > 0 ? "Sheathed · " + key : "";
-        if (!state.isEmpty()) Ui.text(c, Text.literal(state), x + 29, y + 118, 0.55f, state.startsWith("Drawn") ? Ui.RED : Ui.GOLD, false);
+        Ui.well(c, x + 10, y + 114, 140, 50);
+        int food = pl.getHungerManager().getFoodLevel();
+        float st = ClientState.stamina < 0 ? ClientState.maxStamina : ClientState.stamina;
+        stat(c, x + 16, x + 76, y + 120, "Health", pl.getMaxHealth() >= 100 ? String.valueOf(Math.round(pl.getHealth())) : Math.round(pl.getHealth()) + "/" + Math.round(pl.getMaxHealth()), 0xFFD06A5A);
+        stat(c, x + 84, x + 144, y + 120, "Armour", String.valueOf(pl.getArmor()), Ui.CREAM);
+        stat(c, x + 16, x + 76, y + 134, "Damage", String.format(Locale.ROOT, "%.1f", pl.getAttributeValue(EntityAttributes.GENERIC_ATTACK_DAMAGE)), Ui.CREAM);
+        stat(c, x + 84, x + 144, y + 134, "Speed", Math.round(pl.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) / 0.1 * 100) + "%", Ui.CREAM);
+        stat(c, x + 16, x + 76, y + 148, "Food", food + "/20", food <= 6 ? Ui.RED : 0xFFC9A15A);
+        stat(c, x + 84, x + 144, y + 148, "Stamina", String.valueOf(Math.round(st)), 0xFFA2BC8C);
 
+        c.fill(x + 157, y + 28, x + 158, y + 164, 0x60000000);
+        c.fill(x + 158, y + 28, x + 159, y + 164, 0x14FFE8C0);
+
+        // Right: the loadout, named above each group.
+        centre(c, Ui.heading("Melee"), x + 191, y + 27, LoadoutUi.color(com.pglol.aotrpg.Loadout.Kind.MELEE));
+        centre(c, Ui.heading("Ranged"), x + 275, y + 27, LoadoutUi.color(com.pglol.aotrpg.Loadout.Kind.RANGED));
+        Net.SheathState sh = ClientState.sheaths.get(pl.getUuid());
         for (Slot s : handler.slots) {
             if (!playerSlot(s)) continue;
             int fx = x + s.x - 1, fy = y + s.y - 1;
-            if (s.getIndex() == OFFHAND) {
-                Ui.slot(c, fx, fy);
-                continue;
-            }
+            Ui.socket(c, fx, fy, 18);
+            if (s.getIndex() == OFFHAND) continue;
             com.pglol.aotrpg.Loadout.Kind k = com.pglol.aotrpg.Loadout.SLOTS[s.getIndex()];
             int col = LoadoutUi.color(k);
-            boolean heal = s.getIndex() == com.pglol.aotrpg.Loadout.HEAL_SLOT;
-            Ui.slot(c, fx, fy);
-            if (heal) c.drawBorder(fx - 2, fy - 2, 22, 22, Ui.TRIM);
-            c.drawBorder(fx, fy, 18, 18, (heal ? 0xFF : 0xA0) << 24 | (col & 0xFFFFFF));
-            c.fill(fx + 1, fy + 16, fx + 17, fy + 17, 0xC0000000 | (col & 0xFFFFFF));
+            if (s.getIndex() == com.pglol.aotrpg.Loadout.HEAL_SLOT) c.drawBorder(fx - 2, fy - 2, 22, 22, 0xFF8C7248);
+            c.fill(fx + 2, fy + 16, fx + 16, fy + 17, 0xA0000000 | (col & 0xFFFFFF));
             if (!s.hasStack()) LoadoutUi.drawGhost(c, LoadoutUi.ghost(k), fx + 1, fy + 1);
         }
-        if (st != null && st.count() > 0 && client.player.getInventory().main.get(0).isEmpty()) {
-            ItemStack g = st.a().isEmpty() ? st.b() : st.a();
+        if (sh != null && sh.count() > 0 && pl.getInventory().main.get(0).isEmpty()) {
+            ItemStack g = sh.a().isEmpty() ? sh.b() : sh.a();
             LoadoutUi.drawGhost(c, g, x + FRAMES[0][0] + 1, y + FRAMES[0][1] + 1);
         }
-        c.fill(x + 8, y + 166, x + w - 8, y + 167, 0x407A6139);
-        Ui.text(c, Text.literal("Shift-click or Q: back to satchel"), x + w / 2f, y + 158, 0.5f, Ui.MUTED, true);
-
-        // Stats along the bottom.
-        var pl = client.player;
-        c.fill(x + 7, y + 187, x + w - 7, y + 207, 0x40000000);
-        stat(c, x + 12, y + 190, "Health", Math.round(pl.getHealth()) + "/" + Math.round(pl.getMaxHealth()), Ui.HP);
-        stat(c, x + 92, y + 190, "Damage", String.format(Locale.ROOT, "%.1f", pl.getAttributeValue(EntityAttributes.GENERIC_ATTACK_DAMAGE)), Ui.CREAM);
-        stat(c, x + 12, y + 199, "Speed", Math.round(pl.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) / 0.1 * 100) + "%", Ui.CREAM);
-        stat(c, x + 92, y + 199, "Food", pl.getHungerManager().getFoodLevel() + "/20",
-            pl.getHungerManager().getFoodLevel() <= 6 ? Ui.RED : Ui.FOOD);
+        String key = AotRpgClient.sheathKey().getBoundKeyLocalizedText().getString();
+        boolean drawn = com.pglol.aotrpg.Loadout.isGrip(pl.getOffHandStack());
+        String state = drawn ? "Blades drawn  ·  " + key : sh != null && sh.count() > 0 ? "Blades sheathed  ·  " + key : "";
+        if (!state.isEmpty()) centre(c, Text.literal(state), x + RIGHT_C, y + 118, drawn ? 0xFFD06A5A : Ui.GOLD);
+        Ui.text(c, Text.literal("Shift-click or Q puts it back in the satchel"), x + RIGHT_C, y + 131, 0.7f, Ui.MUTED, true);
     }
 
-    private void stat(DrawContext c, int sx, int sy, String k, String v, int color) {
-        Ui.text(c, Text.literal(k), sx, sy, 0.75f, Ui.MUTED, false);
-        Ui.text(c, Text.literal(v), sx + 72 - textRenderer.getWidth(v) * 0.75f, sy, 0.75f, color, false);
+    private void centre(DrawContext c, Text t, int cx, int ty, int color) {
+        c.drawText(textRenderer, t, cx - textRenderer.getWidth(t) / 2, ty, color, false);
+    }
+
+    /** A label on the left of its cell and the value against the right. */
+    private void stat(DrawContext c, int lx, int rx, int sy, String k, String v, int color) {
+        c.drawText(textRenderer, k, lx, sy, Ui.MUTED, false);
+        c.drawText(textRenderer, v, rx - textRenderer.getWidth(v), sy, color, false);
     }
 
     @Override
@@ -251,6 +251,6 @@ public class RpgInventoryScreen extends InventoryScreen {
 
     @Override
     protected boolean isClickOutsideBounds(double mouseX, double mouseY, int left, int top, int button) {
-        return mouseX < left || mouseY < top - 20 || mouseX >= left + backgroundWidth || mouseY >= top + backgroundHeight;
+        return mouseX < left || mouseY < top || mouseX >= left + backgroundWidth || mouseY >= top + backgroundHeight;
     }
 }

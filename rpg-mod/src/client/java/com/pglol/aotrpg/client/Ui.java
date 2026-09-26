@@ -75,6 +75,81 @@ public final class Ui {
         c.fill(x + w - s, y + h - s, x + w + 1, y + h + 1, TRIM);
     }
 
+    // ------------------------------------------------------------------ leather, wood and iron
+
+    public static final int LEATHER = 0xF2221A14, LEATHER_DARK = 0xF2150F0B, STITCH = 0x60C8A878, IRON = 0xFF8A8478;
+
+    /** Oiled leather: a dark hide, a hairline edge, and a stitched seam a few pixels in. */
+    public static void leather(DrawContext c, int x, int y, int w, int h) {
+        c.fill(x, y, x + w, y + h, LEATHER);
+        c.fillGradient(x, y, x + w, y + h / 2, 0x10FFE8C0, 0x00000000);
+        c.drawBorder(x, y, w, h, 0xFF0A0706);
+        c.fill(x + 1, y + 1, x + w - 1, y + 2, 0x18FFFFFF);
+        stitch(c, x + 3, y + 3, w - 6, h - 6);
+        rivet(c, x + 2, y + 2);
+        rivet(c, x + w - 4, y + 2);
+        rivet(c, x + 2, y + h - 4);
+        rivet(c, x + w - 4, y + h - 4);
+    }
+
+    /** A dashed seam around a rectangle. */
+    public static void stitch(DrawContext c, int x, int y, int w, int h) {
+        for (int i = 2; i < w - 2; i += 4) {
+            c.fill(x + i, y, x + Math.min(i + 2, w - 2), y + 1, STITCH);
+            c.fill(x + i, y + h - 1, x + Math.min(i + 2, w - 2), y + h, STITCH);
+        }
+        for (int i = 2; i < h - 2; i += 4) {
+            c.fill(x, y + i, x + 1, y + Math.min(i + 2, h - 2), STITCH);
+            c.fill(x + w - 1, y + i, x + w, y + Math.min(i + 2, h - 2), STITCH);
+        }
+    }
+
+    /** A small iron rivet. */
+    public static void rivet(DrawContext c, int x, int y) {
+        c.fill(x, y, x + 2, y + 2, IRON);
+        c.fill(x + 1, y + 1, x + 2, y + 2, 0xFF4A4640);
+    }
+
+    /** A pressed-in area: darker, shadow on the top and left, light catching the bottom and right. */
+    public static void well(DrawContext c, int x, int y, int w, int h) {
+        c.fill(x, y, x + w, y + h, 0x70000000);
+        c.fill(x, y, x + w, y + 1, 0x90000000);
+        c.fill(x, y, x + 1, y + h, 0x90000000);
+        c.fill(x, y + h - 1, x + w, y + h, 0x22FFE8C0);
+        c.fill(x + w - 1, y, x + w, y + h, 0x22FFE8C0);
+    }
+
+    /** An item socket (18x18 by default): a well with a faint rim. */
+    public static void socket(DrawContext c, int x, int y, int size) {
+        c.fill(x, y, x + size, y + size, 0xFF120E0B);
+        c.fill(x, y, x + size, y + 1, 0xFF060403);
+        c.fill(x, y, x + 1, y + size, 0xFF060403);
+        c.fill(x, y + size - 1, x + size, y + size, 0xFF3A3028);
+        c.fill(x + size - 1, y, x + size, y + size, 0xFF3A3028);
+    }
+
+    /** Dark planks behind a whole screen: long grain lines and a vignette. */
+    public static void planks(DrawContext c, int w, int h) {
+        c.fillGradient(0, 0, w, h, 0xF4181310, 0xFA0B0806);
+        for (int y = 0; y < h; y += 3) {
+            int k = (y * 7919) % 11;
+            c.fill(0, y, w, y + 1, (k < 3 ? 0x0C : k < 6 ? 0x06 : 0x03) << 24 | 0xFFE0B0);
+        }
+        for (int y = 38; y < h; y += 38) c.fill(0, y, w, y + 1, 0x40000000);
+        c.fillGradient(0, h - 60, w, h, 0x00000000, 0x70000000);
+    }
+
+    /** Muted rarity colours, like enamel on steel rather than candy. */
+    public static int rarityTone(int q) {
+        return switch (q) {
+            case 1 -> 0xFF6F8F5A;
+            case 2 -> 0xFF5E7C9E;
+            case 3 -> 0xFF8A6A9E;
+            case 4 -> 0xFFC89A48;
+            default -> 0xFF6A6258;
+        };
+    }
+
     /** Gold frame without a background. */
     public static void border(DrawContext c, int x, int y, int w, int h) {
         c.drawBorder(x, y, w, h, BORDER);
