@@ -215,6 +215,7 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.TitanTags.ID, (payload, ctx) -> TitanPlates.onTags(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.NapeHit.ID, (payload, ctx) -> TitanPlates.onNape(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.GrabProgress.ID, (payload, ctx) -> TitanState.onProgress(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(TitanPlates::render);
         HudRenderCallback.EVENT.register(TitanPlates::renderHud);
         AbilityBar.register();

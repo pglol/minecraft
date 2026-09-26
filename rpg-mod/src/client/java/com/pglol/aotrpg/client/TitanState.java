@@ -15,9 +15,7 @@ import net.minecraft.util.Util;
 public final class TitanState {
     private TitanState() {}
 
-    private static final int NEEDED = 12;
     private static boolean wasDown;
-    private static int strikes, decay;
 
     private static boolean aot(Entity e) {
         return e != null && Registries.ENTITY_TYPE.getId(e.getType()).getNamespace().equals("dannys-aot");
@@ -41,22 +39,23 @@ public final class TitanState {
         return aot(v) && !(v instanceof AbstractHorseEntity) && v.getControllingPassenger() != mc.player;
     }
 
+    /** The server's count of how close you are to breaking free, and the bar's smoothed view of it. */
+    private static float target, shown;
+
+    public static void onProgress(Net.GrabProgress g) {
+        target = Math.max(0, g.frac());
+        if (g.frac() < 0) shown = 0;
+    }
+
     public static void tick(MinecraftClient mc) {
         boolean down = mc.options.attackKey.isPressed() && mc.currentScreen == null;
         boolean click = down && !wasDown;
         wasDown = down;
         if (!grabbed()) {
-            strikes = 0;
+            target = shown = 0;
             return;
         }
-        if (click) {
-            strikes = Math.min(NEEDED, strikes + 1);
-            ClientPlayNetworking.send(new Net.Struggle());
-        }
-        if (++decay >= 10) {
-            decay = 0;
-            if (strikes > 0) strikes--;
-        }
+        if (click) ClientPlayNetworking.send(new Net.Struggle());
     }
 
     /** The big prompt while grabbed. */
@@ -72,7 +71,9 @@ public final class TitanState {
         Ui.text(c, Ui.title("GRABBED!"), w / 2f, y + 6, 1.3f, 0xFFE04A3A, true);
         String key = mc.options.attackKey.getBoundKeyLocalizedText().getString();
         Ui.text(c, Text.literal("Spam [" + key + "] to strike its eye!"), w / 2f, y + 24, 1f, Ui.CREAM, true);
-        Ui.bar(c, x + 14, y + 40, pw - 28, 8, strikes / (float) NEEDED, 0xFFE0B96A);
+        // Glide toward the real value instead of jumping.
+        shown += (target - shown) * Math.min(1f, tick.getLastFrameDuration() * 0.5f);
+        Ui.bar(c, x + 14, y + 40, pw - 28, 8, shown, 0xFFE0B96A);
         // A little mouse-button glyph that flashes with each beat.
         int mx = x + pw - 22, my = y + 6;
         c.fill(mx, my, mx + 12, my + 16, 0xFF2A2A26);

@@ -1014,6 +1014,13 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: how close a grabbed player is to breaking free (0..1), or -1 once loose. */
+    public record GrabProgress(float frac) implements CustomPayload {
+        public static final Id<GrabProgress> ID = id("grab_progress");
+        public static final PacketCodec<RegistryByteBuf, GrabProgress> CODEC = PacketCodec.of((v, b) -> b.writeFloat(v.frac), b -> new GrabProgress(b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record Struggle() implements CustomPayload {
         public static final Id<Struggle> ID = id("struggle");
         public static final PacketCodec<RegistryByteBuf, Struggle> CODEC = PacketCodec.unit(new Struggle());
@@ -1736,6 +1743,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(BagView.ID, BagView.CODEC);
         PayloadTypeRegistry.playC2S().register(BagAction.ID, BagAction.CODEC);
         PayloadTypeRegistry.playS2C().register(NapeHit.ID, NapeHit.CODEC);
+        PayloadTypeRegistry.playS2C().register(GrabProgress.ID, GrabProgress.CODEC);
         PayloadTypeRegistry.playS2C().register(CookingState.ID, CookingState.CODEC);
         PayloadTypeRegistry.playC2S().register(Cook.ID, Cook.CODEC);
         PayloadTypeRegistry.playS2C().register(Campfires.ID, Campfires.CODEC);
