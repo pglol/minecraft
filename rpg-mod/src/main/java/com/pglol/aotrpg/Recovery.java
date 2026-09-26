@@ -61,7 +61,7 @@ public final class Recovery {
     }
 
     /** Your property's gate, or your town house. */
-    private boolean home(ServerPlayerEntity p, ServerWorld ow) {
+    public boolean home(ServerPlayerEntity p, ServerWorld ow) {
         int idx = Estate.ownPlot(p);
         if (idx >= 0) {
             Places.PlotInfo pl = AotRpg.PLACES.plots.get(idx);

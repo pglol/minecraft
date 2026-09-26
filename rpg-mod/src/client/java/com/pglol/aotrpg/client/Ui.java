@@ -159,14 +159,14 @@ public final class Ui {
     /** Title colour for an area theme (matches the entry titles). */
     public static int lookColor(String look) {
         return switch (look) {
-            case "town" -> 0xFFE8BE5A;
-            case "safe" -> 0xFF72D068;
-            case "cave" -> 0xFFC0302A;
-            case "camp" -> 0xFF4FB060;
-            case "landmark" -> 0xFFE070FF;
-            case "marley" -> 0xFF5AD8E8;
-            case "sea" -> 0xFF6A9FE0;
-            default -> 0xFFF0503A;
+            case "town" -> 0xFFE3C07A;
+            case "safe" -> 0xFFA8B87A;
+            case "cave" -> 0xFFB0493C;
+            case "camp" -> 0xFF93A468;
+            case "landmark" -> 0xFFC9A98A;
+            case "marley" -> 0xFFB4BCC2;
+            case "sea" -> 0xFF8AA4BC;
+            default -> 0xFFC8604A;
         };
     }
 

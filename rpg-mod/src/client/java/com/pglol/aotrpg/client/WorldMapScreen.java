@@ -227,6 +227,7 @@ public class WorldMapScreen extends Screen {
                     (int) cx(), (int) cy() + 5, Ui.CREAM);
             }
         }
+        drawFog(c);
         if (showFactions) drawFactions(c);
         drawFires(c);
         drawAreas(c, mouseX, mouseY);
@@ -353,9 +354,26 @@ public class WorldMapScreen extends Screen {
         };
     }
 
+    /** Land you haven't walked yet lies under a grey fog, like an unfinished survey map. */
+    private void drawFog(DrawContext c) {
+        int cell = ClientState.exploreCell;
+        int x0 = Math.floorDiv((int) Math.floor(wx(mapL)), cell), x1 = Math.floorDiv((int) Math.ceil(wx(mapR)), cell);
+        int z0 = Math.floorDiv((int) Math.floor(centerZ + (mapT - cy()) / zoom), cell), z1 = Math.floorDiv((int) Math.ceil(centerZ + (mapB - cy()) / zoom), cell);
+        if ((long) (x1 - x0 + 1) * (z1 - z0 + 1) > 40_000) return;
+        for (int gx = x0; gx <= x1; gx++) {
+            for (int gz = z0; gz <= z1; gz++) {
+                if (ClientState.explored.contains(((long) gx << 32) | (gz & 0xffffffffL))) continue;
+                int sx0 = (int) Math.max(mapL, Math.floor(sx((double) gx * cell))), sx1 = (int) Math.min(mapR, Math.ceil(sx((double) (gx + 1) * cell)));
+                int sy0 = (int) Math.max(mapT, Math.floor(sy((double) gz * cell))), sy1 = (int) Math.min(mapB, Math.ceil(sy((double) (gz + 1) * cell)));
+                if (sx1 <= sx0 || sy1 <= sy0) continue;
+                c.fill(sx0, sy0, sx1, sy1, 0xD8595650);
+            }
+        }
+    }
+
     private void drawAreas(DrawContext c, int mouseX, int mouseY) {
         List<Net.Area> order = new ArrayList<>();
-        for (Net.Area a : ClientState.areas) if (labelVisible(a)) order.add(a);
+        for (Net.Area a : ClientState.areas) if (labelVisible(a) && ClientState.explored(a.x(), a.z())) order.add(a);
         order.sort((p, q) -> importance(q) != importance(p) ? importance(q) - importance(p) : q.prio() - p.prio());
         List<int[]> placed = new ArrayList<>();
         Net.Area hover = null;
@@ -399,6 +417,16 @@ public class WorldMapScreen extends Screen {
         for (Net.Marker m : ClientState.markers) {
             int x = (int) sx(m.x() + 0.5), y = (int) sy(m.z() + 0.5);
             int col = 0xFF000000 | m.color();
+            if (m.kind().equals("ferry")) {
+                // Ferry stations: a small anchor where they are (never pinned to the edge).
+                if (x < mapL + 4 || x > mapR - 4 || y < mapT + 4 || y > mapB - 4) continue;
+                c.drawText(textRenderer, Text.literal("⚓"), x - 3, y - 4, col, true);
+                if (Math.abs(mouseX - x) < 6 && Math.abs(mouseY - y) < 6) {
+                    c.drawTooltip(textRenderer, List.of(Text.literal(m.label()).withColor(col),
+                        Text.literal(distance(m.x(), m.z())).formatted(Formatting.GRAY)), mouseX, mouseY);
+                }
+                continue;
+            }
             if (m.kind().equals("home")) {
                 if (x < mapL + 4 || x > mapR - 4 || y < mapT + 4 || y > mapB - 4) continue;
                 Minimap.house(c, x, y, col);

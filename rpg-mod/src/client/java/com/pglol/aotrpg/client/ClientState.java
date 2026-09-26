@@ -7,6 +7,14 @@ public final class ClientState {
     private ClientState() {}
 
     public static Net.Sync profile;
+    /** Explored map cells (the rest is fogged on the world map). */
+    public static java.util.Set<Long> explored = new java.util.HashSet<>();
+    public static int exploreCell = 128;
+
+    public static boolean explored(double x, double z) {
+        int cx = Math.floorDiv((int) Math.floor(x), exploreCell), cz = Math.floorDiv((int) Math.floor(z), exploreCell);
+        return explored.contains(((long) cx << 32) | (cz & 0xffffffffL));
+    }
     public static float stamina = -1, maxStamina = 100;
     public static boolean exhausted;
     /** The other members of our party (empty = no party). */

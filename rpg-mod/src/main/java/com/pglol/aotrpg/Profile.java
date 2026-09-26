@@ -72,6 +72,10 @@ public final class Profile {
     public String respawn = "";
     /** The role shown to others and put on Z/X/V (Infantry, Tank, Medic, Recon); whether class trees granted points. */
     public PlayerClass cls;
+    /** Ferry stations found on foot (area ids). */
+    public java.util.Set<String> discovered = new java.util.HashSet<>();
+    /** Map cells walked (Fog.CELL blocks square), packed x << 32 | z: the rest is fogged on the map. */
+    public java.util.Set<Long> explored = new java.util.HashSet<>();
     public boolean skillsV3;
 
     public int stat(Stat s) {

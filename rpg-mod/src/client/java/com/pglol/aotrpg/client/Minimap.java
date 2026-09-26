@@ -181,6 +181,11 @@ public final class Minimap {
         }
         // Quest targets, map marks and party highlights (pinned to the edge when far away).
         for (Net.Marker m : ClientState.markers) {
+            if (m.kind().equals("ferry")) {
+                double fx = m.x() + 0.5 - ox, fz = m.z() + 0.5 - oz;
+                if (fx >= 4 && fx <= s - 4 && fz >= 4 && fz <= s - 4) c.drawText(Ui.font(), Text.literal("⚓"), x + (int) fx - 3, y + (int) fz - 4, 0xFF000000 | m.color(), true);
+                continue;
+            }
             if (m.kind().equals("home")) {
                 // Your homes: a small house, only when on the minimap.
                 double hx = m.x() + 0.5 - ox, hz = m.z() + 0.5 - oz;

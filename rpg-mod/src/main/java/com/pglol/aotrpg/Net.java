@@ -164,6 +164,48 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: explored map cells (reset: replace all, else add). */
+    public record Explored(int cell, boolean reset, long[] cells) implements CustomPayload {
+        public static final Id<Explored> ID = id("explored");
+        public static final PacketCodec<RegistryByteBuf, Explored> CODEC = PacketCodec.of(
+            (v, b) -> { b.writeVarInt(v.cell); b.writeBoolean(v.reset); b.writeLongArray(v.cells); },
+            b -> new Explored(b.readVarInt(), b.readBoolean(), b.readLongArray()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** A ferry destination: fare, why it's locked ("" if not), distance, and whether it crosses the sea. */
+    public record FerryStop(String id, String name, String sub, int min, int max, long fare, String locked, int distance, boolean sea) { }
+
+    /** Server -> client: the Ferryman's destinations from this station (homeFare -1: no home). */
+    public record FerryView(String here, java.util.List<FerryStop> stops, long homeFare, long marks, boolean open) implements CustomPayload {
+        public static final Id<FerryView> ID = id("ferry_view");
+        public static final PacketCodec<RegistryByteBuf, FerryView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.here);
+            b.writeVarInt(v.stops.size());
+            for (FerryStop s : v.stops) {
+                b.writeString(s.id()); b.writeString(s.name()); b.writeString(s.sub()); b.writeVarInt(s.min()); b.writeVarInt(s.max());
+                b.writeVarLong(s.fare()); b.writeString(s.locked()); b.writeVarInt(s.distance()); b.writeBoolean(s.sea());
+            }
+            b.writeLong(v.homeFare); b.writeVarLong(v.marks); b.writeBoolean(v.open);
+        }, b -> {
+            String here = b.readString();
+            int n = Math.min(b.readVarInt(), 256);
+            java.util.List<FerryStop> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new FerryStop(b.readString(), b.readString(), b.readString(), b.readVarInt(), b.readVarInt(),
+                b.readVarLong(), b.readString(), b.readVarInt(), b.readBoolean()));
+            return new FerryView(here, l, b.readLong(), b.readVarLong(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: sail to this station id (or "home"). */
+    public record FerryGo(String id) implements CustomPayload {
+        public static final Id<FerryGo> ID = id("ferry_go");
+        public static final PacketCodec<RegistryByteBuf, FerryGo> CODEC =
+            PacketCodec.of((v, b) -> b.writeString(v.id), b -> new FerryGo(b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record Learn(int skill) implements CustomPayload {
         public static final Id<Learn> ID = id("learn");
         public static final PacketCodec<RegistryByteBuf, Learn> CODEC =
@@ -1553,6 +1595,9 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(SpendPoint.ID, SpendPoint.CODEC);
         PayloadTypeRegistry.playC2S().register(Learn.ID, Learn.CODEC);
         PayloadTypeRegistry.playC2S().register(UseAbility.ID, UseAbility.CODEC);
+        PayloadTypeRegistry.playC2S().register(FerryGo.ID, FerryGo.CODEC);
+        PayloadTypeRegistry.playS2C().register(FerryView.ID, FerryView.CODEC);
+        PayloadTypeRegistry.playS2C().register(Explored.ID, Explored.CODEC);
         PayloadTypeRegistry.playC2S().register(ChooseRole.ID, ChooseRole.CODEC);
         PayloadTypeRegistry.playS2C().register(ClassHud.ID, ClassHud.CODEC);
     }

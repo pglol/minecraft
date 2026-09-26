@@ -112,6 +112,11 @@ public final class Classes {
 
     // ------------------------------------------------------------------ helpers
 
+    /** Hit or hitting in the last 8 seconds. */
+    public static boolean inCombat(ServerPlayerEntity p) {
+        return System.currentTimeMillis() - AotRpg.CLASSES.st(p).lastCombat < 8000;
+    }
+
     /** Fighting alone: nobody else within 40 blocks. */
     public static boolean alone(ServerPlayerEntity p) {
         return AotRpg.CLASSES.st(p).alone;

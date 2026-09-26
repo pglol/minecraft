@@ -78,6 +78,8 @@ public final class Toasts {
     public static void title(Text title) {
         Text sub = pendingSub != null && Util.getMeasuringTimeMs() - pendingAt < 1500 ? pendingSub : null;
         pendingSub = null;
+        // Entering a place: its own quiet banner instead of a toast.
+        if (AreaBanner.tryShow(title)) return;
         if (title.getString().isBlank() && sub == null) return;
         push(title, sub, colorOf(title, 0xE0B96A), null, "title:" + title.getString());
     }

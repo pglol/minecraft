@@ -150,6 +150,14 @@ public final class ProfileStore {
                     if (p.pets == null) p.pets = new java.util.ArrayList<>();
                     if (p.companion == null) p.companion = "";
                     if (p.respawn == null) p.respawn = "";
+                    if (p.explored == null) p.explored = new java.util.HashSet<>();
+                    if (p.discovered == null) {
+                        // Towns explored for exploration quests count as found.
+                        p.discovered = new java.util.HashSet<>();
+                        for (var q : p.quests.entrySet()) {
+                            if (q.getKey().startsWith("visit:") && q.getValue() != null && q.getValue().length > 0 && q.getValue()[0] == 2) p.discovered.add(q.getKey().substring(6));
+                        }
+                    }
                     if (!p.skillsV2) {
                         // The skill trees were rebuilt: every character gets all points back to spend again.
                         p.skills.clear();
