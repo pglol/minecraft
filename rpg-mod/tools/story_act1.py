@@ -145,6 +145,15 @@ dialogues["sh2_boats"] = D("a",
         C("Eren... that's not going to bring her back.", "c", [aff(eren_child=-3, armin_child=4), ide(mercy=5)]),
         C("(Say nothing. Stay next to Mikasa.)", "c", [aff(mikasa_child=8)])]),
     c=N(None, "The crowd carries you through the gate. Nobody talks. Behind you, smoke is rising over Shiganshina.", end=True))
+# Leaving by boat: from the water, looking back at the district burning, then over the Wall.
+flee = {"cutscene": {"fade": True, "shots": [
+    {"from": E("inner", 0.9, 0, 0), "h": 1.4, "to": E("inner", 0.96, 0, 0), "h2": 1.4, "look": gate("outer", 0, 10), "lh": 30, "seconds": 6,
+     "say": {"text": "The boat pulls away from the dock. Nobody on board says a word.", "after": 1}},
+    {"from": E("inner", 0.94, 0, 6), "h": 2.2, "to": E("inner", 0.97, 0, 5), "h2": 2.2, "look": E("inner", 0.94, 0, 0), "lh": 1.2, "seconds": 5,
+     "say": {"who": "eren_child", "text": "I'll wipe them out. Every last one of them.", "after": 1}},
+    {"from": gate("inner", 8, 0), "h": 45, "to": gate("inner", 16, 0), "h2": 60, "look": gate("outer", 0, 0), "lh": 10, "seconds": 6,
+     "say": {"text": "Behind you, Shiganshina burns. The titans are already in the streets.", "after": 1}},
+]}}
 missions.append(M("sh2", "The Day the Wall Fell", ch_sh, "survival", ["war", "character", "future"], SH, [1, 5], [
     S("Head home along the main street", goto([-5, -8], 7),
       done=[{"shake": 3}, {"flash": 0.6}, {"titan_actor": {"id": "colossal", "shifter": "colossal", "at": gate("outer", -14, 10), "overWall": 12, "seconds": 150}},
@@ -172,7 +181,9 @@ missions.append(M("sh2", "The Day the Wall Fell", ch_sh, "survival", ["war", "ch
       start=[say("Everyone to the inner gate! The boats won't wait!", "garrison2")],
       done=[say("The crowd is packed so tight you can barely move. Somewhere in it, someone is calling your name.")]),
     S("Find Armin in the crowd", talk("armin_child", "sh2_boats"),
-      spawn=[A("armin_child", E("inner", 0.8, 0, -6), face=True)]),
+      spawn=[A("armin_child", E("inner", 0.8, 0, -6), face=True)],
+      done=[{"fx": {"type": "smoke", "at": gate("outer", 10, 0)}}, {"fx": {"type": "fire", "at": gate("outer", 14, 4)}}, flee]),
+    S("The boat pulls away from Shiganshina", {"wait": 17}),
 ], complete=[card("Wall Maria has fallen", "845"), deed("Escaped Shiganshina as Wall Maria fell"), flag("lost_home")], next="sh3", xp=250, chain=True))
 
 dialogues["sh3_reclaim"] = D("a",
@@ -188,8 +199,9 @@ dialogues["sh3_reclaim"] = D("a",
 missions.append(M("sh3", "Refugees", "Act I · Wall Rose, 846", "people", ["character", "faction", "lore"], "trost-district", [1, 6], [
     S("Find Armin in the refugee camp", talk("armin_child", "sh3_reclaim"),
       spawn=[A("armin_child", E("inner", 0.7, -4, 3), face=True), A("eren_child", E("inner", 0.7, -5, 5)), A("mikasa_child", E("inner", 0.7, -5, 1))],
-      start=[{"teleport": E("inner", 0.7)}, card("846", "Refugee camps, Wall Rose")]),
-], complete=[deed("Watched the reclamation march out, 846")], xp=150, chain=True, returnHome=True))
+      start=[card("846", "Refugee camps, Wall Rose")]),
+], complete=[deed("Watched the reclamation march out, 846"),
+             {"toast": "Back in the present. The camp is yours to explore"}], xp=150, chain=True, returnHome=True, startAt=E("inner", 0.7)))
 
 # =====================================================================================  TROST origin
 TR = "trost-district"; ch_tr = "Act I · Trost, 845"

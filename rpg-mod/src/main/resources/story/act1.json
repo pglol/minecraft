@@ -492,6 +492,146 @@
       }
      ],
      "start": [],
+     "done": [
+      {
+       "fx": {
+        "type": "smoke",
+        "at": {
+         "gate": "outer",
+         "rel": [
+          10,
+          0
+         ]
+        }
+       }
+      },
+      {
+       "fx": {
+        "type": "fire",
+        "at": {
+         "gate": "outer",
+         "rel": [
+          14,
+          4
+         ]
+        }
+       }
+      },
+      {
+       "cutscene": {
+        "fade": true,
+        "shots": [
+         {
+          "from": {
+           "edge": "inner",
+           "frac": 0.9,
+           "rel": [
+            0,
+            0
+           ]
+          },
+          "h": 1.4,
+          "to": {
+           "edge": "inner",
+           "frac": 0.96,
+           "rel": [
+            0,
+            0
+           ]
+          },
+          "h2": 1.4,
+          "look": {
+           "gate": "outer",
+           "rel": [
+            0,
+            10
+           ]
+          },
+          "lh": 30,
+          "seconds": 6,
+          "say": {
+           "text": "The boat pulls away from the dock. Nobody on board says a word.",
+           "after": 1
+          }
+         },
+         {
+          "from": {
+           "edge": "inner",
+           "frac": 0.94,
+           "rel": [
+            0,
+            6
+           ]
+          },
+          "h": 2.2,
+          "to": {
+           "edge": "inner",
+           "frac": 0.97,
+           "rel": [
+            0,
+            5
+           ]
+          },
+          "h2": 2.2,
+          "look": {
+           "edge": "inner",
+           "frac": 0.94,
+           "rel": [
+            0,
+            0
+           ]
+          },
+          "lh": 1.2,
+          "seconds": 5,
+          "say": {
+           "who": "eren_child",
+           "text": "I'll wipe them out. Every last one of them.",
+           "after": 1
+          }
+         },
+         {
+          "from": {
+           "gate": "inner",
+           "rel": [
+            8,
+            0
+           ]
+          },
+          "h": 45,
+          "to": {
+           "gate": "inner",
+           "rel": [
+            16,
+            0
+           ]
+          },
+          "h2": 60,
+          "look": {
+           "gate": "outer",
+           "rel": [
+            0,
+            0
+           ]
+          },
+          "lh": 10,
+          "seconds": 6,
+          "say": {
+           "text": "Behind you, Shiganshina burns. The titans are already in the streets.",
+           "after": 1
+          }
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "objective": "The boat pulls away from Shiganshina",
+     "goal": {
+      "wait": 17
+     },
+     "spawn": [],
+     "start": [],
      "done": []
     }
    ],
@@ -573,16 +713,6 @@
      ],
      "start": [
       {
-       "teleport": {
-        "edge": "inner",
-        "frac": 0.7,
-        "rel": [
-         0,
-         0
-        ]
-       }
-      },
-      {
        "card": {
         "title": "846",
         "sub": "Refugee camps, Wall Rose"
@@ -595,11 +725,22 @@
    "complete": [
     {
      "deed": "Watched the reclamation march out, 846"
+    },
+    {
+     "toast": "Back in the present. The camp is yours to explore"
     }
    ],
    "xp": 150,
    "chain": true,
-   "returnHome": true
+   "returnHome": true,
+   "startAt": {
+    "edge": "inner",
+    "frac": 0.7,
+    "rel": [
+     0,
+     0
+    ]
+   }
   },
   {
    "id": "tr1",
