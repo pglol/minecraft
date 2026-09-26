@@ -481,13 +481,33 @@ dialogues["tc4_grad"] = D("a",
         C("(Salute.)", None, [ide(independence=-2), aff(keith=4)]),
         C("Sir, why did you leave the Survey Corps?", "d", [flag("asked_shadis"), ide(independence=2)])]),
     d=N("keith", "Because I wasn't special, cadet. Most of us aren't. Now get out of my sight.", end=True))
+# Graduation: the same straight line as the first roll call, three years on. You're placed in it,
+# the camera takes in the ranks, then Shadis reads the top ten and comes to you.
+def G(slot, front=0):
+    return {"row": "grad", "rel": [6, 0], "size": 13, "spacing": 1.6, "slot": slot, "front": front}
+GRAD = ["annie", "reiner", "bertholdt", "eren", "mikasa", "armin", None, "jean", "marco", "connie", "sasha", "krista", "ymir"]
+GSLOT = {a: i - 6 for i, a in enumerate(GRAD) if a}
+grad_face = [{"walk": {"actor": a, "to": G(k), "face": G(k, 12)}} for a, k in GSLOT.items()]
+grad_film = {"cutscene": {"fade": True, "shots": [
+    {"from": G(0, 16), "h": 7, "to": G(0, 11), "h2": 4, "look": G(0), "lh": 1.4, "seconds": 5,
+     "sound": "minecraft:block.bell.use", "say": {"who": "keith", "text": "Hundred and Fourth Cadet Corps! Attention!", "after": 0.8}},
+    {"from": G(-8, 2.4), "h": 1.7, "to": G(8, 2.4), "h2": 1.7, "look": G(-6), "lookTo": G(6), "lh": 1.6, "seconds": 8,
+     "say": {"text": "Three years ago there were over two hundred of you. Tonight, the ones who are left stand in one line.", "after": 1}},
+    {"from": G(0, 3.4), "h": 1.6, "to": G(0, 3.8), "h2": 1.7, "look": G(0, 5), "lh": 1.7, "seconds": 4,
+     "say": {"who": "keith", "text": "Give your hearts! SALUTE!", "after": 0.5}},
+]}}
+grad_walk = {"path": {"actor": "keith", "points": [
+    {"at": G(-6, 1.8), "face": G(-6), "pause": 1.5, "say": {"who": "keith", "text": "Top ten. Step forward when I call your name."}},
+    {"at": G(-3, 1.8), "face": G(-3), "pause": 1.2},
+    {"at": G(0, 1.8), "face": G(0), "talk": True},
+]}}
 missions.append(M("tc4", "Graduation", "Act I · Graduation, 850", "people", ["character", "future"], TC, [3, 10], [
-    S("It's graduation day. Fall in", talk("keith", "tc4_grad"),
-      spawn=[A("keith", [4, 0], face=True), A("eren", [8, -4]), A("mikasa", [8, -3]), A("armin", [8, -2]), A("jean", [8, 1]), A("marco", [8, 2]),
-             A("sasha", [9, 4]), A("connie", [8, 4]), A("annie", [8, -6]), A("reiner", [9, -8]), A("bertholdt", [9, -9]), A("krista", [10, -1])],
-      start=[card("850", "Graduation")]),
+    S("It's graduation day. Stand in line", {"wait": 18},
+      spawn=[A("keith", G(0, 5), face=True)] + [A(a, G(k)) for a, k in GSLOT.items()],
+      start=[card("850", "Graduation")] + grad_face + [grad_film]),
+    S("Stand at attention. Shadis reads the top ten", talk("keith", "tc4_grad"), start=[grad_walk]),
 ], complete=[deed("Graduated from the 104th Cadet Corps"), card("850", "Your first posting: Trost District")], next="tb1", xp=300,
-   giver=giver("keith", [10, 0], TC_PLACE),
+   giver=giver("keith", [10, 0], TC_PLACE), startAt=G(0),
    pitch="Three years, cadet. Tomorrow you graduate, or you don't. Fall in at dawn."))
 
 # =====================================================================================  TROST (stepping stone)

@@ -504,11 +504,19 @@ final class Commands {
                 .executes(c -> {
                     AotRpg.STORY.reset(c.getSource().getPlayerOrThrow(), com.mojang.brigadier.arguments.StringArgumentType.getString(c, "mission"));
                     return 1;
-                }))).then(CommandManager.literal("reload").requires(s -> s.hasPermissionLevel(2)).executes(c -> {
+                }))).then(CommandManager.literal("actors").executes(c -> {
+            for (String line : AotRpg.STORY.actorReport(c.getSource().getPlayerOrThrow())) c.getSource().sendFeedback(() -> Text.literal(line), false);
+            return 1;
+        })).then(CommandManager.literal("reload").requires(s -> s.hasPermissionLevel(2)).executes(c -> {
             AotRpg.STORY.load();
             c.getSource().sendFeedback(() -> Text.literal("Story content reloaded (see the server log for problems)."), false);
             return 1;
         })));
+        d.register(CommandManager.literal("bladecheck").executes(c -> {
+            String info = BladeCare.describe(c.getSource().getPlayerOrThrow().getMainHandStack());
+            c.getSource().sendFeedback(() -> Text.literal(info), false);
+            return 1;
+        }));
         d.register(CommandManager.literal("bounty").executes(c -> {
             var p = c.getSource().getPlayerOrThrow();
             long b = AotRpg.PROFILES.get(p.getUuid()).bounty;

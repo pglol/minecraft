@@ -2728,96 +2728,193 @@
    ],
    "steps": [
     {
-     "objective": "It's graduation day. Fall in",
+     "objective": "It's graduation day. Stand in line",
      "goal": {
-      "talk": "keith",
-      "dialogue": "tc4_grad"
+      "wait": 18
      },
      "spawn": [
       {
        "actor": "keith",
-       "at": [
-        4,
-        0
-       ],
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 0,
+        "front": 5
+       },
        "face": true
       },
       {
-       "actor": "eren",
-       "at": [
-        8,
-        -4
-       ]
-      },
-      {
-       "actor": "mikasa",
-       "at": [
-        8,
-        -3
-       ]
-      },
-      {
-       "actor": "armin",
-       "at": [
-        8,
-        -2
-       ]
-      },
-      {
-       "actor": "jean",
-       "at": [
-        8,
-        1
-       ]
-      },
-      {
-       "actor": "marco",
-       "at": [
-        8,
-        2
-       ]
-      },
-      {
-       "actor": "sasha",
-       "at": [
-        9,
-        4
-       ]
-      },
-      {
-       "actor": "connie",
-       "at": [
-        8,
-        4
-       ]
-      },
-      {
        "actor": "annie",
-       "at": [
-        8,
-        -6
-       ]
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -6,
+        "front": 0
+       }
       },
       {
        "actor": "reiner",
-       "at": [
-        9,
-        -8
-       ]
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -5,
+        "front": 0
+       }
       },
       {
        "actor": "bertholdt",
-       "at": [
-        9,
-        -9
-       ]
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -4,
+        "front": 0
+       }
+      },
+      {
+       "actor": "eren",
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -3,
+        "front": 0
+       }
+      },
+      {
+       "actor": "mikasa",
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -2,
+        "front": 0
+       }
+      },
+      {
+       "actor": "armin",
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -1,
+        "front": 0
+       }
+      },
+      {
+       "actor": "jean",
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 1,
+        "front": 0
+       }
+      },
+      {
+       "actor": "marco",
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 2,
+        "front": 0
+       }
+      },
+      {
+       "actor": "connie",
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 3,
+        "front": 0
+       }
+      },
+      {
+       "actor": "sasha",
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 4,
+        "front": 0
+       }
       },
       {
        "actor": "krista",
-       "at": [
-        10,
-        -1
-       ]
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 5,
+        "front": 0
+       }
+      },
+      {
+       "actor": "ymir",
+       "at": {
+        "row": "grad",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 6,
+        "front": 0
+       }
       }
      ],
      "start": [
@@ -2825,6 +2922,577 @@
        "card": {
         "title": "850",
         "sub": "Graduation"
+       }
+      },
+      {
+       "walk": {
+        "actor": "annie",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -6,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -6,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "reiner",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -5,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -5,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "bertholdt",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -4,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -4,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "eren",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -3,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -3,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "mikasa",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -2,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -2,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "armin",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -1,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -1,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "jean",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 1,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 1,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "marco",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 2,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 2,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "connie",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 3,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 3,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "sasha",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 4,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 4,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "krista",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 5,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 5,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "ymir",
+        "to": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 6,
+         "front": 0
+        },
+        "face": {
+         "row": "grad",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 6,
+         "front": 12
+        }
+       }
+      },
+      {
+       "cutscene": {
+        "fade": true,
+        "shots": [
+         {
+          "from": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 16
+          },
+          "h": 7,
+          "to": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 11
+          },
+          "h2": 4,
+          "look": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 0
+          },
+          "lh": 1.4,
+          "seconds": 5,
+          "sound": "minecraft:block.bell.use",
+          "say": {
+           "who": "keith",
+           "text": "Hundred and Fourth Cadet Corps! Attention!",
+           "after": 0.8
+          }
+         },
+         {
+          "from": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -8,
+           "front": 2.4
+          },
+          "h": 1.7,
+          "to": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 8,
+           "front": 2.4
+          },
+          "h2": 1.7,
+          "look": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -6,
+           "front": 0
+          },
+          "lookTo": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 6,
+           "front": 0
+          },
+          "lh": 1.6,
+          "seconds": 8,
+          "say": {
+           "text": "Three years ago there were over two hundred of you. Tonight, the ones who are left stand in one line.",
+           "after": 1
+          }
+         },
+         {
+          "from": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 3.4
+          },
+          "h": 1.6,
+          "to": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 3.8
+          },
+          "h2": 1.7,
+          "look": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 5
+          },
+          "lh": 1.7,
+          "seconds": 4,
+          "say": {
+           "who": "keith",
+           "text": "Give your hearts! SALUTE!",
+           "after": 0.5
+          }
+         }
+        ]
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Stand at attention. Shadis reads the top ten",
+     "goal": {
+      "talk": "keith",
+      "dialogue": "tc4_grad"
+     },
+     "spawn": [],
+     "start": [
+      {
+       "path": {
+        "actor": "keith",
+        "points": [
+         {
+          "at": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -6,
+           "front": 1.8
+          },
+          "face": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -6,
+           "front": 0
+          },
+          "pause": 1.5,
+          "say": {
+           "who": "keith",
+           "text": "Top ten. Step forward when I call your name."
+          }
+         },
+         {
+          "at": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -3,
+           "front": 1.8
+          },
+          "face": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": -3,
+           "front": 0
+          },
+          "pause": 1.2
+         },
+         {
+          "at": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 1.8
+          },
+          "face": {
+           "row": "grad",
+           "rel": [
+            6,
+            0
+           ],
+           "size": 13,
+           "spacing": 1.6,
+           "slot": 0,
+           "front": 0
+          },
+          "talk": true
+         }
+        ]
        }
       }
      ],
@@ -2851,6 +3519,17 @@
      0
     ],
     "place": "cadet-training-camp"
+   },
+   "startAt": {
+    "row": "grad",
+    "rel": [
+     6,
+     0
+    ],
+    "size": 13,
+    "spacing": 1.6,
+    "slot": 0,
+    "front": 0
    },
    "pitch": "Three years, cadet. Tomorrow you graduate, or you don't. Fall in at dawn."
   },

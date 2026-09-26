@@ -176,7 +176,8 @@ public final class OdmBoost {
     public void boost(ServerPlayerEntity p, Net.OdmJump j) {
         St s = states.computeIfAbsent(p.getUuid(), k -> new St());
         long now = p.getServerWorld().getTime();
-        if (p.isOnGround() || p.hasVehicle() || AotRpg.DOWNED.isDowned(p) || Grab.grabbed(p)) return;
+        // Not checking the ground here: right after take-off the server may still think you are on it.
+        if (p.hasVehicle() || AotRpg.DOWNED.isDowned(p) || Grab.grabbed(p)) return;
         // A little slack for lag between the client's timing and ours.
         if (now - s.lastAt < COOLDOWN - 4 || s.inAir >= PER_AIR) return;
         if (gear(p).isEmpty()) {

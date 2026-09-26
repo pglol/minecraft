@@ -203,6 +203,24 @@ public final class BladeCare {
         }
     }
 
+    /** For /bladecheck: where this blade's wear is read from, its value and its temper. */
+    public static String describe(ItemStack s) {
+        if (s.isEmpty()) return "Nothing in hand.";
+        StringBuilder b = new StringBuilder(Registries.ITEM.getId(s.getItem()).toString());
+        b.append(" | grip: ").append(Loadout.isGrip(s)).append(" | temper: ").append(Math.round(temper(s) * 100)).append('%');
+        Wear w = find(s);
+        b.append(" | wear: ").append(w == null ? "NOT FOUND" : String.valueOf(w.get()));
+        b.append(" | damageable: ").append(s.isDamageable());
+        NbtComponent cd = s.get(DataComponentTypes.CUSTOM_DATA);
+        if (cd != null) b.append(" | nbt keys: ").append(cd.copyNbt().getKeys());
+        b.append(" | components:");
+        for (Component<?> comp : s.getComponents()) {
+            Identifier id = Registries.DATA_COMPONENT_TYPE.getId(comp.type());
+            if (id != null && !id.getNamespace().equals("minecraft")) b.append(' ').append(id).append('=').append(String.valueOf(comp.value()));
+        }
+        return b.toString();
+    }
+
     public void forget(UUID id) {
         seen.remove(id);
     }

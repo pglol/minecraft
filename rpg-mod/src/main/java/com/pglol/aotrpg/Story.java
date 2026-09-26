@@ -1228,6 +1228,29 @@ public final class Story {
         if (changed) AotRpg.QUESTS.markers(p, true);
     }
 
+    /** For /story actors: every story NPC this player has, where it is, and whether it's really there. */
+    public List<String> actorReport(ServerPlayerEntity p) {
+        List<String> out = new ArrayList<>();
+        UUID host = guestOf.getOrDefault(p.getUuid(), p.getUuid());
+        Scene sc = scenes.get(host);
+        if (sc != null) {
+            out.add("Scene " + sc.mission + " step " + sc.step + " spawned=" + sc.spawned);
+            for (var a : sc.actors.entrySet()) out.add("  " + a.getKey() + ": " + where(p, a.getValue()));
+        }
+        Map<String, UUID> mine = givers.get(host);
+        if (mine != null) for (var g : mine.entrySet()) out.add("  giver " + g.getKey() + ": " + where(p, g.getValue()));
+        if (out.isEmpty()) out.add("No story NPCs.");
+        return out;
+    }
+
+    private String where(ServerPlayerEntity p, UUID u) {
+        Entity e = null;
+        for (ServerWorld w : server.getWorlds()) if (e == null) e = w.getEntity(u);
+        if (e == null) return "MISSING";
+        return String.format(java.util.Locale.ROOT, "%.1f %.1f %.1f (%.0fm, %s, visible=%s)", e.getX(), e.getY(), e.getZ(),
+            Math.sqrt(e.squaredDistanceTo(p)), e.isAlive() ? "alive" : "dead", visibleTo(e, p));
+    }
+
     private String giverOf(UUID host, Entity e) {
         Map<String, UUID> mine = givers.get(host);
         if (mine == null) return null;

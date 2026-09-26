@@ -15,7 +15,9 @@
     "BossBarHudMixin",
     "ItemPickupMixin",
     "DrawContextMixin",
-    "CameraMixin"
+    "CameraMixin",
+    "OdmCameraMixin",
+    "OdmPlayerModelMixin"
   ],
   "injectors": {
     "defaultRequire": 0

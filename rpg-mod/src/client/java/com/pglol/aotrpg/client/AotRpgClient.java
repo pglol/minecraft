@@ -216,6 +216,8 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.TitanTags.ID, (payload, ctx) -> TitanPlates.onTags(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.NapeHit.ID, (payload, ctx) -> TitanPlates.onNape(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.GrabProgress.ID, (payload, ctx) -> TitanState.onProgress(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.OdmState.ID, (payload, ctx) -> OdmMoves.onState(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.OdmMove.ID, (payload, ctx) -> OdmMoves.onMove(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(TitanPlates::render);
         HudRenderCallback.EVENT.register(TitanPlates::renderHud);
         AbilityBar.register();
@@ -253,6 +255,8 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(AbilityBar::render);
         ClientTickEvents.END_CLIENT_TICK.register(AbilityBar::tick);
         ClientTickEvents.END_CLIENT_TICK.register(Fountains::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(OdmMoves::tick);
+        HudRenderCallback.EVENT.register(OdmMoves::renderHud);
         ClientPlayNetworking.registerGlobalReceiver(Net.DownedView.ID, (payload, ctx) -> DownedFx.onView(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(DownedFx::render);
         HudRenderCallback.EVENT.register(DownedFx::renderHud);
