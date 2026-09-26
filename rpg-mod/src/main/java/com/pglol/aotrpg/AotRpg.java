@@ -587,7 +587,10 @@ public final class AotRpg implements ModInitializer {
         }
         if (!isTitan(dead)) return;
         Entity attacker = source.getAttacker();
-        if (!(attacker instanceof ServerPlayerEntity killer)) return;
+        // Danny's nape kill may carry no attacker: credit whoever just cut this titan.
+        ServerPlayerEntity killer = attacker instanceof ServerPlayerEntity atk ? atk : TITAN_LEVELS.lastStriker(dead);
+        WAVES.onKill(killer, dead);
+        if (killer == null) return;
         long xp = Math.max(15, Math.round(10 + dead.getMaxHealth() / 4));
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);
         reward(killer, xp, true, "Titan slain");

@@ -153,6 +153,12 @@ public final class TitanLevels {
 
     private final Map<UUID, Swing> swings = new HashMap<>();
 
+    /** Who last cut this titan (within a few seconds), or null. */
+    public ServerPlayerEntity lastStriker(Entity titan) {
+        Swing s = swings.get(titan.getUuid());
+        return s != null && System.currentTimeMillis() - s.at() < 4000 && !s.by().isRemoved() ? s.by() : null;
+    }
+
     public void slashed(ServerPlayerEntity p, Entity target) {
         LivingEntity t = root(target) ? (LivingEntity) target : part(target) ? owner(target) : null;
         if (t != null) swings.put(t.getUuid(), new Swing(p, System.currentTimeMillis(), nape(target)));

@@ -25,20 +25,42 @@ public final class Waves {
     public static final String TAG = "aot_wave_live";
     private static final double RANGE = 160;
 
-    private record Bar(ServerBossBar bar, int[] max) { }
+    /** A wave as one player sees it: the titans that were in it, and how many they (or their party) felled. */
+    private record Bar(ServerBossBar bar, int[] max, java.util.Set<UUID> seen, int[] felled) { }
 
     private final Map<UUID, Bar> bars = new HashMap<>();
+    /** Wave titans that died (not wandered off or were left behind). */
+    private final java.util.Set<UUID> fallen = new java.util.HashSet<>();
+
+    /** A wave titan died: it counts for everyone whose wave it was, and as a kill for its slayer and their party. */
+    public void onKill(ServerPlayerEntity killer, LivingEntity dead) {
+        if (!dead.getCommandTags().contains(TAG)) return;
+        fallen.add(dead.getUuid());
+        if (fallen.size() > 5000) fallen.clear();
+        for (var e : bars.entrySet()) {
+            if (!e.getValue().seen().contains(dead.getUuid())) continue;
+            if (killer != null && (e.getKey().equals(killer.getUuid()) || AotRpg.PARTIES.same(killer.getUuid(), e.getKey()))) {
+                e.getValue().felled()[0]++;
+            }
+        }
+    }
 
     public void tick(ServerPlayerEntity p, int ticks) {
         if (ticks % 20 != 0) return;
         Box box = p.getBoundingBox().expand(RANGE, 96, RANGE);
-        int n = p.getServerWorld().getEntitiesByClass(LivingEntity.class, box,
-            e -> e.isAlive() && e.getCommandTags().contains(TAG)).size();
+        var live = p.getServerWorld().getEntitiesByClass(LivingEntity.class, box,
+            e -> e.isAlive() && e.getCommandTags().contains(TAG));
+        int n = live.size();
         Bar b = bars.get(p.getUuid());
+        if (b != null) for (LivingEntity e : live) b.seen().add(e.getUuid());
         if (n == 0) {
             if (b != null) {
                 b.bar().removePlayer(p);
                 bars.remove(p.getUuid());
+                // Cleared only if every titan of the wave is dead and you fought: running off or
+                // leaving them behind just ends the wave quietly, with nothing earned.
+                boolean allDead = !b.seen().isEmpty() && fallen.containsAll(b.seen());
+                if (!allDead || b.felled()[0] <= 0) return;
                 p.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 50, 20));
                 p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("The titans near you have fallen").formatted(Formatting.GRAY)));
                 p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("Wave cleared").formatted(Formatting.GOLD, Formatting.BOLD)));
@@ -50,7 +72,8 @@ public final class Waves {
         if (b == null) {
             ServerBossBar bar = new ServerBossBar(Text.empty(), BossBar.Color.RED, BossBar.Style.NOTCHED_10);
             bar.addPlayer(p);
-            b = new Bar(bar, new int[] {n});
+            b = new Bar(bar, new int[] {n}, new java.util.HashSet<>(), new int[] {0});
+            for (LivingEntity e : live) b.seen().add(e.getUuid());
             bars.put(p.getUuid(), b);
         }
         b.max()[0] = Math.max(b.max()[0], n);
