@@ -571,18 +571,43 @@ dialogues["tb4_mikasa"] = D("a",
         C("Mikasa... can you blame them?", "b", [aff(mikasa=-10), ide(independence=-3), flag("feared_eren")]),
         C("If a person can turn into one... what are they?", "b", [flag("titans_are_human_q"), ide(independence=4, paradis=-2)])]),
     b=N("mikasa", "Stay close to me.", effects=[deed("Saw Eren Yeager come out of a titan at Trost")], end=True))
+dialogues["tb4_eren"] = D("a",
+    a=N(None, "The flesh at the nape is hot enough to burn. Inside it, tangled in the sinew, is a boy. Eren. He's breathing.", choices=[
+        C("(Cut him loose, fast.)", "b", [aff(eren=6), ide(mercy=3)]),
+        C("(Hesitate. What is he?)", "b", [flag("hesitated_eren"), ide(independence=2)])]),
+    b=N("mikasa", "EREN! He's alive... he's alive. Help me carry him. We have to get him to the Wall, now.", end=True))
+# The rogue titan: you find it swamped, fight the titans dragging it down, see who's inside, and get
+# him back to the Wall with titans on your heels.
+rogue_film = {"cutscene": {"fade": False, "shots": [
+    {"from": [-8, 4], "h": 4, "to": [-10, 6], "h2": 6, "look": [-18, 12], "lh": 12, "seconds": 4,
+     "sound": "minecraft:entity.ravager.roar", "say": {"text": "It sinks to its knees. Steam pours off its neck like a boiling kettle.", "after": 0.5}},
+    {"from": [-14, 9], "h": 9, "to": [-15, 10], "h2": 11, "look": [-18, 12], "lh": 12, "seconds": 4,
+     "say": {"who": "mikasa", "text": "There's... someone inside it.", "after": 1}},
+]}}
 missions.append(M("tb4", "The Rogue Titan", ch_tb, "truth", ["lore", "war", "character", "future"], TR, [5, 12], [
     S("Find the titan that's fighting the others", goto([-10, 10], 14),
-      done=[{"titan_actor": {"id": "rogue", "shifter": "attack", "at": [-18, 12], "seconds": 25}}, {"shake": 2},
+      done=[{"titan_actor": {"id": "rogue", "shifter": "attack", "at": [-18, 12], "seconds": 300}}, {"shake": 2},
             {"sound": {"id": "minecraft:entity.ravager.roar", "volume": 2, "pitch": 0.6}}, say("It roars and tears into another titan with its bare hands.")]),
-    S("Watch", {"wait": 6}, start=[{"flash": 1.5}], done=[say("Steam pours off its neck. There's someone inside it.")]),
-    S("Mikasa is up on the roof", talk("mikasa", "tb4_mikasa"), spawn=[A("mikasa", [-12, 6], face=True)]),
+    S("They're dragging it down. Cut the titans off it", {"kill": "scene"},
+      spawn=[T(3, [-18, 12], spread=9), A("mikasa", [-12, 6])],
+      start=[say("It's losing. Whatever it is, it's killing them. Help it!", "mikasa")]),
+    S("Watch the titan", {"wait": 8}, start=[rogue_film, {"flash": 1.2}, {"fx": {"type": "steam", "at": [-18, 12]}}]),
+    S("Pull whoever it is out of the neck", talk("eren", "tb4_eren"),
+      spawn=[A("eren", [-16, 12], pose="crouch", passive=True)],
+      start=[{"remove": "rogue"}, {"fx": {"type": "steam", "at": [-18, 12]}}]),
+    S("Titans are closing in. Get Eren back to the Wall", goto(E("inner", 0.85), 10, timeout=150,
+        success=[aff(mikasa=8), deed("Carried Eren back to the Wall at Trost"), say("We made it. He's still out cold.", "mikasa")],
+        fail=[say("They cut you off. The Garrison drags you both up the Wall with ropes.", None), flag("rescued_by_garrison")]),
+      spawn=[T(2, [-30, 12], spread=6)],
+      start=[{"follow": "eren"}, {"follow": "mikasa"}, say("Two more, coming from behind. Don't stop, don't fight unless you have to!", "mikasa")]),
+    S("Mikasa is sitting with Eren", talk("mikasa", "tb4_mikasa")),
     S("Marco hasn't come back. Check the rooftops near the supply building, quickly", goto([18, -25], 6, timeout=60,
         success=[fate(marco="alive"), aff(marco=15), {"spawn": {"actor": "marco", "at": [18, -24], "face": True}},
                  say("I'm okay. Reiner, Annie and Bertholdt were just here. They were acting really strange.", "marco"),
                  flag("marco_saw_warriors"), deed("Found Marco alive, and three friends acting strangely")],
         fail=[fate(marco="died at Trost"), say("Marco is lying in the street. Half of him. Nobody saw what happened."), flag("marco_dead"),
-              deed("Found Marco's body. Nobody saw what happened")])),
+              deed("Found Marco's body. Nobody saw what happened")]),
+      start=[{"unfollow": "eren"}, {"unfollow": "mikasa"}]),
 ], next="tb5", xp=350, chain=True))
 
 dialogues["tb5_erwin"] = D("a",

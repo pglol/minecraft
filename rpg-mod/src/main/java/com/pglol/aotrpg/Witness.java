@@ -58,6 +58,26 @@ public final class Witness {
         states.clear();
     }
 
+    /**
+     * The player a townsperson is suspicious of right now (watching them until it wears off), or
+     * null. The most suspicious wins.
+     */
+    public ServerPlayerEntity watching(LivingEntity npc) {
+        if (server == null) return null;
+        ServerPlayerEntity best = null;
+        float level = 0.15f;
+        for (var en : states.entrySet()) {
+            Eye e = en.getValue().eyes.get(npc.getId());
+            if (e == null || e.level < level) continue;
+            ServerPlayerEntity p = server.getPlayerManager().getPlayer(en.getKey());
+            if (p != null && p.getWorld() == npc.getWorld()) {
+                best = p;
+                level = e.level;
+            }
+        }
+        return best;
+    }
+
     public void forget(UUID id) {
         states.remove(id);
     }

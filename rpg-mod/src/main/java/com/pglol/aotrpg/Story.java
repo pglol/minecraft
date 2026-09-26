@@ -229,6 +229,8 @@ public final class Story {
         final Map<String, Long> pauses = new HashMap<>();
         /** Cadets and soldiers in the scene who are up in the air fighting its titans. */
         final Set<String> fighting = new HashSet<>();
+        /** Actors who never join a fight (hurt, carried, children...). */
+        final Set<String> passive = new HashSet<>();
         final Map<String, Long> expire = new HashMap<>();
         boolean spawned, titansSpawned;
         long stepAt;
@@ -914,6 +916,8 @@ public final class Story {
         sc.actors.put(id, v.getUuid());
         if (o.has("patrol") && o.get("patrol").getAsBoolean()) sc.patrols.add(id);
         if (o.has("follow") && o.get("follow").getAsBoolean()) sc.followers.add(id);
+        if (o.has("passive") && o.get("passive").getAsBoolean()) sc.passive.add(id);
+        else sc.passive.remove(id);
         if (o.has("face")) facePlayer(v, sc);
         if (o.has("pose") && o.get("pose").getAsString().equals("crouch")) v.setPose(net.minecraft.entity.EntityPose.CROUCHING);
         sendActors(sc);
@@ -1619,7 +1623,7 @@ public final class Story {
         for (var a : sc.actors.entrySet()) {
             String id = a.getKey();
             ActorDef def = actors.get(id);
-            if (def == null || def.kit == null || !(def.kit.startsWith("cadet") || def.kit.startsWith("soldier"))) continue;
+            if (def == null || def.kit == null || !(def.kit.startsWith("cadet") || def.kit.startsWith("soldier")) || sc.passive.contains(id)) continue;
             if (!(w.getEntity(a.getValue()) instanceof MobEntity v)) continue;
             LivingEntity t = null;
             double bd = 48 * 48;

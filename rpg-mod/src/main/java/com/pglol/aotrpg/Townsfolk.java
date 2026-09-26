@@ -16,6 +16,7 @@ import net.minecraft.world.Heightmap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 /**
  * Town life. Every town and village near a player keeps a crowd of ordinary people (drawn as people
@@ -81,6 +82,164 @@ public final class Townsfolk {
     public void tick(ServerWorld w, int ticks) {
         if (ticks % 100 == 17) populate(w);
         if (ticks % 40 == 5) chatter(w);
+        walk(w, ticks);
+    }
+
+    // ------------------------------------------------------------------ walking the streets
+
+    /** What streets are made of here: cobbles, setts, gravel, paving and dirt paths. */
+    private static final java.util.Set<net.minecraft.block.Block> ROAD = java.util.Set.of(
+        net.minecraft.block.Blocks.COBBLESTONE, net.minecraft.block.Blocks.MOSSY_COBBLESTONE, net.minecraft.block.Blocks.GRAVEL,
+        net.minecraft.block.Blocks.STONE, net.minecraft.block.Blocks.ANDESITE, net.minecraft.block.Blocks.POLISHED_ANDESITE,
+        net.minecraft.block.Blocks.STONE_BRICKS, net.minecraft.block.Blocks.MOSSY_STONE_BRICKS, net.minecraft.block.Blocks.CRACKED_STONE_BRICKS,
+        net.minecraft.block.Blocks.SMOOTH_STONE, net.minecraft.block.Blocks.DIRT_PATH, net.minecraft.block.Blocks.COARSE_DIRT);
+    public static final String ROADS = "aot_road";
+    private static final double[][] DIRS = {{1, 0}, {0.7071, 0.7071}, {0, 1}, {-0.7071, 0.7071}, {-1, 0}, {-0.7071, -0.7071}, {0, -1}, {0.7071, -0.7071}};
+
+    private static final class Walk {
+        double hx, hz;
+        int pause, linger, turnIn = 40;
+        UUID watched;
+    }
+
+    private final java.util.Map<UUID, Walk> walks = new java.util.HashMap<>();
+
+    /** Open street under the sky at (x, z), near height y: its standing position, or null. */
+    private static BlockPos street(ServerWorld w, double x, double z, double y) {
+        int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
+        if (!w.isChunkLoaded(bx >> 4, bz >> 4)) return null;
+        int top = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, bx, bz);
+        if (Math.abs(top - y) > 1.2) return null;
+        BlockPos feet = new BlockPos(bx, top, bz);
+        if (!ROAD.contains(w.getBlockState(feet.down()).getBlock())) return null;
+        if (!w.getBlockState(feet).getCollisionShape(w, feet).isEmpty() || !w.getBlockState(feet.up()).getCollisionShape(w, feet.up()).isEmpty()) return null;
+        return feet;
+    }
+
+    /** Every tick: townsfolk walk the middle of the streets, stop to stare when suspicious, then move on. */
+    private void walk(ServerWorld w, int ticks) {
+        for (var it = walks.entrySet().iterator(); it.hasNext(); ) {
+            var en = it.next();
+            if (!(w.getEntity(en.getKey()) instanceof VillagerEntity v) || !v.isAlive()) {
+                it.remove();
+                continue;
+            }
+            Walk k = en.getValue();
+            // Someone they don't trust: stop, turn, and keep an eye on them until it passes.
+            ServerPlayerEntity sus = AotRpg.WITNESS.watching(v);
+            if (sus != null) {
+                face(v, sus.getX(), sus.getZ());
+                k.linger = 30;
+                k.watched = sus.getUuid();
+                continue;
+            }
+            if (k.linger > 0) {
+                if (--k.linger == 0 && k.watched != null) {
+                    // Then go on their way, away from whoever it was.
+                    ServerPlayerEntity was = w.getServer().getPlayerManager().getPlayer(k.watched);
+                    k.watched = null;
+                    if (was != null) heading(w, v, k, v.getX() - was.getX(), v.getZ() - was.getZ());
+                }
+                continue;
+            }
+            if (k.pause > 0) {
+                k.pause--;
+                continue;
+            }
+            step(w, v, k);
+        }
+    }
+
+    private void step(ServerWorld w, VillagerEntity v, Walk k) {
+        double x = v.getX(), z = v.getZ(), y = v.getY();
+        if (k.hx == 0 && k.hz == 0 && !heading(w, v, k, rng.nextDouble() - 0.5, rng.nextDouble() - 0.5)) {
+            k.pause = 60;
+            return;
+        }
+        // The street ends or turns: pick the way that bends least (never straight back unless it must).
+        if (street(w, x + k.hx * 1.3, z + k.hz * 1.3, y) == null) {
+            if (!heading(w, v, k, k.hx, k.hz)) k.pause = 40;
+            return;
+        }
+        // Now and then, take a side street.
+        if (--k.turnIn <= 0) {
+            k.turnIn = 40 + rng.nextInt(80);
+            double sx = -k.hz, sz = k.hx;
+            if (rng.nextBoolean()) {
+                sx = -sx;
+                sz = -sz;
+            }
+            if (rng.nextInt(3) == 0 && street(w, x + sx * 3, z + sz * 3, y) != null && street(w, x + sx * 1.5, z + sz * 1.5, y) != null) {
+                k.hx = sx;
+                k.hz = sz;
+            }
+        }
+        // Keep to the middle: measure the street to each side and drift toward its centre line.
+        double px = -k.hz, pz = k.hx;
+        int right = 0, left = 0;
+        while (right < 5 && street(w, x + px * (right + 1), z + pz * (right + 1), y) != null) right++;
+        while (left < 5 && street(w, x - px * (left + 1), z - pz * (left + 1), y) != null) left++;
+        double lat = Math.max(-1, Math.min(1, (right - left) * 0.5)) * 0.05;
+        // Someone in the way: wait a moment.
+        net.minecraft.util.math.Box ahead = v.getBoundingBox().offset(k.hx * 0.8, 0, k.hz * 0.8);
+        if (!w.getOtherEntities(v, ahead, e -> e instanceof net.minecraft.entity.LivingEntity).isEmpty()) {
+            k.pause = 15 + rng.nextInt(20);
+            return;
+        }
+        double speed = v.isBaby() ? 0.06 : 0.085;
+        double nx = x + k.hx * speed + px * lat, nz = z + k.hz * speed + pz * lat;
+        BlockPos next = street(w, nx, nz, y);
+        if (next == null) {
+            if (!heading(w, v, k, k.hx, k.hz)) k.pause = 40;
+            return;
+        }
+        float want = (float) Math.toDegrees(Math.atan2(-k.hx, k.hz));
+        float yaw = v.getYaw() + net.minecraft.util.math.MathHelper.wrapDegrees(want - v.getYaw()) * 0.25f;
+        v.refreshPositionAndAngles(nx, next.getY(), nz, yaw, 0);
+        v.setHeadYaw(yaw);
+        v.setBodyYaw(yaw);
+    }
+
+    /** A new direction along the streets, as close as possible to (dx, dz). False if they're boxed in. */
+    private boolean heading(ServerWorld w, VillagerEntity v, Walk k, double dx, double dz) {
+        double len = Math.hypot(dx, dz);
+        if (len < 1e-4) {
+            dx = 1;
+            dz = 0;
+            len = 1;
+        }
+        dx /= len;
+        dz /= len;
+        double best = -2;
+        double[] pick = null;
+        for (double[] d : DIRS) {
+            double dot = d[0] * dx + d[1] * dz;
+            // Straight back only as a last resort.
+            if (d[0] * k.hx + d[1] * k.hz < -0.9) dot -= 1.5;
+            if (dot <= best) continue;
+            if (street(w, v.getX() + d[0] * 1.5, v.getZ() + d[1] * 1.5, v.getY()) == null) continue;
+            if (street(w, v.getX() + d[0] * 2.5, v.getZ() + d[1] * 2.5, v.getY()) == null) continue;
+            best = dot;
+            pick = d;
+        }
+        if (pick == null) return false;
+        k.hx = pick[0];
+        k.hz = pick[1];
+        return true;
+    }
+
+    private static void face(VillagerEntity v, double x, double z) {
+        float yaw = (float) Math.toDegrees(Math.atan2(-(x - v.getX()), z - v.getZ()));
+        v.setYaw(yaw);
+        v.setHeadYaw(yaw);
+        v.setBodyYaw(yaw);
+    }
+
+    /** Starts someone walking the streets (they walk by our hand from now on, not the villager brain). */
+    private void adopt(VillagerEntity v) {
+        v.setAiDisabled(true);
+        v.addCommandTag(ROADS);
+        walks.putIfAbsent(v.getUuid(), new Walk());
     }
 
     private void populate(ServerWorld w) {
@@ -89,6 +248,10 @@ public final class Townsfolk {
         for (ServerPlayerEntity p : players) {
             for (VillagerEntity v : w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(64), Townsfolk::folk)) {
                 if (!v.isSilent()) v.setSilent(true);
+                // Townsfolk who wander on the villager brain (or were walking before a restart) take to the streets.
+                boolean walker = v.getCommandTags().contains(TAG) || v.getCommandTags().contains(ROADS) || !v.isAiDisabled();
+                if (walker && !v.getCommandTags().contains("aot_walker") && !walks.containsKey(v.getUuid())
+                    && street(w, v.getX(), v.getZ(), v.getY()) != null) adopt(v);
             }
         }
         for (Entity e : w.iterateEntities()) {
@@ -105,7 +268,7 @@ public final class Townsfolk {
             Box box = new Box(cx - RADIUS - 8, -64, cz - RADIUS - 8, cx + RADIUS + 8, 400, cz + RADIUS + 8);
             int have = w.getEntitiesByClass(VillagerEntity.class, box, Townsfolk::folk).size();
             for (int i = 0; i < 2 && have < PER_TOWN; i++) {
-                BlockPos at = street(w, cx, cz, p);
+                BlockPos at = spawnSpot(w, cx, cz, p);
                 if (at == null) continue;
                 VillagerEntity v = EntityType.VILLAGER.create(w);
                 if (v == null) continue;
@@ -116,22 +279,21 @@ public final class Townsfolk {
                 v.addCommandTag(TAG);
                 if (rng.nextInt(9) == 0) v.setBaby(true);
                 w.spawnEntity(v);
+                adopt(v);
                 have++;
             }
         }
     }
 
     /** Somewhere in the streets to appear, out of the player's direct sight if possible. */
-    private BlockPos street(ServerWorld w, int cx, int cz, ServerPlayerEntity p) {
-        for (int tries = 0; tries < 12; tries++) {
+    private BlockPos spawnSpot(ServerWorld w, int cx, int cz, ServerPlayerEntity p) {
+        for (int tries = 0; tries < 30; tries++) {
             double a = rng.nextDouble() * Math.PI * 2, r = 6 + rng.nextDouble() * (RADIUS - 6);
             int x = cx + (int) (Math.cos(a) * r), z = cz + (int) (Math.sin(a) * r);
             if (!w.isChunkLoaded(x >> 4, z >> 4)) continue;
             int y = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-            BlockPos feet = new BlockPos(x, y, z);
-            var ground = w.getBlockState(feet.down());
-            if (!ground.getFluidState().isEmpty() || !ground.isSolidBlock(w, feet.down())) continue;
-            if (!w.getBlockState(feet).isAir() || !w.getBlockState(feet.up()).isAir()) continue;
+            BlockPos feet = street(w, x + 0.5, z + 0.5, y);
+            if (feet == null) continue;
             // Not on a roof: the street is near the town's own level.
             if (Math.abs(y - w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, cx, cz)) > 6) continue;
             if (p.squaredDistanceTo(x, y, z) < 12 * 12) continue;
@@ -152,8 +314,11 @@ public final class Townsfolk {
                 for (VillagerEntity o : near) if (o != a && o.squaredDistanceTo(a) < 5 * 5) b = o;
                 if (b == null || a.isBaby() || b.isBaby()) continue;
                 String[] pair = CHATTER[rng.nextInt(CHATTER.length)];
-                a.getLookControl().lookAt(b);
-                b.getLookControl().lookAt(a);
+                face(a, b.getX(), b.getZ());
+                face(b, a.getX(), a.getZ());
+                Walk wa = walks.get(a.getUuid()), wb = walks.get(b.getUuid());
+                if (wa != null) wa.pause = Math.max(wa.pause, 110);
+                if (wb != null) wb.pause = Math.max(wb.pause, 110);
                 say(w, a, pair[0], 0);
                 say(w, b, pair[1], 50);
                 break;
@@ -180,7 +345,9 @@ public final class Townsfolk {
         // A real trader keeps their trades.
         if (v.getVillagerData().getProfession() != VillagerProfession.NONE && v.getVillagerData().getProfession() != VillagerProfession.NITWIT
             && !v.getOffers().isEmpty()) return false;
-        v.getLookControl().lookAt(p);
+        face(v, p.getX(), p.getZ());
+        Walk wk = walks.get(v.getUuid());
+        if (wk != null) wk.pause = Math.max(wk.pause, 80);
         String line = v.isBaby() ? new String[] {"Are you a soldier?", "Mama says not to talk to strangers.", "Can I see your blades?"}[rng.nextInt(3)]
             : GREETING[rng.nextInt(GREETING.length)];
         say(p.getServerWorld(), v, line, 0);

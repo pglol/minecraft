@@ -4040,7 +4040,7 @@
          -18,
          12
         ],
-        "seconds": 25
+        "seconds": 300
        }
       },
       {
@@ -4061,40 +4061,218 @@
      ]
     },
     {
-     "objective": "Watch",
+     "objective": "They're dragging it down. Cut the titans off it",
      "goal": {
-      "wait": 6
-     },
-     "spawn": [],
-     "start": [
-      {
-       "flash": 1.5
-      }
-     ],
-     "done": [
-      {
-       "say": {
-        "text": "Steam pours off its neck. There's someone inside it."
-       }
-      }
-     ]
-    },
-    {
-     "objective": "Mikasa is up on the roof",
-     "goal": {
-      "talk": "mikasa",
-      "dialogue": "tb4_mikasa"
+      "kill": "scene"
      },
      "spawn": [
+      {
+       "titans": 3,
+       "at": [
+        -18,
+        12
+       ],
+       "spread": 9
+      },
       {
        "actor": "mikasa",
        "at": [
         -12,
         6
-       ],
-       "face": true
+       ]
       }
      ],
+     "start": [
+      {
+       "say": {
+        "text": "It's losing. Whatever it is, it's killing them. Help it!",
+        "who": "mikasa"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Watch the titan",
+     "goal": {
+      "wait": 8
+     },
+     "spawn": [],
+     "start": [
+      {
+       "cutscene": {
+        "fade": false,
+        "shots": [
+         {
+          "from": [
+           -8,
+           4
+          ],
+          "h": 4,
+          "to": [
+           -10,
+           6
+          ],
+          "h2": 6,
+          "look": [
+           -18,
+           12
+          ],
+          "lh": 12,
+          "seconds": 4,
+          "sound": "minecraft:entity.ravager.roar",
+          "say": {
+           "text": "It sinks to its knees. Steam pours off its neck like a boiling kettle.",
+           "after": 0.5
+          }
+         },
+         {
+          "from": [
+           -14,
+           9
+          ],
+          "h": 9,
+          "to": [
+           -15,
+           10
+          ],
+          "h2": 11,
+          "look": [
+           -18,
+           12
+          ],
+          "lh": 12,
+          "seconds": 4,
+          "say": {
+           "who": "mikasa",
+           "text": "There's... someone inside it.",
+           "after": 1
+          }
+         }
+        ]
+       }
+      },
+      {
+       "flash": 1.2
+      },
+      {
+       "fx": {
+        "type": "steam",
+        "at": [
+         -18,
+         12
+        ]
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Pull whoever it is out of the neck",
+     "goal": {
+      "talk": "eren",
+      "dialogue": "tb4_eren"
+     },
+     "spawn": [
+      {
+       "actor": "eren",
+       "at": [
+        -16,
+        12
+       ],
+       "pose": "crouch",
+       "passive": true
+      }
+     ],
+     "start": [
+      {
+       "remove": "rogue"
+      },
+      {
+       "fx": {
+        "type": "steam",
+        "at": [
+         -18,
+         12
+        ]
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Titans are closing in. Get Eren back to the Wall",
+     "goal": {
+      "goto": {
+       "edge": "inner",
+       "frac": 0.85,
+       "rel": [
+        0,
+        0
+       ]
+      },
+      "radius": 10,
+      "timeout": 150,
+      "success": [
+       {
+        "affinity": {
+         "mikasa": 8
+        }
+       },
+       {
+        "deed": "Carried Eren back to the Wall at Trost"
+       },
+       {
+        "say": {
+         "text": "We made it. He's still out cold.",
+         "who": "mikasa"
+        }
+       }
+      ],
+      "fail": [
+       {
+        "say": {
+         "text": "They cut you off. The Garrison drags you both up the Wall with ropes."
+        }
+       },
+       {
+        "flag": "rescued_by_garrison"
+       }
+      ]
+     },
+     "spawn": [
+      {
+       "titans": 2,
+       "at": [
+        -30,
+        12
+       ],
+       "spread": 6
+      }
+     ],
+     "start": [
+      {
+       "follow": "eren"
+      },
+      {
+       "follow": "mikasa"
+      },
+      {
+       "say": {
+        "text": "Two more, coming from behind. Don't stop, don't fight unless you have to!",
+        "who": "mikasa"
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Mikasa is sitting with Eren",
+     "goal": {
+      "talk": "mikasa",
+      "dialogue": "tb4_mikasa"
+     },
+     "spawn": [],
      "start": [],
      "done": []
     },
@@ -4161,7 +4339,14 @@
       ]
      },
      "spawn": [],
-     "start": [],
+     "start": [
+      {
+       "unfollow": "eren"
+      },
+      {
+       "unfollow": "mikasa"
+      }
+     ],
      "done": []
     }
    ],
@@ -6448,6 +6633,52 @@
        "deed": "Saw Eren Yeager come out of a titan at Trost"
       }
      ],
+     "end": true
+    }
+   }
+  },
+  "tb4_eren": {
+   "start": "a",
+   "nodes": {
+    "a": {
+     "speaker": null,
+     "text": "The flesh at the nape is hot enough to burn. Inside it, tangled in the sinew, is a boy. Eren. He's breathing.",
+     "choices": [
+      {
+       "text": "(Cut him loose, fast.)",
+       "effects": [
+        {
+         "affinity": {
+          "eren": 6
+         }
+        },
+        {
+         "ideology": {
+          "mercy": 3
+         }
+        }
+       ],
+       "next": "b"
+      },
+      {
+       "text": "(Hesitate. What is he?)",
+       "effects": [
+        {
+         "flag": "hesitated_eren"
+        },
+        {
+         "ideology": {
+          "independence": 2
+         }
+        }
+       ],
+       "next": "b"
+      }
+     ]
+    },
+    "b": {
+     "speaker": "mikasa",
+     "text": "EREN! He's alive... he's alive. Help me carry him. We have to get him to the Wall, now.",
      "end": true
     }
    }
