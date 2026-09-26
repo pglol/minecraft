@@ -68,6 +68,14 @@ public final class EstateScreen extends Screen {
         addDrawableChild(new AotButton(left + w - 20, top - 22, 20, 20, Text.literal("✕"), this::close));
         Net.EstateView v = ClientState.estate;
         if (v == null) return;
+        if (tab == 0) {
+            // Where you wake after falling.
+            AotButton r = addDrawableChild(new AotButton(left + w - 214, top + 6, 204, 18,
+                Text.literal(v.respawnHome() ? "Respawn: at home" : "Respawn: nearest recovery post"), () -> act("respawn", "")));
+            r.selected = v.respawnHome();
+            r.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+                "After falling, wake at home (your property or house), or at the recovery post nearest where you fell (towns and camps).")));
+        }
         if (tab == 0 && v.hasPlot()) {
             int y = top + 40;
             for (Net.EstateProject p : v.projects()) {

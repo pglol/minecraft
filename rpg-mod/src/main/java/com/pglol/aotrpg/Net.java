@@ -371,7 +371,7 @@ public final class Net {
 
     /** Server -> client: your estate (projects, produce) and pets. */
     public record EstateView(boolean hasPlot, String plot, int fort, java.util.List<EstateProject> projects, int harvest, long nextHarvest,
-                             java.util.List<EstatePet> pets, boolean atHome, boolean open) implements CustomPayload {
+                             java.util.List<EstatePet> pets, boolean atHome, boolean respawnHome, boolean open) implements CustomPayload {
         public static final Id<EstateView> ID = id("estate_view");
         public static final PacketCodec<RegistryByteBuf, EstateView> CODEC = PacketCodec.of((v, b) -> {
             b.writeBoolean(v.hasPlot); b.writeString(v.plot); b.writeVarInt(v.fort);
@@ -384,7 +384,7 @@ public final class Net {
             for (EstatePet p : v.pets) {
                 b.writeString(p.id()); b.writeString(p.name()); b.writeString(p.desc()); b.writeVarLong(p.price()); b.writeBoolean(p.owned()); b.writeBoolean(p.companion());
             }
-            b.writeBoolean(v.atHome); b.writeBoolean(v.open);
+            b.writeBoolean(v.atHome); b.writeBoolean(v.respawnHome); b.writeBoolean(v.open);
         }, b -> {
             boolean has = b.readBoolean();
             String plot = b.readString();
@@ -397,7 +397,7 @@ public final class Net {
             int k = Math.min(b.readVarInt(), 64);
             java.util.List<EstatePet> pets = new java.util.ArrayList<>();
             for (int i = 0; i < k; i++) pets.add(new EstatePet(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readBoolean(), b.readBoolean()));
-            return new EstateView(has, plot, fort, ps, harvest, next, pets, b.readBoolean(), b.readBoolean());
+            return new EstateView(has, plot, fort, ps, harvest, next, pets, b.readBoolean(), b.readBoolean(), b.readBoolean());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }

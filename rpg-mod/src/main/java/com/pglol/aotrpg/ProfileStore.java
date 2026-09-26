@@ -149,6 +149,7 @@ public final class ProfileStore {
                     if (p.activeHorse == null) p.activeHorse = "";
                     if (p.pets == null) p.pets = new java.util.ArrayList<>();
                     if (p.companion == null) p.companion = "";
+                    if (p.respawn == null) p.respawn = "";
                     if (!p.skillsV2) {
                         // The skill trees were rebuilt: every character gets all points back to spend again.
                         p.skills.clear();

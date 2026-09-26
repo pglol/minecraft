@@ -85,7 +85,12 @@ public final class Estate {
         return AotRpg.HOMES.data.plots.get(idx);
     }
 
-    private static int ownPlot(ServerPlayerEntity p) {
+    /** At home: on your own property's land, or inside your own town house. */
+    public static boolean atHome(ServerPlayerEntity p) {
+        return AotRpg.HOMES.canBuild(p, p.getBlockPos()) || (p.getWorld() == p.getServer().getOverworld() && HomePlots.ownsAt(p, p.getBlockPos()));
+    }
+
+    static int ownPlot(ServerPlayerEntity p) {
         String stem = AotRpg.HOMES.stem(p);
         for (var e : AotRpg.HOMES.data.plots.entrySet()) if (stem.equals(e.getValue().stem) && e.getKey() < AotRpg.PLACES.plots.size()) return e.getKey();
         return -1;
@@ -117,9 +122,14 @@ public final class Estate {
         switch (action) {
             case "build" -> startProject(p, idx, arg);
             case "harvest" -> harvest(p, idx);
+            case "respawn" -> {
+                pr.respawn = "home".equals(pr.respawn) ? "" : "home";
+                AotRpg.PROFILES.save(p.getUuid());
+                toast(p, "home".equals(pr.respawn) ? "You'll wake up at home after falling" : "You'll wake at the nearest recovery post", false);
+            }
             case "buypet" -> buyPet(p, pr, arg);
             case "companion" -> {
-                if (!AotRpg.HOMES.canBuild(p, p.getBlockPos()) && !arg.isEmpty() && !arg.equals(pr.companion)) {
+                if (!atHome(p) && !arg.isEmpty() && !arg.equals(pr.companion)) {
                     toast(p, "Change your companion at home", true);
                     break;
                 }
@@ -196,7 +206,16 @@ public final class Estate {
             for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) if (p.getWorld() != w) pets(p);
             for (var e : AotRpg.HOMES.data.plots.entrySet()) {
                 Homes.PlotDeed d = e.getValue();
-                if (d.pen && e.getKey() < AotRpg.PLACES.plots.size()) keepAnimals(w, e.getKey(), AotRpg.PLACES.plots.get(e.getKey()));
+                if (e.getKey() >= AotRpg.PLACES.plots.size()) continue;
+                Places.PlotInfo pl = AotRpg.PLACES.plots.get(e.getKey());
+                if (d.pen) keepAnimals(w, e.getKey(), pl);
+                // Estates built before fences joined up get their fences and walls connected once.
+                int cx = (pl.x0() + pl.x1()) / 2, cz = (pl.z0() + pl.z1()) / 2;
+                if ((d.fort > 0 || d.farm || d.pen) && !reconnected.contains(e.getKey()) && w.isChunkLoaded(cx >> 4, cz >> 4)
+                    && w.getClosestPlayer(cx, pl.y(), cz, 48, false) != null) {
+                    reconnected.add(e.getKey());
+                    reconnect(w, pl);
+                }
                 produce(d);
             }
         }
@@ -216,7 +235,8 @@ public final class Estate {
                 if (!w.isChunkLoaded(pl.pos().getX() >> 4, pl.pos().getZ() >> 4)) continue;
                 BlockState cur = w.getBlockState(pl.pos());
                 if (cur.equals(pl.state())) continue;
-                w.setBlockState(pl.pos(), pl.state(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                // Fences, walls and gates join up with what's beside them (and the neighbours with them).
+                w.setBlockState(pl.pos(), Block.postProcessState(pl.state(), w, pl.pos()), Block.NOTIFY_ALL);
                 if (!pl.state().isAir()) {
                     w.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, pl.state()), pl.pos().getX() + 0.5, pl.pos().getY() + 0.5,
                         pl.pos().getZ() + 0.5, 6, 0.3, 0.3, 0.3, 0.05);
@@ -558,6 +578,10 @@ public final class Estate {
         if (!w.isChunkLoaded(cx >> 4, cz >> 4) || w.getClosestPlayer(cx, p.y(), cz, 64, false) == null) return;
         Box box = new Box(p.x0() - 4, p.y() - 4, p.z0() - 4, p.x1() + 4, p.y() + 8, p.z1() + 4);
         String tag = PEN_TAG + ":" + idx;
+        // Any that wandered off the land are brought back.
+        for (MobEntity m : w.getEntitiesByClass(MobEntity.class, box.expand(48), e -> e.getCommandTags().contains(tag))) {
+            if (!box.contains(m.getPos())) m.requestTeleport((p.x0() + p.x1()) / 2.0, p.y(), (p.z0() + p.z1()) / 2.0);
+        }
         int have = w.getEntitiesByClass(MobEntity.class, box, e -> e.getCommandTags().contains(tag)).size();
         if (have >= 7) return;
         // Find the pen's hay bale and fill the pen around it.
@@ -577,6 +601,21 @@ public final class Estate {
             m.setPersistent();
             m.addCommandTag(tag);
             w.spawnEntity(m);
+        }
+    }
+
+    private final java.util.Set<Integer> reconnected = new java.util.HashSet<>();
+
+    /** Joins up the fences, walls and gates of an estate built before they connected properly. */
+    private static void reconnect(ServerWorld w, Places.PlotInfo p) {
+        for (BlockPos pos : BlockPos.iterate(p.x0() - HomePlots.LAND - 3, p.y() - 1, p.z0() - HomePlots.LAND - 3,
+            p.x1() + HomePlots.LAND + 3, p.y() + 10, p.z1() + HomePlots.LAND + 3)) {
+            BlockState s = w.getBlockState(pos);
+            Block b = s.getBlock();
+            if (b instanceof net.minecraft.block.FenceBlock || b instanceof net.minecraft.block.WallBlock || b instanceof net.minecraft.block.PaneBlock) {
+                BlockState fixed = Block.postProcessState(s, w, pos);
+                if (!fixed.equals(s)) w.setBlockState(pos, fixed, Block.NOTIFY_LISTENERS);
+            }
         }
     }
 
@@ -631,7 +670,7 @@ public final class Estate {
         if (!pr.created || p.isSpectator()) return;
         ServerWorld w = p.getServerWorld();
         String me = p.getUuidAsString();
-        boolean home = AotRpg.HOMES.canBuild(p, p.getBlockPos());
+        boolean home = atHome(p);
         Box near = p.getBoundingBox().expand(48);
         // Home pets: wander your land while you're home, gone when you leave.
         List<Entity> homePets = w.getEntitiesByClass(MobEntity.class, near, e -> me.equals(owner(e, HOME_PET))).stream().map(e -> (Entity) e).toList();
@@ -735,6 +774,6 @@ public final class Estate {
         for (Pet pet : PETS) pets.add(new Net.EstatePet(pet.id(), pet.name(), pet.desc(), pet.price(), pr.pets.contains(pet.id()), pet.id().equals(pr.companion)));
         long next = d == null || (!d.farm && !d.pen) ? -1 : Math.max(0, (BATCH_MS - (System.currentTimeMillis() - d.harvestAt)) / 1000);
         ServerPlayNetworking.send(p, new Net.EstateView(idx >= 0, idx < 0 ? "" : HomePlots.label(AotRpg.PLACES.plots.get(idx)), d == null ? 0 : d.fort,
-            projects, d == null ? 0 : d.harvestStock, next, pets, AotRpg.HOMES.canBuild(p, p.getBlockPos()), open));
+            projects, d == null ? 0 : d.harvestStock, next, pets, atHome(p), "home".equals(pr.respawn), open));
     }
 }

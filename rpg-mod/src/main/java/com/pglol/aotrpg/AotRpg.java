@@ -71,6 +71,7 @@ public final class AotRpg implements ModInitializer {
     public static final Raids RAID_BOSSES = new Raids();
     public static final TitanActivity ACTIVITY = new TitanActivity();
     public static final Estate ESTATE = new Estate();
+    public static final Recovery RECOVERY = new Recovery();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final Season SEASON = new Season();
@@ -544,6 +545,8 @@ public final class AotRpg implements ModInitializer {
             PROGRESSION.forgetHunger(newPlayer);
             sync(newPlayer, pr);
             NAMETAGS.update(newPlayer, pr);
+            // After a death: wake at the nearest recovery post, or at home if chosen.
+            if (!alive) RECOVERY.respawn(newPlayer);
         });
 
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
@@ -629,6 +632,7 @@ public final class AotRpg implements ModInitializer {
     private void onDeath(LivingEntity dead, net.minecraft.entity.damage.DamageSource source) {
         if (dead instanceof ServerPlayerEntity sp) {
             DEATH.onDeath(sp, source);
+            RECOVERY.onDeath(sp);
             return;
         }
         if (!isTitan(dead)) return;

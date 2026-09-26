@@ -68,6 +68,8 @@ public final class Profile {
     /** Pets owned (Estate.PETS ids) and the one brought along on adventures ("" for none). */
     public java.util.List<String> pets = new java.util.ArrayList<>();
     public String companion = "";
+    /** Where you wake after falling: "" the nearest recovery post, "home" your property (or house). */
+    public String respawn = "";
 
     public int stat(Stat s) {
         return stats.getOrDefault(s, 0);
