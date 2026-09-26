@@ -473,6 +473,15 @@ final class Commands {
             AotRpg.HOMES.action(c.getSource().getPlayerOrThrow(), "manage", -1, "");
             return 1;
         })));
+        d.register(CommandManager.literal("bounty").executes(c -> {
+            var p = c.getSource().getPlayerOrThrow();
+            long b = AotRpg.PROFILES.get(p.getUuid()).bounty;
+            p.sendMessage(Text.literal(b > 0 ? "Your bounty: " + b + " Marks · /bounty pay" : "You have no bounty.").formatted(b > 0 ? Formatting.RED : Formatting.GRAY), false);
+            return 1;
+        }).then(CommandManager.literal("pay").executes(c -> {
+            AotRpg.WITNESS.pay(c.getSource().getPlayerOrThrow());
+            return 1;
+        })));
         d.register(CommandManager.literal("market").executes(c -> {
             AotRpg.MARKET.open(c.getSource().getPlayerOrThrow());
             return 1;

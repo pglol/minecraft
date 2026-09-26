@@ -378,6 +378,12 @@ Roles: choose the role you play and show (Character > Roles, free, any time out 
 
 Lone Wolf: with no one else within 40 blocks you're fighting alone and the game leans your way: titans hit 35% softer, napes need one strike fewer, you break out of a grip in 8 strikes, ultimates charge 25% faster, you're more likely to be downed than killed, and when downed you can pick yourself up by holding Sneak for 5s (every 2 minutes). Each class tree also has a solo capstone (Lone Blade, Last Bastion, Self-Sufficient, Lone Scout).
 
+Ferries: a Ferryman stands at every district, village and port, Mitras, the Underground City, Liberio and the Marleyan port. He sails you to stations you've found on foot, and only where your level reaches the place's. Fares grow with distance, cost more inside Wall Sina, and a sea crossing is dear (Charisma haggles them down). He can also take you home. Camps, caves and landmarks have no ferry. Found stations show as anchors on the map.
+
+Map fog: land you haven't walked lies under grey fog on the world map, and its places stay unnamed until you've been there.
+
+Town etiquette: townsfolk see in a 90° cone in front of them (16 blocks, half while sneaking, less in the dark) and hear you right beside them. A drawn blade, sword or gun in town makes them stare, then call you out ("Put that away!"), then a bounty follows. Opening someone's chest where anyone can see you is theft. With a bounty, merchants overcharge you and you're recognised faster; pay it with `/bounty pay`. Marks over people show their awareness (◉, ?, !), and while sneaking your HUD says HIDDEN / SEEN and the minimap shows their sight cones.
+
 Stamina: sprinting and attacking drain it and resting refills it. At zero you are exhausted: no sprinting and slowed until it recovers. Endurance and some skills raise it.
 - `/character reset`: delete your own character and create a new one (asks you to confirm; no second starter kit).
 - `/aotrpg mode <player> story|extraction`, `/aotrpg campfire` (place a cooking fire here).

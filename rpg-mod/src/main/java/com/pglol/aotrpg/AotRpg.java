@@ -89,6 +89,7 @@ public final class AotRpg implements ModInitializer {
     public static final Classes CLASSES = new Classes();
     public static final Ferries FERRIES = new Ferries();
     public static final Fog FOG = new Fog();
+    public static final Witness WITNESS = new Witness();
     public static final Horses HORSES = new Horses();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
@@ -399,6 +400,15 @@ public final class AotRpg implements ModInitializer {
             }
             return net.minecraft.util.TypedActionResult.pass(stack);
         });
+        // Someone else's chest in town: theft, if anyone is watching.
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (!world.isClient && hand == net.minecraft.util.Hand.MAIN_HAND && player instanceof ServerPlayerEntity sp
+                && world.getBlockEntity(hit.getBlockPos()) instanceof net.minecraft.block.entity.LockableContainerBlockEntity
+                && !CARE.canBuild(player, hit.getBlockPos()) && WITNESS.theft(sp)) {
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
         // No vanilla chest loot: containers with a loot table are emptied of it before they open.
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (!world.isClient && !CARE.config.vanillaChestLoot && world.getRegistryKey() == net.minecraft.world.World.OVERWORLD
@@ -461,6 +471,7 @@ public final class AotRpg implements ModInitializer {
             CLASSES.open(server);
             FERRIES.open(server);
             FOG.open(server);
+            WITNESS.open(server);
             PLACES.load(server);
             SATCHEL.open(server);
             QUESTS.load(server);
@@ -555,6 +566,7 @@ public final class AotRpg implements ModInitializer {
             ABILITIES.forget(p.getUuid());
             CLASSES.forget(p.getUuid());
             FOG.forget(p.getUuid());
+            WITNESS.forget(p.getUuid());
             HORSES.forget(p);
             COINS.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
@@ -613,6 +625,7 @@ public final class AotRpg implements ModInitializer {
         CLASSES.tick(ticks);
         FERRIES.tick(ticks);
         FOG.tick(ticks);
+        WITNESS.tick(ticks);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);

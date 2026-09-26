@@ -218,6 +218,9 @@ public final class AotRpgClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_ENTITIES.register(TitanPlates::render);
         HudRenderCallback.EVENT.register(TitanPlates::renderHud);
         AbilityBar.register();
+        ClientPlayNetworking.registerGlobalReceiver(Net.Watchers.ID, (payload, ctx) -> WitnessFx.onView(payload));
+        WorldRenderEvents.AFTER_ENTITIES.register(WitnessFx::render);
+        HudRenderCallback.EVENT.register(WitnessFx::renderHud);
         HudRenderCallback.EVENT.register(AreaBanner::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.Explored.ID, (payload, ctx) -> {
             if (payload.reset()) ClientState.explored = new java.util.HashSet<>();

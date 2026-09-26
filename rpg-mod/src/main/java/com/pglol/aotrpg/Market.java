@@ -176,7 +176,9 @@ public final class Market {
         double d = AotRpg.FACTIONS.controls(p, s) ? config.memberDiscount : 0;
         // Charisma: 2% better prices per point.
         d += 0.02 * AotRpg.PROFILES.get(p.getUuid()).total(Stat.CHARISMA);
-        return Math.min(0.4, d);
+        // Wanted: merchants overcharge you until the bounty is paid.
+        if (AotRpg.PROFILES.get(p.getUuid()).bounty > 0) d -= 0.25;
+        return Math.max(-0.25, Math.min(0.4, d));
     }
 
     public Good find(String item) {

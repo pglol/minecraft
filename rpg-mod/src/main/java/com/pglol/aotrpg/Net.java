@@ -164,6 +164,25 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** One person watching you: entity id, awareness 0..1, flags (1 sees you now, 2 alerted). */
+    public record Watcher(int entity, float level, int flags) { }
+
+    /** Server -> client: who in town is aware of you, and your bounty. */
+    public record Watchers(java.util.List<Watcher> list, long bounty) implements CustomPayload {
+        public static final Id<Watchers> ID = Net.id("watchers");
+        public static final PacketCodec<RegistryByteBuf, Watchers> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.list.size());
+            for (Watcher w : v.list) { b.writeVarInt(w.entity()); b.writeFloat(w.level()); b.writeVarInt(w.flags()); }
+            b.writeVarLong(v.bounty);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 256);
+            java.util.List<Watcher> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new Watcher(b.readVarInt(), b.readFloat(), b.readVarInt()));
+            return new Watchers(l, b.readVarLong());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: explored map cells (reset: replace all, else add). */
     public record Explored(int cell, boolean reset, long[] cells) implements CustomPayload {
         public static final Id<Explored> ID = id("explored");
@@ -1598,6 +1617,7 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(FerryGo.ID, FerryGo.CODEC);
         PayloadTypeRegistry.playS2C().register(FerryView.ID, FerryView.CODEC);
         PayloadTypeRegistry.playS2C().register(Explored.ID, Explored.CODEC);
+        PayloadTypeRegistry.playS2C().register(Watchers.ID, Watchers.CODEC);
         PayloadTypeRegistry.playC2S().register(ChooseRole.ID, ChooseRole.CODEC);
         PayloadTypeRegistry.playS2C().register(ClassHud.ID, ClassHud.CODEC);
     }

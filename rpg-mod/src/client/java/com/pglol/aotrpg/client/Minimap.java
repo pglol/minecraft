@@ -154,6 +154,7 @@ public final class Minimap {
             c.fill(fx - 2, fy - 2, fx + 2, fy + 2, 0xFF2A1406);
             c.fill(fx - 1, fy - 1, fx + 1, fy + 1, 0xFFFF9A2E);
         }
+        WitnessFx.minimap(c, x, y, s, ox, oz);
         // Entities: one marker per creature (titan hitbox parts are not mobs), diamonds so they never look like roofs.
         java.util.List<int[]> placed = new java.util.ArrayList<>();
         for (Entity e : mc.world.getEntities()) {
