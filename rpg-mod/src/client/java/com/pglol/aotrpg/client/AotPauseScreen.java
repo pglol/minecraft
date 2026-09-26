@@ -28,6 +28,10 @@ public class AotPauseScreen extends Screen {
         boolean mods = FabricLoader.getInstance().isModLoaded("modmenu");
         boolean op = client.player != null && client.player.hasPermissionLevel(2);
         boolean hasChar = ClientState.profile != null;
+        // Until your first memory is lived through, the wider world waits: community, adventure,
+        // switching characters and game modes are shown but greyed out.
+        var journal = com.pglol.aotrpg.client.story.StoryClient.journal;
+        boolean open = journal == null || journal.free();
         boolean war = ClientState.factions != null && !ClientState.factions.event().isEmpty();
         gridW = 3 * TW + 2 * GAP;
         gridX = Math.max(12, Math.min(width / 2 - gridW + 40, width - gridW - 12));
@@ -43,8 +47,9 @@ public class AotPauseScreen extends Screen {
         y = section(y, bh, "Character", new Tile[] {
             new Tile("Character [K]", "minecraft:writable_book", hasChar, () -> client.setScreen(new CharacterScreen(0))),
             new Tile("Satchel [B]", "minecraft:bundle", hasChar, () -> ClientPlayNetworking.send(new Net.OpenSatchel())),
-            new Tile("Characters", "minecraft:armor_stand", true, () -> ClientPlayNetworking.send(new Net.CharacterAction("list", 0))),
-            new Tile("Game Mode", "minecraft:compass", hasChar, () -> ClientPlayNetworking.send(new Net.ModeAction("open")))});
+            new Tile("Characters", "minecraft:armor_stand", open, () -> ClientPlayNetworking.send(new Net.CharacterAction("list", 0))),
+            new Tile("Game Mode", "minecraft:compass", hasChar && open, () -> ClientPlayNetworking.send(new Net.ModeAction("open")))});
+        locking = !open;
         y = section(y, bh, "Adventure", new Tile[] {
             new Tile("Journal [J]", "minecraft:book", hasChar, () -> client.setScreen(new JournalScreen())),
             new Tile("World Map [M]", "minecraft:filled_map", true, () -> client.setScreen(new WorldMapScreen())),
@@ -61,6 +66,7 @@ public class AotPauseScreen extends Screen {
                 ClientPlayNetworking.send(new Net.MarketAction("exchange", "", 0, 0));
             }),
             new Tile("Store", "minecraft:diamond", true, () -> client.setScreen(new StoreScreen(this)))});
+        locking = false;
         y = section(y, bh, "Home", new Tile[] {
             new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))),
             new Tile("Stables", "minecraft:saddle", hasChar, () -> ClientPlayNetworking.send(new Net.StableAction("view", "", ""))),
@@ -83,6 +89,9 @@ public class AotPauseScreen extends Screen {
 
     private record Tile(String label, String icon, boolean active, Runnable action) { }
 
+    /** While true, the tiles being laid out are locked (greyed out). */
+    private boolean locking;
+
     private final java.util.List<int[]> headers = new java.util.ArrayList<>();
     private final java.util.List<String> headerNames = new java.util.ArrayList<>();
 
@@ -96,7 +105,8 @@ public class AotPauseScreen extends Screen {
             int tx = gridX + (i % 3) * (TW + GAP), ty = y + (i / 3) * (bh + GAP);
             AotButton b = add(tx, ty, TW, bh, Text.literal(t.label()), t.action());
             if (bh >= 18) b.icon(new net.minecraft.item.ItemStack(net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(t.icon()))));
-            b.active = t.active();
+            b.active = t.active() && !locking;
+            if (locking) b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Opens once you've lived your first memory and come back to the present.")));
         }
         return y + ((tiles.length + 2) / 3) * (bh + GAP);
     }

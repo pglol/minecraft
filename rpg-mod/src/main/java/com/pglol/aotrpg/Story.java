@@ -259,10 +259,33 @@ public final class Story {
 
     /** Can this player see this entity? Story actors and scene titans only show to their scene. */
     public static boolean visibleTo(Entity e, ServerPlayerEntity p) {
+        // In a story moment you only see the people in it with you, and nobody outside sees you.
+        if (e instanceof ServerPlayerEntity other && other != p && !java.util.Objects.equals(moment(other), moment(p))) return false;
         UUID host = phased.get(e.getId());
         if (host == null) return true;
         if (host.equals(p.getUuid())) return true;
         return host.equals(AotRpg.STORY.guestOf.get(p.getUuid()));
+    }
+
+    /** The story moment a player is in (their scene's host), or null when they're out in the shared world. */
+    static UUID moment(ServerPlayerEntity p) {
+        Story st = AotRpg.STORY;
+        if (st == null) return null;
+        UUID h = st.guestOf.getOrDefault(p.getUuid(), p.getUuid());
+        Scene sc = st.scenes.get(h);
+        return sc != null && sc.spawned && sc.mission != null && !sc.mission.isEmpty() ? h : null;
+    }
+
+    private final Map<UUID, UUID> lastMoment = new HashMap<>();
+
+    /** True once a character has lived their first memory and come back: the rest of the world opens up. */
+    public static boolean free(State s) {
+        if (s.flags.contains("prologue_done")) return true;
+        for (String id : s.done) {
+            Mission m = AotRpg.STORY.missions.get(id);
+            if (m != null && m.returnHome) return true;
+        }
+        return false;
     }
 
     public static boolean phased(Entity e) {
@@ -474,6 +497,52 @@ public final class Story {
         }
     }
 
+    /**
+     * The nearest spot to `at` where a person fits: open at the feet and head, solid underfoot, no
+     * water, and not on top of another of the scene's actors. Keeps `at` when it's already fine;
+     * prefers staying on the same side of a roof (indoors stays indoors, outdoors outdoors).
+     */
+    private Vec3d settle(ServerWorld w, Vec3d at, Scene sc, Entity self) {
+        BlockPos base = BlockPos.ofFloored(at.x, at.y + 0.01, at.z);
+        if (!w.isChunkLoaded(base)) return at;
+        if (standable(w, base) && !crowded(w, sc, at, self)) return at;
+        boolean sky = w.isSkyVisible(base.up());
+        Vec3d best = null;
+        double bd = Double.MAX_VALUE;
+        for (int dx = -6; dx <= 6; dx++) {
+            for (int dz = -6; dz <= 6; dz++) {
+                for (int dy = -4; dy <= 4; dy++) {
+                    BlockPos c = base.add(dx, dy, dz);
+                    double d = dx * dx + dz * dz + dy * dy * 2;
+                    if (d >= bd || !standable(w, c)) continue;
+                    if (w.isSkyVisible(c.up()) != sky) d += 12;
+                    Vec3d v = new Vec3d(c.getX() + 0.5, c.getY(), c.getZ() + 0.5);
+                    if (d < bd && !crowded(w, sc, v, self)) {
+                        bd = d;
+                        best = v;
+                    }
+                }
+            }
+        }
+        return best != null ? best : at;
+    }
+
+    private static boolean standable(ServerWorld w, BlockPos p) {
+        return w.getBlockState(p).getCollisionShape(w, p).isEmpty() && w.getBlockState(p.up()).getCollisionShape(w, p.up()).isEmpty()
+            && w.getFluidState(p).isEmpty() && !w.getBlockState(p.down()).getCollisionShape(w, p.down()).isEmpty();
+    }
+
+    private boolean crowded(ServerWorld w, Scene sc, Vec3d v, Entity self) {
+        if (sc == null) return false;
+        for (UUID u : sc.actors.values()) {
+            Entity e = w.getEntity(u);
+            if (e == null || e == self || !(e instanceof VillagerEntity)) continue;
+            double dx = e.getX() - v.x, dz = e.getZ() - v.z;
+            if (dx * dx + dz * dz < 1.0 && Math.abs(e.getY() - v.y) < 2) return true;
+        }
+        return false;
+    }
+
     private static void faceTo(Entity e, Vec3d pt) {
         float yaw = (float) (MathHelper.atan2(pt.z - e.getZ(), pt.x - e.getX()) * MathHelper.DEGREES_PER_RADIAN) - 90;
         e.setYaw(yaw);
@@ -673,7 +742,7 @@ public final class Story {
                     if (sc != null) {
                         String a = o.get("actor").getAsString();
                         sc.followers.remove(a);
-                        sc.walks.put(a, resolve(w, m, o.get("to")));
+                        sc.walks.put(a, settle(w, resolve(w, m, o.get("to")), sc, actorEntity(sc, a)));
                         if (o.has("face")) sc.faces.put(a, resolve(w, m, o.get("face")));
                         else sc.faces.remove(a);
                     }
@@ -764,7 +833,7 @@ public final class Story {
             Entity old = w.getEntity(sc.actors.get(id));
             if (old != null && old.isAlive()) {
                 if (o.has("at")) {
-                    Vec3d at = resolve(w, m, o.get("at"));
+                    Vec3d at = settle(w, resolve(w, m, o.get("at")), sc, old);
                     old.requestTeleport(at.x, at.y, at.z);
                 }
                 return;
@@ -807,6 +876,8 @@ public final class Story {
         }
         VillagerEntity v = EntityType.VILLAGER.create(w);
         if (v == null) return;
+        // Somewhere a person can actually stand: not inside a wall, not on top of someone else.
+        at = settle(w, at, sc, null);
         v.refreshPositionAndAngles(at.x, at.y, at.z, o.has("yaw") ? o.get("yaw").getAsFloat() : 0, 0);
         v.setAiDisabled(true);
         v.setInvulnerable(true);
@@ -1239,6 +1310,15 @@ public final class Story {
     public void tick(ServerPlayerEntity p, Profile pr, int ticks) {
         if (!pr.created || server == null) return;
         State s = pr.story;
+        if (ticks % 10 == 0) {
+            // Stepping into or out of a story moment: who can see whom changes, so look again now.
+            UUID now = moment(p), was = lastMoment.get(p.getUuid());
+            if (!java.util.Objects.equals(now, was)) {
+                if (now == null) lastMoment.remove(p.getUuid());
+                else lastMoment.put(p.getUuid(), now);
+                p.getServerWorld().getChunkManager().updatePosition(p);
+            }
+        }
         if (s.mission.startsWith("@")) {
             startMission(p, pr, s.mission.substring(1));
             return;
@@ -1682,6 +1762,7 @@ public final class Story {
         s.mission = "";
         s.step = 0;
         // A memory ends where it began: back to the present.
+        if (m.returnHome) s.flags.add("prologue_done");
         if (m.returnHome && s.back != null) {
             p.teleport(server.getOverworld(), s.back[0], s.back[1], s.back[2], p.getYaw(), p.getPitch());
             s.back = null;
@@ -2151,7 +2232,7 @@ public final class Story {
         }
         ServerPlayNetworking.send(p, new Net.StoryJournal(m == null ? "" : m.chapter, m == null ? "" : m.title,
             m == null ? "" : threadName(m.thread),
-            st == null ? "" : st.objective, people, deeds, ideology(s), done, offers));
+            st == null ? "" : st.objective, people, deeds, ideology(s), done, offers, free(s)));
     }
 
     /** Words for who you've become (never numbers). */

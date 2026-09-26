@@ -270,19 +270,20 @@ public final class Net {
     /** Server -> client: the story pages of the journal. */
     public record StoryJournal(String chapter, String title, String thread, String objective, java.util.List<Person> people,
                                java.util.List<String> deeds, java.util.List<String> ideology, java.util.List<String> done,
-                               java.util.List<String> available) implements CustomPayload {
+                               java.util.List<String> available, boolean free) implements CustomPayload {
         public static final Id<StoryJournal> ID = Net.id("story_journal");
         public static final PacketCodec<RegistryByteBuf, StoryJournal> CODEC = PacketCodec.of((v, b) -> {
             b.writeString(v.chapter); b.writeString(v.title); b.writeString(v.thread); b.writeString(v.objective);
             b.writeVarInt(v.people.size());
             for (Person p : v.people) { b.writeString(p.name()); b.writeString(p.skin()); b.writeVarInt(p.affinity() + 100); b.writeString(p.fate()); }
             writeStrings(b, v.deeds); writeStrings(b, v.ideology); writeStrings(b, v.done); writeStrings(b, v.available);
+            b.writeBoolean(v.free);
         }, b -> {
             String c = b.readString(), t = b.readString(), th = b.readString(), o = b.readString();
             int n = Math.min(b.readVarInt(), 256);
             java.util.List<Person> ps = new java.util.ArrayList<>();
             for (int i = 0; i < n; i++) ps.add(new Person(b.readString(), b.readString(), b.readVarInt() - 100, b.readString()));
-            return new StoryJournal(c, t, th, o, ps, readStrings(b), readStrings(b), readStrings(b), readStrings(b));
+            return new StoryJournal(c, t, th, o, ps, readStrings(b), readStrings(b), readStrings(b), readStrings(b), b.readBoolean());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
