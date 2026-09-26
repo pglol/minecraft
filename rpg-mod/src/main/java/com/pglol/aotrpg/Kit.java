@@ -41,8 +41,11 @@ public final class Kit {
     public static void give(ServerPlayerEntity p, Profile pr, int[] camp) {
         // Uniform: the AoT mod's uniform when installed.
         Item uniformItem = AotItems.exact("uniform");
-        if (uniformItem != null) p.giveItemStack(new ItemStack(uniformItem));
-        else p.giveItemStack(uniform(Items.LEATHER_CHESTPLATE, 0x6B4F2A, "Cadet Jacket", "Standard issue, 104th Cadet Corps"));
+        ItemStack jacket = uniformItem != null ? new ItemStack(uniformItem)
+            : uniform(Items.LEATHER_CHESTPLATE, 0x6B4F2A, "Cadet Jacket", "Standard issue, 104th Cadet Corps");
+        // Starter clothes go straight on, so a new cadet isn't left hunting through their bag.
+        if (p.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST).isEmpty()) p.equipStack(net.minecraft.entity.EquipmentSlot.CHEST, jacket);
+        else p.giveItemStack(jacket);
         // The ODM harness is worn on the legs; without the AoT mod, plain training trousers.
         Item harness = AotItems.exact("odm_gear");
         if (harness != null) {
@@ -54,9 +57,10 @@ public final class Kit {
         }
         // The AoT mod's own ODM boots when installed, else renamed leather boots.
         Item boots = AotItems.exact("odm_boots");
-        if (boots != null) p.giveItemStack(new ItemStack(boots));
-        else p.giveItemStack(uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "ODM Boots",
-            "Strapped boots for ODM gear. Standard issue, 104th Cadet Corps"));
+        ItemStack bootStack = boots != null ? new ItemStack(boots) : uniform(Items.LEATHER_BOOTS, 0x3B2A1A, "ODM Boots",
+            "Strapped boots for ODM gear. Standard issue, 104th Cadet Corps");
+        if (p.getEquippedStack(net.minecraft.entity.EquipmentSlot.FEET).isEmpty()) p.equipStack(net.minecraft.entity.EquipmentSlot.FEET, bootStack);
+        else p.giveItemStack(bootStack);
         if (AotItems.present()) {
             // Two grips (the blade handles held in each hand), a gas canister, and supplies in the satchel.
             Item grip = AotItems.exact("blade");

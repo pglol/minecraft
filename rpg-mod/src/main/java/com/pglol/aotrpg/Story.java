@@ -276,7 +276,7 @@ public final class Story {
 
     private Vec3d resolve(ServerWorld w, Mission m, JsonElement spec) {
         String placeId = m.place;
-        double f = 0, r = 0, dy = 0;
+        double f = 0, r = 0, dy = 0, frac = -1;
         String gate = null;
         if (spec != null && spec.isJsonArray() && spec.getAsJsonArray().size() > 0) {
             JsonArray a = spec.getAsJsonArray();
@@ -290,6 +290,10 @@ public final class Story {
                 r = o.getAsJsonArray("rel").get(1).getAsDouble();
             }
             if (o.has("gate")) gate = o.get("gate").getAsString();
+            if (o.has("edge")) {
+                gate = o.get("edge").getAsString();
+                frac = o.has("frac") ? o.get("frac").getAsDouble() : 0.7;
+            }
             if (o.has("y")) dy = o.get("y").getAsDouble();
         }
         int[] p = placeOf(placeId);
@@ -303,13 +307,22 @@ public final class Story {
             if (wall > 0) {
                 double gx = px / len * wall, gz = pz / len * wall;
                 double depth = Math.max(40, 2 * (len - wall - 8));
+                double ex, ez;
                 if (gate.equals("outer")) {
-                    px = gx - dx * depth;
-                    pz = gz - dz * depth;
+                    ex = gx - dx * depth;
+                    ez = gz - dz * depth;
                 } else {
-                    px = gx + dx * 10;
-                    pz = gz + dz * 10;
+                    ex = gx + dx * 10;
+                    ez = gz + dz * 10;
                 }
+                if (frac >= 0) {
+                    // Part of the way from the district's centre toward that gate: always in its streets.
+                    double wx = p[0], wz = p[2];
+                    ex = wx + (gate.equals("outer") ? gx - dx * depth - wx : gx - wx) * frac;
+                    ez = wz + (gate.equals("outer") ? gz - dz * depth - wz : gz - wz) * frac;
+                }
+                px = ex;
+                pz = ez;
             }
         }
         double rx = -dz, rz = dx;
@@ -588,6 +601,18 @@ public final class Story {
         }
         ActorDef def = actors.getOrDefault(id, new ActorDef());
         Vec3d at = resolve(w, m, o.get("at"));
+        if (def.item != null && def.item.equals("boat")) {
+            var boat = EntityType.BOAT.create(w);
+            if (boat == null) return;
+            boat.refreshPositionAndAngles(at.x, at.y, at.z, o.has("yaw") ? o.get("yaw").getAsFloat() : 0, 0);
+            boat.setInvulnerable(true);
+            boat.addCommandTag("aot_aid:" + id);
+            tagPhased(boat, sc);
+            w.spawnEntity(boat);
+            phased.put(boat.getId(), sc.host);
+            sc.actors.put(id, boat.getUuid());
+            return;
+        }
         if (def.item != null) {
             // A prop: something to take (a gear pack, a crate), held by an invisible stand.
             var stand = EntityType.ARMOR_STAND.create(w);
@@ -932,12 +957,13 @@ public final class Story {
                 double bd = Double.MAX_VALUE;
                 for (ServerPlayerEntity x : mem) {
                     double d = x.squaredDistanceTo(t);
-                    if (d < bd && !x.isSpectator()) {
+                    if (d < bd && !x.isSpectator() && !AotRpg.DOWNED.isDowned(x)) {
                         bd = d;
                         best = x;
                     }
                 }
                 if (best != null && (mob.getTarget() != best || mob.getTarget() == null)) mob.setTarget(best);
+                else if (best == null && mob.getTarget() != null) mob.setTarget(null);
             }
         }
     }

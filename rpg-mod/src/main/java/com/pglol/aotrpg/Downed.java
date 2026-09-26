@@ -124,6 +124,15 @@ public final class Downed {
                 continue;
             }
             ServerWorld w = p.getServerWorld();
+            // The downed are left alone: nothing keeps hunting or holding someone bleeding on the ground.
+            if (p.hasVehicle()) p.stopRiding();
+            if (ticks % 5 == 0) {
+                for (net.minecraft.entity.mob.MobEntity mob : w.getEntitiesByClass(net.minecraft.entity.mob.MobEntity.class,
+                    p.getBoundingBox().expand(48), m -> m.getTarget() == p)) {
+                    mob.setTarget(null);
+                    mob.getNavigation().stop();
+                }
+            }
             // Crawling: low, slow, no fighting.
             p.setPose(EntityPose.SWIMMING);
             if (ticks % 10 == 0) {

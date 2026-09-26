@@ -326,18 +326,76 @@
      "done": []
     },
     {
-     "objective": "Get to the boats at the inner gate",
+     "objective": "Get to the evacuation boats by the inner gate",
      "goal": {
       "goto": {
-       "gate": "inner",
+       "edge": "inner",
+       "frac": 0.8,
        "rel": [
-        -6,
+        0,
         0
        ]
       },
-      "radius": 9
+      "radius": 10
      },
-     "spawn": [],
+     "spawn": [
+      {
+       "actor": "boat1",
+       "at": {
+        "edge": "inner",
+        "frac": 0.84,
+        "rel": [
+         0,
+         4
+        ]
+       }
+      },
+      {
+       "actor": "boat2",
+       "at": {
+        "edge": "inner",
+        "frac": 0.84,
+        "rel": [
+         0,
+         -4
+        ]
+       }
+      },
+      {
+       "actor": "boat3",
+       "at": {
+        "edge": "inner",
+        "frac": 0.88,
+        "rel": [
+         0,
+         0
+        ]
+       }
+      },
+      {
+       "actor": "armin_child",
+       "at": {
+        "edge": "inner",
+        "frac": 0.8,
+        "rel": [
+         0,
+         2
+        ]
+       },
+       "face": true
+      },
+      {
+       "actor": "refugee",
+       "at": {
+        "edge": "inner",
+        "frac": 0.82,
+        "rel": [
+         0,
+         -2
+        ]
+       }
+      }
+     ],
      "start": [],
      "done": []
     },
@@ -351,13 +409,36 @@
       {
        "actor": "armin_child",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.8,
         "rel": [
-         -4,
-         3
+         0,
+         2
         ]
        },
        "face": true
+      },
+      {
+       "actor": "boat1",
+       "at": {
+        "edge": "inner",
+        "frac": 0.84,
+        "rel": [
+         0,
+         4
+        ]
+       }
+      },
+      {
+       "actor": "boat2",
+       "at": {
+        "edge": "inner",
+        "frac": 0.84,
+        "rel": [
+         0,
+         -4
+        ]
+       }
       }
      ],
      "start": [],
@@ -407,10 +488,11 @@
       {
        "actor": "armin_child",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.7,
         "rel": [
-         12,
-         4
+         -4,
+         3
         ]
        },
        "face": true
@@ -418,20 +500,22 @@
       {
        "actor": "eren_child",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.7,
         "rel": [
-         13,
-         6
+         -5,
+         5
         ]
        }
       },
       {
        "actor": "mikasa_child",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.7,
         "rel": [
-         13,
-         2
+         -5,
+         1
         ]
        }
       }
@@ -439,9 +523,10 @@
      "start": [
       {
        "teleport": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.7,
         "rel": [
-         8,
+         0,
          0
         ]
        }
@@ -484,18 +569,42 @@
    ],
    "steps": [
     {
-     "objective": "Boats are coming in at the inner gate. Go and see",
+     "objective": "Boats are coming in by the inner gate. Go and see",
      "goal": {
       "goto": {
-       "gate": "inner",
+       "edge": "inner",
+       "frac": 0.75,
        "rel": [
-        8,
+        0,
         0
        ]
       },
       "radius": 10
      },
-     "spawn": [],
+     "spawn": [
+      {
+       "actor": "boat1",
+       "at": {
+        "edge": "inner",
+        "frac": 0.8,
+        "rel": [
+         0,
+         4
+        ]
+       }
+      },
+      {
+       "actor": "boat2",
+       "at": {
+        "edge": "inner",
+        "frac": 0.8,
+        "rel": [
+         0,
+         -4
+        ]
+       }
+      }
+     ],
      "start": [],
      "done": [
       {
@@ -516,9 +625,10 @@
       {
        "actor": "garrison_captain",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.75,
         "rel": [
-         10,
+         -2,
          4
         ]
        },
@@ -527,9 +637,10 @@
       {
        "actor": "refugee",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.75,
         "rel": [
-         12,
+         -3,
          -3
         ]
        }
@@ -537,10 +648,11 @@
       {
        "actor": "lotte",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.75,
         "rel": [
-         9,
-         -5
+         -1,
+         -6
         ]
        }
       }
@@ -1306,7 +1418,7 @@
    ],
    "steps": [
     {
-     "objective": "Put on your ODM harness for the aptitude test",
+     "objective": "Put on your ODM harness for the aptitude test (open your inventory with E and wear it)",
      "goal": {
       "wear": "odm"
      },
@@ -1632,9 +1744,10 @@
      "objective": "Report to your squad near Trost's outer gate",
      "goal": {
       "goto": {
-       "gate": "outer",
+       "edge": "outer",
+       "frac": 0.55,
        "rel": [
-        14,
+        0,
         0
        ]
       },
@@ -1644,9 +1757,10 @@
       {
        "actor": "eren",
        "at": {
-        "gate": "outer",
+        "edge": "outer",
+        "frac": 0.55,
         "rel": [
-         16,
+         0,
          2
         ]
        },
@@ -1655,9 +1769,10 @@
       {
        "actor": "sasha",
        "at": {
-        "gate": "outer",
+        "edge": "outer",
+        "frac": 0.55,
         "rel": [
-         16,
+         0,
          -2
         ]
        }
@@ -1665,9 +1780,10 @@
       {
        "actor": "connie",
        "at": {
-        "gate": "outer",
+        "edge": "outer",
+        "frac": 0.55,
         "rel": [
-         17,
+         -1,
          -3
         ]
        }
@@ -1675,9 +1791,10 @@
       {
        "actor": "samuel",
        "at": {
-        "gate": "outer",
+        "edge": "outer",
+        "frac": 0.55,
         "rel": [
-         17,
+         -1,
          3
         ]
        }
@@ -1685,9 +1802,10 @@
       {
        "actor": "thomas",
        "at": {
-        "gate": "outer",
+        "edge": "outer",
+        "frac": 0.55,
         "rel": [
-         18,
+         -2,
          1
         ]
        }
@@ -1764,9 +1882,10 @@
       {
        "titans": 3,
        "at": {
-        "gate": "outer",
+        "edge": "outer",
+        "frac": 0.85,
         "rel": [
-         4,
+         0,
          0
         ]
        },
@@ -1827,10 +1946,11 @@
       {
        "titans": 1,
        "at": {
-        "gate": "outer",
+        "edge": "outer",
+        "frac": 0.7,
         "rel": [
-         30,
-         8
+         0,
+         12
         ]
        },
        "spread": 2
@@ -1877,9 +1997,10 @@
       {
        "actor": "dimo_reeves",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.75,
         "rel": [
-         10,
+         0,
          0
         ]
        },
@@ -1888,9 +2009,10 @@
       {
        "actor": "civilian_f",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.73,
         "rel": [
-         12,
+         0,
          2
         ]
        }
@@ -1898,9 +2020,10 @@
       {
        "actor": "civilian_m",
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.73,
         "rel": [
-         12,
+         0,
          -2
         ]
        }
@@ -1918,9 +2041,10 @@
       {
        "titans": 2,
        "at": {
-        "gate": "inner",
+        "edge": "inner",
+        "frac": 0.35,
         "rel": [
-         40,
+         0,
          0
         ]
        },
@@ -1932,9 +2056,10 @@
        "walk": {
         "actor": "civilian_f",
         "to": {
-         "gate": "inner",
+         "edge": "inner",
+         "frac": 0.95,
          "rel": [
-          -6,
+          0,
           0
          ]
         }
@@ -1944,9 +2069,10 @@
        "walk": {
         "actor": "civilian_m",
         "to": {
-         "gate": "inner",
+         "edge": "inner",
+         "frac": 0.95,
          "rel": [
-          -6,
+          0,
           2
          ]
         }

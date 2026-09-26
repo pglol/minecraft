@@ -102,6 +102,21 @@ public final class GameHints {
         return Util.getMeasuringTimeMs() - lastShown.getOrDefault(id, -restMs - 1) > restMs || current.equals(id);
     }
 
+    /** Gear you're carrying but not wearing while its slot is empty (the ODM harness, boots, uniform, armor). */
+    private static String unworn(net.minecraft.client.network.ClientPlayerEntity pl) {
+        for (ItemStack s : pl.getInventory().main) {
+            if (s.isEmpty()) continue;
+            net.minecraft.entity.EquipmentSlot slot = null;
+            String path = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath();
+            if (path.equals("odm_boots")) slot = net.minecraft.entity.EquipmentSlot.FEET;
+            else if (path.equals("odm_gear")) slot = net.minecraft.entity.EquipmentSlot.LEGS;
+            else if (path.equals("uniform")) slot = net.minecraft.entity.EquipmentSlot.CHEST;
+            else if (s.getItem() instanceof net.minecraft.item.ArmorItem a) slot = a.getSlotType();
+            if (slot != null && pl.getEquippedStack(slot).isEmpty()) return s.getName().getString();
+        }
+        return null;
+    }
+
     /** The one hint that matters most right now, or "" (id|text). */
     private static String[] pick(MinecraftClient mc) {
         var pl = mc.player;
@@ -109,6 +124,10 @@ public final class GameHints {
         int need = needsReload(main);
         if (need == 1) return new String[] {"reload", "(" + reloadKey() + " to reload blades)"};
         if (need == 2) return new String[] {"reload", "(" + reloadKey() + " to reload APG)"};
+        String unworn = unworn(pl);
+        if (unworn != null && ready("wear", 40_000)) {
+            return new String[] {"wear", "Open your inventory (" + key(mc.options.inventoryKey) + ") and put on your " + unworn};
+        }
         if (ClientState.stamina >= 0 && ClientState.stamina < ClientState.maxStamina * 0.15f && ready("stamina", 45_000)) {
             return new String[] {"stamina", "Stamina low: land and catch your breath"};
         }

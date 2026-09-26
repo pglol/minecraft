@@ -179,6 +179,18 @@
   "civilian_m": {
    "name": "Townsman",
    "skin": "civilian_m"
+  },
+  "boat1": {
+   "name": "Evacuation boat",
+   "item": "boat"
+  },
+  "boat2": {
+   "name": "Evacuation boat",
+   "item": "boat"
+  },
+  "boat3": {
+   "name": "Evacuation boat",
+   "item": "boat"
   }
  }
 }
