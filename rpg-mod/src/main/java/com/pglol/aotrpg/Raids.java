@@ -126,12 +126,25 @@ public final class Raids {
                 if (Math.hypot(a.x() - p.getX(), a.z() - p.getZ()) > 96) continue;
                 if (!w.isChunkLoaded(a.x() >> 4, a.z() >> 4)) continue;
                 Box box = new Box(a.x() - 48, -64, a.z() - 48, a.x() + 48, 400, a.z() + 48);
-                if (!w.getEntitiesByClass(VillagerEntity.class, box, Raids::commander).isEmpty()) continue;
-                int x = a.x() + 3, z = a.z() + 3;
-                int y = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                List<VillagerEntity> there = w.getEntitiesByClass(VillagerEntity.class, box, Raids::commander);
+                if (!there.isEmpty()) {
+                    // One placed before this fix may be standing in the fountain: walk them out.
+                    for (VillagerEntity v : there) {
+                        if (!v.isTouchingWater() && w.getFluidState(v.getBlockPos().down()).isEmpty()) continue;
+                        BlockPos dry = dryGround(w, a.x(), a.z());
+                        if (dry != null) v.refreshPositionAndAngles(dry.getX() + 0.5, dry.getY(), dry.getZ() + 0.5, v.getYaw(), 0);
+                    }
+                    continue;
+                }
+                BlockPos dry = dryGround(w, a.x(), a.z());
+                if (dry == null) continue;
                 VillagerEntity v = EntityType.VILLAGER.create(w);
                 if (v == null) continue;
-                v.refreshPositionAndAngles(x + 0.5, y, z + 0.5, 0, 0);
+                // Facing the middle of the square.
+                float yaw = (float) Math.toDegrees(Math.atan2(-(a.x() - dry.getX()), a.z() - dry.getZ()));
+                v.refreshPositionAndAngles(dry.getX() + 0.5, dry.getY(), dry.getZ() + 0.5, yaw, 0);
+                v.setHeadYaw(yaw);
+                v.setBodyYaw(yaw);
                 v.setAiDisabled(true);
                 v.setInvulnerable(true);
                 v.setPersistent();
@@ -142,6 +155,37 @@ public final class Raids {
                 w.spawnEntity(v);
             }
         }
+    }
+
+    /**
+     * Somewhere to stand near a square's middle: level, dry paving with open air above and no water
+     * within two blocks (town squares have a fountain in the middle).
+     */
+    static BlockPos dryGround(ServerWorld w, int cx, int cz) {
+        for (int r = 7; r <= 22; r++) {
+            for (int k = 0; k < 16; k++) {
+                double ang = (k + (r % 2) * 0.5) * Math.PI / 8;
+                int x = cx + (int) Math.round(Math.cos(ang) * r), z = cz + (int) Math.round(Math.sin(ang) * r);
+                int y = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                BlockPos feet = new BlockPos(x, y, z);
+                var ground = w.getBlockState(feet.down());
+                if (!ground.getFluidState().isEmpty() || !ground.isSolidBlock(w, feet.down())) continue;
+                if (!w.getBlockState(feet).isAir() || !w.getBlockState(feet.up()).isAir()) continue;
+                boolean wet = false, rough = false;
+                for (int dx = -2; dx <= 2 && !wet; dx++) {
+                    for (int dz = -2; dz <= 2; dz++) {
+                        int ty = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x + dx, z + dz);
+                        if (Math.abs(ty - y) > 1) rough = true;
+                        if (!w.getFluidState(new BlockPos(x + dx, ty - 1, z + dz)).isEmpty()) {
+                            wet = true;
+                            break;
+                        }
+                    }
+                }
+                if (!wet && !rough) return feet;
+            }
+        }
+        return null;
     }
 
     public void talk(ServerPlayerEntity p) {
