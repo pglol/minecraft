@@ -26,7 +26,19 @@ public final class Combat {
             if (Gear.canUse(attacker, attacker.getMainHandStack())) mult *= 1 + Gear.power(attacker.getMainHandStack());
             mult *= AotRpg.ABILITIES.outgoing(attacker, entity, source);
         }
-        if (entity instanceof ServerPlayerEntity def) mult *= AotRpg.ABILITIES.incoming(def);
+        if (entity instanceof ServerPlayerEntity def) {
+            mult *= AotRpg.ABILITIES.incoming(def);
+            // Titans hit hard, and far harder when they outrank you; in their grip it's worse still.
+            net.minecraft.entity.Entity vehicle = def.getVehicle();
+            boolean eaten = vehicle != null && AotRpg.isTitan(vehicle);
+            LivingEntity titan = TitanLevels.rootOf(source.getAttacker());
+            if (titan == null && eaten) titan = TitanLevels.rootOf(vehicle);
+            if (titan == null && source.getSource() != null) titan = TitanLevels.rootOf(source.getSource());
+            // (A shifter steered by a player is PvP: that stays as Danny's mod makes it.)
+            if (titan != null && TitanLevels.level(titan) > 0 && !(titan.getControllingPassenger() instanceof PlayerEntity)) {
+                mult *= TitanLevels.hitMultiplier(titan, def, eaten);
+            }
+        }
         return Math.abs(mult - 1) < 1e-4 ? amount : (float) (amount * mult);
     }
 

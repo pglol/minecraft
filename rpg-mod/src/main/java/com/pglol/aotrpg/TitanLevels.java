@@ -186,6 +186,27 @@ public final class TitanLevels {
 
     private final Map<UUID, Swing> swings = new HashMap<>();
 
+    /** The titan behind an entity: itself, or the titan a part (nape, hand, grab) belongs to. */
+    public static LivingEntity rootOf(Entity e) {
+        if (e == null) return null;
+        if (root(e)) return (LivingEntity) e;
+        return part(e) || AotRpg.isTitan(e) ? owner(e) : null;
+    }
+
+    /**
+     * How much harder a titan hits a player: it grows with the titan's level and, steeply, with how
+     * far it outranks you; being grabbed or eaten doubles it. A level 12 caught by a level 66 dies in
+     * a swat, and in seconds in its hand.
+     */
+    public static double hitMultiplier(LivingEntity titan, ServerPlayerEntity p, boolean eaten) {
+        int tl = Math.max(1, level(titan));
+        int gap = tl - AotRpg.PROFILES.get(p.getUuid()).level;
+        double m = 1 + 0.03 * tl;
+        m *= gap > 0 ? 1 + 0.12 * gap : Math.max(0.5, 1 + 0.03 * gap);
+        if (eaten) m *= 2;
+        return Math.min(40, m);
+    }
+
     /** Who last cut this titan (within a few seconds), or null. */
     public ServerPlayerEntity lastStriker(Entity titan) {
         Swing s = swings.get(titan.getUuid());

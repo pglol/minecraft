@@ -616,7 +616,8 @@ public final class Estate {
         m.setInvulnerable(true);
         m.addCommandTag(tag);
         if (m instanceof TameableEntity t) {
-            t.setTamedBy(owner);
+            t.setTamed(true, true);
+            t.setOwnerUuid(owner.getUuid());
         }
         if (m instanceof net.minecraft.entity.passive.PandaEntity panda) panda.setBaby(true);
         m.setCustomName(Text.literal(pet.name()).formatted(Formatting.GRAY));
