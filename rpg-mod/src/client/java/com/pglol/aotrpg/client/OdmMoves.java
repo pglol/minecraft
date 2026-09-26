@@ -104,7 +104,16 @@ public final class OdmMoves {
             // A dash where you look, leaned by the keys; keeps some momentum so it flows.
             kind = DASH;
             Vec3d look = pl.getRotationVec(1f);
-            Vec3d dir = moving ? look.add(wish.multiply(0.6)).normalize() : look;
+            boolean back = fwd < -0.1f;
+            Vec3d dir;
+            if (back) {
+                // Holding back always wins: a dash away behind you (angled if a side key is held too),
+                // shedding most of the forward speed so you actually reverse.
+                dir = new Vec3d(wish.x, 0.22, wish.z).normalize();
+                v = v.multiply(0.1, 1, 0.1);
+            } else {
+                dir = moving ? look.add(wish.multiply(0.6)).normalize() : look;
+            }
             nv = v.multiply(0.3).add(dir.multiply(1.3));
             nv = new Vec3d(nv.x, Math.max(nv.y, dir.y * 1.3 + 0.3), nv.z);
             if (nv.length() > 2.0) nv = nv.normalize().multiply(2.0);
