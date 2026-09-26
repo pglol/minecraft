@@ -51,12 +51,15 @@ public class AotButton extends PressableWidget {
         int col = !active ? Ui.DIM : (selected || hov) ? Ui.GOLD : Ui.CREAM;
         int tx = x + 8;
         if (icon != null) {
-            c.drawItem(icon, x + 6, y + (h - 16) / 2);
+            boolean alone = sub == null && getMessage().getString().isEmpty();
+            c.drawItem(icon, alone ? x + (w - 16) / 2 : x + 6, y + (h - 16) / 2);
             tx = x + 27;
         }
         if (icon == null && sub == null) {
             Ui.text(c, getMessage(), x + w / 2f, y + (h - 8 * textScale) / 2f + 1, textScale, col, true);
         } else if (sub == null) {
+            // Icon-only buttons (no label) show just the icon, centred.
+            if (getMessage().getString().isEmpty()) return;
             c.drawTextWithShadow(Ui.font(), fit(getMessage(), x + w - 6 - tx), tx, y + (h - 8) / 2, col);
         } else {
             // Long lines are trimmed with an ellipsis so nothing spills past the button.

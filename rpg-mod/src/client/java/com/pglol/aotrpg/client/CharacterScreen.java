@@ -46,7 +46,7 @@ public class CharacterScreen extends Screen {
         if (p == null) return;
         w = Math.min(440, width - 20);
         left = (width - w) / 2;
-        top = 70;
+        top = 86;
         h = Math.min(tab == 1 ? 330 : 300, height - top - 8);
 
         String[] tabs = {"Attributes", "Skills"};
@@ -116,11 +116,11 @@ public class CharacterScreen extends Screen {
         Text sub = Text.literal("Level " + p.level() + " ").withColor(Ui.CREAM)
             .append(Text.literal(p.disciplineEnum().title).withColor(Ui.disciplineColor(p.discipline())))
             .append(Text.literal("  ·  " + p.originEnum().title + "  ·  Titans slain: " + p.titanKills()).withColor(Ui.MUTED));
-        c.drawCenteredTextWithShadow(textRenderer, sub, width / 2, 27, 0xFFFFFFFF);
+        c.drawCenteredTextWithShadow(textRenderer, sub, width / 2, 26, 0xFFFFFFFF);
         int bw = 220;
-        Ui.bar(c, width / 2 - bw / 2, 39, bw, 7, p.need() > 0 ? (float) p.xp() / p.need() : 1, Ui.XP);
+        Ui.bar(c, width / 2 - bw / 2, 38, bw, 6, p.need() > 0 ? (float) p.xp() / p.need() : 1, Ui.XP);
         String xp = p.level() >= 100 ? "MAX LEVEL" : p.xp() + " / " + p.need() + " XP";
-        c.drawCenteredTextWithShadow(textRenderer, Text.literal(xp), width / 2, 49, Ui.MUTED);
+        c.drawCenteredTextWithShadow(textRenderer, Text.literal(xp), width / 2, 47, Ui.MUTED);
 
         Ui.panel(c, left, top, w, h);
         if (tab == 0) drawAttributes(c, p);

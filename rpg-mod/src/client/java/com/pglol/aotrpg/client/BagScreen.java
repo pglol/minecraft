@@ -37,6 +37,7 @@ public final class BagScreen extends Screen {
     private int gx, gy, cols, rows, cw, ch, detailX, detailW;
     private TextFieldWidget price;
     private int equipRow = -1;
+    private int[] stripX = new int[0];
 
     private ItemStack placed(int t) {
         if (client == null || client.player == null) return ItemStack.EMPTY;
@@ -125,20 +126,21 @@ public final class BagScreen extends Screen {
         cw = 36;
         ch = 46;
         cols = Math.max(3, (detailX - 10 - gx) / (cw + 5));
-        rows = Math.max(1, (height - 64 - gy) / (ch + 5));
+        rows = Math.max(1, (height - 66 - gy) / (ch + 5));
         // What you wear and carry: click to put it back in the satchel.
         int[] order = {103, 102, 101, 100, Satchel.OFF, 0, 1, 2, 3, 4, 5, 6, 7, 8};
-        int sx = gx + 100;
+        int ts = 24, sx = gx, sy = height - 40;
+        stripX = new int[order.length];
         for (int i = 0; i < order.length; i++) {
             int t = order[i];
-            ItemStack cur = placed(t);
-            AotButton b = addDrawableChild(new AotButton(sx + i * 22 + (i >= 5 ? 6 : 0), height - 27, 20, 20, Text.empty(), () -> {
+            int x = sx + i * (ts + 3) + (i >= 4 ? 10 : 0) + (i >= 5 ? 10 : 0);
+            stripX[i] = x;
+            PlaceTile tile = addDrawableChild(new PlaceTile(x, sy, ts, t, () -> placed(t), () -> {
                 if (!placed(t).isEmpty()) act("store", -1, t);
             }));
-            if (!cur.isEmpty()) b.icon(cur.copy());
-            b.accent = t >= Satchel.ARMOR ? Ui.TRIM : t == Satchel.OFF ? Ui.GOLD : LoadoutUi.color(Loadout.SLOTS[t]);
-            b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(placeName(t)
-                + (cur.isEmpty() ? " (empty)" : ": " + cur.getName().getString() + "\nClick to put it in the satchel"))));
+            ItemStack cur = placed(t);
+            tile.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(placeName(t)
+                + (cur.isEmpty() ? " (empty)" : ": " + cur.getName().getString() + "\nClick to put it back in the satchel"))));
         }
         // Category tabs across the top.
         int tw = 22, tx = width / 2 - (TABS.length * (tw + 4)) / 2;
@@ -155,7 +157,7 @@ public final class BagScreen extends Screen {
             b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(TABS[i])));
         }
         addDrawableChild(new AotButton(width - 30, 8, 22, 22, Text.literal("✕"), this::close));
-        addDrawableChild(new AotButton(gx + 100 + 14 * 22 + 16, height - 26, 90, 18, Text.literal("Sort: " + SORTS[sort]), () -> {
+        addDrawableChild(new AotButton(150, 11, 90, 16, Text.literal("Sort: " + SORTS[sort]), () -> {
             sort = (sort + 1) % SORTS.length;
             clearAndInit();
         }));
@@ -170,15 +172,17 @@ public final class BagScreen extends Screen {
             for (int t : new int[] {103, 102, 101, 100, Satchel.OFF, 0, 1, 2, 3, 4, 5, 6, 7, 8}) {
                 if (client.player != null && Satchel.fitsPlace(client.player, s, t)) places.add(t);
             }
-            int py = by - 50;
-            for (int i = 0; i < places.size() && i < 8; i++) {
+            int es = 30, per = Math.max(1, (bw + 4) / (es + 4));
+            int lines = (Math.min(places.size(), per * 2) + per - 1) / per;
+            int py = by - 36 - lines * (es + 12);
+            for (int i = 0; i < places.size() && i < per * 2; i++) {
                 int t = places.get(i);
                 ItemStack cur = placed(t);
-                AotButton b = addDrawableChild(new AotButton(bx + i * 22, py, 20, 20, Text.empty(), () -> act("equip", slot, t)));
-                if (!cur.isEmpty()) b.icon(cur.copy());
-                b.accent = Ui.GOLD;
-                b.active = !GearUi.locked(s);
-                b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Equip to " + placeName(t)
+                PlaceTile tile = addDrawableChild(new PlaceTile(bx + (i % per) * (es + 4), py + (i / per) * (es + 12), es, t,
+                    () -> placed(t), () -> act("equip", slot, t)));
+                tile.highlight = true;
+                tile.active = !GearUi.locked(s);
+                tile.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Equip to " + placeName(t)
                     + (cur.isEmpty() ? "" : "\n(swaps with " + cur.getName().getString() + ")"))));
             }
             equipRow = places.isEmpty() ? -1 : py;
@@ -273,8 +277,14 @@ public final class BagScreen extends Screen {
             c.fill(bx, ty, bx + 2, ty + th, Ui.GOLD);
         }
         detail(c);
-        Ui.text(c, Ui.heading("Worn & loadout"), gx, height - 21, 0.8f, Ui.GOLD, false);
-        Ui.text(c, Text.literal("click to take off"), gx, height - 12, 0.55f, Ui.MUTED, false);
+        // The worn & loadout band along the bottom, with its three groups named.
+        c.fill(0, height - 58, detailX - 8, height, 0xB0101410);
+        c.fill(0, height - 58, detailX - 8, height - 57, 0x80B8955A);
+        if (stripX.length == 14) {
+            Ui.text(c, Ui.heading("Armor"), stripX[0], height - 53, 0.7f, Ui.GOLD, false);
+            Ui.text(c, Ui.heading("Hand"), stripX[4], height - 53, 0.7f, Ui.GOLD, false);
+            Ui.text(c, Ui.heading("Loadout  ·  click a slot to put it back in the satchel"), stripX[5], height - 53, 0.7f, Ui.GOLD, false);
+        }
         if (equipRow >= 0) Ui.text(c, Ui.heading("Equip to"), detailX + 8, equipRow - 11, 0.8f, 0xFF3A3020, false);
     }
 

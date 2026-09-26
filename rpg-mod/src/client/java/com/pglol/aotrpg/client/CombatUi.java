@@ -52,7 +52,9 @@ public final class CombatUi {
         wasAttackDown = down;
         var held = mc.player.getMainHandStack();
         long nowMs = Util.getMeasuringTimeMs();
-        if (struck && nowMs - lastSlashAt > 150 && com.pglol.aotrpg.Guard.melee(held) && !com.pglol.aotrpg.AotItems.isApgGun(held)) {
+        // No slash while the blade is raised to block (holding right click): you aren't swinging.
+        boolean blocking = guarding() || mc.options.useKey.isPressed() || mc.player.isUsingItem();
+        if (struck && !blocking && nowMs - lastSlashAt > 150 && com.pglol.aotrpg.Guard.melee(held) && !com.pglol.aotrpg.AotItems.isApgGun(held)) {
             Entity target = mc.targetedEntity;
             if (target == null) {
                 Vec3d eye = mc.player.getEyePos(), look = mc.player.getRotationVec(1f);
