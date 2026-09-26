@@ -35,7 +35,8 @@ public final class HomeRaids {
     public static final int GUARD = 48;
     private static final long DAY = 86_400_000L, WEEK = 7 * DAY, RAID_MS = 10 * 60_000L;
 
-    private record Raid(int plot, UUID owner, long until, List<UUID> titans) { }
+    /** A raid on a plot (key = plot index) or a town house (key = -1 - instance); bandits raid homes where titans can't reach. */
+    private record Raid(int plot, UUID owner, long until, List<UUID> titans, ServerWorld world, boolean bandits) { }
 
     private final Map<Integer, Raid> active = new HashMap<>();
 
@@ -87,10 +88,25 @@ public final class HomeRaids {
                 }
             }
         }
+        // Town houses (in the home world): bandits break in now and then while you're home.
+        for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+            Homes.Deed deed = AotRpg.HOMES.deedHere(p);
+            if (deed == null) continue;
+            int key = -1 - deed.instance;
+            if (deed.lastDay != today()) {
+                deed.lastDay = today();
+                deed.daysPlayed++;
+                if (deed.lastRaid == 0) deed.lastRaid = now;
+                dirty = true;
+            }
+            if (active.containsKey(key) || deed.daysPlayed < 7 || now - deed.lastRaid < WEEK || AotRpg.CROWD.afk(p) || p.getRandom().nextInt(8) != 0) continue;
+            startBandits(p.getServerWorld(), p, key, p.getBlockPos(), 1, false);
+            dirty = true;
+        }
         // Raids end when their titans are dead, or after ten minutes.
         for (var it = active.entrySet().iterator(); it.hasNext(); ) {
             Raid r = it.next().getValue();
-            ServerWorld w = server.getOverworld();
+            ServerWorld w = r.world();
             boolean alive = false;
             for (UUID id : r.titans()) {
                 Entity t = w.getEntity(id);
@@ -98,17 +114,25 @@ public final class HomeRaids {
             }
             if (alive && now < r.until()) continue;
             it.remove();
-            Homes.PlotDeed deed = d.plots.get(r.plot());
+            Homes.PlotDeed deed = r.plot() >= 0 ? d.plots.get(r.plot()) : null;
             if (deed != null) {
                 deed.lastRaid = now;
                 deed.daysPlayed = 0;
                 dirty = true;
             }
+            if (r.plot() < 0) {
+                Homes.Deed hd = AotRpg.HOMES.deedByInstance(-1 - r.plot());
+                if (hd != null) {
+                    hd.lastRaid = now;
+                    hd.daysPlayed = 0;
+                    dirty = true;
+                }
+            }
             ServerPlayerEntity owner = server.getPlayerManager().getPlayer(r.owner());
             if (!alive) {
                 if (owner != null) {
                     Titles.show(owner, Text.literal("HOME DEFENDED").formatted(Formatting.GOLD, Formatting.BOLD),
-                        Text.literal("The titans are gone").formatted(Formatting.GRAY), 10, 50, 20);
+                        Text.literal(r.bandits() ? "The bandits have fled" : "The titans are gone").formatted(Formatting.GRAY), 10, 50, 20);
                     AotRpg.WALLET.earn(owner, 150, "for defending your home");
                     AotRpg.SEASON.xp(owner, 200);
                     AotRpg.TASKS.count(owner, Tasks.DEFEND, 1);
@@ -118,7 +142,8 @@ public final class HomeRaids {
                     Entity t = w.getEntity(id);
                     if (t != null) t.discard();
                 }
-                if (owner != null) owner.sendMessage(Text.literal("The titans wander off from your home.").formatted(Formatting.GRAY), false);
+                if (owner != null) owner.sendMessage(Text.literal(r.bandits() ? "The bandits slink away." : "The titans wander off from your home.")
+                    .formatted(Formatting.GRAY), false);
             }
         }
         if (dirty) AotRpg.HOMES.save();
@@ -129,10 +154,23 @@ public final class HomeRaids {
         return TitanTypes.ordinary();
     }
 
+    /** Inside the walls or underground, titans can't come: bandits raid those homes instead. */
+    private static boolean sheltered(MinecraftServer server, Places.PlotInfo plot) {
+        double cx = (plot.x0() + plot.x1()) / 2.0, cz = (plot.z0() + plot.z1()) / 2.0;
+        return AotRpg.GUARD.safeAt(server, cx, cz) || plot.y() < 45 || plot.region().toLowerCase(java.util.Locale.ROOT).contains("underground");
+    }
+
     private void start(ServerWorld w, ServerPlayerEntity owner, int idx, Places.PlotInfo plot) {
+        if (sheltered(w.getServer(), plot)) {
+            BlockPos c = new BlockPos((plot.x0() + plot.x1()) / 2, plot.y(), (plot.z0() + plot.z1()) / 2);
+            startBandits(w, owner, idx, c, Math.max(4, (plot.x1() - plot.x0()) / 2 + HomePlots.LAND + 6), true);
+            return;
+        }
         List<EntityType<?>> kinds = raiders();
         if (kinds.isEmpty()) return;
-        int n = 3 + owner.getRandom().nextInt(3);
+        // Walls thin the raid out: one titan fewer per wall tier.
+        int fort = Estate.fortOf(idx);
+        int n = Math.max(1, 3 + owner.getRandom().nextInt(3) - fort);
         double cx = (plot.x0() + plot.x1()) / 2.0, cz = (plot.z0() + plot.z1()) / 2.0;
         List<UUID> ids = new ArrayList<>();
         for (int i = 0; i < n; i++) {
@@ -149,13 +187,61 @@ public final class HomeRaids {
             }
             t.addCommandTag(TAG);
             t.addCommandTag("aot_titan");
+            if (fort >= 1 && t instanceof LivingEntity le) {
+                le.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOWNESS, 20 * 45, fort - 1));
+                if (fort >= 2) le.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.WEAKNESS, 20 * 90, 0));
+            }
             if (w.spawnEntity(t)) ids.add(t.getUuid());
         }
         if (ids.isEmpty()) return;
-        active.put(idx, new Raid(idx, owner.getUuid(), System.currentTimeMillis() + RAID_MS, ids));
+        active.put(idx, new Raid(idx, owner.getUuid(), System.currentTimeMillis() + RAID_MS, ids, w, false));
         Titles.show(owner, Text.literal("TITANS AT YOUR HOME").formatted(Formatting.RED, Formatting.BOLD),
             Text.literal(ids.size() + " titans are coming. Defend your property!").formatted(Formatting.GOLD), 10, 60, 20);
         owner.playSoundToPlayer(SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.HOSTILE, 1f, 0.8f);
+        if (fort >= 1) {
+            Notify.toast(owner, Text.literal(fort >= 3 ? "The watchtowers saw them coming" : "Your walls slow them").formatted(Formatting.GOLD),
+                Text.literal(fort >= 2 ? "Fewer titans, slowed and weakened at the wall" : "Fewer titans, slowed at the palisade"), 0xE0B96A, "minecraft:stone_bricks", null);
+        }
+    }
+
+    /**
+     * Bandits: a gang of thieves (crossbows and axes) that comes for your home, from the streets
+     * around a town property, down the tunnels to an underground one, or into your house's yard.
+     */
+    private void startBandits(ServerWorld w, ServerPlayerEntity owner, int key, BlockPos center, int dist, boolean plot) {
+        int fort = key >= 0 ? Estate.fortOf(key) : 0;
+        int n = Math.max(2, 3 + owner.getRandom().nextInt(3) - fort);
+        List<UUID> ids = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            BlockPos at = null;
+            for (int tries = 0; tries < 12 && at == null; tries++) {
+                double a = owner.getRandom().nextDouble() * Math.PI * 2, d = dist + owner.getRandom().nextInt(8);
+                int x = (int) (center.getX() + Math.cos(a) * d), z = (int) (center.getZ() + Math.sin(a) * d);
+                for (int dy = 3; dy >= -3; dy--) {
+                    BlockPos pos = new BlockPos(x, center.getY() + dy, z);
+                    if (w.getBlockState(pos).isAir() && w.getBlockState(pos.up()).isAir() && w.getBlockState(pos.down()).isSolidBlock(w, pos.down())) {
+                        at = pos;
+                        break;
+                    }
+                }
+            }
+            if (at == null) at = owner.getBlockPos().add(owner.getRandom().nextInt(9) - 4, 0, owner.getRandom().nextInt(9) - 4);
+            MobEntity m = (owner.getRandom().nextBoolean() ? EntityType.PILLAGER : EntityType.VINDICATOR).create(w);
+            if (m == null) continue;
+            m.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, owner.getRandom().nextFloat() * 360, 0);
+            m.initialize(w, w.getLocalDifficulty(at), SpawnReason.EVENT, null);
+            m.setCustomName(Text.literal(owner.getRandom().nextBoolean() ? "Bandit" : "Thief").formatted(Formatting.DARK_RED));
+            m.setPersistent();
+            m.setTarget(owner);
+            m.addCommandTag(TAG);
+            if (fort >= 1) m.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOWNESS, 20 * 30, 0));
+            if (w.spawnEntity(m)) ids.add(m.getUuid());
+        }
+        if (ids.isEmpty()) return;
+        active.put(key, new Raid(key, owner.getUuid(), System.currentTimeMillis() + RAID_MS, ids, w, true));
+        Titles.show(owner, Text.literal("BANDITS AT YOUR HOME").formatted(Formatting.RED, Formatting.BOLD),
+            Text.literal(ids.size() + " thieves are breaking in. Drive them off!").formatted(Formatting.GOLD), 10, 60, 20);
+        owner.playSoundToPlayer(SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.HOSTILE, 0.8f, 1.2f);
     }
 
     /** /aotrpg raid: starts a raid on the player's own plot now (for testing). */

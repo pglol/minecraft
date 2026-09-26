@@ -38,6 +38,11 @@ public final class TitanGuard {
         return score != null && score.getScore() == 1;
     }
 
+    /** Where titans aren't allowed to stay (inside Wall Rose and the safe zones, unless the walls are breached). */
+    public boolean safeAt(MinecraftServer server, double x, double z) {
+        return (rose != 0 || !zones.isEmpty()) && !breach(server) && protectedAt(x, z);
+    }
+
     private boolean protectedAt(double x, double z) {
         if (rose > 0 && x * x + z * z < (double) rose * rose) return true;
         for (int[] c : zones) {

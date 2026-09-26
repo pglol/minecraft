@@ -60,7 +60,10 @@ public final class TitanCrowd {
                 near.add(e);
             }
             // No new wave while one is still around you, or while you are AFK.
-            if (waves != null && (afk || liveWave > 0)) server.getScoreboard().getOrCreateScore(ScoreHolder.fromName(p.getNameForScoreboard()), waves).setScore(0);
+            // Nor where wave titans would only be cleared away: on a property, in a home, in protected land.
+            boolean sheltered = AotRpg.RAIDS.guarded(p.getX(), p.getZ()) || HomePlots.ownedAt(p.getBlockPos())
+                || AotRpg.GUARD.safeAt(server, p.getX(), p.getZ());
+            if (waves != null && (afk || liveWave > 0 || sheltered)) server.getScoreboard().getOrCreateScore(ScoreHolder.fromName(p.getNameForScoreboard()), waves).setScore(0);
 
             int keep = afk ? MAX_NEAR_AFK : MAX_NEAR + Math.min(liveWave, 8);
             if (near.size() <= keep) continue;

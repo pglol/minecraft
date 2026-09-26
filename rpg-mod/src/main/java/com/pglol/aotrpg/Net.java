@@ -366,6 +366,51 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    public record EstateProject(String id, String title, String desc, long price, int state, float progress) { }
+    public record EstatePet(String id, String name, String desc, long price, boolean owned, boolean companion) { }
+
+    /** Server -> client: your estate (projects, produce) and pets. */
+    public record EstateView(boolean hasPlot, String plot, int fort, java.util.List<EstateProject> projects, int harvest, long nextHarvest,
+                             java.util.List<EstatePet> pets, boolean atHome, boolean open) implements CustomPayload {
+        public static final Id<EstateView> ID = id("estate_view");
+        public static final PacketCodec<RegistryByteBuf, EstateView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeBoolean(v.hasPlot); b.writeString(v.plot); b.writeVarInt(v.fort);
+            b.writeVarInt(v.projects.size());
+            for (EstateProject p : v.projects) {
+                b.writeString(p.id()); b.writeString(p.title()); b.writeString(p.desc()); b.writeVarLong(p.price()); b.writeVarInt(p.state()); b.writeFloat(p.progress());
+            }
+            b.writeVarInt(v.harvest); b.writeLong(v.nextHarvest);
+            b.writeVarInt(v.pets.size());
+            for (EstatePet p : v.pets) {
+                b.writeString(p.id()); b.writeString(p.name()); b.writeString(p.desc()); b.writeVarLong(p.price()); b.writeBoolean(p.owned()); b.writeBoolean(p.companion());
+            }
+            b.writeBoolean(v.atHome); b.writeBoolean(v.open);
+        }, b -> {
+            boolean has = b.readBoolean();
+            String plot = b.readString();
+            int fort = b.readVarInt();
+            int n = Math.min(b.readVarInt(), 32);
+            java.util.List<EstateProject> ps = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) ps.add(new EstateProject(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readVarInt(), b.readFloat()));
+            int harvest = b.readVarInt();
+            long next = b.readLong();
+            int k = Math.min(b.readVarInt(), 64);
+            java.util.List<EstatePet> pets = new java.util.ArrayList<>();
+            for (int i = 0; i < k; i++) pets.add(new EstatePet(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readBoolean(), b.readBoolean()));
+            return new EstateView(has, plot, fort, ps, harvest, next, pets, b.readBoolean(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open/view, build (project), harvest, buypet (id), companion (id). */
+    public record EstateAction(String action, String arg) implements CustomPayload {
+        public static final Id<EstateAction> ID = id("estate_action");
+        public static final PacketCodec<RegistryByteBuf, EstateAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeString(v.arg);
+        }, b -> new EstateAction(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record StatLine(String label, String value) { }
     public record StatBoard(String title, java.util.List<StatLine> rows) { }
 
@@ -1427,6 +1472,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(StatsRequest.ID, StatsRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(StatsView.ID, StatsView.CODEC);
         PayloadTypeRegistry.playS2C().register(TitanTags.ID, TitanTags.CODEC);
+        PayloadTypeRegistry.playS2C().register(EstateView.ID, EstateView.CODEC);
+        PayloadTypeRegistry.playC2S().register(EstateAction.ID, EstateAction.CODEC);
         PayloadTypeRegistry.playS2C().register(RaidView.ID, RaidView.CODEC);
         PayloadTypeRegistry.playC2S().register(RaidAction.ID, RaidAction.CODEC);
         PayloadTypeRegistry.playS2C().register(RegimentView.ID, RegimentView.CODEC);

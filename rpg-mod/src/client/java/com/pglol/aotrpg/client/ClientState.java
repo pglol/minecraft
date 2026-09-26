@@ -37,6 +37,7 @@ public final class ClientState {
     public static Net.StatsView stats;
     public static Net.RegimentView regiments;
     public static Net.RaidView raids;
+    public static Net.EstateView estate;
     /** The satchel's contents (slot -> stack) and its size. */
     public static java.util.Map<Integer, net.minecraft.item.ItemStack> bag = new java.util.TreeMap<>();
     public static int bagSize = 240;

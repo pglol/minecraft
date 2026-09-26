@@ -68,6 +68,8 @@ public final class HomeScreen extends Screen {
             }
             return;
         }
+        addDrawableChild(new AotButton(plot ? left + 10 : left + 136, by - 26, 110, 22, Ui.heading("Estate & Pets"),
+            () -> ClientPlayNetworking.send(new Net.EstateAction("open", ""))));
         addDrawableChild(new AotButton(plot ? left + 10 : left + 136, by, 110, 22, Ui.heading("Furniture"),
             () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0))));
         boolean stable = false;

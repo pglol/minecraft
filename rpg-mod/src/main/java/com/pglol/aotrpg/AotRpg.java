@@ -70,6 +70,7 @@ public final class AotRpg implements ModInitializer {
     public static final Regiments REGIMENTS = new Regiments();
     public static final Raids RAID_BOSSES = new Raids();
     public static final TitanActivity ACTIVITY = new TitanActivity();
+    public static final Estate ESTATE = new Estate();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final Season SEASON = new Season();
@@ -308,6 +309,7 @@ public final class AotRpg implements ModInitializer {
             if (payload.action().equals("start")) RAID_BOSSES.start(ctx.player(), payload.boss(), payload.difficulty());
             else RAID_BOSSES.send(ctx.player(), false);
         });
+        ServerPlayNetworking.registerGlobalReceiver(Net.EstateAction.ID, (payload, ctx) -> ESTATE.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.StatsRequest.ID, (payload, ctx) -> STATS.send(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.openScreen(ctx.player());
@@ -450,6 +452,7 @@ public final class AotRpg implements ModInitializer {
             REGIMENTS.open(server);
             RAID_BOSSES.open(server);
             ACTIVITY.open(server);
+            ESTATE.open(server);
             HOMES.open(server);
             MODES.open(server);
             SEASON.open(server);
@@ -514,6 +517,7 @@ public final class AotRpg implements ModInitializer {
             LOADOUT.forget(p);
             WAVES.forget(p);
             RAID_BOSSES.forget(p);
+            ESTATE.forget(p);
             ROLES.forget(p);
             HOMES.forget(p);
             GRAB.forget(p);
@@ -546,6 +550,7 @@ public final class AotRpg implements ModInitializer {
             if (NAMETAGS.isStray(entity)) entity.discard();
             // Triple T titans never walk this world (whatever spawned them).
             else if (!world.isClient && TitanTypes.banned(entity)) entity.discard();
+            else if (!world.isClient && ESTATE.stray(entity)) entity.discard();
         });
 
         ServerTickEvents.END_SERVER_TICK.register(this::tick);
@@ -607,6 +612,7 @@ public final class AotRpg implements ModInitializer {
         TITAN_LEVELS.tick(server, ticks);
         RAID_BOSSES.tick(ticks);
         ACTIVITY.tick(ticks);
+        ESTATE.tick(ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {
             PROFILES.saveAll();

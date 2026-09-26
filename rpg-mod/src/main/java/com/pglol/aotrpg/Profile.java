@@ -65,6 +65,9 @@ public final class Profile {
     public int starterQuest;
     public double starterDist;
     public boolean skillsV2;
+    /** Pets owned (Estate.PETS ids) and the one brought along on adventures ("" for none). */
+    public java.util.List<String> pets = new java.util.ArrayList<>();
+    public String companion = "";
 
     public int stat(Stat s) {
         return stats.getOrDefault(s, 0);

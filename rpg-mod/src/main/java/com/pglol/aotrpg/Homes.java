@@ -75,6 +75,9 @@ public final class Homes {
         public String ownerName = "";
         /** Staircases repaired (homes bought before the fix). */
         public boolean stairsFixed;
+        /** Bandit raids: days played since the last one, and when. */
+        public int daysPlayed;
+        public long lastDay, lastRaid;
     }
 
     /** An exclusive plot: one owner, the house is built on the plot in the real world. */
@@ -88,6 +91,12 @@ public final class Homes {
         public int daysPlayed;
         public long lastDay;
         public long lastRaid;
+        /** Estate: wall tier (0 none, 1 palisade, 2 stone wall, 3 fortress), farm and animal pen, the project being built, harvests. */
+        public int fort;
+        public boolean farm, pen;
+        public String building = "";
+        public long harvestAt;
+        public int harvestStock;
     }
 
     /** An operator's offer of a home or plot to a player at a set price. */
@@ -310,6 +319,18 @@ public final class Homes {
         if (owner == null) return null;
         for (Deed d : data.owners.getOrDefault(owner, List.of())) if (d.instance == n) return d;
         return null;
+    }
+
+    /** The house deed of the home you are standing in, if it is yours. */
+    public Deed deedHere(ServerPlayerEntity p) {
+        if (p.getWorld().getRegistryKey() != WORLD) return null;
+        int n = instanceAt(p.getBlockPos());
+        String owner = n < 0 ? null : data.instances.get(n);
+        return owner != null && owner.equals(stem(p)) ? find(owner, n) : null;
+    }
+
+    public Deed deedByInstance(int n) {
+        return find(data.instances.get(n), n);
     }
 
     private int instanceAt(BlockPos pos) {
