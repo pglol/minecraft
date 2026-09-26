@@ -176,7 +176,7 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp, int faction) { }
+    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp, int faction, String regiment, int regimentColor) { }
 
     /** Server -> client: character names of everyone online, for name plates. */
     public record Roster(java.util.List<RosterEntry> players) implements CustomPayload {
@@ -192,11 +192,13 @@ public final class Net {
                 b.writeInt(e.tagColor());
                 b.writeBoolean(e.rp());
                 b.writeVarInt(e.faction() + 1);
+                b.writeString(e.regiment());
+                b.writeInt(e.regimentColor());
             }
         }, b -> {
             int n = Math.min(b.readVarInt(), 1000);
             java.util.List<RosterEntry> l = new java.util.ArrayList<>(n);
-            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean(), b.readVarInt() - 1));
+            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean(), b.readVarInt() - 1, b.readString(), b.readInt()));
             return new Roster(l);
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -270,6 +272,65 @@ public final class Net {
         public static final PacketCodec<RegistryByteBuf, BagAction> CODEC = PacketCodec.of((v, b) -> {
             b.writeString(v.action); b.writeVarInt(v.slot); b.writeVarLong(v.arg);
         }, b -> new BagAction(b.readString(), b.readVarInt(), b.readVarLong()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record RegimentInfo(String id, String name, String tag, int color, int level, long xp, long xpLevel, long xpNext,
+                               int members, int cap, boolean open, String captain, long treasury) { }
+    public record RegimentMember(String uuid, String name, String role, boolean online, long contrib, int level) { }
+
+    private static void writeReg(RegistryByteBuf b, RegimentInfo r) {
+        b.writeString(r.id()); b.writeString(r.name()); b.writeString(r.tag()); b.writeInt(r.color()); b.writeVarInt(r.level());
+        b.writeVarLong(r.xp()); b.writeVarLong(r.xpLevel()); b.writeVarLong(r.xpNext()); b.writeVarInt(r.members()); b.writeVarInt(r.cap());
+        b.writeBoolean(r.open()); b.writeString(r.captain()); b.writeVarLong(r.treasury());
+    }
+
+    private static RegimentInfo readReg(RegistryByteBuf b) {
+        return new RegimentInfo(b.readString(), b.readString(), b.readString(), b.readInt(), b.readVarInt(), b.readVarLong(), b.readVarLong(),
+            b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readBoolean(), b.readString(), b.readVarLong());
+    }
+
+    /** Server -> client: your regiment (or null), its members, every regiment, and your invites. */
+    public record RegimentView(RegimentInfo mine, String role, java.util.List<RegimentMember> members, java.util.List<RegimentInfo> all,
+                               java.util.List<RegimentInfo> invites, String motto, long cost, int minLevel, boolean open) implements CustomPayload {
+        public static final Id<RegimentView> ID = id("regiments");
+        public static final PacketCodec<RegistryByteBuf, RegimentView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeBoolean(v.mine != null);
+            if (v.mine != null) writeReg(b, v.mine);
+            b.writeString(v.role);
+            b.writeVarInt(v.members.size());
+            for (RegimentMember m : v.members) {
+                b.writeString(m.uuid()); b.writeString(m.name()); b.writeString(m.role()); b.writeBoolean(m.online());
+                b.writeVarLong(m.contrib()); b.writeVarInt(m.level());
+            }
+            b.writeVarInt(v.all.size());
+            for (RegimentInfo r : v.all) writeReg(b, r);
+            b.writeVarInt(v.invites.size());
+            for (RegimentInfo r : v.invites) writeReg(b, r);
+            b.writeString(v.motto); b.writeVarLong(v.cost); b.writeVarInt(v.minLevel); b.writeBoolean(v.open);
+        }, b -> {
+            RegimentInfo mine = b.readBoolean() ? readReg(b) : null;
+            String role = b.readString();
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<RegimentMember> ms = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) ms.add(new RegimentMember(b.readString(), b.readString(), b.readString(), b.readBoolean(), b.readVarLong(), b.readVarInt()));
+            int k = Math.min(b.readVarInt(), 500);
+            java.util.List<RegimentInfo> all = new java.util.ArrayList<>();
+            for (int i = 0; i < k; i++) all.add(readReg(b));
+            int q = Math.min(b.readVarInt(), 64);
+            java.util.List<RegimentInfo> inv = new java.util.ArrayList<>();
+            for (int i = 0; i < q; i++) inv.add(readReg(b));
+            return new RegimentView(mine, role, ms, all, inv, b.readString(), b.readVarLong(), b.readVarInt(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open/create/join/decline/invite/leave/kick/promote/demote/captain/disband/deposit/toggle_open/motto. */
+    public record RegimentAction(String action, String arg) implements CustomPayload {
+        public static final Id<RegimentAction> ID = id("regiment_action");
+        public static final PacketCodec<RegistryByteBuf, RegimentAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeString(v.arg);
+        }, b -> new RegimentAction(b.readString(), b.readString()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
@@ -1334,6 +1395,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(StatsRequest.ID, StatsRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(StatsView.ID, StatsView.CODEC);
         PayloadTypeRegistry.playS2C().register(TitanTags.ID, TitanTags.CODEC);
+        PayloadTypeRegistry.playS2C().register(RegimentView.ID, RegimentView.CODEC);
+        PayloadTypeRegistry.playC2S().register(RegimentAction.ID, RegimentAction.CODEC);
         PayloadTypeRegistry.playS2C().register(BagView.ID, BagView.CODEC);
         PayloadTypeRegistry.playC2S().register(BagAction.ID, BagAction.CODEC);
         PayloadTypeRegistry.playS2C().register(NapeHit.ID, NapeHit.CODEC);

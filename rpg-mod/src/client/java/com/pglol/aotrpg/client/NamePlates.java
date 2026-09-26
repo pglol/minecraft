@@ -38,6 +38,10 @@ public final class NamePlates {
         Text name = Ui.heading(r.name());
         String disc = r.discipline() >= 0 && r.discipline() < Discipline.values().length ? Discipline.values()[r.discipline()].title : "";
         net.minecraft.text.MutableText sub = Text.empty();
+        // Regiment tag, in the regiment's colour.
+        if (!r.regiment().isEmpty()) {
+            sub.append(Ui.heading("[" + r.regiment() + "]").withColor(0xFF000000 | r.regimentColor())).append(Text.literal(" "));
+        }
         // Faction badge: SC / GAR / MP in the faction's colour.
         if (r.faction() >= 0 && r.faction() < FactionScreen.COLORS.length) {
             sub.append(Ui.heading(new String[] {"SC", "GAR", "MP"}[r.faction()]).withColor(FactionScreen.COLORS[r.faction()]))

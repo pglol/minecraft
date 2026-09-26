@@ -67,6 +67,7 @@ public final class AotRpg implements ModInitializer {
     public static final Factions FACTIONS = new Factions();
     public static final FactionWar WAR = new FactionWar();
     public static final Stats STATS = new Stats();
+    public static final Regiments REGIMENTS = new Regiments();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final Season SEASON = new Season();
@@ -299,6 +300,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.BagAction.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.action(ctx.player(), payload.action(), payload.slot(), payload.arg());
         });
+        ServerPlayNetworking.registerGlobalReceiver(Net.RegimentAction.ID, (payload, ctx) -> REGIMENTS.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.StatsRequest.ID, (payload, ctx) -> STATS.send(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.openScreen(ctx.player());
@@ -434,6 +436,7 @@ public final class AotRpg implements ModInitializer {
             FACTIONS.open(server);
             WAR.open(server);
             STATS.open(server);
+            REGIMENTS.open(server);
             HOMES.open(server);
             MODES.open(server);
             SEASON.open(server);
@@ -527,6 +530,8 @@ public final class AotRpg implements ModInitializer {
 
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
             if (NAMETAGS.isStray(entity)) entity.discard();
+            // Triple T titans never walk this world (whatever spawned them).
+            else if (!world.isClient && TitanTypes.banned(entity)) entity.discard();
         });
 
         ServerTickEvents.END_SERVER_TICK.register(this::tick);
@@ -619,6 +624,7 @@ public final class AotRpg implements ModInitializer {
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());
         WAR.onKill(killer, dead);
+        REGIMENTS.gain(killer, TitanGuard.isShifter(dead) ? 40 : 5);
         SEASON.xp(killer, Season.XP_TITAN);
         TASKS.count(killer, Tasks.TITANS, 1);
         EVENTS.onTitanKill(killer);
@@ -639,6 +645,7 @@ public final class AotRpg implements ModInitializer {
         Profile pr = PROFILES.get(p.getUuid());
         if (!pr.created) return;
         if (killer) pr.titanKills++;
+        xp = Math.round(xp * (1 + REGIMENTS.bonus(p.getUuid())));
         p.sendMessage(Text.literal("+" + xp + " XP  ").formatted(Formatting.GOLD, Formatting.BOLD)
             .append(Text.literal(label).formatted(Formatting.RED)), true);
         if (killer) p.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.5f, 1.4f);

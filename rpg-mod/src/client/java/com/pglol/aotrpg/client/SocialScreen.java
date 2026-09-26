@@ -64,7 +64,7 @@ public final class SocialScreen extends Screen {
             })).selected(tab == i);
         }
         // Shortcuts along the bottom.
-        String[] names = {"Party", "Tasks", "Battle Pass", "Event Shop", "Global Market", "Factions"};
+        String[] names = {"Party", "Tasks", "Battle Pass", "Event Shop", "Global Market", "Factions", "Regiment"};
         Runnable[] runs = {
             () -> client.setScreen(new PartyScreen()),
             () -> ClientPlayNetworking.send(new Net.TaskAction("open", "")),
@@ -74,7 +74,8 @@ public final class SocialScreen extends Screen {
                 client.setScreen(new MarketScreen(true));
                 ClientPlayNetworking.send(new Net.MarketAction("exchange", "", 0, 0));
             },
-            () -> ClientPlayNetworking.send(new Net.FactionAction("open", ""))};
+            () -> ClientPlayNetworking.send(new Net.FactionAction("open", "")),
+            () -> ClientPlayNetworking.send(new Net.RegimentAction("open", ""))};
         int bw = (w - 20 - 4 * (names.length - 1)) / names.length;
         for (int i = 0; i < names.length; i++) {
             addDrawableChild(new AotButton(left + 10 + i * (bw + 4), top + h - 28, bw, 20, Ui.heading(names[i]), runs[i]));

@@ -35,6 +35,7 @@ public final class ClientState {
     public static java.util.List<Net.ExchangeEntry> exchange = java.util.List.of();
     public static Net.FactionView factions;
     public static Net.StatsView stats;
+    public static Net.RegimentView regiments;
     /** The satchel's contents (slot -> stack) and its size. */
     public static java.util.Map<Integer, net.minecraft.item.ItemStack> bag = new java.util.TreeMap<>();
     public static int bagSize = 240;

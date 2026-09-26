@@ -33,7 +33,7 @@ public class AotPauseScreen extends Screen {
         gridX = Math.max(12, Math.min(width / 2 - gridW + 40, width - gridW - 12));
         // Rows: resume, 4 sections (2 rows each), system; shrink the buttons on short screens.
         int bh = height >= 330 ? 20 : 18;
-        int total = (bh + 6) + 4 * 11 + 6 * (bh + GAP) + (bh + 8);
+        int total = (bh + 6) + 4 * 11 + 7 * (bh + GAP) + (bh + 8);
         int y = Math.max(48, (height - total) / 2 + 12);
         int x = gridX;
 
@@ -55,6 +55,7 @@ public class AotPauseScreen extends Screen {
         y = section(y, bh, "Community", new Tile[] {
             new Tile("Social", "minecraft:bell", hasChar, () -> ClientPlayNetworking.send(new Net.SocialAction("open", null))),
             new Tile(war ? "Factions ⚔" : "Factions", "minecraft:shield", hasChar, () -> ClientPlayNetworking.send(new Net.FactionAction("open", ""))),
+            new Tile("Regiment", "minecraft:white_banner", hasChar, () -> ClientPlayNetworking.send(new Net.RegimentAction("open", ""))),
             new Tile("Global Market", "minecraft:emerald", hasChar, () -> {
                 client.setScreen(new MarketScreen(true));
                 ClientPlayNetworking.send(new Net.MarketAction("exchange", "", 0, 0));

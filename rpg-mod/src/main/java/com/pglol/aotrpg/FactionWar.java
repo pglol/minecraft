@@ -117,18 +117,7 @@ public final class FactionWar {
     }
 
     private void wave(ServerWorld w) {
-        List<EntityType<?>> kinds = new ArrayList<>();
-        for (Identifier id : Registries.ENTITY_TYPE.getIds()) {
-            String path = id.getPath();
-            if (!id.getNamespace().equals(AotItems.namespace) || !path.contains("titan")) continue;
-            if (path.contains("nape") || path.contains("eye") || path.contains("grab") || path.contains("hand") || path.contains("leg")
-                || path.contains("dummy") || path.contains("shell") || path.contains("shifter")) continue;
-            boolean shifter = false;
-            for (String s : new String[] {"attack", "armored", "colossal", "female", "beast", "cart", "jaw", "warhammer", "founding"}) {
-                if (path.contains(s)) shifter = true;
-            }
-            if (!shifter) kinds.add(Registries.ENTITY_TYPE.get(id));
-        }
+        List<EntityType<?>> kinds = TitanTypes.ordinary();
         if (kinds.isEmpty()) return;
         int near = 0;
         for (ServerPlayerEntity p : soldiers()) if (p.squaredDistanceTo(active.x, p.getY(), active.z) < 200 * 200) near++;

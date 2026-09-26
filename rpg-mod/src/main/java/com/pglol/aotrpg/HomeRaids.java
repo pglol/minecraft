@@ -126,19 +126,7 @@ public final class HomeRaids {
 
     /** Ordinary titans of the AoT mod (not shifters, and not their body parts). */
     private static List<EntityType<?>> raiders() {
-        List<EntityType<?>> out = new ArrayList<>();
-        for (Identifier id : Registries.ENTITY_TYPE.getIds()) {
-            if (!id.getNamespace().equals(AotItems.namespace)) continue;
-            String path = id.getPath();
-            if (!path.contains("titan") || path.contains("nape") || path.contains("eye") || path.contains("grab") || path.contains("hand")
-                || path.contains("leg") || path.contains("dummy") || path.contains("shell") || path.contains("shifter")) continue;
-            boolean shifter = false;
-            for (String s : new String[] {"attack", "armored", "colossal", "female", "beast", "cart", "jaw", "warhammer", "founding"}) {
-                if (path.contains(s)) shifter = true;
-            }
-            if (!shifter) out.add(Registries.ENTITY_TYPE.get(id));
-        }
-        return out;
+        return TitanTypes.ordinary();
     }
 
     private void start(ServerWorld w, ServerPlayerEntity owner, int idx, Places.PlotInfo plot) {

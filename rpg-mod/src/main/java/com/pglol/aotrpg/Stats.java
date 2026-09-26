@@ -138,6 +138,10 @@ public final class Stats {
         boards.add(board(all, "Faction heroes", x -> x.factionRep, " rep"));
         boards.add(board(all, "Achievers", x -> x.achievements == null ? 0 : x.achievements.size(), ""));
         boards.add(board(all, "Most devoted", x -> counter(x, Tasks.MINUTES), " min"));
+        List<Net.StatLine> regs = new ArrayList<>();
+        AotRpg.REGIMENTS.all().stream().sorted((x, y) -> Long.compare(y.xp, x.xp)).limit(8)
+            .forEach(r -> regs.add(new Net.StatLine("[" + r.tag + "] " + r.name, "Lv " + Regiments.level(r))));
+        boards.add(new Net.StatBoard("Regiments", regs));
         ServerPlayNetworking.send(p, new Net.StatsView(mine, srv, boards));
     }
 }

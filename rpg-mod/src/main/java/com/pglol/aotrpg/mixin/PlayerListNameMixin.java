@@ -15,7 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class PlayerListNameMixin {
     @Inject(method = "getPlayerListName", at = @At("HEAD"), cancellable = true, require = 0)
     private void aotrpg$listName(CallbackInfoReturnable<Text> cir) {
-        Profile pr = AotRpg.PROFILES.get(((ServerPlayerEntity) (Object) this).getUuid());
-        if (pr.created) cir.setReturnValue(Roles.styledName(pr));
+        java.util.UUID id = ((ServerPlayerEntity) (Object) this).getUuid();
+        Profile pr = AotRpg.PROFILES.get(id);
+        if (pr.created) cir.setReturnValue(Roles.styledName(pr, id));
     }
 }

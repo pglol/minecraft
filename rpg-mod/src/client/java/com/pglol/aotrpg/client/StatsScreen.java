@@ -74,10 +74,11 @@ public final class StatsScreen extends Screen {
         // Leaderboards: a grid of small tables.
         int cols = w >= 480 ? 3 : 2;
         int cw = (w - 20 - (cols - 1) * 8) / cols;
-        int ch = (h - 20 - 8) / 2;
         List<Net.StatBoard> boards = v.boards();
+        int gridRows = Math.max(1, (boards.size() + cols - 1) / cols);
+        int ch = (h - 20 - 8 * (gridRows - 1)) / gridRows;
         String me = ClientState.profile == null ? "" : ClientState.profile.name();
-        for (int i = 0; i < boards.size() && i < cols * 2; i++) {
+        for (int i = 0; i < boards.size(); i++) {
             Net.StatBoard b = boards.get(i);
             int x = left + 10 + (i % cols) * (cw + 8), y = top + 10 + (i / cols) * (ch + 8);
             c.fill(x, y, x + cw, y + ch, 0x30000000);

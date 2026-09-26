@@ -18,6 +18,6 @@ public abstract class PlayerNameMixin {
     private void aotrpg$name(CallbackInfoReturnable<Text> cir) {
         if (!((Object) this instanceof ServerPlayerEntity sp)) return;
         Profile pr = AotRpg.PROFILES.get(sp.getUuid());
-        if (pr.created) cir.setReturnValue(Roles.styledName(pr));
+        if (pr.created) cir.setReturnValue(Roles.styledName(pr, sp.getUuid()));
     }
 }

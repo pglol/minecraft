@@ -65,6 +65,7 @@ public final class Waves {
                 p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("The titans near you have fallen").formatted(Formatting.GRAY)));
                 p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("Wave cleared").formatted(Formatting.GOLD, Formatting.BOLD)));
                 AotRpg.TASKS.count(p, Tasks.WAVES, 1);
+                AotRpg.REGIMENTS.gain(p, 30);
                 p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.7f, 1f);
             }
             return;

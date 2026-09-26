@@ -68,6 +68,14 @@ public final class Roles {
     }
 
     /** "[RP · Sergeant] Name" for chat and the player list. */
+    /** The styled name with the player's regiment tag in front ("[TAG] ..."). */
+    public static MutableText styledName(Profile pr, java.util.UUID id) {
+        MutableText n = styledName(pr);
+        Regiments.Regiment r = AotRpg.REGIMENTS.of(id);
+        if (r == null) return n;
+        return Text.literal("[" + r.tag + "] ").setStyle(Style.EMPTY.withColor(r.color).withBold(true)).append(n);
+    }
+
     public static MutableText styledName(Profile pr) {
         MutableText name = Text.literal(pr.name).setStyle(Style.EMPTY.withColor(0xEDE3C8));
         Factions.Faction fa = Factions.of(pr);
