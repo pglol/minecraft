@@ -68,6 +68,7 @@ public final class AotRpg implements ModInitializer {
     public static final FactionWar WAR = new FactionWar();
     public static final Stats STATS = new Stats();
     public static final Regiments REGIMENTS = new Regiments();
+    public static final Raids RAID_BOSSES = new Raids();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final Season SEASON = new Season();
@@ -301,6 +302,11 @@ public final class AotRpg implements ModInitializer {
             if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.action(ctx.player(), payload.action(), payload.slot(), payload.arg());
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.RegimentAction.ID, (payload, ctx) -> REGIMENTS.action(ctx.player(), payload.action(), payload.arg()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.RaidAction.ID, (payload, ctx) -> {
+            if (!PROFILES.get(ctx.player().getUuid()).created) return;
+            if (payload.action().equals("start")) RAID_BOSSES.start(ctx.player(), payload.boss(), payload.difficulty());
+            else RAID_BOSSES.send(ctx.player(), false);
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.StatsRequest.ID, (payload, ctx) -> STATS.send(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.OpenSatchel.ID, (payload, ctx) -> {
             if (PROFILES.get(ctx.player().getUuid()).created) SATCHEL.openScreen(ctx.player());
@@ -407,6 +413,10 @@ public final class AotRpg implements ModInitializer {
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (world.isClient || hand != net.minecraft.util.Hand.MAIN_HAND || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
+            if (Raids.commander(entity)) {
+                RAID_BOSSES.talk(sp);
+                return ActionResult.SUCCESS;
+            }
             if (Horses.isStableMaster(entity)) {
                 HORSES.openMaster(sp, entity);
                 return ActionResult.SUCCESS;
@@ -437,6 +447,7 @@ public final class AotRpg implements ModInitializer {
             WAR.open(server);
             STATS.open(server);
             REGIMENTS.open(server);
+            RAID_BOSSES.open(server);
             HOMES.open(server);
             MODES.open(server);
             SEASON.open(server);
@@ -500,6 +511,7 @@ public final class AotRpg implements ModInitializer {
             HEAL.forget(p);
             LOADOUT.forget(p);
             WAVES.forget(p);
+            RAID_BOSSES.forget(p);
             ROLES.forget(p);
             HOMES.forget(p);
             GRAB.forget(p);
@@ -591,6 +603,7 @@ public final class AotRpg implements ModInitializer {
         CROWD.tick(server, ticks);
         WAR.tick(ticks);
         TITAN_LEVELS.tick(server, ticks);
+        RAID_BOSSES.tick(ticks);
         NAMETAGS.tick(server, ticks);
         if (ticks % (20 * 300) == 0) {
             PROFILES.saveAll();

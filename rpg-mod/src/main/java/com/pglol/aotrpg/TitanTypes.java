@@ -30,7 +30,7 @@ public final class TitanTypes {
             || path.contains("dummy") || path.contains("shell") || path.contains("shifter") || path.contains("spawn_egg");
     }
 
-    private static boolean shifter(String path) {
+    private static boolean isShifterPath(String path) {
         for (String s : SHIFTERS) if (path.contains(s)) return true;
         return false;
     }
@@ -40,7 +40,7 @@ public final class TitanTypes {
         for (Identifier id : Registries.ENTITY_TYPE.getIds()) {
             String path = id.getPath();
             if (!id.getNamespace().equals(AotItems.namespace) || !path.contains("titan") || part(path) || banned(path)) continue;
-            if (shifter(path) == shifters) out.add(Registries.ENTITY_TYPE.get(id));
+            if (isShifterPath(path) == shifters) out.add(Registries.ENTITY_TYPE.get(id));
         }
         return out;
     }

@@ -87,6 +87,11 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof BagScreen s) s.refresh();
             else if (payload.open()) ctx.client().setScreen(new BagScreen());
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.RaidView.ID, (payload, ctx) -> {
+            ClientState.raids = payload;
+            if (ctx.client().currentScreen instanceof RaidScreen s) s.refresh();
+            else if (payload.open()) ctx.client().setScreen(new RaidScreen());
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.RegimentView.ID, (payload, ctx) -> {
             ClientState.regiments = payload;
             if (ctx.client().currentScreen instanceof RegimentScreen s) s.refresh();

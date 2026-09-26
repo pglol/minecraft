@@ -81,6 +81,21 @@ public final class TitanLevels {
         return 0;
     }
 
+    /** A level set by a raid or event: kept as is (never re-rated). */
+    public static void fix(Entity e, int lv) {
+        e.getCommandTags().removeIf(tag -> tag.startsWith(LV) || tag.startsWith(PARTY));
+        e.addCommandTag(LV + Math.max(1, Math.min(99, lv)));
+        e.addCommandTag(PARTY + 1);
+        e.addCommandTag("aot_fixedlv");
+    }
+
+    /** Nape strikes landed on this titan so far (within the memory window). */
+    public int strikesOn(Entity e) {
+        if (e == null) return 0;
+        Nape n = napes.get(e.getUuid());
+        return n != null && System.currentTimeMillis() - n.lastAt < STRIKE_MEMORY_MS ? n.strikes : 0;
+    }
+
     public static int level(Entity e) {
         return tagInt(e, LV);
     }
@@ -110,7 +125,8 @@ public final class TitanLevels {
                 // Levels follow who is around: re-rated every 20 s, but never mid-fight.
                 Nape cut = napes.get(e.getUuid());
                 boolean fighting = cut != null && now - cut.lastAt < STRIKE_MEMORY_MS;
-                if (level(e) <= 0 || (!fighting && now - rated.getOrDefault(e.getUuid(), 0L) > 20_000)) assign((LivingEntity) e, p);
+                boolean fixed = e.getCommandTags().contains("aot_fixedlv");
+                if (level(e) <= 0 || (!fixed && !fighting && now - rated.getOrDefault(e.getUuid(), 0L) > 20_000)) assign((LivingEntity) e, p);
                 unboost((LivingEntity) e);
                 Nape n = napes.get(e.getUuid());
                 int strikes = n != null && now - n.lastAt < STRIKE_MEMORY_MS ? n.strikes : 0;
@@ -227,6 +243,8 @@ public final class TitanLevels {
 
     /** Nape strikes this player needs to fell this titan. */
     public static int needed(ServerPlayerEntity p, LivingEntity t) {
+        int set = Raids.strikes(t);
+        if (set > 0) return set;
         int lv = Math.max(1, level(t));
         int n = 1 + (int) Math.round((lv + 6 - strength(p)) / 6.0);
         n = Math.max(1, Math.min(6, n));

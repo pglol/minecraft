@@ -334,6 +334,38 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    public record RaidBoss(String id, String name, int level, boolean available) { }
+
+    /** Server -> client: the Raid Commander's board. */
+    public record RaidView(java.util.List<RaidBoss> bosses, java.util.List<String> party, String active, boolean open) implements CustomPayload {
+        public static final Id<RaidView> ID = id("raid_view");
+        public static final PacketCodec<RegistryByteBuf, RaidView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.bosses.size());
+            for (RaidBoss r : v.bosses) { b.writeString(r.id()); b.writeString(r.name()); b.writeVarInt(r.level()); b.writeBoolean(r.available()); }
+            b.writeVarInt(v.party.size());
+            for (String s : v.party) b.writeString(s);
+            b.writeString(v.active); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 32);
+            java.util.List<RaidBoss> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new RaidBoss(b.readString(), b.readString(), b.readVarInt(), b.readBoolean()));
+            int k = Math.min(b.readVarInt(), 8);
+            java.util.List<String> p = new java.util.ArrayList<>();
+            for (int i = 0; i < k; i++) p.add(b.readString());
+            return new RaidView(l, p, b.readString(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: start a raid (boss, difficulty) or refresh. */
+    public record RaidAction(String action, String boss, int difficulty) implements CustomPayload {
+        public static final Id<RaidAction> ID = id("raid_action");
+        public static final PacketCodec<RegistryByteBuf, RaidAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeString(v.boss); b.writeVarInt(v.difficulty);
+        }, b -> new RaidAction(b.readString(), b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record StatLine(String label, String value) { }
     public record StatBoard(String title, java.util.List<StatLine> rows) { }
 
@@ -1395,6 +1427,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(StatsRequest.ID, StatsRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(StatsView.ID, StatsView.CODEC);
         PayloadTypeRegistry.playS2C().register(TitanTags.ID, TitanTags.CODEC);
+        PayloadTypeRegistry.playS2C().register(RaidView.ID, RaidView.CODEC);
+        PayloadTypeRegistry.playC2S().register(RaidAction.ID, RaidAction.CODEC);
         PayloadTypeRegistry.playS2C().register(RegimentView.ID, RegimentView.CODEC);
         PayloadTypeRegistry.playC2S().register(RegimentAction.ID, RegimentAction.CODEC);
         PayloadTypeRegistry.playS2C().register(BagView.ID, BagView.CODEC);

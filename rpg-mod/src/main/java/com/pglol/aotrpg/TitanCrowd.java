@@ -56,7 +56,7 @@ public final class TitanCrowd {
             for (Entity e : w.getOtherEntities(p, new Box(p.getBlockPos()).expand(CROWD_R + 64, 128, CROWD_R + 64), e -> AotRpg.isTitan(e))) {
                 if (e.getCommandTags().contains(Waves.TAG)) liveWave++;
                 if (e.squaredDistanceTo(p) > CROWD_R * CROWD_R) continue;
-                if (TitanGuard.isShifter(e) || HomeRaids.raider(e) || FactionWar.eventTitan(e) || e.hasPassengers() || e.getControllingPassenger() instanceof PlayerEntity) continue;
+                if (TitanGuard.isShifter(e) || HomeRaids.raider(e) || FactionWar.eventTitan(e) || Raids.raidMob(e) || e.hasPassengers() || e.getControllingPassenger() instanceof PlayerEntity) continue;
                 near.add(e);
             }
             // No new wave while one is still around you, or while you are AFK.
