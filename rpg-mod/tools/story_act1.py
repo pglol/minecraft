@@ -80,6 +80,9 @@ cast = {
     "civilian_m": {"name": "Townsman", "skin": "civilian_m"},
     "boat1": {"name": "Evacuation boat", "item": "boat"}, "boat2": {"name": "Evacuation boat", "item": "boat"},
     "boat3": {"name": "Evacuation boat", "item": "boat"},
+    "refugee2": {"name": "Refugee", "skin": "civilian_m"}, "refugee3": {"name": "Refugee", "skin": "civilian_f"},
+    "refugee4": {"name": "Refugee", "skin": "refugee_child"}, "refugee5": {"name": "Refugee", "skin": "farmer"},
+    "garrison2": {"name": "Garrison Soldier", "skin": "garrison_soldier"},
 }
 
 missions, dialogues = [], {}
@@ -127,12 +130,12 @@ dialogues["sh2_carla"] = D("a",
     e=N("carla", "Hannes, don't. You can't fight it. Take them and get out of here. Please.", "f"),
     f=N("carla", "Eren. Mikasa. Live. You hear me? You have to live.", effects=[fate(carla="killed at Shiganshina")], end=True))
 dialogues["sh2_boats"] = D("a",
-    a=N("armin_child", "You made it! Where's your mom? Eren, where's...", "b"),
+    a=N("armin_child", "Over here! Grandpa's holding us a place. Eren, where's your mom? Where's...", "b"),
     b=N("eren_child", "I'm going to kill them. All of them. Every single one.", choices=[
         C("I'll be right there with you.", "c", [aff(eren_child=8), ide(paradis=6, mercy=-3), flag("vowed_with_eren")]),
         C("Eren... that's not going to bring her back.", "c", [aff(eren_child=-3, armin_child=4), ide(mercy=5)]),
         C("(Say nothing. Stay next to Mikasa.)", "c", [aff(mikasa_child=8)])]),
-    c=N(None, "The boat pulls away. Nobody talks. Behind you, smoke is rising over Shiganshina.", end=True))
+    c=N(None, "The crowd carries you through the gate. Nobody talks. Behind you, smoke is rising over Shiganshina.", end=True))
 missions.append(M("sh2", "The Day the Wall Fell", ch_sh, "survival", ["war", "character", "future"], SH, [1, 5], [
     S("Head home along the main street", goto([-5, -8], 7),
       done=[{"shake": 3}, {"flash": 0.6}, {"titan_actor": {"id": "colossal", "shifter": "colossal", "at": gate("outer", -16, 0), "seconds": 30}},
@@ -153,11 +156,14 @@ missions.append(M("sh2", "The Day the Wall Fell", ch_sh, "survival", ["war", "ch
     S("There's a titan on the road to the boats. Bring it down", {"kill": "scene"},
       spawn=[T(1, [34, 0], level=1, strikes=1, spread=2)],
       start=[say("It's between us and the gate. You've got blades? Go for the back of the neck. Only the neck.", "hannes")]),
-    S("Get to the evacuation boats by the inner gate", goto(E("inner", 0.8), 10),
-      spawn=[A("boat1", E("inner", 0.84, 0, 4)), A("boat2", E("inner", 0.84, 0, -4)), A("boat3", E("inner", 0.88, 0, 0)),
-             A("armin_child", E("inner", 0.8, 0, 2), face=True), A("refugee", E("inner", 0.82, 0, -2))]),
-    S("Armin is waiting at the boats", talk("armin_child", "sh2_boats"),
-      spawn=[A("armin_child", E("inner", 0.8, 0, 2), face=True), A("boat1", E("inner", 0.84, 0, 4)), A("boat2", E("inner", 0.84, 0, -4))]),
+    S("Everyone is fleeing to the inner gate. Get there", goto(E("inner", 0.72), 12),
+      spawn=[A("refugee", E("inner", 0.78, 0, -3)), A("refugee2", E("inner", 0.8, 0, 2)), A("refugee3", E("inner", 0.82, 0, -1)),
+             A("refugee4", E("inner", 0.8, 0, 4)), A("refugee5", E("inner", 0.84, 0, 1)), A("garrison2", E("inner", 0.76, 0, 6), face=True),
+             A("boat1", E("inner", 0.9, 0, 3)), A("boat2", E("inner", 0.9, 0, -3)), A("boat3", E("inner", 0.95, 0, 0))],
+      start=[say("Everyone to the inner gate! The boats won't wait!", "garrison2")],
+      done=[say("The crowd is packed so tight you can barely move. Somewhere in it, someone is calling your name.")]),
+    S("Find Armin in the crowd", talk("armin_child", "sh2_boats"),
+      spawn=[A("armin_child", E("inner", 0.8, 0, -6), face=True)]),
 ], complete=[card("Wall Maria has fallen", "845"), deed("Escaped Shiganshina as Wall Maria fell"), flag("lost_home")], next="sh3", xp=250))
 
 dialogues["sh3_reclaim"] = D("a",
@@ -179,7 +185,7 @@ missions.append(M("sh3", "Refugees", "Act I · Wall Rose, 846", "people", ["char
 # =====================================================================================  TROST origin
 TR = "trost-district"; ch_tr = "Act I · Trost, 845"
 dialogues["tr1_captain"] = D("a",
-    a=N("garrison_captain", "You, back up. These people came off the boats from Shiganshina. They've got nothing left.", "b"),
+    a=N("garrison_captain", "You, back up. These people just got here from Shiganshina. They've got nothing left.", "b"),
     b=N("garrison_captain", "If you're going to stand there, you might as well help.", choices=[
         C("I'll help carry the injured.", "c1", [ide(mercy=6), {"standing": {"garrison": 3}}, aff(garrison_captain=3)]),
         C("I can keep people back from the dock.", "c2", [ide(independence=-5), {"standing": {"garrison": 5}}]),
@@ -194,9 +200,9 @@ dialogues["tr1_lotte"] = D("a",
         C("Who did you come with?", "c", [aff(lotte=2)])]),
     b=N("lotte", "I'm Lotte. Okay. I'll remember you.", end=True),
     c=N("lotte", "My mom put me on the boat. She said she'd get on the next one.", "c2"),
-    c2=N(None, "The last boat came in an hour ago.", "b", effects=[flag("lotte_orphan")]))
+    c2=N(None, "The captain said the last boat came in an hour ago.", "b", effects=[flag("lotte_orphan")]))
 missions.append(M("tr1", "News from the South", ch_tr, "people", ["character", "relationship", "lore"], TR, [1, 6], [
-    S("Boats are coming in by the inner gate. Go and see", goto(E("inner", 0.75), 10), done=[card("845", "Trost District")],
+    S("Refugees from Shiganshina are arriving at the inner gate. Go and see", goto(E("inner", 0.75), 10), done=[card("845", "Trost District")],
       spawn=[A("boat1", E("inner", 0.8, 0, 4)), A("boat2", E("inner", 0.8, 0, -4))]),
     S("Talk to the Garrison captain on the dock", talk("garrison_captain", "tr1_captain"),
       spawn=[A("garrison_captain", E("inner", 0.75, -2, 4), face=True), A("refugee", E("inner", 0.75, -3, -3)), A("lotte", E("inner", 0.75, -1, -6))]),

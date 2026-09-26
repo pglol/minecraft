@@ -326,54 +326,32 @@
      "done": []
     },
     {
-     "objective": "Get to the evacuation boats by the inner gate",
+     "objective": "Everyone is fleeing to the inner gate. Get there",
      "goal": {
       "goto": {
        "edge": "inner",
-       "frac": 0.8,
+       "frac": 0.72,
        "rel": [
         0,
         0
        ]
       },
-      "radius": 10
+      "radius": 12
      },
      "spawn": [
       {
-       "actor": "boat1",
+       "actor": "refugee",
        "at": {
         "edge": "inner",
-        "frac": 0.84,
+        "frac": 0.78,
         "rel": [
          0,
-         4
+         -3
         ]
        }
       },
       {
-       "actor": "boat2",
-       "at": {
-        "edge": "inner",
-        "frac": 0.84,
-        "rel": [
-         0,
-         -4
-        ]
-       }
-      },
-      {
-       "actor": "boat3",
-       "at": {
-        "edge": "inner",
-        "frac": 0.88,
-        "rel": [
-         0,
-         0
-        ]
-       }
-      },
-      {
-       "actor": "armin_child",
+       "actor": "refugee2",
        "at": {
         "edge": "inner",
         "frac": 0.8,
@@ -381,26 +359,105 @@
          0,
          2
         ]
-       },
-       "face": true
+       }
       },
       {
-       "actor": "refugee",
+       "actor": "refugee3",
        "at": {
         "edge": "inner",
         "frac": 0.82,
         "rel": [
          0,
-         -2
+         -1
+        ]
+       }
+      },
+      {
+       "actor": "refugee4",
+       "at": {
+        "edge": "inner",
+        "frac": 0.8,
+        "rel": [
+         0,
+         4
+        ]
+       }
+      },
+      {
+       "actor": "refugee5",
+       "at": {
+        "edge": "inner",
+        "frac": 0.84,
+        "rel": [
+         0,
+         1
+        ]
+       }
+      },
+      {
+       "actor": "garrison2",
+       "at": {
+        "edge": "inner",
+        "frac": 0.76,
+        "rel": [
+         0,
+         6
+        ]
+       },
+       "face": true
+      },
+      {
+       "actor": "boat1",
+       "at": {
+        "edge": "inner",
+        "frac": 0.9,
+        "rel": [
+         0,
+         3
+        ]
+       }
+      },
+      {
+       "actor": "boat2",
+       "at": {
+        "edge": "inner",
+        "frac": 0.9,
+        "rel": [
+         0,
+         -3
+        ]
+       }
+      },
+      {
+       "actor": "boat3",
+       "at": {
+        "edge": "inner",
+        "frac": 0.95,
+        "rel": [
+         0,
+         0
         ]
        }
       }
      ],
-     "start": [],
-     "done": []
+     "start": [
+      {
+       "say": {
+        "text": "Everyone to the inner gate! The boats won't wait!",
+        "who": "garrison2"
+       }
+      }
+     ],
+     "done": [
+      {
+       "say": {
+        "text": "The crowd is packed so tight you can barely move. Somewhere in it, someone is calling your name."
+       }
+      }
+     ]
     },
     {
-     "objective": "Armin is waiting at the boats",
+     "objective": "Find Armin in the crowd",
      "goal": {
       "talk": "armin_child",
       "dialogue": "sh2_boats"
@@ -413,32 +470,10 @@
         "frac": 0.8,
         "rel": [
          0,
-         2
+         -6
         ]
        },
        "face": true
-      },
-      {
-       "actor": "boat1",
-       "at": {
-        "edge": "inner",
-        "frac": 0.84,
-        "rel": [
-         0,
-         4
-        ]
-       }
-      },
-      {
-       "actor": "boat2",
-       "at": {
-        "edge": "inner",
-        "frac": 0.84,
-        "rel": [
-         0,
-         -4
-        ]
-       }
       }
      ],
      "start": [],
@@ -569,7 +604,7 @@
    ],
    "steps": [
     {
-     "objective": "Boats are coming in by the inner gate. Go and see",
+     "objective": "Refugees from Shiganshina are arriving at the inner gate. Go and see",
      "goal": {
       "goto": {
        "edge": "inner",
@@ -2719,7 +2754,7 @@
    "nodes": {
     "a": {
      "speaker": "armin_child",
-     "text": "You made it! Where's your mom? Eren, where's...",
+     "text": "Over here! Grandpa's holding us a place. Eren, where's your mom? Where's...",
      "next": "b"
     },
     "b": {
@@ -2778,7 +2813,7 @@
     },
     "c": {
      "speaker": null,
-     "text": "The boat pulls away. Nobody talks. Behind you, smoke is rising over Shiganshina.",
+     "text": "The crowd carries you through the gate. Nobody talks. Behind you, smoke is rising over Shiganshina.",
      "end": true
     }
    }
@@ -2886,7 +2921,7 @@
    "nodes": {
     "a": {
      "speaker": "garrison_captain",
-     "text": "You, back up. These people came off the boats from Shiganshina. They've got nothing left.",
+     "text": "You, back up. These people just got here from Shiganshina. They've got nothing left.",
      "next": "b"
     },
     "b": {
@@ -3034,7 +3069,7 @@
     },
     "c2": {
      "speaker": null,
-     "text": "The last boat came in an hour ago.",
+     "text": "The captain said the last boat came in an hour ago.",
      "next": "b",
      "effects": [
       {

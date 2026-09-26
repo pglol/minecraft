@@ -602,6 +602,10 @@ public final class Story {
         ActorDef def = actors.getOrDefault(id, new ActorDef());
         Vec3d at = resolve(w, m, o.get("at"));
         if (def.item != null && def.item.equals("boat")) {
+            // Boats only on water: the nearest canal or river nearby, or no boat at all.
+            Vec3d water = water(w, BlockPos.ofFloored(at), 24);
+            if (water == null) return;
+            at = water;
             var boat = EntityType.BOAT.create(w);
             if (boat == null) return;
             boat.refreshPositionAndAngles(at.x, at.y, at.z, o.has("yaw") ? o.get("yaw").getAsFloat() : 0, 0);
@@ -649,6 +653,26 @@ public final class Story {
         if (o.has("face")) facePlayer(v, sc);
         if (o.has("pose") && o.get("pose").getAsString().equals("crouch")) v.setPose(net.minecraft.entity.EntityPose.CROUCHING);
         sendActors(sc);
+    }
+
+    /** The nearest open water surface within r blocks (water with air above), or null. */
+    private static Vec3d water(ServerWorld w, BlockPos c, int r) {
+        Vec3d best = null;
+        double bd = Double.MAX_VALUE;
+        for (int dx = -r; dx <= r; dx += 2) {
+            for (int dz = -r; dz <= r; dz += 2) {
+                for (int dy = -6; dy <= 4; dy++) {
+                    BlockPos p = c.add(dx, dy, dz);
+                    if (!w.getFluidState(p).isIn(net.minecraft.registry.tag.FluidTags.WATER) || !w.getBlockState(p.up()).isAir()) continue;
+                    double d = dx * dx + dz * dz + dy * dy;
+                    if (d < bd) {
+                        bd = d;
+                        best = new Vec3d(p.getX() + 0.5, p.getY() + 1, p.getZ() + 0.5);
+                    }
+                }
+            }
+        }
+        return best;
     }
 
     private void facePlayer(Entity v, Scene sc) {

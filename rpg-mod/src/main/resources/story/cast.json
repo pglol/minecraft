@@ -191,6 +191,26 @@
   "boat3": {
    "name": "Evacuation boat",
    "item": "boat"
+  },
+  "refugee2": {
+   "name": "Refugee",
+   "skin": "civilian_m"
+  },
+  "refugee3": {
+   "name": "Refugee",
+   "skin": "civilian_f"
+  },
+  "refugee4": {
+   "name": "Refugee",
+   "skin": "refugee_child"
+  },
+  "refugee5": {
+   "name": "Refugee",
+   "skin": "farmer"
+  },
+  "garrison2": {
+   "name": "Garrison Soldier",
+   "skin": "garrison_soldier"
   }
  }
 }
