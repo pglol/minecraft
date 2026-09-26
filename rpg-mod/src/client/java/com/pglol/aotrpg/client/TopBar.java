@@ -19,7 +19,7 @@ import java.util.List;
 public final class TopBar {
     private TopBar() {}
 
-    private static final int H = 14, TOP = 3, PAD = 6, GAP = 4;
+    private static final int H = 16, TOP = 3, PAD = 6, GAP = 4;
     private static final int BG = 0xB40D0F0D, EDGE = 0x70B8955A, SEP = 0x40B8955A;
 
     /** Where the bar ends, for anything that stacks under it (boss bars). */
@@ -65,9 +65,11 @@ public final class TopBar {
         // Level, with the way to the next one as a thin line under it.
         float xp = p.need() > 0 ? Math.min(1, (float) p.xp() / p.need()) : 1;
         Text lv = Text.literal("Lv ").withColor(Ui.MUTED).append(Text.literal(String.valueOf(p.level())).withColor(Ui.GOLD));
-        if (p.points() > 0 || p.skillPoints() > 0) {
+        int pts = p.points() + p.skillPoints();
+        if (pts > 0) {
+            // Points waiting to be spent: just how many.
             int a = (int) (170 + 85 * Math.sin(now / 300.0));
-            lv = lv.copy().append(Text.literal("  +K").withColor(a << 24 | 0xE0B96A));
+            lv = lv.copy().append(Text.literal("  +" + pts).withColor(a << 24 | 0xE0B96A));
         }
         cells.add(cell(null, 0, 0, lv, xp));
 
@@ -99,11 +101,12 @@ public final class TopBar {
                 Glyphs.draw(c, cx, y + (H - ih) / 2, cell.icon, cell.main, cell.second);
                 cx += Glyphs.width(cell.icon) + GAP;
             }
-            c.drawText(mc.textRenderer, cell.text, cx, y + (H - 7) / 2, 0xFFFFFFFF, false);
+            c.drawText(mc.textRenderer, cell.text, cx, y + 3, 0xFFFFFFFF, false);
             if (cell.xp >= 0) {
                 int lx0 = x + PAD, lx1 = x + cell.width - PAD;
-                c.fill(lx0, y + H - 3, lx1, y + H - 2, 0x40E0B96A);
-                c.fill(lx0, y + H - 3, lx0 + Math.round((lx1 - lx0) * cell.xp), y + H - 2, 0xFFD9A441);
+                // The XP line sits clear below the text, with a gap, never touching it.
+                c.fill(lx0, y + H - 2, lx1, y + H - 1, 0x40E0B96A);
+                c.fill(lx0, y + H - 2, lx0 + Math.round((lx1 - lx0) * cell.xp), y + H - 1, 0xFFD9A441);
             }
             x += cell.width;
             if (i < cells.size() - 1) {

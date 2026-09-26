@@ -167,7 +167,14 @@ public final class CombatHotbar {
             LoadoutUi.drawGhost(c, st.a().isEmpty() ? st.b() : st.a(), x + 3, y + 2);
         }
         String key = AotRpgClient.sheathKey().getBoundKeyLocalizedText().getString().toUpperCase();
-        String label = drawn ? "DRAWN " + key : sheathed ? "SHEATHED " + key : "OFF";
-        Ui.text(c, Text.literal(label), x + 11, y - 7, 0.5f, col, true);
+        // Beside the slot, not above it (the space above belongs to the health bar).
+        String label = drawn ? "DRAWN" : sheathed ? "SHEATHED" : "OFF";
+        var tr = MinecraftClient.getInstance().textRenderer;
+        float lw = tr.getWidth(label) * 0.5f;
+        Ui.text(c, Text.literal(label), x - 3 - lw, y + S / 2f - 5, 0.5f, col, false);
+        if (drawn || sheathed) {
+            String k = "[" + key + "]";
+            Ui.text(c, Text.literal(k), x - 3 - tr.getWidth(k) * 0.5f, y + S / 2f + 1, 0.5f, Ui.MUTED, false);
+        }
     }
 }

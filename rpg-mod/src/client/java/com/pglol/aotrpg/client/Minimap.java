@@ -208,7 +208,8 @@ public final class Minimap {
         float td = tick.getTickDelta(true);
         double px = pl.getLerpedPos(td).x, pz = pl.getLerpedPos(td).z;
 
-        int s = VIEW, x = 10, y = 18;
+        // Low enough to clear an FPS counter in the corner.
+        int s = VIEW, x = 10, y = 34;
         int u = (int) Math.round(px - centerX) + (TEX - VIEW) / 2;
         int v = (int) Math.round(pz - centerZ) + (TEX - VIEW) / 2;
         u = Math.max(0, Math.min(TEX - VIEW, u));
