@@ -399,10 +399,12 @@ public final class Gear {
             net.minecraft.entity.EquipmentSlot.CHEST, net.minecraft.entity.EquipmentSlot.LEGS, net.minecraft.entity.EquipmentSlot.FEET}) {
             ItemStack s = p.getEquippedStack(slot);
             if (s.isEmpty() || canUse(p, s)) continue;
+            String name = s.getName().getString();
+            int need = requiredLevel(s);
             p.equipStack(slot, ItemStack.EMPTY);
             p.getInventory().offerOrDrop(s);
             Notify.toast(p, Text.literal("Too heavy for you yet").formatted(Formatting.RED),
-                Text.literal(s.getName().getString() + " needs level " + requiredLevel(s)), 0xC0463A, null, null);
+                Text.literal(name + " needs level " + need), 0xC0463A, null, null);
         }
     }
 
@@ -411,8 +413,10 @@ public final class Gear {
         Random r = p.getRandom();
         Rarity rar = rollRarity(r, bonus);
         ItemStack s = roll(r, rar, dropLevel(p, Math.max(1, level), 0));
-        p.getInventory().offerOrDrop(s);
+        if (s.isEmpty()) return;
+        // Announce first: handing the stack over empties it (and an empty stack is named "Air").
         announce(p, s, rar);
+        p.getInventory().offerOrDrop(s);
     }
 
     /**
@@ -430,6 +434,7 @@ public final class Gear {
         Rarity rar = rollRarity(r, luck);
         int ilvl = dropLevel(killer, areaLevel, shifter ? 3 : boss ? 1 : 0);
         ItemStack s = roll(r, rar, ilvl);
+        if (s.isEmpty()) return;
         ServerWorld w = (ServerWorld) titan.getWorld();
         ItemEntity e = new ItemEntity(w, titan.getX(), titan.getY() + 1, titan.getZ(), s);
         e.setPickupDelay(10);
@@ -439,6 +444,7 @@ public final class Gear {
     }
 
     private static void announce(ServerPlayerEntity p, ItemStack s, Rarity r) {
+        if (s.isEmpty()) return;
         p.sendMessage(Text.literal("Loot: ").formatted(Formatting.GRAY).append(s.getName().copy()), false);
         if (r.ordinal() >= 3) p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.6f, 1.4f);
     }
