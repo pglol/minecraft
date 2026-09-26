@@ -458,6 +458,22 @@ public final class Story {
         return true;
     }
 
+    /** Particles only the scene's players see (the story is theirs; everyone else's world stays quiet). */
+    private <T extends net.minecraft.particle.ParticleEffect> void particles(Scene sc, ServerPlayerEntity p, ServerWorld w, T type,
+                                                                          double x, double y, double z, int n, double dx, double dy, double dz, double speed) {
+        for (ServerPlayerEntity o : sc == null ? List.of(p) : members(sc)) {
+            if (o.getServerWorld() == w) w.spawnParticles(o, type, true, x, y, z, n, dx, dy, dz, speed);
+        }
+    }
+
+    /** A sound only the scene's players hear. */
+    private void sound(Scene sc, ServerPlayerEntity p, SoundEvent se, SoundCategory cat, Vec3d at, float vol, float pitch) {
+        var entry = Registries.SOUND_EVENT.getEntry(se);
+        for (ServerPlayerEntity o : sc == null ? List.of(p) : members(sc)) {
+            o.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket(entry, cat, at.x, at.y, at.z, vol, pitch, o.getRandom().nextLong()));
+        }
+    }
+
     private static void faceTo(Entity e, Vec3d pt) {
         float yaw = (float) (MathHelper.atan2(pt.z - e.getZ(), pt.x - e.getX()) * MathHelper.DEGREES_PER_RADIAN) - 90;
         e.setYaw(yaw);
@@ -625,7 +641,7 @@ public final class Story {
                     JsonObject o = v.getAsJsonObject();
                     SoundEvent se = Registries.SOUND_EVENT.get(Identifier.of(o.get("id").getAsString()));
                     Vec3d at = o.has("at") ? resolve(w, m, o.get("at")) : p.getPos();
-                    if (se != null) w.playSound(null, BlockPos.ofFloored(at), se, SoundCategory.AMBIENT, o.has("volume") ? o.get("volume").getAsFloat() : 1f,
+                    if (se != null) sound(sc, p, se, SoundCategory.AMBIENT, at, o.has("volume") ? o.get("volume").getAsFloat() : 1f,
                         o.has("pitch") ? o.get("pitch").getAsFloat() : 1f);
                 }
                 case "fx" -> {
@@ -633,10 +649,10 @@ public final class Story {
                     Vec3d at = resolve(w, m, o.get("at"));
                     String type = o.get("type").getAsString();
                     switch (type) {
-                        case "explosion" -> w.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, at.x, at.y + 2, at.z, 2, 2, 2, 2, 0);
-                        case "smoke" -> w.spawnParticles(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, at.x, at.y + 1, at.z, 40, 3, 2, 3, 0.02);
-                        case "steam" -> w.spawnParticles(ParticleTypes.CLOUD, at.x, at.y + 20, at.z, 200, 8, 20, 8, 0.1);
-                        case "fire" -> w.spawnParticles(ParticleTypes.FLAME, at.x, at.y + 1, at.z, 60, 2, 1, 2, 0.02);
+                        case "explosion" -> particles(sc, p, w, ParticleTypes.EXPLOSION_EMITTER, at.x, at.y + 2, at.z, 2, 2, 2, 2, 0);
+                        case "smoke" -> particles(sc, p, w, ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, at.x, at.y + 1, at.z, 40, 3, 2, 3, 0.02);
+                        case "steam" -> particles(sc, p, w, ParticleTypes.CLOUD, at.x, at.y + 20, at.z, 200, 8, 20, 8, 0.1);
+                        case "fire" -> particles(sc, p, w, ParticleTypes.FLAME, at.x, at.y + 1, at.z, 60, 2, 1, 2, 0.02);
                         default -> { }
                     }
                 }
@@ -853,6 +869,27 @@ public final class Story {
         if (t == null) return;
         Vec3d at = resolve(w, m, o.get("at"));
         float yaw = (float) (MathHelper.atan2(-at.z, -at.x) * MathHelper.DEGREES_PER_RADIAN) - 90;
+        if (o.has("overWall") && t instanceof LivingEntity le) {
+            // Tall enough that its head and shoulders show above the Wall it stands behind: grown if
+            // the model allows, and raised the rest of the way (its feet are hidden by the Wall).
+            double extra = o.get("overWall").getAsDouble();
+            double len = Math.hypot(at.x, at.z);
+            double ix = len < 1 ? 0 : -at.x / len, iz = len < 1 ? 0 : -at.z / len;
+            int wallTop = (int) at.y;
+            for (int k = 0; k <= 40; k++) {
+                int x = (int) Math.floor(at.x + ix * k), z = (int) Math.floor(at.z + iz * k);
+                if (w.isChunkLoaded(x >> 4, z >> 4)) wallTop = Math.max(wallTop, w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z));
+            }
+            double baseH = Math.max(1, t.getHeight());
+            double want = wallTop + extra - at.y;
+            double scale = Math.max(1, Math.min(4, want / baseH));
+            var attr = le.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            if (attr != null) attr.setBaseValue(scale);
+            else scale = 1;
+            double top = at.y + baseH * scale;
+            if (top < wallTop + extra) at = new Vec3d(at.x, at.y + (wallTop + extra - top), at.z);
+            t.setNoGravity(true);
+        }
         t.refreshPositionAndAngles(at.x, at.y, at.z, yaw, 0);
         if (t instanceof MobEntity mob) {
             mob.setAiDisabled(true);
@@ -1279,13 +1316,25 @@ public final class Story {
             }
         }
         fight(sc, host, ticks);
-        for (String id : sc.followers) {
+        // Followers keep their own place behind you, in pairs, so they never walk inside each other.
+        List<String> fol = new ArrayList<>(sc.followers);
+        java.util.Collections.sort(fol);
+        double hy = Math.toRadians(host.getYaw());
+        double bx = Math.sin(hy), bz = -Math.cos(hy), sx = -bz, sz = bx;
+        for (int i = 0; i < fol.size(); i++) {
+            String id = fol.get(i);
             if (sc.fighting.contains(id)) continue;
             Entity e = actorEntity(sc, id);
             if (e == null) continue;
             double d = e.squaredDistanceTo(host);
-            if (d > 40 * 40 || e.getWorld() != host.getWorld()) e.requestTeleport(host.getX() + 1.5, host.getY(), host.getZ() + 1.5);
-            else if (d > 3.5 * 3.5) step(e, host.getPos(), 0.28);
+            double back = 2.4 + (i / 2) * 1.7, side = (i % 2 == 0 ? -1 : 1) * (fol.size() == 1 ? 0 : 0.9);
+            Vec3d spot = host.getPos().add(bx * back + sx * side, 0, bz * back + sz * side);
+            if (d > 40 * 40 || e.getWorld() != host.getWorld()) e.requestTeleport(spot.x, host.getY(), spot.z);
+            else {
+                double hx = spot.x - e.getX(), hz = spot.z - e.getZ();
+                if (hx * hx + hz * hz > 0.6 * 0.6) step(e, spot, d > 8 * 8 ? 0.4 : 0.28);
+                else if (ticks % 10 == 0) faceTo(e, host.getEyePos());
+            }
         }
         List<String> arrived = new ArrayList<>();
         for (var it = sc.walks.entrySet().iterator(); it.hasNext(); ) {
@@ -1391,11 +1440,21 @@ public final class Story {
         if (anchor == null || host.getPos().squaredDistanceTo(anchor) > 80 * 80) return;
         List<Entity> gone = new ArrayList<>();
         net.minecraft.util.math.Box area = new net.minecraft.util.math.Box(anchor.x - 64, anchor.y - 48, anchor.z - 64, anchor.x + 64, anchor.y + 64, anchor.z + 64);
+        List<ServerPlayerEntity> mem = members(sc);
         for (Entity e : w.getEntitiesByClass(Entity.class, area, TitanGuard::wanderingTitan)) {
-            if (!phased.containsKey(e.getId())) gone.add(e);
+            if (phased.containsKey(e.getId())) continue;
+            // Someone outside the scene can see it or is fighting it: it stays in their world.
+            boolean watched = false;
+            for (ServerPlayerEntity o : w.getPlayers()) {
+                if (!mem.contains(o) && o.squaredDistanceTo(e) < 128 * 128) {
+                    watched = true;
+                    break;
+                }
+            }
+            if (!watched) gone.add(e);
         }
         for (Entity e : gone) {
-            w.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + e.getHeight() / 2, e.getZ(), 12, e.getWidth() / 2, e.getHeight() / 3, e.getWidth() / 2, 0.02);
+            particles(sc, host, w, ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + e.getHeight() / 2, e.getZ(), 12, e.getWidth() / 2, e.getHeight() / 3, e.getWidth() / 2, 0.02);
             e.discard();
         }
     }
@@ -1468,11 +1527,11 @@ public final class Story {
             Vec3d next = len < 0.6 ? spot : v.getPos().add(d.multiply(0.6 / len));
             v.refreshPositionAndAngles(next.x, next.y, next.z, v.getYaw(), 0);
             faceTo(v, new Vec3d(t.getX(), v.getY(), t.getZ()));
-            if (ticks % 4 == seed % 4) w.spawnParticles(ParticleTypes.CLOUD, v.getX(), v.getY() + 0.9, v.getZ(), 1, 0.1, 0.1, 0.1, 0.01);
+            if (ticks % 4 == seed % 4) particles(sc, host, w, ParticleTypes.CLOUD, v.getX(), v.getY() + 0.9, v.getZ(), 1, 0.1, 0.1, 0.1, 0.01);
             if (len < 2.5 && ticks % 32 == seed % 32) {
                 v.swingHand(net.minecraft.util.Hand.MAIN_HAND);
-                w.spawnParticles(ParticleTypes.SWEEP_ATTACK, t.getX() - Math.sin(ang) * (r - 1), spot.y, t.getZ() + Math.cos(ang) * (r - 1), 1, 0, 0, 0, 0);
-                w.playSound(null, v.getBlockPos(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 0.8f, 1.1f);
+                particles(sc, host, w, ParticleTypes.SWEEP_ATTACK, t.getX() - Math.sin(ang) * (r - 1), spot.y, t.getZ() + Math.cos(ang) * (r - 1), 1, 0, 0, 0, 0);
+                sound(sc, host, SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, v.getPos(), 0.8f, 1.1f);
                 float max = t.getMaxHealth();
                 // The last titan standing is yours: they only wear it down.
                 float floor = live.size() > 1 ? 0 : max * 0.25f;
@@ -1482,10 +1541,10 @@ public final class Story {
                         var src = v.getDamageSources().mobAttack(v);
                         t.setHealth(0);
                         t.onDeath(src);
-                        w.spawnParticles(ParticleTypes.CLOUD, t.getX(), t.getY() + t.getHeight() * 0.8, t.getZ(), 30, 0.6, 0.6, 0.6, 0.05);
+                        particles(sc, host, w, ParticleTypes.CLOUD, t.getX(), t.getY() + t.getHeight() * 0.8, t.getZ(), 30, 0.6, 0.6, 0.6, 0.05);
                     } else {
                         t.setHealth(left);
-                        w.spawnParticles(ParticleTypes.CLOUD, spot.x, spot.y, spot.z, 6, 0.3, 0.3, 0.3, 0.02);
+                        particles(sc, host, w, ParticleTypes.CLOUD, spot.x, spot.y, spot.z, 6, 0.3, 0.3, 0.3, 0.02);
                     }
                 }
             }

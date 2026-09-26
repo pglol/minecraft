@@ -147,8 +147,8 @@ dialogues["sh2_boats"] = D("a",
     c=N(None, "The crowd carries you through the gate. Nobody talks. Behind you, smoke is rising over Shiganshina.", end=True))
 missions.append(M("sh2", "The Day the Wall Fell", ch_sh, "survival", ["war", "character", "future"], SH, [1, 5], [
     S("Head home along the main street", goto([-5, -8], 7),
-      done=[{"shake": 3}, {"flash": 0.6}, {"titan_actor": {"id": "colossal", "shifter": "colossal", "at": gate("outer", -16, 0), "seconds": 30}},
-            {"sound": {"id": "minecraft:entity.lightning_bolt.thunder", "volume": 2}}, {"fx": {"type": "steam", "at": gate("outer", -10, 0)}},
+      done=[{"shake": 3}, {"flash": 0.6}, {"titan_actor": {"id": "colossal", "shifter": "colossal", "at": gate("outer", -14, 10), "overWall": 12, "seconds": 150}},
+            {"sound": {"id": "minecraft:entity.lightning_bolt.thunder", "volume": 2}}, {"fx": {"type": "steam", "at": gate("outer", -10, 10)}},
             say("Lightning, out of a clear sky. Then a hand, skinless and steaming, grips the top of the Wall.")]),
     S("Look toward the outer gate", {"wait": 4},
       done=[{"fx": {"type": "explosion", "at": gate("outer", 4, 0)}}, {"shake": 2}, card("845", "Shiganshina"),
@@ -486,7 +486,7 @@ dialogues["tb1_eren"] = D("a",
         C("Sasha, you're going to get us all thrown in a cell.", "c", [aff(sasha=3)]),
         C("I want a big piece.", "c", [aff(sasha=6)])]),
     c=N(None, "Then the light changes. Lightning, out of a clear sky.", end=True,
-        effects=[{"shake": 3}, {"flash": 1}, {"titan_actor": {"id": "colossal", "shifter": "colossal", "at": gate("outer", -14, 0), "seconds": 30}},
+        effects=[{"shake": 3}, {"flash": 1}, {"titan_actor": {"id": "colossal", "shifter": "colossal", "at": gate("outer", -14, 10), "overWall": 12, "seconds": 90}},
                  {"sound": {"id": "minecraft:entity.lightning_bolt.thunder", "volume": 2}}, card("The Battle of Trost", "850")]))
 missions.append(M("tb1", "The Colossal Returns", ch_tb, "survival", ["war", "character"], TR, [5, 12], [
     S("Report to your squad near Trost's outer gate", goto(E("outer", 0.55), 12),

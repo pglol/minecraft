@@ -132,11 +132,12 @@
         "at": {
          "gate": "outer",
          "rel": [
-          -16,
-          0
+          -14,
+          10
          ]
         },
-        "seconds": 30
+        "overWall": 12,
+        "seconds": 150
        }
       },
       {
@@ -152,7 +153,7 @@
          "gate": "outer",
          "rel": [
           -10,
-          0
+          10
          ]
         }
        }
@@ -5382,10 +5383,11 @@
          "gate": "outer",
          "rel": [
           -14,
-          0
+          10
          ]
         },
-        "seconds": 30
+        "overWall": 12,
+        "seconds": 90
        }
       },
       {
