@@ -512,6 +512,10 @@ final class Commands {
             c.getSource().sendFeedback(() -> Text.literal("Story content reloaded (see the server log for problems)."), false);
             return 1;
         })));
+        d.register(CommandManager.literal("odmcheck").executes(c -> {
+            for (String line : OdmBoost.describe(c.getSource().getPlayerOrThrow())) c.getSource().sendFeedback(() -> Text.literal(line), false);
+            return 1;
+        }));
         d.register(CommandManager.literal("bladecheck").executes(c -> {
             String info = BladeCare.describe(c.getSource().getPlayerOrThrow().getMainHandStack());
             c.getSource().sendFeedback(() -> Text.literal(info), false);

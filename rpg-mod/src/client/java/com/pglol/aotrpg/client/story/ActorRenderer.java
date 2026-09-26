@@ -12,8 +12,8 @@ import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.util.Identifier;
 
 /**
- * Villagers as drawn: an ordinary villager, unless it's a story actor in your scene, which is
- * drawn as a person (the player model) in their own skin.
+ * Villagers as drawn: always as a person (the player model). Story actors wear their character's skin,
+ * everyone else one of the townsfolk skins, or a working skin for a job (commander, ferryman...).
  */
 public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
     private final VillagerEntityRenderer villager;
@@ -27,13 +27,29 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
 
     @Override
     public void render(VillagerEntity e, float yaw, float tickDelta, MatrixStack ms, VertexConsumerProvider vc, int light) {
-        if (StoryClient.skin(e.getId()) != null) person.render(e, yaw, tickDelta, ms, vc, light);
-        else villager.render(e, yaw, tickDelta, ms, vc, light);
+        // Everyone is a person now: story characters in their own skins, everyone else one of the
+        // townsfolk (the same look for the same person, every time).
+        person.render(e, yaw, tickDelta, ms, vc, light);
     }
 
     @Override
     public Identifier getTexture(VillagerEntity e) {
-        return StoryClient.skin(e.getId()) != null ? person.getTexture(e) : villager.getTexture(e);
+        return person.getTexture(e);
+    }
+
+    /** The skin for a villager that isn't in a story scene: by their job title if they have one, else a townsperson. */
+    static String skinOf(VillagerEntity e) {
+        String s = StoryClient.skin(e.getId());
+        if (s != null) return s;
+        String name = e.hasCustomName() ? e.getCustomName().getString().toLowerCase(java.util.Locale.ROOT) : "";
+        if (name.contains("raid commander")) return "garrison_captain";
+        if (name.contains("ferry")) return "farmer";
+        if (name.contains("stable")) return "farmer";
+        if (name.contains("builder")) return "civilian_m";
+        long h = e.getUuid().getLeastSignificantBits() ^ e.getUuid().getMostSignificantBits();
+        // Townsfolk skins alternate men and women; match the name the server gives them.
+        int i = (int) Math.floorMod(h >> 5, 40L) * 2 + (int) (h & 1);
+        return String.format("folk_%02d", i);
     }
 
     /** A story character: the player model in a skin from assets/aot_rpg/textures/entity/actor. */
@@ -50,8 +66,7 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
 
         @Override
         public Identifier getTexture(VillagerEntity e) {
-            String skin = StoryClient.skin(e.getId());
-            return Identifier.of("aot_rpg", "textures/entity/actor/" + (skin == null ? "civilian_m" : skin) + ".png");
+            return Identifier.of("aot_rpg", "textures/entity/actor/" + skinOf(e) + ".png");
         }
 
         @Override
@@ -66,7 +81,8 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
 
         @Override
         protected void scale(VillagerEntity e, MatrixStack ms, float tickDelta) {
-            ms.scale(0.9375f, 0.9375f, 0.9375f);
+            float k = e.isBaby() ? 0.55f : 0.9375f;
+            ms.scale(k, k, k);
         }
     }
 }

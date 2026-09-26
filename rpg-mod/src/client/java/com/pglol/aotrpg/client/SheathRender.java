@@ -8,7 +8,10 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.render.model.json.ModelTransformationMode;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityPose;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -28,7 +31,7 @@ public final class SheathRender {
 
     public static void render(WorldRenderContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null || ClientState.sheaths.isEmpty()) return;
+        if (mc.world == null) return;
         MatrixStack ms = ctx.matrixStack();
         VertexConsumerProvider vc = ctx.consumers();
         if (ms == null || vc == null) return;
@@ -41,7 +44,33 @@ public final class SheathRender {
             EntityPose pose = pl.getPose();
             if (pose != EntityPose.STANDING && pose != EntityPose.CROUCHING) continue;
             ItemStack[] grips = st.count() == 2 ? new ItemStack[] {st.a(), st.b()} : new ItemStack[] {st.a().isEmpty() ? st.b() : st.a()};
+            draw(mc, ms, vc, cam, td, pl, grips);
+        }
+        // Cadets and soldiers in the story: harness on and hands empty means blades sheathed on the back.
+        ItemStack blade = grip();
+        if (!blade.isEmpty()) {
+            for (Entity e : mc.world.getEntities()) {
+                if (!(e instanceof VillagerEntity v) || v.isInvisible() || v.hasVehicle() || !v.getMainHandStack().isEmpty()) continue;
+                if (!Registries.ITEM.getId(v.getEquippedStack(EquipmentSlot.LEGS).getItem()).getPath().contains("odm")) continue;
+                if (cam.squaredDistanceTo(v.getPos()) > 48 * 48) continue;
+                draw(mc, ms, vc, cam, td, v, new ItemStack[] {blade, blade});
+            }
+        }
+    }
 
+    private static ItemStack gripCache;
+
+    /** Danny's grip, to draw on actors' backs (empty without the mod). */
+    private static ItemStack grip() {
+        if (gripCache == null) {
+            var item = Registries.ITEM.get(Identifier.of("dannys-aot", "blade"));
+            gripCache = item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+        }
+        return gripCache;
+    }
+
+    private static void draw(MinecraftClient mc, MatrixStack ms, VertexConsumerProvider vc, Vec3d cam, float td, LivingEntity pl, ItemStack[] grips) {
+            EntityPose pose = pl.getPose();
             Vec3d pos = pl.getLerpedPos(td);
             float bodyYaw = MathHelper.lerpAngleDegrees(td, pl.prevBodyYaw, pl.bodyYaw);
             boolean crouch = pose == EntityPose.CROUCHING;
@@ -83,6 +112,5 @@ public final class SheathRender {
                 ms.pop();
             }
             ms.pop();
-        }
     }
 }

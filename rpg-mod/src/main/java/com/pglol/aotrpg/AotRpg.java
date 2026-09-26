@@ -77,6 +77,7 @@ public final class AotRpg implements ModInitializer {
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final OdmBoost ODM = new OdmBoost();
+    public static final Townsfolk FOLK = new Townsfolk();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -468,6 +469,7 @@ public final class AotRpg implements ModInitializer {
                 return ActionResult.SUCCESS;
             }
             if (HORSES.useHorse(sp, entity)) return ActionResult.SUCCESS;
+            if (FOLK.talk(sp, entity)) return ActionResult.SUCCESS;
             return ActionResult.PASS;
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
@@ -644,6 +646,7 @@ public final class AotRpg implements ModInitializer {
         FERRIES.tick(ticks);
         FOG.tick(ticks);
         WITNESS.tick(ticks);
+        FOLK.tick(server.getOverworld(), ticks);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);

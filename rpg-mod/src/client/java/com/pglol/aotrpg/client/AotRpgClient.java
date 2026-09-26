@@ -136,6 +136,7 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         WorldRenderEvents.AFTER_ENTITIES.register(Beams::render);
         WorldRenderEvents.AFTER_ENTITIES.register(SheathRender::render);
+        WorldRenderEvents.AFTER_ENTITIES.register(ChatterFx::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.HealInfo.ID, (payload, ctx) -> {
             CombatHotbar.heal = payload;
             CombatHotbar.healAt = net.minecraft.util.Util.getMeasuringTimeMs();
@@ -218,6 +219,7 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.GrabProgress.ID, (payload, ctx) -> TitanState.onProgress(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.OdmState.ID, (payload, ctx) -> OdmMoves.onState(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.OdmMove.ID, (payload, ctx) -> OdmMoves.onMove(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.Chatter.ID, (payload, ctx) -> ChatterFx.onChatter(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(TitanPlates::render);
         HudRenderCallback.EVENT.register(TitanPlates::renderHud);
         AbilityBar.register();

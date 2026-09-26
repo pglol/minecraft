@@ -32,7 +32,7 @@ def box(img, x, y, w, h, d, col, top=None, bottom=None):
     region(img, x + d + w, y + d, d, h, shade(col, 0.9))                # left
     region(img, x + d + w + d, y + d, w, h, shade(col, 0.85))           # back
 
-def make(name, skin='light', hair=(90, 60, 40), style='short', eyes=(80, 60, 40), outfit='cadet', extra=()):
+def make(name, skin='light', hair=(90, 60, 40), style='short', eyes=(80, 60, 40), outfit='cadet', extra=(), top_col=None, legs_col=None):
     img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
     sk = SKIN[skin]
     # Head
@@ -69,11 +69,11 @@ def make(name, skin='light', hair=(90, 60, 40), style='short', eyes=(80, 60, 40)
         region(img, 32 + 24 + 2, 8 + 2, 4, 4, shade(hair, 0.9))
 
     # Outfits
-    civilian = outfit in ('civilian_m', 'civilian_f', 'farmer', 'noble', 'priest', 'thug', 'child', 'apron')
+    civilian = outfit in ('civilian_m', 'civilian_f', 'farmer', 'noble', 'priest', 'thug', 'child', 'apron', 'folk')
     if civilian:
-        top = {'civilian_m': (120, 110, 90), 'civilian_f': (150, 110, 120), 'farmer': (130, 120, 80), 'noble': (70, 50, 110),
+        top = top_col or {'civilian_m': (120, 110, 90), 'civilian_f': (150, 110, 120), 'farmer': (130, 120, 80), 'noble': (70, 50, 110),
                'priest': (230, 230, 225), 'thug': (70, 70, 70), 'child': (140, 120, 100), 'apron': (170, 140, 110)}[outfit]
-        legs = {'civilian_f': top, 'priest': top, 'apron': top, 'noble': (40, 30, 60)}.get(outfit, (90, 80, 70))
+        legs = legs_col or {'civilian_f': top, 'priest': top, 'apron': top, 'noble': (40, 30, 60)}.get(outfit, (90, 80, 70))
         box(img, 16, 16, 8, 12, 4, top)
         box(img, 40, 16, 4, 12, 4, top)
         box(img, 32, 48, 4, 12, 4, top)
@@ -204,4 +204,34 @@ make('smuggler', 'light', (120, 40, 30), 'short', (60, 50, 40), 'thug')
 make('refugee_child', 'light', (130, 90, 60), 'short', (80, 60, 40), 'child')
 make('refugee', 'tan', DRK, 'long', (80, 60, 40), 'civilian_f')
 make('merchant', 'light', GRY, 'short', (70, 60, 50), 'noble', (beard,))
+
+# Townsfolk: a large pool of plain, varied people (no one special). The client picks one per person
+# from who they are, so a town is a crowd of different faces and clothes.
+import random
+rnd = random.Random(845)
+HAIRS = [(26, 24, 26), (58, 40, 30), (92, 60, 38), (120, 80, 50), (150, 100, 60), (190, 150, 90), (226, 198, 120), (150, 150, 150),
+         (200, 200, 200), (120, 50, 30), (70, 50, 40)]
+EYES = [(80, 60, 40), (60, 90, 140), (70, 110, 80), (50, 40, 30), (110, 90, 60)]
+# Earthy cloth: linen, wool, dyed browns, faded blues and greens, a little red.
+CLOTH = [(120, 110, 90), (150, 130, 100), (100, 80, 60), (80, 90, 110), (90, 100, 80), (140, 120, 110), (170, 150, 120), (70, 60, 50),
+         (110, 70, 60), (130, 100, 80), (180, 170, 150), (90, 70, 90), (60, 70, 60), (160, 110, 90), (200, 190, 170)]
+LEGS = [(70, 60, 50), (90, 80, 70), (60, 55, 50), (100, 85, 65), (50, 50, 60), (120, 100, 80)]
+EXTRAS_M = [beard, stubble, goatee, glasses, freckles, hood]
+EXTRAS_F = [scarf, freckles, glasses, hood]
+def apron(img):
+    region(img, 21, 24, 6, 8, (225, 218, 200))
+for i in range(80):
+    female = i % 2 == 1
+    sk = rnd.choice(list(SKIN.keys()))
+    hair = rnd.choice(HAIRS[:9] if rnd.random() < 0.85 else HAIRS)
+    style = rnd.choice(['long', 'bob', 'bun', 'ponytail', 'long']) if female else rnd.choice(['short', 'short', 'buzz', 'bald', 'undercut', 'short'])
+    top = rnd.choice(CLOTH)
+    legs = top if female and rnd.random() < 0.6 else rnd.choice(LEGS)
+    extra = []
+    if rnd.random() < 0.45:
+        extra.append(rnd.choice(EXTRAS_F if female else EXTRAS_M))
+    if rnd.random() < 0.2:
+        extra.append(apron)
+    make('folk_%02d' % i, sk, hair, style, rnd.choice(EYES), 'folk', tuple(extra), top, legs)
+
 print('skins written to', os.path.abspath(OUT))

@@ -23,6 +23,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -38,6 +39,8 @@ import java.util.function.Predicate;
 public final class OdmBoost {
     public static final int COOLDOWN = 20, PER_AIR = 2;
     public static final int DASH = 0, UP = 1, FLIP = 2;
+    /** A full tank on Danny's gear, when it doesn't say its own maximum. */
+    public static final double FULL = 500;
 
     private static final class St {
         long lastAt = -1000;
@@ -154,7 +157,7 @@ public final class OdmBoost {
         Num v = find(g, GAS);
         if (v == null) return -1;
         Num max = find(g, GAS_MAX);
-        double m = max != null && max.value() > 0 ? max.value() : Math.max(v.value(), 100);
+        double m = max != null && max.value() > 0 ? max.value() : Math.max(v.value(), FULL);
         return (float) Math.max(0, Math.min(1, v.value() / m));
     }
 
@@ -166,7 +169,7 @@ public final class OdmBoost {
         if (v == null) return true; // the gear keeps no count we can read: the burst is free
         if (v.value() <= 0) return false;
         Num max = find(g, GAS_MAX);
-        double m = max != null && max.value() > 0 ? max.value() : Math.max(v.value(), 100);
+        double m = max != null && max.value() > 0 ? max.value() : Math.max(v.value(), FULL);
         v.set().accept(Math.max(0, v.value() - Math.max(1, m * 0.05)));
         return true;
     }
@@ -217,6 +220,36 @@ public final class OdmBoost {
         s.gear = g;
         s.gas = gas;
         if (ServerPlayNetworking.canSend(p, Net.OdmState.ID)) ServerPlayNetworking.send(p, new Net.OdmState(g, gas));
+    }
+
+    /** For /odmcheck: every number the worn gear carries (custom NBT and modded components), and what we make of the gas. */
+    public static List<String> describe(ServerPlayerEntity p) {
+        List<String> out = new java.util.ArrayList<>();
+        ItemStack g = gear(p);
+        if (g.isEmpty()) {
+            out.add("No ODM gear worn (looked at legs, chest and feet for an item named odm/maneuver/3dmg).");
+            return out;
+        }
+        out.add("Gear: " + Registries.ITEM.getId(g.getItem()) + (g.isDamageable() ? "  damage " + g.getDamage() + "/" + g.getMaxDamage() : ""));
+        NbtComponent cd = g.get(DataComponentTypes.CUSTOM_DATA);
+        if (cd != null) numbers(cd.copyNbt(), "nbt", out);
+        for (Component<?> comp : g.getComponents()) {
+            Identifier id = Registries.DATA_COMPONENT_TYPE.getId(comp.type());
+            if (id == null || id.getNamespace().equals("minecraft")) continue;
+            out.add("component " + id + " = " + comp.value());
+        }
+        Num v = find(g, GAS), max = find(g, GAS_MAX);
+        out.add("Gas read as: " + (v == null ? "NOT FOUND (boosts are free)" : v.value() + " / " + (max != null ? max.value() + " (from the gear)" : FULL + " (assumed)"))
+            + "  ->  " + Math.round(gas(p) * 100) + "%");
+        return out;
+    }
+
+    private static void numbers(NbtCompound n, String at, List<String> out) {
+        for (String k : n.getKeys()) {
+            NbtElement e = n.get(k);
+            if (e instanceof AbstractNbtNumber num) out.add(at + "." + k + " = " + num.doubleValue());
+            else if (e instanceof NbtCompound c) numbers(c, at + "." + k, out);
+        }
     }
 
     public void forget(UUID id) {

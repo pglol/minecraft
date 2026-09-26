@@ -1045,6 +1045,14 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> nearby clients: something a townsperson says, floated over their head. */
+    public record Chatter(int entity, String text) implements CustomPayload {
+        public static final Id<Chatter> ID = id("chatter");
+        public static final PacketCodec<RegistryByteBuf, Chatter> CODEC = PacketCodec.of((v, b) -> { b.writeVarInt(v.entity); b.writeString(v.text); },
+            b -> new Chatter(b.readVarInt(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record Struggle() implements CustomPayload {
         public static final Id<Struggle> ID = id("struggle");
         public static final PacketCodec<RegistryByteBuf, Struggle> CODEC = PacketCodec.unit(new Struggle());
@@ -1738,6 +1746,7 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(OdmJump.ID, OdmJump.CODEC);
         PayloadTypeRegistry.playS2C().register(OdmMove.ID, OdmMove.CODEC);
         PayloadTypeRegistry.playS2C().register(OdmState.ID, OdmState.CODEC);
+        PayloadTypeRegistry.playS2C().register(Chatter.ID, Chatter.CODEC);
         PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
         PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);
         PayloadTypeRegistry.playC2S().register(ToggleSheath.ID, ToggleSheath.CODEC);
