@@ -31,7 +31,7 @@ public final class OdmMoves {
     public static float gas = -1;
     private static long cooldownUntil, leftGround;
     private static int airUsed;
-    private static boolean jumpWas, wasOnGround = true;
+    private static boolean jumpWas, wasOnGround = true, releasedInAir;
 
     /** A move being played out on someone: what kind, which way (world yaw), when it began. */
     public record Anim(int kind, float yaw, long at, float viewYaw) { }
@@ -56,13 +56,20 @@ public final class OdmMoves {
         long now = Util.getMeasuringTimeMs();
         anims.values().removeIf(a -> now - a.at() > 1000);
         boolean onGround = pl.isOnGround();
-        if (onGround || pl.isTouchingWater() || pl.hasVehicle() || pl.isClimbing()) airUsed = 0;
+        if (onGround || pl.isTouchingWater() || pl.hasVehicle() || pl.isClimbing()) {
+            airUsed = 0;
+            releasedInAir = false;
+        }
+        boolean airborneBefore = !wasOnGround;
         if (wasOnGround && !onGround) leftGround = now;
         wasOnGround = onGround;
         boolean jump = mc.options.jumpKey.isPressed();
         boolean press = jump && !jumpWas;
         jumpWas = jump;
-        if (!press || mc.currentScreen != null || onGround) return;
+        // The press that makes the ordinary jump doesn't count: you must already have been in the
+        // air last tick, and have let go of jump since leaving the ground.
+        if (!jump && !onGround) releasedInAir = true;
+        if (!press || !airborneBefore || !releasedInAir || mc.currentScreen != null || onGround) return;
         if (pl.getAbilities().allowFlying || pl.hasVehicle() || pl.isTouchingWater() || pl.isClimbing() || pl.isFallFlying()
             || TitanState.grabbed() || TitanState.shifted() || !gear) return;
         if (gas == 0) {
