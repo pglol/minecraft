@@ -153,7 +153,7 @@ public final class Satchel {
         if (armed) {
             for (int i = 0; i < bag.size(); i++) {
                 ItemStack s = bag.getStack(i);
-                if (!AotItems.isSupply(s)) continue;
+                if (!AotItems.feeds(p.getMainHandStack(), s) && !AotItems.feeds(p.getOffHandStack(), s)) continue;
                 int have = 0;
                 for (ItemStack m : inv.main) if (ItemStack.areItemsAndComponentsEqual(m, s)) have += m.getCount();
                 int want = s.getMaxCount() - have;
@@ -243,7 +243,7 @@ public final class Satchel {
         boolean changed = false;
         for (int slot = 9; slot < 36; slot++) {
             ItemStack m = inv.main.get(slot);
-            if (m.isEmpty() || (armed && AotItems.isSupply(m))) continue;
+            if (m.isEmpty() || (armed && (AotItems.feeds(p.getMainHandStack(), m) || AotItems.feeds(p.getOffHandStack(), m)))) continue;
             ItemStack rest = bag.addStack(m.copy());
             if (rest.getCount() != m.getCount()) {
                 inv.main.set(slot, rest);

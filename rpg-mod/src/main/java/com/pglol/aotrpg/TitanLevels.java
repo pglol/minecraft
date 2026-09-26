@@ -282,7 +282,8 @@ public final class TitanLevels {
         if (now - n.lastAt > STRIKE_MEMORY_MS) n.strikes = 0;
         // One strike per swing: Danny's blades can report several hits for one cut.
         if (now - n.lastAt < 180) return true;
-        n.strikes++;
+        // Twin Cut blades count each nape strike twice.
+        n.strikes += Gear.napeStrikes(p, p.getMainHandStack());
         n.lastAt = now;
         int need = needed(p, titan);
         ServerWorld w = (ServerWorld) titan.getWorld();

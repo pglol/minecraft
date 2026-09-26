@@ -159,6 +159,26 @@ public final class Gear {
         return new ItemStack(ARMORS[r.nextInt(reach)]);
     }
 
+    /**
+     * Rare blade perk, Twin Cut: every nape strike counts twice. Only ODM blades, and only from
+     * Rare up (8% Rare, 15% Epic, 30% Legendary).
+     */
+    private static void rollPerk(Random r, ItemStack s, Rarity rarity, NbtCompound g) {
+        if (!Loadout.isGrip(s) || AotItems.isApgGun(s)) return;
+        float chance = switch (rarity) {
+            case RARE -> 0.08f;
+            case EPIC -> 0.15f;
+            case LEGENDARY -> 0.30f;
+            default -> 0f;
+        };
+        if (r.nextFloat() < chance) g.putBoolean("twin", true);
+    }
+
+    /** Nape strikes this weapon deals per cut (2 with Twin Cut, when you can use it). */
+    public static int napeStrikes(ServerPlayerEntity p, ItemStack s) {
+        return isGear(s) && canUse(p, s) && data(s).getBoolean("twin") ? 2 : 1;
+    }
+
     /** A new piece of gear of this rarity and item level. */
     public static ItemStack roll(Random r, Rarity rarity, int ilvl) {
         boolean weapon = r.nextFloat() < 0.5f;
@@ -182,6 +202,7 @@ public final class Gear {
         g.putInt("ilvl", ilvl);
         g.putInt("up", 0);
         g.putLong("seed", r.nextLong());
+        rollPerk(r, s, rarity, g);
         NbtCompound tag = new NbtCompound();
         tag.put("aot_gear", g);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
@@ -208,6 +229,7 @@ public final class Gear {
         g.putInt("ilvl", ilvl);
         g.putInt("up", 0);
         g.putLong("seed", r.nextLong());
+        rollPerk(r, s, rarity, g);
         NbtCompound tag = new NbtCompound();
         tag.put("aot_gear", g);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
@@ -274,6 +296,10 @@ public final class Gear {
                 a.percent() ? EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE : EntityAttributeModifier.Operation.ADD_VALUE), slot);
             String shown = a.percent() ? String.format(java.util.Locale.ROOT, "+%.1f%%", v * 100) : String.format(java.util.Locale.ROOT, "+%.2f", v);
             lore.add(Text.literal(shown + " " + a.label()).formatted(Formatting.BLUE).styled(st -> st.withItalic(false)));
+        }
+        if (g.getBoolean("twin")) {
+            lore.add(Text.literal("✦ Twin Cut").formatted(Formatting.GOLD, Formatting.BOLD).styled(st -> st.withItalic(false)));
+            lore.add(Text.literal("  Nape strikes count double").formatted(Formatting.YELLOW).styled(st -> st.withItalic(false)));
         }
         if (up < 10) lore.add(Text.literal("Upgrade at a forge").formatted(Formatting.DARK_GRAY));
         s.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, b.build());

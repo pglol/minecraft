@@ -98,7 +98,7 @@ public final class AotItems {
     /** Consumables that live in the satchel and move into the inventory while armed. */
     public static final String[] SUPPLY_PATHS = {"blade_component", "apg_cartridge", "ice_burst_cluster"};
     /** Gear that draws on those supplies while held. */
-    public static final String[] USER_PATHS = {"blade", "odm_apg", "apg_gun", "gas_canister"};
+    public static final String[] USER_PATHS = {"blade", "odm_apg", "apg_gun", "gas_canister", "flare_gun"};
     public static final String[] GRIP = {"grip", "handle", "trigger"};
     public static final String[] BLADE = {"blade"};
     public static final String[] GAS = {"gas_canister", "gas", "canister"};
@@ -123,7 +123,14 @@ public final class AotItems {
         if (!isAot(s)) return false;
         String p = path(s);
         for (String x : SUPPLY_PATHS) if (p.equals(x)) return true;
-        return false;
+        return p.endsWith("_flare_cartridge");
+    }
+
+    /** Does this held gear use that supply? The flare gun takes flare cartridges; blades and guns the rest. */
+    public static boolean feeds(ItemStack user, ItemStack supply) {
+        if (!usesSupplies(user) || !isSupply(supply)) return false;
+        boolean flare = path(supply).endsWith("_flare_cartridge");
+        return path(user).equals("flare_gun") == flare;
     }
 
     /** Items that use supplies: ODM grips, the APG gun, gas canisters. */
