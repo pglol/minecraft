@@ -201,6 +201,10 @@ public final class Estate {
         if (ticks % 3 == 0) {
             for (Job j : new ArrayList<>(jobs.values())) build(w, j);
         }
+        // Companions keep pace four times a second (ODM and horses outrun any animal).
+        if (ticks % 5 == 2) {
+            for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) follow(p);
+        }
         if (ticks % 40 == 21) {
             for (ServerPlayerEntity p : w.getPlayers()) pets(p);
             for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) if (p.getWorld() != w) pets(p);
@@ -709,10 +713,34 @@ public final class Estate {
             comp = e instanceof MobEntity m ? m : null;
             if (comp == null) return;
         }
-        double d = comp.squaredDistanceTo(p);
-        if (d > 16 * 16) comp.requestTeleport(p.getX() + 1, p.getY(), p.getZ() + 1);
-        else if (d > 4 * 4) comp.getNavigation().startMovingTo(p, 1.3);
         if (comp instanceof TameableEntity t) t.setSitting(false);
+    }
+
+    /**
+     * Your companion keeps up: quick on its feet, running when you get ahead, and with you in a
+     * blink when you outpace it (flying on ODM gear, galloping, falling from a height).
+     */
+    private void follow(ServerPlayerEntity p) {
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (pr.companion == null || pr.companion.isEmpty() || p.isSpectator()) return;
+        String me = p.getUuidAsString();
+        List<MobEntity> comps = p.getServerWorld().getEntitiesByClass(MobEntity.class, p.getBoundingBox().expand(64), e -> me.equals(owner(e, COMPANION)));
+        if (comps.isEmpty()) return;
+        MobEntity comp = comps.get(0);
+        var speed = comp.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MOVEMENT_SPEED);
+        if (speed != null && speed.getBaseValue() < 0.4) speed.setBaseValue(0.4);
+        var fly = comp.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_FLYING_SPEED);
+        if (fly != null && fly.getBaseValue() < 0.8) fly.setBaseValue(0.8);
+        double d = comp.squaredDistanceTo(p);
+        boolean fast = p.getVelocity().horizontalLengthSquared() > 0.09 || !p.isOnGround() || p.hasVehicle();
+        if (d > (fast ? 7 * 7 : 12 * 12)) {
+            // Just behind you, on your level.
+            var back = p.getRotationVector().multiply(1, 0, 1).normalize().multiply(-1.5);
+            comp.requestTeleport(p.getX() + back.x, p.getY(), p.getZ() + back.z);
+            comp.getNavigation().stop();
+        } else if (d > 3 * 3) {
+            comp.getNavigation().startMovingTo(p, d > 6 * 6 ? 1.8 : 1.3);
+        }
     }
 
     public void removeCompanion(ServerPlayerEntity p) {
