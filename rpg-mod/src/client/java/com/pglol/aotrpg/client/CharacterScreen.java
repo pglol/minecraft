@@ -223,8 +223,8 @@ public class CharacterScreen extends Screen {
         int colW = w / columns();
         for (Skill.Branch b : Skill.Branch.values()) {
             if (!shown(b)) continue;
-            int col = column(b);
-            int cx = left + col * colW + colW / 2;
+            int bc = column(b);
+            int cx = left + bc * colW + colW / 2;
             Text t = Ui.heading(b.title);
             if (tab == 2) {
                 String sub = b.cls.role + (p.role() == b.cls ? " · your role" : "");
@@ -232,7 +232,7 @@ public class CharacterScreen extends Screen {
             } else {
                 c.drawTextWithShadow(textRenderer, t, cx - textRenderer.getWidth(t) / 2, top + 20, b.color);
             }
-            if (col > 0) c.fill(left + col * colW, top + 18, left + col * colW + 1, top + h - 30, 0x307A6139);
+            if (bc > 0) c.fill(left + bc * colW, top + 18, left + bc * colW + 1, top + h - 30, 0x307A6139);
             // Connectors from each skill to the ones below it (forks branch out and join again).
             for (int tier = 1; tier < Skill.TIERS; tier++) {
                 for (Skill s : Skill.at(b, tier)) {
