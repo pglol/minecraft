@@ -33,6 +33,13 @@ public final class Recovery {
         Vec3d at = fellAt.remove(p.getUuid());
         if (!pr.created) return;
         ServerWorld ow = p.getServer().getOverworld();
+        // Fell in a boss raid: back to the Raid Commander you left from.
+        Vec3d raid = AotRpg.RAID_BOSSES.takeReturn(p.getUuid());
+        if (raid != null) {
+            p.teleport(ow, raid.x, raid.y, raid.z, p.getYaw(), 0);
+            Notify.toast(p, Text.literal("Carried back from the raid").formatted(Formatting.GOLD), null, 0xE0B96A, "minecraft:red_bed", null);
+            return;
+        }
         if ("home".equals(pr.respawn) && home(p, ow)) return;
         if (at == null) return;
         Net.Area best = null;

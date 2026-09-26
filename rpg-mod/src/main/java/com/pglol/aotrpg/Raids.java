@@ -69,6 +69,13 @@ public final class Raids {
     }
 
     private final List<Raid> raids = new ArrayList<>();
+    /** Where raiders go back to (the Raid Commander they left from), claimed when they respawn after falling. */
+    private final Map<UUID, Vec3d> returns = new HashMap<>();
+
+    /** A raider who fell: they wake back at the commander, with their team, not at a recovery post. */
+    public Vec3d takeReturn(UUID id) {
+        return returns.remove(id);
+    }
     private MinecraftServer server;
 
     public void open(MinecraftServer server) {
@@ -225,15 +232,29 @@ public final class Raids {
             r.players.removeIf(id -> {
                 ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
                 boolean out = m == null || m.isDead() || m.getWorld() != w || m.getPos().distanceTo(r.center) > 160;
-                if (out && m != null) {
-                    r.bar.removePlayer(m);
-                    Notify.toast(m, Text.literal("You fell out of the raid").formatted(Formatting.RED), null, 0xC0463A, null, null);
+                if (out) {
+                    Vec3d back = r.back.get(id);
+                    if (m != null) {
+                        r.bar.removePlayer(m);
+                        Notify.toast(m, Text.literal("You fell out of the raid").formatted(Formatting.RED), null, 0xC0463A, null, null);
+                        // Alive but gone astray: straight back to the commander. Fallen: back there on respawn.
+                        if (!m.isDead() && back != null) m.teleport(w, back.x, back.y, back.z, m.getYaw(), m.getPitch());
+                    }
+                    if ((m == null || m.isDead()) && back != null) returns.put(id, back);
                 }
                 return out;
             });
             if (r.players.isEmpty() || now > r.endAt) {
                 finish(r, false);
                 continue;
+            }
+            // The arena is the raid's alone: the region's own titans (far above the raid's level) are kept out.
+            if (ticks % 40 == 0) {
+                Box ring = new Box(r.center.x - 140, r.center.y - 60, r.center.z - 140, r.center.x + 140, r.center.y + 120, r.center.z + 140);
+                for (Entity e : w.getOtherEntities(null, ring, e -> AotRpg.isTitan(e) && !raidMob(e) && !(e.getControllingPassenger() instanceof ServerPlayerEntity)
+                    && !TitanLevels.part(e))) {
+                    e.discard();
+                }
             }
             // Keep everyone in the ring.
             for (UUID id : r.players) {
@@ -345,10 +366,20 @@ public final class Raids {
             if (won && fought) reward(m, r);
             else if (!won) Notify.toast(m, Text.literal("Raid failed").formatted(Formatting.RED),
                 Text.literal(r.boss.name() + " got away"), 0xC0463A, null, "raid");
-            // Home after a moment to collect loot.
+            // Home after a moment to collect loot (looked up again then: a player who fell is a new entity after respawning).
             Vec3d back = e.getValue();
+            UUID id = e.getKey();
+            if (m.isDead()) {
+                returns.put(id, back);
+                continue;
+            }
             AotRpg.SCHEDULER.later(won ? 200 : 40, () -> {
-                if (!m.isRemoved() && m.getWorld() == w) m.teleport(w, back.x, back.y, back.z, m.getYaw(), m.getPitch());
+                ServerPlayerEntity now = server.getPlayerManager().getPlayer(id);
+                if (now == null || now.isDead()) {
+                    returns.put(id, back);
+                    return;
+                }
+                if (now.getWorld() == w && now.getPos().distanceTo(r.center) < 200) now.teleport(w, back.x, back.y, back.z, now.getYaw(), now.getPitch());
             });
         }
     }
