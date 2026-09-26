@@ -1404,6 +1404,26 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** One downed player: entity id, bleed seconds left and max, revive progress 0..1, pressing wounds, who is reviving. */
+    public record DownedEntry(int entity, float left, float max, float revive, boolean pressing, String reviver) { }
+
+    /** Server -> client: every downed player right now. */
+    public record DownedView(java.util.List<DownedEntry> list) implements CustomPayload {
+        public static final Id<DownedView> ID = id("downed");
+        public static final PacketCodec<RegistryByteBuf, DownedView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.list.size());
+            for (DownedEntry e : v.list) {
+                b.writeVarInt(e.entity()); b.writeFloat(e.left()); b.writeFloat(e.max()); b.writeFloat(e.revive()); b.writeBoolean(e.pressing()); b.writeString(e.reviver());
+            }
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 128);
+            java.util.List<DownedEntry> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new DownedEntry(b.readVarInt(), b.readFloat(), b.readFloat(), b.readFloat(), b.readBoolean(), b.readString()));
+            return new DownedView(l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Client -> server: open, or choose a mode by id. */
     public record ModeAction(String mode) implements CustomPayload {
         public static final Id<ModeAction> ID = id("mode_action");
@@ -1413,6 +1433,7 @@ public final class Net {
 
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
+        PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
         PayloadTypeRegistry.playC2S().register(ModeAction.ID, ModeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(PassView.ID, PassView.CODEC);
         PayloadTypeRegistry.playS2C().register(StableView.ID, StableView.CODEC);

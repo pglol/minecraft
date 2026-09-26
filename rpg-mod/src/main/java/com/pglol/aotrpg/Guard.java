@@ -33,8 +33,8 @@ import java.util.UUID;
  */
 public final class Guard {
     public static final int FX_BLOCK = 0, FX_CLASH = 1, FX_BREAK = 2;
-    private static final long CLASH_WINDOW_MS = 500;
-    private static final float CLASH_CHANCE = 0.7f;
+    private static final long CLASH_WINDOW_MS = 650;
+    private static final float CLASH_CHANCE = 0.75f;
 
     private record Swing(int target, long at) { }
 
@@ -50,6 +50,10 @@ public final class Guard {
     }
 
     /** A blade swing reported by the client (Danny's blades hit through their own packets, not the vanilla attack). */
+    public void swungAt(ServerPlayerEntity p, int targetId) {
+        swings.put(p.getUuid(), new Swing(targetId, System.currentTimeMillis()));
+    }
+
     public void swung(ServerPlayerEntity p, Entity target) {
         swings.put(p.getUuid(), new Swing(target.getId(), System.currentTimeMillis()));
     }
@@ -146,7 +150,10 @@ public final class Guard {
             if (entity instanceof ServerPlayerEntity def && src instanceof ServerPlayerEntity att && Combat.melee(source)
                 && melee(att.getMainHandStack()) && melee(def.getMainHandStack()) && !guarding(def)) {
                 Swing theirs = swings.get(def.getUuid());
-                if (theirs != null && theirs.target() == att.getId() && now - theirs.at() < CLASH_WINDOW_MS
+                // They swung at this attacker, or swung at all while facing them close by (air fights rarely line up a target).
+                boolean atThem = theirs != null && (theirs.target() == att.getId()
+                    || (theirs.target() < 0 || w.getEntityById(theirs.target()) == null) && inFront(def, att) && def.squaredDistanceTo(att) < 9 * 9);
+                if (theirs != null && atThem && now - theirs.at() < CLASH_WINDOW_MS
                     && att.getRandom().nextFloat() < CLASH_CHANCE) {
                     swings.remove(def.getUuid());
                     swings.remove(att.getUuid());

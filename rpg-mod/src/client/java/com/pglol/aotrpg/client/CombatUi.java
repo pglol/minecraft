@@ -65,7 +65,11 @@ public final class CombatUi {
                     e -> e.isAlive() && e.canHit() && e != mc.player, reach * reach);
                 if (hit != null) target = hit.getEntity();
             }
-            if (target != null) {
+            if (target == null) {
+                // A swing at air still counts for clashes (the server decides).
+                lastSlashAt = nowMs;
+                ClientPlayNetworking.send(new Net.SlashHit(-1));
+            } else {
                 lastSlashAt = nowMs;
                 // Draw my own slash at once; the server shows it to everyone else.
                 var box = target.getBoundingBox();

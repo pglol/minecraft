@@ -217,6 +217,10 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.NapeHit.ID, (payload, ctx) -> TitanPlates.onNape(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(TitanPlates::render);
         HudRenderCallback.EVENT.register(TitanPlates::renderHud);
+        ClientPlayNetworking.registerGlobalReceiver(Net.DownedView.ID, (payload, ctx) -> DownedFx.onView(payload));
+        WorldRenderEvents.AFTER_ENTITIES.register(DownedFx::render);
+        HudRenderCallback.EVENT.register(DownedFx::renderHud);
+        ClientTickEvents.END_CLIENT_TICK.register(DownedFx::tick);
         HudRenderCallback.EVENT.register(GameHints::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.WalletSync.ID, (payload, ctx) -> {
             ClientState.marks = payload.marks();

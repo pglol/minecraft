@@ -164,6 +164,23 @@ public final class Gear {
      * Rare up (8% Rare, 15% Epic, 30% Legendary).
      */
     private static void rollPerk(Random r, ItemStack s, Rarity rarity, NbtCompound g) {
+        if (s.getItem() instanceof net.minecraft.item.ArmorItem || wornSlot(s) != null) {
+            // Second Wind (armor and clothing): a killing blow is likelier to leave you downed, not dead.
+            float wind = switch (rarity) {
+                case UNCOMMON -> 0.10f;
+                case RARE -> 0.20f;
+                case EPIC -> 0.30f;
+                case LEGENDARY -> 0.45f;
+                default -> 0f;
+            };
+            if (r.nextFloat() < wind) g.putDouble("secondwind", switch (rarity) {
+                case LEGENDARY -> 0.25;
+                case EPIC -> 0.18;
+                case RARE -> 0.12;
+                default -> 0.08;
+            });
+            return;
+        }
         if (!Loadout.isGrip(s) || AotItems.isApgGun(s)) return;
         float chance = switch (rarity) {
             case RARE -> 0.08f;
@@ -172,6 +189,15 @@ public final class Gear {
             default -> 0f;
         };
         if (r.nextFloat() < chance) g.putBoolean("twin", true);
+        // Tempered Steel: blades that wear far slower (Uncommon up).
+        float temper = switch (rarity) {
+            case UNCOMMON -> 0.10f;
+            case RARE -> 0.20f;
+            case EPIC -> 0.30f;
+            case LEGENDARY -> 0.45f;
+            default -> 0f;
+        };
+        if (r.nextFloat() < temper) g.putBoolean("tempered", true);
     }
 
     /** Nape strikes this weapon deals per cut (2 with Twin Cut, when you can use it). */
@@ -296,6 +322,17 @@ public final class Gear {
                 a.percent() ? EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE : EntityAttributeModifier.Operation.ADD_VALUE), slot);
             String shown = a.percent() ? String.format(java.util.Locale.ROOT, "+%.1f%%", v * 100) : String.format(java.util.Locale.ROOT, "+%.2f", v);
             lore.add(Text.literal(shown + " " + a.label()).formatted(Formatting.BLUE).styled(st -> st.withItalic(false)));
+        }
+        if (Loadout.isGrip(s) && !AotItems.isApgGun(s)) {
+            double t = BladeCare.temper(s);
+            if (g.getBoolean("tempered")) {
+                lore.add(Text.literal("✦ Tempered Steel").formatted(Formatting.AQUA, Formatting.BOLD).styled(st -> st.withItalic(false)));
+            }
+            if (t > 0) lore.add(Text.literal("  Blades wear " + Math.round(t * 100) + "% slower").formatted(Formatting.AQUA).styled(st -> st.withItalic(false)));
+        }
+        if (g.getDouble("secondwind") > 0) {
+            lore.add(Text.literal("✦ Second Wind").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD).styled(st -> st.withItalic(false)));
+            lore.add(Text.literal("  +" + Math.round(g.getDouble("secondwind") * 100) + "% chance to be downed, not killed").formatted(Formatting.LIGHT_PURPLE).styled(st -> st.withItalic(false)));
         }
         if (g.getBoolean("twin")) {
             lore.add(Text.literal("✦ Twin Cut").formatted(Formatting.GOLD, Formatting.BOLD).styled(st -> st.withItalic(false)));

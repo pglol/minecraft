@@ -88,6 +88,12 @@ public final class Combat {
     public void slash(ServerPlayerEntity p, int entityId) {
         long now = System.currentTimeMillis();
         if (now - lastSlash.getOrDefault(p.getUuid(), 0L) < 150) return;
+        if (AotRpg.DOWNED.isDowned(p)) return;
+        if (entityId < 0) {
+            // A swing at nothing in particular (mid-air, a near miss): still a swing for clashes.
+            if (Guard.melee(p.getMainHandStack()) && !AotItems.isApgGun(p.getMainHandStack())) AotRpg.GUARD_FIGHT.swungAt(p, -1);
+            return;
+        }
         net.minecraft.entity.Entity target = p.getServerWorld().getEntityById(entityId);
         if (target == null || !target.isAlive() || target == p || AotItems.isApgGun(p.getMainHandStack()) || !Guard.melee(p.getMainHandStack())) return;
         // Titans are huge: measure to the nearest point of their body.

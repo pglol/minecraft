@@ -72,6 +72,8 @@ public final class AotRpg implements ModInitializer {
     public static final TitanActivity ACTIVITY = new TitanActivity();
     public static final Estate ESTATE = new Estate();
     public static final Recovery RECOVERY = new Recovery();
+    public static final BladeCare BLADES = new BladeCare();
+    public static final Downed DOWNED = new Downed();
     public static final Waves WAVES = new Waves();
     public static final Grab GRAB = new Grab();
     public static final Season SEASON = new Season();
@@ -241,6 +243,10 @@ public final class AotRpg implements ModInitializer {
         });
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
             !(entity instanceof net.minecraft.entity.passive.AbstractHorseEntity h) || !HORSES.spare(h));
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
+            !(entity instanceof ServerPlayerEntity sp) || DOWNED.allowDeath(sp, source, amount));
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, target, hit) ->
+            player instanceof ServerPlayerEntity sp && DOWNED.isDowned(sp) ? ActionResult.FAIL : ActionResult.PASS);
         net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player, world, hand) -> {
             var stack = player.getStackInHand(hand);
             if (!world.isClient && player instanceof ServerPlayerEntity sp && Horses.isWhistle(stack)) {
@@ -439,6 +445,7 @@ public final class AotRpg implements ModInitializer {
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             PROFILES.open(server);
+            DOWNED.open(server);
             PLACES.load(server);
             SATCHEL.open(server);
             QUESTS.load(server);
@@ -515,6 +522,8 @@ public final class AotRpg implements ModInitializer {
             SATCHEL.unload(p.getUuid());
             QUESTS.forget(p);
             HEAL.forget(p);
+            DOWNED.forget(p);
+            BLADES.forget(p.getUuid());
             LOADOUT.forget(p);
             WAVES.forget(p);
             RAID_BOSSES.forget(p);
@@ -583,6 +592,7 @@ public final class AotRpg implements ModInitializer {
         CARE.tick(ticks, false);
         MARKET.tick(ticks);
         EXCHANGE.tick(ticks);
+        DOWNED.tick(ticks);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
@@ -595,6 +605,7 @@ public final class AotRpg implements ModInitializer {
             FURNITURE.tick(p, ticks);
             GUARD_FIGHT.tick(p, ticks);
             ABILITIES.tick(p);
+            if (ticks % 2 == 0) BLADES.tick(p);
             HORSES.tick(p, ticks);
             if (ticks % 20 == 5) GEAR.enforceLevels(p);
             COINS.tick(p, ticks);
