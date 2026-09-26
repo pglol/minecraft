@@ -54,9 +54,8 @@ public final class Recovery {
         }
         if (best == null) return;
         int x = best.x() + 2, z = best.z() + 2;
-        ow.getChunk(x >> 4, z >> 4);
-        int y = ow.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-        p.teleport(ow, x + 0.5, y, z + 0.5, p.getYaw(), 0);
+        net.minecraft.util.math.BlockPos land = Safe.landing(ow, x, best.y(), z);
+        p.teleport(ow, land.getX() + 0.5, land.getY(), land.getZ() + 0.5, p.getYaw(), 0);
         Notify.toast(p, Text.literal("Recovered at " + best.name()).formatted(Formatting.GOLD),
             Text.literal("The nearest recovery post · set home as your respawn in Estate"), 0xE0B96A, "minecraft:red_bed", null);
     }
@@ -74,9 +73,9 @@ public final class Recovery {
                 case "east" -> x = pl.x1() + 1;
                 default -> z = pl.z1() + 1;
             }
-            ow.getChunk(x >> 4, z >> 4);
-            int y = Math.max(pl.y(), ow.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z));
-            p.teleport(ow, x + 0.5, y, z + 0.5, p.getYaw(), 0);
+            // Underground plots keep their own height (not the surface above the Underground City).
+            net.minecraft.util.math.BlockPos land = Safe.landing(ow, x, pl.y(), z);
+            p.teleport(ow, land.getX() + 0.5, land.getY(), land.getZ() + 0.5, p.getYaw(), 0);
             Notify.toast(p, Text.literal("You wake at home").formatted(Formatting.GOLD), null, 0xE0B96A, "minecraft:red_bed", null);
             return true;
         }

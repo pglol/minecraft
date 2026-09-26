@@ -614,6 +614,7 @@ public final class AotRpg implements ModInitializer {
             GUARD_FIGHT.tick(p, ticks);
             ABILITIES.tick(p);
             if (ticks % 2 == 0) BLADES.tick(p);
+            if (ticks % 10 == 0) Safe.unstick(p);
             HORSES.tick(p, ticks);
             if (ticks % 20 == 5) GEAR.enforceLevels(p);
             COINS.tick(p, ticks);

@@ -383,7 +383,10 @@ public final class Homes {
             int n = instanceAt(p.getBlockPos());
             Deed d = find(data.instances.get(n), n);
             if (d != null) leave(p, AotRpg.PLACES.homes.get(d.home));
-            else p.teleport(server.getOverworld(), p.getX(), 100, p.getZ(), 0, 0);
+            else {
+                BlockPos land = Safe.landing(server.getOverworld(), (int) p.getX(), 100, (int) p.getZ());
+                p.teleport(server.getOverworld(), land.getX() + 0.5, land.getY(), land.getZ() + 0.5, 0, 0);
+            }
             return;
         }
         List<Deed> list = deeds(p);

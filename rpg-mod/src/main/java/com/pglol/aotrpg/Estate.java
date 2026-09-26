@@ -274,8 +274,8 @@ public final class Estate {
             return;
         }
         if (j.done % 6 == 0) {
-            int y = w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING, at.getX(), at.getZ());
-            b.requestTeleport(at.getX() + 0.5, Math.max(y, at.getY() + 1), at.getZ() + 0.5);
+            BlockPos land = Safe.landing(w, at.getX(), at.getY() + 1, at.getZ());
+            b.requestTeleport(land.getX() + 0.5, land.getY(), land.getZ() + 0.5);
             ((VillagerEntity) b).swingHand(net.minecraft.util.Hand.MAIN_HAND);
         }
     }

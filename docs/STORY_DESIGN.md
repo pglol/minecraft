@@ -118,6 +118,24 @@ Canon events are **stepping stones**: fixed points everyone reaches. Each has se
 | **Stohess / Mitras** (the interior origin) | Access to the interior: corruption, class divides, nobles. The first conflict is the system, not titans. |
 | **Underground** (existing bonus origin) | Survival beneath Mitras, a smuggling network, a first taste of ODM gear from thieves. A route toward Levi's world and the interior's underbelly. |
 
+**Every beginning is gentle, wherever it is.** The world's zones have fixed level bands
+(Shiganshina 1–5, Trost 10–14, Ragako 14–18, Stohess 28–32, Underground City 30–36, Mitras 34–40,
+the sea and Marley 65+). A level 1 character must never be dropped into a zone that outranks them:
+
+- Openings are story scenes, not free roam. Their fights are **scaled to the player** (story
+  titans and bandits are fixed at the player's level band, 1–8 in Act I), no matter which zone
+  hosts the scene.
+- Openings in high-level zones (Stohess, Mitras, the Underground) are **people and truth**
+  scenes: politics, crime, class, escape. There's no titan fighting there; your first titans are
+  at Trost with everyone else.
+- Each opening ends by moving you somewhere that fits your level: the refugee camps and the
+  Training Camp (6–10), then Trost (10–14). Your home origin stays open to return to when you've
+  grown into it.
+- Story missions never send you into a zone more than ~5 levels above you. When the story needs
+  you somewhere dangerous (outside the walls, the sea, Marley), it waits until you're ready and
+  the journal says so ("Recommended level 60"), instead of throwing you in.
+- The outside world (the sea, Marley, Liberio at 65–85) is Act III and later only.
+
 Then **cadet training** (the Training Camp already exists) is where every origin meets. Every
 beat of it is a People or Survival mission, and it's where you meet the 104th.
 

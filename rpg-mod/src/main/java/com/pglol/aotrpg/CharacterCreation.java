@@ -351,10 +351,10 @@ public final class CharacterCreation {
         int[] home = AotRpg.PLACES.get(s.origin.placeId);
         if (home != null) {
             ServerWorld w = p.getServer().getOverworld();
-            // Underground places (the Underground City) keep their own height; others stand on the surface.
-            int y = home[1] < 40 ? home[1] : Math.max(home[1], w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, home[0], home[2]));
-            p.teleport(w, home[0] + 0.5, y, home[2] + 0.5, p.getYaw(), 0);
-            p.setSpawnPoint(w.getRegistryKey(), new BlockPos(home[0], y, home[2]), 0, true, false);
+            // Underground places (the Underground City) keep their own height, on a real floor; others stand on the surface.
+            BlockPos at = Safe.landing(w, home[0], home[1], home[2]);
+            p.teleport(w, at.getX() + 0.5, at.getY(), at.getZ() + 0.5, p.getYaw(), 0);
+            p.setSpawnPoint(w.getRegistryKey(), at, 0, true, false);
         }
         if (!pr.kitGiven) {
             Kit.give(p, pr, AotRpg.PLACES.get("cadet-training-camp"));
