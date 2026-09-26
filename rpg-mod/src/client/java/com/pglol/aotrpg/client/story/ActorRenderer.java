@@ -49,6 +49,12 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
         }
 
         @Override
+        public void render(VillagerEntity e, float yaw, float tickDelta, MatrixStack ms, VertexConsumerProvider vc, int light) {
+            this.model.sneaking = e.isInSneakingPose();
+            super.render(e, yaw, tickDelta, ms, vc, light);
+        }
+
+        @Override
         protected void scale(VillagerEntity e, MatrixStack ms, float tickDelta) {
             ms.scale(0.9375f, 0.9375f, 0.9375f);
         }

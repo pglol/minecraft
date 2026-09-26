@@ -40,6 +40,8 @@ public final class Recovery {
             Notify.toast(p, Text.literal("Carried back from the raid").formatted(Formatting.GOLD), null, 0xE0B96A, "minecraft:red_bed", null);
             return;
         }
+        // Fell in a story scene: back to where the step began.
+        if (AotRpg.STORY.respawnInScene(p)) return;
         if ("home".equals(pr.respawn) && home(p, ow)) return;
         if (at == null) return;
         Net.Area best = null;

@@ -180,7 +180,7 @@ public final class DownedFx {
         c.fill(bx, by, bx + Math.round(bw * frac), by + 5, d.pressing() ? 0xFFD04030 : 0xFFA01010);
         String secs = (int) Math.ceil(d.left()) + "s";
         Ui.text(c, Text.literal(secs), w / 2f, by + 9, 1f, 0xFFEDE3C8, true);
-        String hint = d.pressing() ? "Pressing your wounds — bleeding slowed" : "Hold SNEAK to press your wounds";
+        String hint = d.pressing() ? "Pressing your wounds. Bleeding slowed" : "Hold SNEAK to press your wounds";
         Ui.text(c, Text.literal(hint), w / 2f, by + 22, 1f, d.pressing() ? 0xFFFFB0A0 : 0xFFD8CFC0, true);
         if (d.revive() > 0) {
             String who = d.reviver().isEmpty() ? "A comrade" : d.reviver();
@@ -190,10 +190,10 @@ public final class DownedFx {
             c.fill(rx - 1, ry - 1, rx + 121, ry + 5, 0xC0000000);
             c.fill(rx, ry, rx + Math.round(120 * d.revive()), ry + 4, 0xFFFFD76A);
         } else if (d.reviver().equals("@alone")) {
-            String t = "Alone — keep holding SNEAK for 5s to pick yourself up";
+            String t = "Alone. Keep holding SNEAK for 5s to pick yourself up";
             Ui.text(c, Text.literal(t), w / 2f, h / 2 + 22, 0.85f, 0xFFFFD76A, true);
         } else {
-            String t = "Call for help — a comrade can crouch beside you to revive";
+            String t = "Call for help. A comrade can crouch beside you to revive";
             Ui.text(c, Text.literal(t), w / 2f, h / 2 + 22, 0.85f, 0xFFB0A890, true);
         }
     }

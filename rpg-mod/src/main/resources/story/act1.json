@@ -17,7 +17,7 @@
    ],
    "steps": [
     {
-     "objective": "Find Armin by the canal — the older boys have been at him again",
+     "objective": "Armin is sitting by the canal. Go see if he's all right",
      "goal": {
       "talk": "armin_child",
       "dialogue": "sh1_armin"
@@ -36,7 +36,7 @@
      "done": []
     },
     {
-     "objective": "Find Eren and Mikasa near the outer gate",
+     "objective": "Find Eren and Mikasa by the gate",
      "goal": {
       "talk": "eren_child",
       "dialogue": "sh1_eren"
@@ -94,7 +94,7 @@
    ],
    "steps": [
     {
-     "objective": "Walk home along the main street",
+     "objective": "Head home along the main street",
      "goal": {
       "goto": [
        -5,
@@ -145,7 +145,7 @@
       },
       {
        "say": {
-        "text": "A bolt of lightning from a clear sky. A hand of bare muscle grips the top of the Wall."
+        "text": "Lightning, out of a clear sky. Then a hand, skinless and steaming, grips the top of the Wall."
        }
       }
      ]
@@ -176,18 +176,18 @@
       {
        "card": {
         "title": "845",
-        "sub": "The Colossal Titan"
+        "sub": "Shiganshina"
        }
       },
       {
        "say": {
-        "text": "The gate bursts inward. Boulders rain across the district."
+        "text": "The gate blows apart. Rocks come down all over the district."
        }
       }
      ]
     },
     {
-     "objective": "Run to Eren's house — Carla is trapped",
+     "objective": "Eren is running for his house. Follow him",
      "goal": {
       "goto": [
        -12,
@@ -201,7 +201,8 @@
        "at": [
         -12,
         14
-       ]
+       ],
+       "pose": "crouch"
       },
       {
        "actor": "eren_child",
@@ -219,7 +220,13 @@
       }
      ],
      "start": [],
-     "done": []
+     "done": [
+      {
+       "say": {
+        "text": "The house has come down. Carla is pinned under the main beam."
+       }
+      }
+     ]
     },
     {
      "objective": "Help Carla",
@@ -232,38 +239,86 @@
      "done": []
     },
     {
-     "objective": "A titan is coming down the street — cut it down!",
+     "objective": "Go with Hannes. Don't look back",
+     "goal": {
+      "goto": [
+       12,
+       6
+      ],
+      "radius": 6
+     },
+     "spawn": [],
+     "start": [
+      {
+       "titan_actor": {
+        "id": "smiling",
+        "shifter": "ordinary",
+        "at": [
+         -40,
+         14
+        ],
+        "seconds": 40
+       }
+      },
+      {
+       "walk": {
+        "actor": "smiling",
+        "to": [
+         -14,
+         14
+        ]
+       }
+      },
+      {
+       "say": {
+        "text": "A titan turns into your street. It's smiling."
+       }
+      },
+      {
+       "follow": "eren_child"
+      },
+      {
+       "follow": "mikasa_child"
+      },
+      {
+       "follow": "hannes"
+      }
+     ],
+     "done": [
+      {
+       "remove": "carla"
+      },
+      {
+       "remove": "smiling"
+      },
+      {
+       "say": {
+        "text": "Behind you, Eren is screaming for his mother. Hannes doesn't stop running."
+       }
+      }
+     ]
+    },
+    {
+     "objective": "There's a titan on the road to the boats. Bring it down",
      "goal": {
       "kill": "scene"
      },
      "spawn": [
       {
-       "titans": 2,
+       "titans": 1,
        "at": [
-        -4,
-        16
+        34,
+        0
        ],
        "level": 1,
        "strikes": 1,
-       "spread": 6
-      },
-      {
-       "actor": "hannes",
-       "at": [
-        -10,
-        10
-       ]
+       "spread": 2
       }
      ],
      "start": [
       {
        "say": {
-        "text": "A titan with a fixed, smiling face lumbers toward the house."
-       }
-      },
-      {
-       "say": {
-        "text": "I can't — kid, if you've got blades, now's the time!",
+        "text": "It's between us and the gate. You've got blades? Go for the back of the neck. Only the neck.",
         "who": "hannes"
        }
       }
@@ -271,7 +326,7 @@
      "done": []
     },
     {
-     "objective": "Get to the evacuation boats at the inner gate",
+     "objective": "Get to the boats at the inner gate",
      "goal": {
       "goto": {
        "gate": "inner",
@@ -283,26 +338,11 @@
       "radius": 9
      },
      "spawn": [],
-     "start": [
-      {
-       "remove": "carla"
-      },
-      {
-       "follow": "eren_child"
-      },
-      {
-       "follow": "mikasa_child"
-      },
-      {
-       "say": {
-        "text": "Behind you, the house falls quiet."
-       }
-      }
-     ],
+     "start": [],
      "done": []
     },
     {
-     "objective": "Find Armin at the boats",
+     "objective": "Armin is waiting at the boats",
      "goal": {
       "talk": "armin_child",
       "dialogue": "sh2_boats"
@@ -358,7 +398,7 @@
    ],
    "steps": [
     {
-     "objective": "Find Armin among the refugees",
+     "objective": "Find Armin in the refugee camp",
      "goal": {
       "talk": "armin_child",
       "dialogue": "sh3_reclaim"
@@ -418,7 +458,7 @@
    ],
    "complete": [
     {
-     "deed": "Watched the Wall Maria reclamation march out, 846"
+     "deed": "Watched the reclamation march out, 846"
     },
     {
      "toast": "Next: the Cadet Training Corps"
@@ -444,7 +484,7 @@
    ],
    "steps": [
     {
-     "objective": "The refugee boats are coming in at the inner gate — go and see",
+     "objective": "Boats are coming in at the inner gate. Go and see",
      "goal": {
       "goto": {
        "gate": "inner",
@@ -467,7 +507,7 @@
      ]
     },
     {
-     "objective": "Speak to the Garrison captain",
+     "objective": "Talk to the Garrison captain on the dock",
      "goal": {
       "talk": "garrison_captain",
       "dialogue": "tr1_captain"
@@ -509,7 +549,7 @@
      "done": []
     },
     {
-     "objective": "Speak to the girl sitting alone",
+     "objective": "Check on the girl sitting by the crates",
      "goal": {
       "talk": "lotte",
       "dialogue": "tr1_lotte"
@@ -521,7 +561,7 @@
    ],
    "complete": [
     {
-     "deed": "Met the refugees of Shiganshina at Trost's gate"
+     "deed": "Met the refugees from Shiganshina at Trost's gate"
     }
    ],
    "xp": 120,
@@ -544,7 +584,7 @@
    ],
    "steps": [
     {
-     "objective": "Take Lotte to the market for food",
+     "objective": "Take Lotte to the market to find her something to eat",
      "goal": {
       "talk": "baker",
       "dialogue": "tr2_baker"
@@ -586,7 +626,7 @@
      "done": []
     },
     {
-     "objective": "Take a loaf from the crate without anyone seeing you (crouch, stay out of their sight)",
+     "objective": "Take a loaf from the crate without being seen (crouch, stay out of their line of sight)",
      "goal": {
       "take": "bread_crate",
       "unseen": true
@@ -609,11 +649,11 @@
        }
       },
       {
-       "deed": "Stole bread for a starving refugee girl"
+       "deed": "Stole bread for a hungry refugee girl"
       },
       {
        "say": {
-        "text": "You're amazing...",
+        "text": "...Thank you.",
         "who": "lotte"
        }
       }
@@ -647,7 +687,7 @@
    ],
    "steps": [
     {
-     "objective": "Your father is arguing with a man in a Military Police coat",
+     "objective": "Your father is arguing with a Military Police officer",
      "goal": {
       "talk": "aldo",
       "dialogue": "rg1_tax"
@@ -702,7 +742,7 @@
    ],
    "steps": [
     {
-     "objective": "A Garrison courier is reading out names — find your father",
+     "objective": "A Garrison rider is reading names in the square. Find your father",
      "goal": {
       "talk": "aldo",
       "dialogue": "rg2_aldo"
@@ -720,14 +760,14 @@
      "start": [
       {
        "say": {
-        "text": "A Garrison courier rides through with a list of names."
+        "text": "A Garrison rider comes through the village reading from a list."
        }
       }
      ],
      "done": []
     },
     {
-     "objective": "Walk him to the edge of the village",
+     "objective": "Walk with him to the edge of the village",
      "goal": {
       "goto": [
        -24,
@@ -747,7 +787,7 @@
       },
       {
        "say": {
-        "text": "Of the two hundred and fifty thousand, about a hundred came back. He was not one of them."
+        "text": "Around a hundred people came back from the Reclamation. He wasn't one of them."
        }
       }
      ]
@@ -778,7 +818,7 @@
    ],
    "steps": [
     {
-     "objective": "There's trouble at a bakery stall in the market",
+     "objective": "Something's going on at a bakery stall in the market",
      "goal": {
       "talk": "mp_officer",
       "dialogue": "in1_extort"
@@ -811,7 +851,7 @@
      "done": []
     },
     {
-     "objective": "Pastor Nick of the Church of the Walls is preaching nearby",
+     "objective": "A pastor of the Church of the Walls is preaching nearby",
      "goal": {
       "talk": "priest",
       "dialogue": "in1_nick"
@@ -830,7 +870,7 @@
      "done": []
     },
     {
-     "objective": "A noble's steward wants a word with you",
+     "objective": "A well-dressed man is waving you over",
      "goal": {
       "talk": "steward",
       "dialogue": "in1_steward"
@@ -851,7 +891,7 @@
    ],
    "complete": [
     {
-     "deed": "Saw how the interior keeps its peace"
+     "deed": "Saw how peace is kept in the interior"
     },
     {
      "toast": "Next: the Cadet Training Corps"
@@ -877,7 +917,7 @@
    ],
    "steps": [
     {
-     "objective": "There's trouble at a bakery stall in the market",
+     "objective": "Something's going on at a bakery stall in the market",
      "goal": {
       "talk": "mp_officer",
       "dialogue": "in1_extort"
@@ -910,7 +950,7 @@
      "done": []
     },
     {
-     "objective": "Pastor Nick of the Church of the Walls is preaching nearby",
+     "objective": "A pastor of the Church of the Walls is preaching nearby",
      "goal": {
       "talk": "priest",
       "dialogue": "in1_nick"
@@ -929,7 +969,7 @@
      "done": []
     },
     {
-     "objective": "A noble's steward wants a word with you",
+     "objective": "A well-dressed man is waving you over",
      "goal": {
       "talk": "steward",
       "dialogue": "in1_steward"
@@ -950,7 +990,7 @@
    ],
    "complete": [
     {
-     "deed": "Saw how the interior keeps its peace"
+     "deed": "Saw how peace is kept in the interior"
     },
     {
      "toast": "Next: the Cadet Training Corps"
@@ -1002,7 +1042,7 @@
      "done": []
     },
     {
-     "objective": "Take the gear pack from the MP guard post unseen (crouch; stay out of their sight)",
+     "objective": "Take the gear from the MP post without being seen (crouch, stay out of their line of sight)",
      "goal": {
       "take": "gear_pack",
       "unseen": true
@@ -1038,18 +1078,18 @@
        "flag": "has_old_odm"
       },
       {
-       "deed": "Stole ODM gear from the Military Police in the Underground"
+       "deed": "Stole ODM gear from the Military Police"
       },
       {
        "say": {
-        "text": "Ha! Told you it'd fly.",
+        "text": "Told you it'd be easy.",
         "who": "ferrin"
        }
       }
      ]
     },
     {
-     "objective": "Reach the stairway to the surface",
+     "objective": "Head for the stairway to the surface",
      "goal": {
       "talk": "stair_guard",
       "dialogue": "un2_toll"
@@ -1068,7 +1108,7 @@
      "done": []
     },
     {
-     "objective": "Slip past the guard while his back is turned",
+     "objective": "Slip past the guard while he's not looking",
      "goal": {
       "goto": [
        -20,
@@ -1235,7 +1275,7 @@
      "done": []
     },
     {
-     "objective": "Find Sasha after sundown",
+     "objective": "Find Sasha after dark",
      "goal": {
       "talk": "sasha",
       "dialogue": "tc1_sasha"
@@ -1275,7 +1315,7 @@
      "done": []
     },
     {
-     "objective": "Eren is struggling on the balance rig",
+     "objective": "Eren is having trouble on the balance rig",
      "goal": {
       "talk": "eren",
       "dialogue": "tc2_eren"
@@ -1308,7 +1348,7 @@
      "done": []
     },
     {
-     "objective": "Annie is training alone by the fence",
+     "objective": "Annie is training on her own by the fence",
      "goal": {
       "talk": "annie",
       "dialogue": "tc2_annie"
@@ -1395,8 +1435,8 @@
       {
        "titans": 3,
        "at": [
-        -36,
-        24
+        -44,
+        26
        ],
        "strikes": 1,
        "spread": 10
@@ -1405,7 +1445,7 @@
      "start": [
       {
        "say": {
-        "text": "Race you, {first}! Most napes gets the top spot!",
+        "text": "Most kills gets the top score. Try to keep up.",
         "who": "jean"
        }
       }
@@ -1459,7 +1499,7 @@
    ],
    "steps": [
     {
-     "objective": "Graduation day — fall in",
+     "objective": "It's graduation day. Fall in",
      "goal": {
       "talk": "keith",
       "dialogue": "tc4_grad"
@@ -1555,7 +1595,7 @@
       {
        "card": {
         "title": "850",
-        "sub": "Graduation of the 104th"
+        "sub": "Graduation"
        }
       }
      ],
@@ -1589,7 +1629,7 @@
    ],
    "steps": [
     {
-     "objective": "Report to your cannon squad near Trost's outer gate",
+     "objective": "Report to your squad near Trost's outer gate",
      "goal": {
       "goto": {
        "gate": "outer",
@@ -1667,7 +1707,7 @@
      "done": []
     },
     {
-     "objective": "Brace yourself!",
+     "objective": "Brace yourself",
      "goal": {
       "wait": 5
      },
@@ -1675,7 +1715,7 @@
      "start": [
       {
        "say": {
-        "text": "It's HIM. The Colossal Titan!",
+        "text": "That's him. That's the one from five years ago.",
         "who": "eren"
        }
       },
@@ -1710,13 +1750,13 @@
       },
       {
        "say": {
-        "text": "The outer gate explodes inward. Boulders hammer the district."
+        "text": "The outer gate caves in. Rocks come down across the whole district."
        }
       }
      ]
     },
     {
-     "objective": "Titans are pouring through the gate — cut them down",
+     "objective": "Titans are coming through the gate. Stop them",
      "goal": {
       "kill": "scene"
      },
@@ -1726,7 +1766,7 @@
        "at": {
         "gate": "outer",
         "rel": [
-         20,
+         4,
          0
         ]
        },
@@ -1757,11 +1797,11 @@
         }
        },
        {
-        "deed": "Saved Thomas Wagner from a titan at Trost"
+        "deed": "Saved Thomas Wagner at Trost"
        },
        {
         "say": {
-         "text": "You — you came back for me...",
+         "text": "You came back for me...",
          "who": "thomas"
         }
        }
@@ -1828,7 +1868,7 @@
    ],
    "steps": [
     {
-     "objective": "The inner gate is jammed — civilians are trapped",
+     "objective": "People are trapped at the inner gate",
      "goal": {
       "talk": "dimo_reeves",
       "dialogue": "tb2_dimo"
@@ -1870,7 +1910,7 @@
      "done": []
     },
     {
-     "objective": "Hold the gate while the civilians escape",
+     "objective": "Hold them off while everyone gets through",
      "goal": {
       "kill": "scene"
      },
@@ -1880,7 +1920,7 @@
        "at": {
         "gate": "inner",
         "rel": [
-         30,
+         40,
          0
         ]
        },
@@ -1928,7 +1968,7 @@
      }
     },
     {
-     "deed": "Held the inner gate while Trost's civilians escaped"
+     "deed": "Held the inner gate while Trost was evacuated"
     }
    ],
    "xp": 250,
@@ -1950,7 +1990,7 @@
    ],
    "steps": [
     {
-     "objective": "Your gas is almost out — reach the supply HQ",
+     "objective": "You're almost out of gas. Get to the supply building",
      "goal": {
       "goto": [
        8,
@@ -1962,7 +2002,7 @@
      "start": [
       {
        "say": {
-        "text": "The HQ is swarming! We're out of gas and they're just sitting in there!",
+        "text": "They're all over the supply building. We're out of gas and they're just sitting in there!",
         "who": "jean"
        }
       }
@@ -1970,7 +2010,7 @@
      "done": []
     },
     {
-     "objective": "Clear the titans from the supply HQ",
+     "objective": "Clear the titans out of the supply building",
      "goal": {
       "kill": "scene"
      },
@@ -1979,7 +2019,7 @@
        "titans": 3,
        "at": [
         8,
-        -18
+        -30
        ],
        "spread": 6
       }
@@ -2036,7 +2076,7 @@
    ],
    "steps": [
     {
-     "objective": "Find the titan that's fighting titans",
+     "objective": "Find the titan that's fighting the others",
      "goal": {
       "goto": [
        -10,
@@ -2070,7 +2110,7 @@
       },
       {
        "say": {
-        "text": "A titan roars, and tears another apart with its bare hands."
+        "text": "It roars and tears into another titan with its bare hands."
        }
       }
      ]
@@ -2089,13 +2129,13 @@
      "done": [
       {
        "say": {
-        "text": "Steam pours from its neck. Someone is inside it."
+        "text": "Steam pours off its neck. There's someone inside it."
        }
       }
      ]
     },
     {
-     "objective": "Mikasa is on the rooftop",
+     "objective": "Mikasa is up on the roof",
      "goal": {
       "talk": "mikasa",
       "dialogue": "tb4_mikasa"
@@ -2114,7 +2154,7 @@
      "done": []
     },
     {
-     "objective": "Marco is missing — search the rooftops near the depot (hurry)",
+     "objective": "Marco hasn't come back. Check the rooftops near the supply building, quickly",
      "goal": {
       "goto": [
        18,
@@ -2145,7 +2185,7 @@
        },
        {
         "say": {
-         "text": "{first}? I'm fine. Reiner, Annie and Bertholdt were just here. They were acting... strange.",
+         "text": "I'm okay. Reiner, Annie and Bertholdt were just here. They were acting really strange.",
          "who": "marco"
         }
        },
@@ -2153,7 +2193,7 @@
         "flag": "marco_saw_warriors"
        },
        {
-        "deed": "Found Marco alive — and three friends acting strangely"
+        "deed": "Found Marco alive, and three friends acting strangely"
        }
       ],
       "fail": [
@@ -2164,14 +2204,14 @@
        },
        {
         "say": {
-         "text": "Half of Marco's body lies in the street. No one saw what happened."
+         "text": "Marco is lying in the street. Half of him. Nobody saw what happened."
         }
        },
        {
         "flag": "marco_dead"
        },
        {
-        "deed": "Found Marco's body. No one saw what happened"
+        "deed": "Found Marco's body. Nobody saw what happened"
        }
       ]
      },
@@ -2244,7 +2284,7 @@
    "complete": [
     {
      "card": {
-      "title": "ACT I — THE WALLS",
+      "title": "Act I: The Walls",
       "sub": "I thought the enemy was titans."
      }
     },
@@ -2264,15 +2304,20 @@
    "nodes": {
     "a": {
      "speaker": "armin_child",
-     "text": "Oh — {first}. You didn't see that, did you? They say wanting to go outside the Walls is heresy.",
+     "text": "Oh. Hi, {first}. You didn't see any of that, right?",
      "next": "b"
     },
     "b": {
      "speaker": "armin_child",
-     "text": "Look — Grandpa's book. Beyond the Walls there's water that burns, plains of ice, and a sea of salt so wide no merchant could ever buy it all.",
+     "text": "They took my book. Well, they tried. Grandpa says I'm not supposed to show it to anyone anyway.",
+     "next": "b2"
+    },
+    "b2": {
+     "speaker": "armin_child",
+     "text": "It's about the outside. There's a lake of salt water out there. So big you can't see the other side.",
      "choices": [
       {
-       "text": "The outside? That's heresy, Armin. The Walls keep us alive.",
+       "text": "You'll get in real trouble talking like that.",
        "effects": [
         {
          "affinity": {
@@ -2292,7 +2337,7 @@
        "next": "c1"
       },
       {
-       "text": "A sea of salt... I want to see it too.",
+       "text": "Salt water? Can I see the book?",
        "effects": [
         {
          "affinity": {
@@ -2312,7 +2357,7 @@
        "next": "c2"
       },
       {
-       "text": "Who hit you? I'll go and have a word with them.",
+       "text": "Which ones took it? Point them out.",
        "effects": [
         {
          "affinity": {
@@ -2334,12 +2379,12 @@
     },
     "c1": {
      "speaker": "armin_child",
-     "text": "...Maybe. But a hundred years is a long time to live in a birdcage.",
+     "text": "I know. Everyone says that. I just think it's weird that nobody even wants to look.",
      "end": true
     },
     "c2": {
      "speaker": "armin_child",
-     "text": "Really? Then let's go together someday — you, me, Eren and Mikasa!",
+     "text": "Here, look at this page. We should go and see it one day. You, me, Eren and Mikasa.",
      "effects": [
       {
        "flag": "promise_outside"
@@ -2349,7 +2394,7 @@
     },
     "c3": {
      "speaker": "armin_child",
-     "text": "Eren already chased them off. And then Mikasa chased them off harder.",
+     "text": "It's fine. Eren went after them. Then Mikasa went after Eren, so. They ran pretty fast.",
      "end": true
     }
    }
@@ -2359,20 +2404,25 @@
    "nodes": {
     "a": {
      "speaker": "hannes",
-     "text": "Ha! Look who it is. Don't look at me like that, kid. If the Wall ever gets kicked in, we'll do our jobs. It's been a hundred years.",
+     "text": "Well, if it isn't the little troublemakers. Relax, relax. We're on duty. Technically.",
      "next": "b"
     },
     "b": {
      "speaker": "eren_child",
-     "text": "A hundred years of drinking! You're Garrison. You're supposed to be ready!",
+     "text": "You're drinking on duty! What happens if they come over the Wall?",
+     "next": "b2"
+    },
+    "b2": {
+     "speaker": "hannes",
+     "text": "Then we'll deal with it. It's been a hundred years, kid. Nothing's getting over that thing.",
      "next": "c"
     },
     "c": {
      "speaker": "eren_child",
-     "text": "{first}, tell him. People who never leave the Walls are just livestock.",
+     "text": "{first}, you tell him. He doesn't listen to me.",
      "choices": [
       {
-       "text": "Eren's right. We're cattle in a pen.",
+       "text": "Eren's got a point. You don't even look ready.",
        "effects": [
         {
          "affinity": {
@@ -2389,7 +2439,7 @@
        "next": "d1"
       },
       {
-       "text": "Leave him be, Eren. Peace isn't a crime.",
+       "text": "Leave him alone, Eren. Nothing's going to happen.",
        "effects": [
         {
          "affinity": {
@@ -2407,7 +2457,7 @@
        "next": "d2"
       },
       {
-       "text": "Mr. Hannes — what would you do if it really broke?",
+       "text": "Mr. Hannes, what would you actually do if it broke?",
        "effects": [
         {
          "affinity": {
@@ -2424,17 +2474,17 @@
     },
     "d1": {
      "speaker": "mikasa_child",
-     "text": "Eren. Your mother is waiting.",
+     "text": "Eren. We need to get the firewood home.",
      "end": true
     },
     "d2": {
      "speaker": "hannes",
-     "text": "Ha! At least one of you has sense. Go on home before Carla skins you both.",
+     "text": "Ha. Listen to your friend. Now go on, before Carla comes looking for you.",
      "end": true
     },
     "d3": {
      "speaker": "hannes",
-     "text": "...Run to the boats, kid. Don't look back. That's what I'd tell you. Now scram.",
+     "text": "Honestly? I'd tell you to run for the boats and not stop. Now scram, all of you.",
      "end": true
     }
    }
@@ -2444,15 +2494,15 @@
    "nodes": {
     "a": {
      "speaker": "carla",
-     "text": "Eren! Mikasa! {first} — take them and RUN!",
+     "text": "My legs... I can't feel my legs. Eren, Mikasa, go. Go now.",
      "next": "b"
     },
     "b": {
      "speaker": "eren_child",
-     "text": "No! We can lift it — Mom, give me your hand!",
+     "text": "We're not leaving you! {first}, help me lift it!",
      "choices": [
       {
-       "text": "Pull at the beam with Eren.",
+       "text": "(Grab the beam and pull with Eren.)",
        "effects": [
         {
          "ideology": {
@@ -2472,7 +2522,7 @@
        "next": "c1"
       },
       {
-       "text": "Carla's right. Grab Mikasa and go!",
+       "text": "Mikasa, come on. We have to go.",
        "effects": [
         {
          "ideology": {
@@ -2489,7 +2539,7 @@
        "next": "c2"
       },
       {
-       "text": "I'll find a soldier!",
+       "text": "I'll get help!",
        "effects": [
         {
          "flag": "fetched_hannes"
@@ -2501,27 +2551,32 @@
     },
     "c1": {
      "speaker": null,
-     "text": "The beam won't move. The ground shakes with footsteps.",
+     "text": "It doesn't move. Not even a little. The ground shakes again, closer.",
      "next": "d"
     },
     "c2": {
      "speaker": "mikasa_child",
-     "text": "...Eren. Come on.",
+     "text": "...Eren. Eren, please.",
      "next": "d"
     },
     "c3": {
      "speaker": null,
-     "text": "You run into the street and straight into Hannes.",
+     "text": "You run into the street and nearly knock Hannes over.",
      "next": "d"
     },
     "d": {
      "speaker": "hannes",
-     "text": "Carla! I've got this — kids, get back!",
+     "text": "Carla! Hold on. Kids, stand back.",
      "next": "e"
     },
     "e": {
      "speaker": "carla",
-     "text": "Hannes, take the children. Please. ...Eren. Mikasa. You have to live.",
+     "text": "Hannes, don't. You can't fight it. Take them and get out of here. Please.",
+     "next": "f"
+    },
+    "f": {
+     "speaker": "carla",
+     "text": "Eren. Mikasa. Live. You hear me? You have to live.",
      "effects": [
       {
        "fate": {
@@ -2538,15 +2593,15 @@
    "nodes": {
     "a": {
      "speaker": "armin_child",
-     "text": "{first}! Eren! Mikasa! Where's — where's your mother?",
+     "text": "You made it! Where's your mom? Eren, where's...",
      "next": "b"
     },
     "b": {
      "speaker": "eren_child",
-     "text": "I'll kill them. Every last one of them. I'll wipe them off the face of this earth!",
+     "text": "I'm going to kill them. All of them. Every single one.",
      "choices": [
       {
-       "text": "I'll be there beside you, Eren.",
+       "text": "I'll be right there with you.",
        "effects": [
         {
          "affinity": {
@@ -2566,7 +2621,7 @@
        "next": "c"
       },
       {
-       "text": "Hate won't bring her back.",
+       "text": "Eren... that's not going to bring her back.",
        "effects": [
         {
          "affinity": {
@@ -2583,7 +2638,7 @@
        "next": "c"
       },
       {
-       "text": "(Say nothing. Hold Mikasa's hand.)",
+       "text": "(Say nothing. Stay next to Mikasa.)",
        "effects": [
         {
          "affinity": {
@@ -2597,7 +2652,7 @@
     },
     "c": {
      "speaker": null,
-     "text": "The boats pull away from the burning district. Behind the gate, Wall Maria has fallen.",
+     "text": "The boat pulls away. Nobody talks. Behind you, smoke is rising over Shiganshina.",
      "end": true
     }
    }
@@ -2607,15 +2662,15 @@
    "nodes": {
     "a": {
      "speaker": "armin_child",
-     "text": "Grandpa's been called up. The government's sending two hundred and fifty thousand refugees to 'retake' Wall Maria.",
+     "text": "They called Grandpa up this morning. Him and pretty much every adult in the camp.",
      "next": "b"
     },
     "b": {
      "speaker": "armin_child",
-     "text": "No one expects them back. There isn't enough food for all of us, so...",
+     "text": "They're calling it an operation to take Wall Maria back. But they gave them farming tools, {first}.",
      "choices": [
       {
-       "text": "They're sending the hungry to die so the rest can eat.",
+       "text": "There isn't enough food. They're getting rid of people.",
        "effects": [
         {
          "ideology": {
@@ -2635,7 +2690,7 @@
        "next": "c"
       },
       {
-       "text": "Someone has to try to take the land back.",
+       "text": "Maybe they'll actually win some land back.",
        "effects": [
         {
          "ideology": {
@@ -2647,20 +2702,17 @@
        "next": "c"
       },
       {
-       "text": "Then we become strong enough that no one else is sent to die.",
+       "text": "I'm sorry, Armin.",
        "effects": [
         {
          "affinity": {
-          "eren_child": 5
+          "armin_child": 6
          }
         },
         {
          "ideology": {
           "mercy": 3
          }
-        },
-        {
-         "flag": "joined_for_others"
         }
        ],
        "next": "c"
@@ -2669,10 +2721,10 @@
     },
     "c": {
      "speaker": "eren_child",
-     "text": "We're joining the Cadet Corps. All three of us. {first} — you're coming too, aren't you?",
+     "text": "We're joining the training corps. Next year, as soon as we're old enough. You're coming, right?",
      "choices": [
       {
-       "text": "Of course.",
+       "text": "Yeah. I'm coming.",
        "effects": [
         {
          "affinity": {
@@ -2684,7 +2736,7 @@
        "next": "d"
       },
       {
-       "text": "I'll join. But for my own reasons.",
+       "text": "I'll join. Not for the same reasons as you, though.",
        "effects": [
         {
          "ideology": {
@@ -2698,7 +2750,7 @@
     },
     "d": {
      "speaker": "mikasa_child",
-     "text": "Then we go together.",
+     "text": "Then we stay together.",
      "end": true
     }
    }
@@ -2708,15 +2760,15 @@
    "nodes": {
     "a": {
      "speaker": "garrison_captain",
-     "text": "Stand back, civilian! Wall Maria has fallen. Shiganshina is gone. These people have nothing.",
+     "text": "You, back up. These people came off the boats from Shiganshina. They've got nothing left.",
      "next": "b"
     },
     "b": {
      "speaker": "garrison_captain",
-     "text": "Make yourself useful or get out of the way.",
+     "text": "If you're going to stand there, you might as well help.",
      "choices": [
       {
-       "text": "I'll help carry the wounded.",
+       "text": "I'll help carry the injured.",
        "effects": [
         {
          "ideology": {
@@ -2737,7 +2789,7 @@
        "next": "c1"
       },
       {
-       "text": "Keep the crowd back? I can do that.",
+       "text": "I can keep people back from the dock.",
        "effects": [
         {
          "ideology": {
@@ -2753,7 +2805,7 @@
        "next": "c2"
       },
       {
-       "text": "How does a Wall that stood a hundred years just... fall?",
+       "text": "What happened down there?",
        "effects": [
         {
          "flag": "asked_how_wall_fell"
@@ -2770,17 +2822,17 @@
     },
     "c1": {
      "speaker": "garrison_captain",
-     "text": "Good. The girl over there lost her whole family. Start with her.",
+     "text": "Good. Start with the girl by the crates. She came off alone.",
      "end": true
     },
     "c2": {
      "speaker": "garrison_captain",
-     "text": "Hm. Maybe you're Garrison material. Watch that girl — she's been sitting there for an hour.",
+     "text": "Fine. And keep an eye on that girl by the crates. She hasn't moved in an hour.",
      "end": true
     },
     "c3": {
      "speaker": "garrison_captain",
-     "text": "A titan fifty meters tall. That's all anyone saw. Now move!",
+     "text": "The outer gate's gone. That's all I know. Now either help or move.",
      "end": true
     }
    }
@@ -2790,10 +2842,10 @@
    "nodes": {
     "a": {
      "speaker": "lotte",
-     "text": "...Are there titans here too?",
+     "text": "Are there titans here too?",
      "choices": [
       {
-       "text": "Not here. The Walls are strong. You're safe.",
+       "text": "No. The Wall here is fine. You're safe.",
        "effects": [
         {
          "ideology": {
@@ -2813,7 +2865,7 @@
        "next": "b"
       },
       {
-       "text": "I don't know. But I'll look out for you.",
+       "text": "I don't know. But I'll keep an eye out for you.",
        "effects": [
         {
          "affinity": {
@@ -2832,7 +2884,7 @@
        "next": "b"
       },
       {
-       "text": "Where are your parents?",
+       "text": "Who did you come with?",
        "effects": [
         {
          "affinity": {
@@ -2846,17 +2898,17 @@
     },
     "b": {
      "speaker": "lotte",
-     "text": "My name's Lotte. I'm going to remember you.",
+     "text": "I'm Lotte. Okay. I'll remember you.",
      "end": true
     },
     "c": {
      "speaker": "lotte",
-     "text": "Mama pushed me onto the boat. She said she'd be on the next one.",
+     "text": "My mom put me on the boat. She said she'd get on the next one.",
      "next": "c2"
     },
     "c2": {
      "speaker": null,
-     "text": "There is no next boat.",
+     "text": "The last boat came in an hour ago.",
      "next": "b",
      "effects": [
       {
@@ -2871,15 +2923,15 @@
    "nodes": {
     "a": {
      "speaker": "baker",
-     "text": "Bread's five times what it was last week. Blame the refugees — every mouth from Maria is another mouth here.",
+     "text": "Twenty for a loaf. Don't look at me like that, flour's gone up four times since the boats came in.",
      "next": "b"
     },
     "b": {
      "speaker": "lotte",
-     "text": "{first}... I haven't eaten since the boat.",
+     "text": "It's okay. I'm not that hungry.",
      "choices": [
       {
-       "text": "Buy her a loaf. [10 Marks]",
+       "text": "I'll buy one. [10 Marks, he'll take it]",
        "effects": [
         {
          "pay": 10
@@ -2895,7 +2947,7 @@
          }
         },
         {
-         "deed": "Bought bread for a starving refugee"
+         "deed": "Bought bread for a hungry refugee girl"
         }
        ],
        "next": "c1",
@@ -2904,7 +2956,7 @@
        }
       },
       {
-       "text": "(Whisper) I'll get you some. Wait here.",
+       "text": "(Quietly) Wait here. I'll get us some.",
        "effects": [
         {
          "flag": "will_steal"
@@ -2918,7 +2970,7 @@
        "next": "c2"
       },
       {
-       "text": "Rules are rules. Wait for the ration line.",
+       "text": "They're handing out rations at the square later.",
        "effects": [
         {
          "ideology": {
@@ -2941,17 +2993,17 @@
     },
     "c1": {
      "speaker": "baker",
-     "text": "Hmph. Kind of you.",
+     "text": "Ten, then. Don't tell anyone.",
      "end": true
     },
     "c2": {
      "speaker": "lotte",
-     "text": "Be careful...",
+     "text": "Don't get caught.",
      "end": true
     },
     "c3": {
      "speaker": "lotte",
-     "text": "...Okay.",
+     "text": "Okay.",
      "end": true
     }
    }
@@ -2961,12 +3013,12 @@
    "nodes": {
     "a": {
      "speaker": "aldo",
-     "text": "The Military Police want a third of the harvest. For the refugees, they say.",
+     "text": "They want a third of the harvest. For the refugees, apparently.",
      "next": "b"
     },
     "b": {
      "speaker": "tax_collector",
-     "text": "By order of the Crown: grain for Wall Rose's refugees. Or would your family rather explain to the King why it hoards?",
+     "text": "Crown's orders. Everyone inside Wall Rose gives. Unless you'd like to explain to someone in Mitras why you didn't.",
      "choices": [
       {
        "text": "Take it. People are starving.",
@@ -2986,7 +3038,7 @@
        "next": "c1"
       },
       {
-       "text": "A third? Half this village will starve by winter.",
+       "text": "A third? We won't make it to spring.",
        "effects": [
         {
          "ideology": {
@@ -3010,7 +3062,7 @@
        "next": "c2"
       },
       {
-       "text": "Perhaps the Crown's granaries in Mitras could spare some first?",
+       "text": "Do the granaries in Mitras give a third too?",
        "effects": [
         {
          "flag": "shamed_mp"
@@ -3036,17 +3088,17 @@
     },
     "c1": {
      "speaker": "tax_collector",
-     "text": "Sensible.",
+     "text": "Good.",
      "end": true
     },
     "c2": {
      "speaker": "tax_collector",
-     "text": "Careful, farmer's child. Words like that get people remembered.",
+     "text": "Watch your mouth. People get remembered for less.",
      "end": true
     },
     "c3": {
      "speaker": "tax_collector",
-     "text": "...A quarter, then. And I'll remember your face.",
+     "text": "...Fine. A quarter. And I'll remember you.",
      "effects": [
       {
        "flag": "tax_reduced"
@@ -3061,15 +3113,15 @@
    "nodes": {
     "a": {
      "speaker": "aldo",
-     "text": "They've drafted me. The Wall Maria Reclamation Operation. Two hundred and fifty thousand of us.",
+     "text": "My name's on the list. They're sending us to take back Wall Maria.",
      "next": "b"
     },
     "b": {
      "speaker": "aldo",
-     "text": "Farmers with pikes against titans. They don't mean for us to come back. They mean to have fewer mouths.",
+     "text": "Two hundred and fifty thousand people. Farmers, mostly. They gave us pitchforks.",
      "choices": [
       {
-       "text": "Then don't go. I'll hide you in the barn.",
+       "text": "Don't go. I'll hide you in the barn.",
        "effects": [
         {
          "ideology": {
@@ -3088,7 +3140,7 @@
        "next": "c1"
       },
       {
-       "text": "Why are we sacrificing thousands to protect these walls?",
+       "text": "Why do they get to decide who dies for the Walls?",
        "effects": [
         {
          "ideology": {
@@ -3103,7 +3155,7 @@
        "next": "c2"
       },
       {
-       "text": "Come back, Father. Promise me.",
+       "text": "Just come back. Okay?",
        "effects": [
         {
          "affinity": {
@@ -3117,22 +3169,22 @@
     },
     "c1": {
      "speaker": "aldo",
-     "text": "And have them burn the farm and take you instead? No. Listen to me.",
+     "text": "And then they burn the farm and take you instead. No.",
      "next": "d"
     },
     "c2": {
      "speaker": "aldo",
-     "text": "Because the people in the middle need someone between them and the titans. That's always been us.",
+     "text": "Somebody always does. Usually it's people like us.",
      "next": "d"
     },
     "c3": {
      "speaker": "aldo",
-     "text": "...I'll try.",
+     "text": "I'll try.",
      "next": "d"
     },
     "d": {
      "speaker": "aldo",
-     "text": "Join the military. Not to hide behind a wall — go where the decisions are made, and make better ones.",
+     "text": "If you join the army, don't go hide in the interior. Go where the decisions get made. Make better ones than this.",
      "effects": [
       {
        "fate": {
@@ -3140,7 +3192,7 @@
        }
       },
       {
-       "deed": "Watched your father march to the Reclamation, 846"
+       "deed": "Watched your father leave for the Reclamation, 846"
       }
      ],
      "end": true
@@ -3152,20 +3204,20 @@
    "nodes": {
     "a": {
      "speaker": "hilde",
-     "text": "Please — I paid the permit last month—",
+     "text": "I paid the permit. I paid it last month, I have the paper here.",
      "next": "b"
     },
     "b": {
      "speaker": "mp_officer",
-     "text": "And this month the permit costs more. The refugees need feeding, you see. So do I.",
+     "text": "Price went up. Lot of refugees to feed these days. Lot of people to keep order for.",
      "next": "c"
     },
     "c": {
      "speaker": "mp_officer",
-     "text": "Something to say, citizen?",
+     "text": "Problem?",
      "choices": [
       {
-       "text": "Leave her alone. That's theft in a uniform.",
+       "text": "Yeah. That's just stealing.",
        "effects": [
         {
          "ideology": {
@@ -3191,7 +3243,7 @@
        "next": "d1"
       },
       {
-       "text": "Here — take this, and let her be. [20 Marks]",
+       "text": "Here. That should cover her. [20 Marks]",
        "effects": [
         {
          "pay": 20
@@ -3216,7 +3268,7 @@
        }
       },
       {
-       "text": "Nothing, officer.",
+       "text": "No, officer.",
        "effects": [
         {
          "ideology": {
@@ -3235,7 +3287,7 @@
        "next": "d3"
       },
       {
-       "text": "Do you know who my family is?",
+       "text": "You might want to ask who my father is first.",
        "effects": [
         {
          "standing": {
@@ -3262,22 +3314,22 @@
     },
     "d1": {
      "speaker": "mp_officer",
-     "text": "Brave. Brave people go missing in Stohess all the time.",
+     "text": "Careful. People who talk like that tend to disappear around here.",
      "end": true
     },
     "d2": {
      "speaker": "mp_officer",
-     "text": "Generous. The Crown thanks you.",
+     "text": "Well. That's very generous of you.",
      "end": true
     },
     "d3": {
      "speaker": "mp_officer",
-     "text": "Smart.",
+     "text": "Didn't think so.",
      "end": true
     },
     "d4": {
      "speaker": "mp_officer",
-     "text": "...My apologies. We'll say no more.",
+     "text": "...No need for that. We're done here.",
      "end": true
     }
    }
@@ -3287,10 +3339,10 @@
    "nodes": {
     "a": {
      "speaker": "priest",
-     "text": "The Walls are the work of God. To question them is to spit on the hand that shields you.",
+     "text": "The Walls were given to us by God. Those who doubt them doubt the only thing standing between us and the end.",
      "choices": [
       {
-       "text": "What are the Walls made of, Pastor?",
+       "text": "What are they actually made of?",
        "effects": [
         {
          "flag": "asked_nick_walls"
@@ -3304,7 +3356,7 @@
        "next": "b1"
       },
       {
-       "text": "Praise the Walls.",
+       "text": "Thank you, Pastor.",
        "effects": [
         {
          "ideology": {
@@ -3324,7 +3376,7 @@
        "next": "b2"
       },
       {
-       "text": "Then why did one of them break?",
+       "text": "One of them just fell, though.",
        "effects": [
         {
          "ideology": {
@@ -3343,7 +3395,7 @@
     },
     "b1": {
      "speaker": "priest",
-     "text": "...That is not for us to know. Some truths are only safe in the dark.",
+     "text": "...That isn't something you need to know. Some things are better left alone.",
      "effects": [
       {
        "flag": "nick_hides_something"
@@ -3353,12 +3405,12 @@
     },
     "b2": {
      "speaker": "priest",
-     "text": "Bless you, child.",
+     "text": "God keep you.",
      "end": true
     },
     "b3": {
      "speaker": "priest",
-     "text": "God tested the faithless of Maria. Do not be among them.",
+     "text": "Maria fell because its people lost their faith. Don't lose yours.",
      "end": true
     }
    }
@@ -3368,10 +3420,10 @@
    "nodes": {
     "a": {
      "speaker": "steward",
-     "text": "My lord takes an interest in promising young people. Graduate in the top ten of the Cadet Corps and there's a place for you in the Military Police. The interior. Safety. Comfort.",
+     "text": "My employer has an eye for talent. Finish in the top ten at the training corps and there's a Military Police post for you. Here. Inside.",
      "choices": [
       {
-       "text": "I'll do it.",
+       "text": "I'll think about it. Seriously.",
        "effects": [
         {
          "ideology": {
@@ -3390,7 +3442,7 @@
        "next": "b"
       },
       {
-       "text": "And if I want to see what's outside?",
+       "text": "What if I want to go outside the Walls?",
        "effects": [
         {
          "ideology": {
@@ -3407,7 +3459,7 @@
     },
     "b": {
      "speaker": "steward",
-     "text": "Then you'll see it from the inside of a titan. Good day.",
+     "text": "Most people who go outside don't come back to complain about it. Good day.",
      "end": true
     }
    }
@@ -3417,15 +3469,15 @@
    "nodes": {
     "a": {
      "speaker": "ferrin",
-     "text": "You want out of this hole, you need wings. The MP keep a gear pack at the guard post by the market. Old model, but it flies.",
+     "text": "You want out of here, you need gear. Real ODM gear. The MP keep a set at the post by the market.",
      "next": "b"
     },
     "b": {
      "speaker": "ferrin",
-     "text": "Walk in, take it, walk out. Don't let the guards see you. And don't let them see a blade in your hand.",
+     "text": "Get in, grab it, get out. Two guards. Don't let them see you, and keep your blades put away.",
      "choices": [
       {
-       "text": "And what's your cut?",
+       "text": "What do you get out of it?",
        "effects": [
         {
          "ideology": {
@@ -3441,7 +3493,7 @@
        "next": "c1"
       },
       {
-       "text": "Stealing from the Military Police? Count me in.",
+       "text": "Robbing the MP? I'm in.",
        "effects": [
         {
          "ideology": {
@@ -3455,7 +3507,7 @@
        "next": "c2"
       },
       {
-       "text": "There has to be another way up.",
+       "text": "I'd rather find another way up.",
        "effects": [
         {
          "ideology": {
@@ -3477,17 +3529,17 @@
     },
     "c1": {
      "speaker": "ferrin",
-     "text": "Half of whatever it's worth to you. Go on.",
+     "text": "A favor, someday. Go on.",
      "end": true
     },
     "c2": {
      "speaker": "ferrin",
-     "text": "Now we're talking.",
+     "text": "That's what I like to hear.",
      "end": true
     },
     "c3": {
      "speaker": "ferrin",
-     "text": "Sure. Pay the stairway toll like a good citizen. It's only three months' wages.",
+     "text": "Sure. Pay the stair toll then. It's only about three months of wages.",
      "end": true
     }
    }
@@ -3497,10 +3549,10 @@
    "nodes": {
     "a": {
      "speaker": "stair_guard",
-     "text": "Stairway to the surface. Toll's three hundred Marks. No toll, no daylight.",
+     "text": "Surface access is three hundred. You got it or not?",
      "choices": [
       {
-       "text": "Pay the toll. [300 Marks]",
+       "text": "Here. [300 Marks]",
        "effects": [
         {
          "pay": 300
@@ -3517,7 +3569,7 @@
        }
       },
       {
-       "text": "I'm expected at the Cadet Corps. Want to explain to Instructor Shadis why I'm late?",
+       "text": "I report to the training corps tomorrow. Want to explain to Shadis why I'm late?",
        "effects": [
         {
          "flag": "talked_past"
@@ -3530,7 +3582,7 @@
        "tag": "Charisma"
       },
       {
-       "text": "(Show him the gear pack — then fly straight past him.)",
+       "text": "(Fire your anchors and fly straight past him.)",
        "effects": [
         {
          "ideology": {
@@ -3552,7 +3604,7 @@
        }
       },
       {
-       "text": "(Walk away — and wait for his back to turn.)",
+       "text": "(Walk off. Come back when he's not looking.)",
        "effects": [
         {
          "flag": "sneak_stair"
@@ -3569,17 +3621,17 @@
     },
     "b2": {
      "speaker": "stair_guard",
-     "text": "...Go. Before I change my mind.",
+     "text": "...Just go.",
      "end": true
     },
     "b3": {
      "speaker": "stair_guard",
-     "text": "Hey! HEY! Stop!",
+     "text": "Hey! Get back here!",
      "end": true
     },
     "b4": {
      "speaker": "stair_guard",
-     "text": "Thought so.",
+     "text": "Didn't think so.",
      "end": true
     }
    }
@@ -3589,10 +3641,10 @@
    "nodes": {
     "a": {
      "speaker": "keith",
-     "text": "YOU! WHO ARE YOU?! WHERE ARE YOU FROM?! WHY ARE YOU HERE?!",
+     "text": "You! Who are you? Where are you from? What are you doing here?",
      "choices": [
       {
-       "text": "{name}, sir! From Shiganshina! I'm here to kill every titan alive!",
+       "text": "{name}, sir! Shiganshina! I'm here to kill titans!",
        "effects": [
         {
          "ideology": {
@@ -3628,7 +3680,7 @@
        }
       },
       {
-       "text": "{name}, sir! Ragako! To change how this army spends its people!",
+       "text": "{name}, sir! Ragako! So no one else gets sent to die for nothing!",
        "effects": [
         {
          "ideology": {
@@ -3651,7 +3703,7 @@
        }
       },
       {
-       "text": "{name}, sir! {origin}! To earn a place in the Military Police!",
+       "text": "{name}, sir! {origin}! To join the Military Police!",
        "effects": [
         {
          "standing": {
@@ -3672,7 +3724,7 @@
        }
       },
       {
-       "text": "{name}, sir! From the Underground! To see the sky and never go back!",
+       "text": "{name}, sir! The Underground! So I never have to go back down there!",
        "effects": [
         {
          "ideology": {
@@ -3690,7 +3742,7 @@
        }
       },
       {
-       "text": "{name}, sir! To find out what's really out there!",
+       "text": "{name}, sir! I want to know what's out there!",
        "effects": [
         {
          "ideology": {
@@ -3708,22 +3760,22 @@
     },
     "b": {
      "speaker": "keith",
-     "text": "Hmph. We'll see if you're still standing in three years.",
+     "text": "Is that so. We'll see if you last the week.",
      "next": "c"
     },
     "c": {
      "speaker": null,
-     "text": "Down the line, a girl bites into a stolen potato in front of the entire corps.",
+     "text": "A few places down the line, a girl is eating a potato. In the middle of the ceremony.",
      "next": "d"
     },
     "d": {
      "speaker": "keith",
-     "text": "...YOU! What do you think you're doing?!",
+     "text": "...You. What exactly do you think you're doing?",
      "next": "e"
     },
     "e": {
      "speaker": "sasha",
-     "text": "It was going to go to waste, sir! So I — here. Half?",
+     "text": "It was hot, sir, and it looked so good, and I... do you want half?",
      "end": true
     }
    }
@@ -3733,10 +3785,10 @@
    "nodes": {
     "a": {
      "speaker": "sasha",
-     "text": "{first}! You didn't laugh when he made me run till sundown. Here — the other half of the potato. I'm Sasha. Sasha Braus, from Dauper.",
+     "text": "Hey, you. You didn't laugh when he made me run. Here, I saved you the last bit. I'm Sasha.",
      "choices": [
       {
-       "text": "Eat it. You earned it running laps.",
+       "text": "You keep it. You ran until dark.",
        "effects": [
         {
          "affinity": {
@@ -3747,7 +3799,7 @@
        "next": "b"
       },
       {
-       "text": "I'll take it.",
+       "text": "Thanks.",
        "effects": [
         {
          "affinity": {
@@ -3761,7 +3813,7 @@
     },
     "b": {
      "speaker": "sasha",
-     "text": "Hehe. Friends, then!",
+     "text": "Okay. We're friends now. That's how it works.",
      "end": true
     }
    }
@@ -3771,10 +3823,10 @@
    "nodes": {
     "a": {
      "speaker": "eren",
-     "text": "I can't stay upright on the rigs. If I fail this, they send me home. I can't go home. There IS no home.",
+     "text": "I can't stay up on the rig. Everyone else can do it. If I fail again tomorrow they'll send me back to the fields.",
      "choices": [
       {
-       "text": "Let me look at your belt... the buckle's cracked.",
+       "text": "Let me see your belt. Hang on, the buckle's cracked.",
        "effects": [
         {
          "flag": "noticed_belt"
@@ -3785,13 +3837,13 @@
          }
         },
         {
-         "deed": "Found the broken belt that almost sent Eren home"
+         "deed": "Found the broken belt that almost got Eren sent home"
         }
        ],
        "next": "b1"
       },
       {
-       "text": "Try again. Tighten your core, lean forward.",
+       "text": "Keep your weight forward. Try again.",
        "effects": [
         {
          "affinity": {
@@ -3802,7 +3854,7 @@
        "next": "b2"
       },
       {
-       "text": "Maybe you're not cut out for this.",
+       "text": "Maybe this isn't for you.",
        "effects": [
         {
          "affinity": {
@@ -3820,17 +3872,17 @@
     },
     "b1": {
      "speaker": "eren",
-     "text": "It — it IS broken! {first}, you're a lifesaver!",
+     "text": "Wait. It's broken? It was broken this whole time?",
      "end": true
     },
     "b2": {
      "speaker": "eren",
-     "text": "...Okay. One more time.",
+     "text": "Yeah. Okay. One more time.",
      "end": true
     },
     "b3": {
      "speaker": "eren",
-     "text": "Say that again when I'm in the Survey Corps.",
+     "text": "Say that to me again once I'm in the Survey Corps.",
      "end": true
     }
    }
@@ -3840,10 +3892,10 @@
    "nodes": {
     "a": {
      "speaker": "annie",
-     "text": "Hand-to-hand. They don't score it, so nobody takes it seriously. You want to learn, or just watch?",
+     "text": "They don't grade hand-to-hand, so nobody bothers. What do you want?",
      "choices": [
       {
-       "text": "Teach me.",
+       "text": "Show me what you're doing.",
        "effects": [
         {
          "affinity": {
@@ -3857,7 +3909,7 @@
        "next": "b1"
       },
       {
-       "text": "Why bother, if it isn't scored?",
+       "text": "So why do you bother?",
        "effects": [
         {
          "affinity": {
@@ -3874,7 +3926,7 @@
     },
     "b1": {
      "speaker": "annie",
-     "text": "Feet here. Your weight goes through the hip, not the arm. ...Again.",
+     "text": "Feet wider. Turn your hip. Your arm's just the end of it. ...Again.",
      "effects": [
       {
        "xp": 60
@@ -3884,7 +3936,7 @@
     },
     "b2": {
      "speaker": "annie",
-     "text": "Because my father said so. And because the whole world is against us, so you'd better be able to stand on your own.",
+     "text": "My dad taught me. He said nobody out there is on your side, so you'd better be able to handle yourself.",
      "effects": [
       {
        "flag": "annie_whole_world"
@@ -3899,15 +3951,15 @@
    "nodes": {
     "a": {
      "speaker": "reiner",
-     "text": "{first}, right? Good work on the rigs. Where'd you say you were from?",
+     "text": "Hey. You did well on the rig today. Where are you from, anyway?",
      "next": "b"
     },
     "b": {
      "speaker": "bertholdt",
-     "text": "Reiner and I are from a mountain village... in Wall Maria. It's... not there anymore.",
+     "text": "We're from a village up in the mountains. In Wall Maria. It's... not there anymore.",
      "choices": [
       {
-       "text": "Like the Shiganshina kids, then. I'm sorry.",
+       "text": "Same as a lot of people here. I'm sorry.",
        "effects": [
         {
          "ideology": {
@@ -3924,7 +3976,7 @@
        "next": "c"
       },
       {
-       "text": "Which village? I've never heard of any mountain village.",
+       "text": "Which village? I didn't know there were any up there.",
        "effects": [
         {
          "flag": "asked_reiner_village"
@@ -3941,12 +3993,12 @@
     },
     "c": {
      "speaker": "reiner",
-     "text": "We're soldiers now. Whatever happened back home, we carry it forward.",
+     "text": "We're soldiers now. That's what matters.",
      "end": true
     },
     "c2": {
      "speaker": "reiner",
-     "text": "...A small one. You wouldn't know it.",
+     "text": "Small place. You wouldn't have heard of it.",
      "effects": [
       {
        "flag": "reiner_evasive"
@@ -3961,10 +4013,10 @@
    "nodes": {
     "a": {
      "speaker": "jean",
-     "text": "Tch. Not bad. The top ten get the Military Police. The interior. Real beds. No titans. That's the dream, isn't it?",
+     "text": "Not bad. Top ten get the Military Police, you know. Inside Wall Sina. Real beds. No titans.",
      "choices": [
       {
-       "text": "It's your dream. Mine's outside the Walls.",
+       "text": "You can have it. I'm going outside.",
        "effects": [
         {
          "ideology": {
@@ -3981,7 +4033,7 @@
        "next": "b"
       },
       {
-       "text": "Honestly? Safety sounds good.",
+       "text": "Honestly, that doesn't sound bad.",
        "effects": [
         {
          "ideology": {
@@ -3997,7 +4049,7 @@
        "next": "b"
       },
       {
-       "text": "The best soldiers going furthest from the titans — doesn't that seem backwards?",
+       "text": "Isn't it weird that the best soldiers get sent furthest from the titans?",
        "effects": [
         {
          "affinity": {
@@ -4019,10 +4071,10 @@
     },
     "b": {
      "speaker": "marco",
-     "text": "I want to serve the King in the Military Police. Doesn't that sound... noble?",
+     "text": "I want to serve the King. I know how that sounds. I mean it, though.",
      "choices": [
       {
-       "text": "It does, Marco.",
+       "text": "You'd be good at it.",
        "effects": [
         {
          "affinity": {
@@ -4033,7 +4085,7 @@
        "next": "c"
       },
       {
-       "text": "Just make sure the MP deserve you.",
+       "text": "Just make sure they deserve you.",
        "effects": [
         {
          "affinity": {
@@ -4050,7 +4102,7 @@
     },
     "c": {
      "speaker": "jean",
-     "text": "Marco, you're too honest for your own good.",
+     "text": "He's too honest. It's going to get him in trouble.",
      "end": true
     }
    }
@@ -4060,20 +4112,20 @@
    "nodes": {
     "a": {
      "speaker": "keith",
-     "text": "The top ten graduates: Mikasa Ackerman. Reiner Braun. Bertholdt Hoover. Annie Leonhart. Eren Yeager. Jean Kirstein. Marco Bott. Connie Springer. Sasha Braus. Krista Lenz.",
+     "text": "Top ten. Mikasa Ackerman. Reiner Braun. Bertholdt Hoover. Annie Leonhart. Eren Yeager. Jean Kirstein. Marco Bott. Connie Springer. Sasha Braus. Krista Lenz.",
      "next": "b"
     },
     "b": {
      "speaker": "keith",
-     "text": "{name}. A hair short of the ten. Your file says—",
+     "text": "{name}. You missed the ten. Your file says...",
      "next": "c"
     },
     "c": {
      "speaker": "keith",
-     "text": "...'Doesn't quit.' That will matter more than rank where you're going. You choose your branch after your first posting. Dismissed.",
+     "text": "'Doesn't quit.' Out there that counts for more than a ranking. You'll choose your branch after your first posting. Dismissed.",
      "choices": [
       {
-       "text": "Salute: fist over the heart.",
+       "text": "(Salute.)",
        "effects": [
         {
          "ideology": {
@@ -4088,7 +4140,7 @@
        ]
       },
       {
-       "text": "Ask him why he left the Survey Corps.",
+       "text": "Sir, why did you leave the Survey Corps?",
        "effects": [
         {
          "flag": "asked_shadis"
@@ -4105,7 +4157,7 @@
     },
     "d": {
      "speaker": "keith",
-     "text": "Because I was ordinary, cadet. Don't let anyone tell you that's a crime. Now get out.",
+     "text": "Because I wasn't special, cadet. Most of us aren't. Now get out of my sight.",
      "end": true
     }
    }
@@ -4115,15 +4167,15 @@
    "nodes": {
     "a": {
      "speaker": "eren",
-     "text": "Five years. Tomorrow we pick our branches, and I'm joining the Survey Corps. Nothing's changed.",
+     "text": "Last day as cadets. Tomorrow I sign up for the Survey Corps. I've been waiting five years for this.",
      "next": "b"
     },
     "b": {
      "speaker": "sasha",
-     "text": "I stole some meat from the officers' stores! We can split it tonight!",
+     "text": "I took some meat from the officers' storeroom. Real meat. We can split it tonight.",
      "choices": [
       {
-       "text": "Sasha, they'll hang you.",
+       "text": "Sasha, you're going to get us all thrown in a cell.",
        "effects": [
         {
          "affinity": {
@@ -4134,7 +4186,7 @@
        "next": "c"
       },
       {
-       "text": "Save me the biggest piece.",
+       "text": "I want a big piece.",
        "effects": [
         {
          "affinity": {
@@ -4148,7 +4200,7 @@
     },
     "c": {
      "speaker": null,
-     "text": "Lightning splits a clear sky.",
+     "text": "Then the light changes. Lightning, out of a clear sky.",
      "effects": [
       {
        "shake": 3
@@ -4178,7 +4230,7 @@
       },
       {
        "card": {
-        "title": "THE BATTLE OF TROST",
+        "title": "The Battle of Trost",
         "sub": "850"
        }
       }
@@ -4192,15 +4244,15 @@
    "nodes": {
     "a": {
      "speaker": "dimo_reeves",
-     "text": "Push! Push the cart through! My goods are worth more than all your lives put together!",
+     "text": "Keep pushing! Do you know what's in this cart? It's worth more than this whole street!",
      "next": "b"
     },
     "b": {
      "speaker": "civilian_f",
-     "text": "Please — the titans are coming, we can't get past!",
+     "text": "Please, we can't get past! They're coming!",
      "choices": [
       {
-       "text": "Move that cart, or I move you.",
+       "text": "Move the cart. Now.",
        "effects": [
         {
          "ideology": {
@@ -4224,7 +4276,7 @@
        "next": "c1"
       },
       {
-       "text": "Your goods are worthless if you're eaten, Mr. Reeves. Move it and live.",
+       "text": "None of that's worth anything if you get eaten, Mr. Reeves.",
        "effects": [
         {
          "affinity": {
@@ -4242,7 +4294,7 @@
        "tag": "Charisma"
       },
       {
-       "text": "Everyone! Help me push it through!",
+       "text": "Everyone, push with me!",
        "effects": [
         {
          "ideology": {
@@ -4260,17 +4312,17 @@
     },
     "c1": {
      "speaker": "dimo_reeves",
-     "text": "...All right! All right! Pull it back!",
+     "text": "Fine! Fine. Pull it back!",
      "end": true
     },
     "c2": {
      "speaker": "dimo_reeves",
-     "text": "...Hm. You have a point. PULL BACK!",
+     "text": "...Pull it back. Pull it back!",
      "end": true
     },
     "c3": {
      "speaker": null,
-     "text": "Together, the crowd heaves the cart through the gate.",
+     "text": "Twenty people throw their weight against it, and the cart finally scrapes through the gate.",
      "end": true
     }
    }
@@ -4280,15 +4332,15 @@
    "nodes": {
     "a": {
      "speaker": "armin",
-     "text": "{first}... Eren's squad. They're gone. Eren was eaten saving me.",
+     "text": "Our whole squad's gone. Eren... Eren got eaten. He pushed me out of its mouth.",
      "next": "b"
     },
     "b": {
      "speaker": "armin",
-     "text": "And then a titan appeared that was killing other titans. It's still out there.",
+     "text": "And there's a titan out there killing other titans. It's not attacking us at all.",
      "choices": [
       {
-       "text": "Then it's a weapon. We use it.",
+       "text": "Then we use it to get to the supplies.",
        "effects": [
         {
          "ideology": {
@@ -4303,7 +4355,7 @@
        "next": "c"
       },
       {
-       "text": "A titan is a titan, Armin.",
+       "text": "It's a titan, Armin. It's not on our side.",
        "effects": [
         {
          "ideology": {
@@ -4315,7 +4367,7 @@
        "next": "c"
       },
       {
-       "text": "Titans don't fight titans. Something's wrong here.",
+       "text": "Titans don't do that. Something's off.",
        "effects": [
         {
          "flag": "doubt_titans"
@@ -4332,7 +4384,7 @@
     },
     "c": {
      "speaker": "armin",
-     "text": "We can lure it toward the HQ. Mikasa's already out there.",
+     "text": "Mikasa's already out there with it. We have to move.",
      "end": true
     }
    }
@@ -4342,10 +4394,10 @@
    "nodes": {
     "a": {
      "speaker": "mikasa",
-     "text": "Eren came out of the titan's neck. Alive. They'll call him a monster. They'll try to kill him.",
+     "text": "He came out of its neck. Eren. He's alive. They're going to call him a monster.",
      "choices": [
       {
-       "text": "Then they'll have to go through me.",
+       "text": "Then they'll have to get through me first.",
        "effects": [
         {
          "affinity": {
@@ -4365,7 +4417,7 @@
        "next": "b"
       },
       {
-       "text": "Mikasa... maybe they're right to be afraid.",
+       "text": "Mikasa... can you blame them?",
        "effects": [
         {
          "affinity": {
@@ -4384,7 +4436,7 @@
        "next": "b"
       },
       {
-       "text": "If humans can become titans... then what are titans?",
+       "text": "If a person can turn into one... what are they?",
        "effects": [
         {
          "flag": "titans_are_human_q"
@@ -4402,10 +4454,10 @@
     },
     "b": {
      "speaker": "mikasa",
-     "text": "Then stay close. Whatever happens next, stay close.",
+     "text": "Stay close to me.",
      "effects": [
       {
-       "deed": "Saw Eren Yeager emerge from a titan at Trost"
+       "deed": "Saw Eren Yeager come out of a titan at Trost"
       }
      ],
      "end": true
@@ -4417,17 +4469,17 @@
    "nodes": {
     "a": {
      "speaker": "erwin",
-     "text": "Trost has been sealed. Eren Yeager's titan carried the boulder. For the first time, humanity has taken ground back from the titans.",
+     "text": "Trost has been sealed. A titan carried the boulder into the gate, and that titan was one of our own cadets.",
      "next": "b"
     },
     "b": {
      "speaker": "erwin",
-     "text": "I won't lie to you. Join the Survey Corps and most of you will be dead within a year. But what we find out there may be the truth of this world.",
+     "text": "I won't pretend the Survey Corps is safe. Most of you would die within the year. But what we find out there might be the truth about this world.",
      "next": "c"
     },
     "c": {
      "speaker": "levi",
-     "text": "Choose. And don't regret it.",
+     "text": "Make your choice. Don't whine about it later.",
      "choices": [
       {
        "text": "The Survey Corps.",
@@ -4452,7 +4504,7 @@
        "next": "d1"
       },
       {
-       "text": "The Garrison. Someone has to hold the Walls.",
+       "text": "The Garrison. Somebody has to keep the Walls standing.",
        "effects": [
         {
          "faction": "GARRISON"
@@ -4489,17 +4541,17 @@
     },
     "d1": {
      "speaker": "erwin",
-     "text": "Then dedicate your heart.",
+     "text": "Then give us your heart.",
      "end": true
     },
     "d2": {
      "speaker": "erwin",
-     "text": "The Walls are in good hands.",
+     "text": "The Walls will be glad of you.",
      "end": true
     },
     "d3": {
      "speaker": "erwin",
-     "text": "The interior needs honest soldiers. More than you know.",
+     "text": "The interior could use more honest soldiers. More than you'd think.",
      "end": true
     }
    }

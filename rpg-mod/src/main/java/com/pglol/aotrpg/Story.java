@@ -215,7 +215,31 @@ public final class Story {
         return e.getCommandTags().contains(WATCH);
     }
 
-    public static final String ACTOR = "aot_actor", WATCH = "aot_watch";
+    public static final String ACTOR = "aot_actor", WATCH = "aot_watch", GENTLE = "aot_gentle";
+
+    /** A story titan from an early mission: it can't grab you and hits softly. */
+    public static boolean gentle(Entity e) {
+        return e != null && e.getCommandTags().contains(GENTLE);
+    }
+
+    private static final String[] ABNORMAL = {"abnormal", "crawl", "jump", "runner", "sprint", "deviant", "beast", "cart", "jaw", "female",
+        "armored", "armoured", "colossal", "attack", "warhammer", "founding", "shifter", "boss"};
+
+    /** Ordinary titans for a story fight: never abnormals; small ones for early missions. */
+    private static List<EntityType<?>> storyTitans(int maxLevel) {
+        List<EntityType<?>> ok = new ArrayList<>();
+        for (EntityType<?> t : TitanTypes.ordinary()) {
+            String path = Registries.ENTITY_TYPE.getId(t).getPath();
+            boolean bad = false;
+            for (String a : ABNORMAL) if (path.contains(a)) bad = true;
+            if (!bad) ok.add(t);
+        }
+        if (ok.isEmpty()) ok.addAll(TitanTypes.ordinary());
+        ok.sort((a, b) -> Float.compare(a.getDimensions().height(), b.getDimensions().height()));
+        if (maxLevel <= 8 && ok.size() > 2) return new ArrayList<>(ok.subList(0, Math.max(1, ok.size() / 3)));
+        if (maxLevel <= 14 && ok.size() > 2) return new ArrayList<>(ok.subList(0, Math.max(1, ok.size() * 2 / 3)));
+        return ok;
+    }
 
     // ------------------------------------------------------------------ helpers
 
@@ -598,6 +622,7 @@ public final class Story {
         if (o.has("patrol") && o.get("patrol").getAsBoolean()) sc.patrols.add(id);
         if (o.has("follow") && o.get("follow").getAsBoolean()) sc.followers.add(id);
         if (o.has("face")) facePlayer(v, sc);
+        if (o.has("pose") && o.get("pose").getAsString().equals("crouch")) v.setPose(net.minecraft.entity.EntityPose.CROUCHING);
         sendActors(sc);
     }
 
@@ -611,11 +636,12 @@ public final class Story {
     }
 
     private void spawnTitanActor(Scene sc, Mission m, ServerWorld w, JsonObject o) {
-        EntityType<?> type = TitanTypes.shifter(o.get("shifter").getAsString());
+        String which = o.get("shifter").getAsString();
+        EntityType<?> type = which.equals("ordinary") ? null : TitanTypes.shifter(which);
         if (type == null) {
-            List<EntityType<?>> all = TitanTypes.ordinary();
+            List<EntityType<?>> all = storyTitans(m.level[1]);
             if (all.isEmpty()) return;
-            type = all.get(0);
+            type = all.get(w.getRandom().nextInt(all.size()));
         }
         Entity t = type.create(w);
         if (t == null) return;
@@ -641,7 +667,8 @@ public final class Story {
         int lv = Math.max(m.level[0], Math.min(m.level[1], pr(host).level));
         if (o.has("level")) lv = o.get("level").getAsInt();
         double spread = o.has("spread") ? o.get("spread").getAsDouble() : 8;
-        List<EntityType<?>> kinds = TitanTypes.ordinary();
+        List<EntityType<?>> kinds = storyTitans(m.level[1]);
+        boolean gentle = o.has("gentle") ? o.get("gentle").getAsBoolean() : m.level[1] <= 8;
         if (kinds.isEmpty()) {
             // No titan mod in this world: the fight can't happen, so it counts as won.
             sc.titansSpawned = true;
@@ -660,6 +687,7 @@ public final class Story {
                 mob.setTarget(host);
             }
             TitanLevels.fix(t, lv);
+            if (gentle) t.addCommandTag(GENTLE);
             if (o.has("strikes")) t.addCommandTag("aot_raidstrikes:" + o.get("strikes").getAsInt());
             tagPhased(t, sc);
             w.spawnEntity(t);
@@ -878,7 +906,24 @@ public final class Story {
             e.setHeadYaw(yaw);
             e.setYaw(e.getBodyYaw());
         }
-        if (ticks % 20 == 0) {
+        if (ticks % 5 == 0) {
+            // Nobody carries a story character off, and an early mission's titans can't hold you.
+            for (String id : sc.actors.keySet()) {
+                Entity e = actorEntity(sc, id);
+                if (e != null && e.hasVehicle()) e.stopRiding();
+            }
+            for (UUID u : sc.titans) {
+                Entity t = host.getServerWorld().getEntity(u);
+                if (t != null && gentle(t) && t.hasPassengers()) {
+                    for (Entity pass : new ArrayList<>(t.getPassengerList())) {
+                        pass.stopRiding();
+                        if (pass instanceof ServerPlayerEntity sp) sp.sendMessage(Text.literal("You twist free of its grip!").formatted(Formatting.GOLD), true);
+                    }
+                }
+            }
+        }
+        if (ticks % 20 == 0) calm(sc, host);
+        if (ticks % 10 == 0) {
             List<ServerPlayerEntity> mem = members(sc);
             for (UUID u : sc.titans) {
                 Entity t = host.getServerWorld().getEntity(u);
@@ -892,9 +937,50 @@ public final class Story {
                         best = x;
                     }
                 }
-                if (best != null && mob.getTarget() != best) mob.setTarget(best);
+                if (best != null && (mob.getTarget() != best || mob.getTarget() == null)) mob.setTarget(best);
             }
         }
+    }
+
+    /**
+     * A story scene keeps its own titans: wandering ones (not event or raid titans) that come
+     * within 96 blocks of the scene's players are sent off, so a scene isn't gatecrashed.
+     */
+    private void calm(Scene sc, ServerPlayerEntity host) {
+        ServerWorld w = host.getServerWorld();
+        List<Entity> gone = new ArrayList<>();
+        for (ServerPlayerEntity x : members(sc)) {
+            if (x.getWorld() != w) continue;
+            for (Entity e : w.getOtherEntities(x, x.getBoundingBox().expand(96, 64, 96), TitanGuard::wanderingTitan)) {
+                if (!phased.containsKey(e.getId())) gone.add(e);
+            }
+        }
+        for (Entity e : gone) {
+            w.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + e.getHeight() / 2, e.getZ(), 12, e.getWidth() / 2, e.getHeight() / 3, e.getWidth() / 2, 0.02);
+            e.discard();
+        }
+    }
+
+    /**
+     * Fell during a scene: wake where the step began and try it again (fresh titans, same scene).
+     * Returns true if the player was placed.
+     */
+    public boolean respawnInScene(ServerPlayerEntity p) {
+        UUID host = guestOf.getOrDefault(p.getUuid(), p.getUuid());
+        Scene sc = scenes.get(host);
+        if (sc == null || sc.checkpoint == null || sc.mission == null) return false;
+        ServerWorld w = server.getOverworld();
+        BlockPos at = Safe.landing(w, (int) Math.floor(sc.checkpoint.x), (int) Math.floor(sc.checkpoint.y), (int) Math.floor(sc.checkpoint.z));
+        p.teleport(w, at.getX() + 0.5, at.getY(), at.getZ() + 0.5, p.getYaw(), 0);
+        if (host.equals(p.getUuid())) {
+            clearTitans(sc);
+            sc.spawned = false;
+            sc.stepAt = System.currentTimeMillis();
+            sc.dialogue = null;
+            closeDialogue(sc);
+        }
+        Notify.toast(p, Text.literal("You come to where it began").formatted(Formatting.GOLD), Text.literal("Try again"), 0xE0B96A, "minecraft:red_bed", "story");
+        return true;
     }
 
     /** Moves an AI-less actor a step toward a point, facing where it walks. */

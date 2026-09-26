@@ -38,7 +38,9 @@ public final class Combat {
             if (titan == null && source.getSource() != null) titan = TitanLevels.rootOf(source.getSource());
             // (A shifter steered by a player is PvP: that stays as Danny's mod makes it.)
             if (titan != null && TitanLevels.level(titan) > 0 && !(titan.getControllingPassenger() instanceof PlayerEntity)) {
-                mult *= TitanLevels.hitMultiplier(titan, def, eaten);
+                mult *= TitanLevels.hitMultiplier(titan, def, eaten && !Story.gentle(titan));
+                // A story's first titans are there to teach, not to kill: they hit softly.
+                if (Story.gentle(titan)) mult *= 0.3;
             }
         }
         return Math.abs(mult - 1) < 1e-4 ? amount : (float) (amount * mult);
