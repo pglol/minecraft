@@ -102,7 +102,7 @@ public final class WitnessFx {
         for (Net.Watcher w : watchers.values()) {
             if (!(mc.world.getEntityById(w.entity()) instanceof LivingEntity e)) continue;
             double ex = e.getX() - ox, ez = e.getZ() - oz;
-            if (ex < 0 || ez < 0 || ex > s || ez > s) continue;
+            if (!Minimap.onMap(ex, ez, 2)) continue;
             int col = color(w) & 0xFFFFFF;
             float yaw = e.getHeadYaw() * MathHelper.RADIANS_PER_DEGREE;
             int range = 8;
@@ -111,7 +111,7 @@ public final class WitnessFx {
                 double dx = -MathHelper.sin(a), dz = MathHelper.cos(a);
                 for (int r = 2; r <= range; r += 2) {
                     int px = x + (int) Math.round(ex + dx * r), py = y + (int) Math.round(ez + dz * r);
-                    if (px < x + 1 || py < y + 1 || px > x + s - 2 || py > y + s - 2) continue;
+                    if (!Minimap.onMap(px - x, py - y, 1)) continue;
                     int alpha = (int) (110 * (1 - r / (float) (range + 2)));
                     c.fill(px, py, px + 1, py + 1, alpha << 24 | col);
                 }

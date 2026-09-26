@@ -318,6 +318,8 @@ public final class AotRpgClient implements ClientModInitializer {
         });
 
         HudRenderCallback.EVENT.register(RpgHud::render);
+        HudRenderCallback.EVENT.register(TopBar::render);
+        HudRenderCallback.EVENT.register(EffectCards::render);
         HudRenderCallback.EVENT.register(Minimap::render);
         HudRenderCallback.EVENT.register(PartyHud::render);
         HudRenderCallback.EVENT.register(TitanState::renderHud);

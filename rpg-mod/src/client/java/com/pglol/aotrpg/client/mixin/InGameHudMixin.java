@@ -46,4 +46,10 @@ public abstract class InGameHudMixin {
     private void aotrpg$xpLevel(CallbackInfo ci) {
         if (RpgHud.active()) ci.cancel();
     }
+
+    /** Our own effect cards replace the vanilla icons in the corner. */
+    @Inject(method = "renderStatusEffectOverlay", at = @At("HEAD"), cancellable = true)
+    private void aotrpg$effects(CallbackInfo ci) {
+        if (com.pglol.aotrpg.client.ClientState.profile != null) ci.cancel();
+    }
 }

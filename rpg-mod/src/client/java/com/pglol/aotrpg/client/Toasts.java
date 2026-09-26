@@ -89,7 +89,7 @@ public final class Toasts {
         if (mc.options.hudHidden || toasts.isEmpty()) return;
         long now = Util.getMeasuringTimeMs();
         int sw = c.getScaledWindowWidth();
-        float y = 98;
+        float y = Math.max(8, EffectCards.bottom + 4);
         for (Iterator<Toast> it = toasts.iterator(); it.hasNext(); ) {
             Toast t = it.next();
             long age = now - t.born;
@@ -141,7 +141,7 @@ public final class Toasts {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.options.hudHidden || bars.isEmpty()) return;
         int sw = c.getScaledWindowWidth(), w = 150;
-        int y = 4, shown = 0;
+        int y = TopBar.bottom(), shown = 0;
         for (ClientBossBar b : bars) {
             if (shown++ >= 3) break;
             int x = (sw - w) / 2;
