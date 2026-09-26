@@ -116,6 +116,10 @@ public class RpgInventoryScreen extends InventoryScreen {
             }
             c.drawTooltip(textRenderer, tip, mouseX, mouseY);
         }
+        // The satchel button accepts an item dropped on it from the cursor.
+        if (!handler.getCursorStack().isEmpty() && satchelButton.isMouseOver(mouseX, mouseY)) {
+            c.drawTooltip(textRenderer, Text.literal("Put back in the satchel").withColor(Ui.GOLD), mouseX, mouseY);
+        }
     }
 
     @Override
@@ -186,6 +190,7 @@ public class RpgInventoryScreen extends InventoryScreen {
             LoadoutUi.drawGhost(c, g, x + FRAMES[0][0] + 1, y + FRAMES[0][1] + 1);
         }
         c.fill(x + 8, y + 166, x + w - 8, y + 167, 0x407A6139);
+        Ui.text(c, Text.literal("Shift-click or Q: back to satchel"), x + w / 2f, y + 158, 0.5f, Ui.MUTED, true);
 
         // Stats along the bottom.
         var pl = client.player;
@@ -204,6 +209,44 @@ public class RpgInventoryScreen extends InventoryScreen {
 
     @Override
     protected void drawForeground(DrawContext c, int mouseX, int mouseY) {
+    }
+
+    /** Where a slot is, as the satchel names it: loadout 0-8, off hand, or armor (100 feet .. 103 head). */
+    private static int place(Slot s) {
+        if (playerSlot(s)) return s.getIndex() == OFFHAND ? com.pglol.aotrpg.Satchel.OFF : s.getIndex();
+        if (armorSlot(s)) return com.pglol.aotrpg.Satchel.ARMOR + (s.getIndex() - 36);
+        return -1;
+    }
+
+    private static void store(Slot s) {
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new Net.BagAction("store", -1, place(s)));
+    }
+
+    @Override
+    public boolean mouseClicked(double mx, double my, int button) {
+        // Shift-click (or middle-click) anything you wear or carry to send it back to the satchel.
+        if (!handler.getCursorStack().isEmpty() && satchelButton.isMouseOver(mx, my)) {
+            net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new Net.BagAction("storecursor", -1, 0));
+            return true;
+        }
+        Slot f = focusedSlot;
+        if (f != null && f.hasStack() && place(f) >= 0 && handler.getCursorStack().isEmpty()
+            && ((button == 0 && hasShiftDown()) || button == 2)) {
+            store(f);
+            return true;
+        }
+        return super.mouseClicked(mx, my, button);
+    }
+
+    @Override
+    public boolean keyPressed(int key, int scan, int mods) {
+        // Q over a slot sends it to the satchel instead of dropping it on the ground.
+        Slot f = focusedSlot;
+        if (f != null && f.hasStack() && place(f) >= 0 && client.options.dropKey.matchesKey(key, scan)) {
+            store(f);
+            return true;
+        }
+        return super.keyPressed(key, scan, mods);
     }
 
     @Override

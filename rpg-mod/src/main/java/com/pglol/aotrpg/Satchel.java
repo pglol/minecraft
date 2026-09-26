@@ -272,6 +272,18 @@ public final class Satchel {
             store(p, bag, (int) arg);
             return;
         }
+        if (action.equals("storecursor")) {
+            // An item carried on the cursor, dropped on the Satchel button.
+            var h = p.currentScreenHandler;
+            ItemStack c = h.getCursorStack();
+            if (c.isEmpty() || isStory(c)) return;
+            h.setCursorStack(bag.addStack(c.copy()));
+            h.syncState();
+            bag.markDirty();
+            save(p.getUuid());
+            send(p, false);
+            return;
+        }
         if (slot < 0 || slot >= bag.size()) return;
         ItemStack s = bag.getStack(slot);
         if (s.isEmpty()) return;
