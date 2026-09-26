@@ -70,7 +70,10 @@ public class AotPauseScreen extends Screen {
         y = section(y, bh, "Home", new Tile[] {
             new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))),
             new Tile("Stables", "minecraft:saddle", hasChar, () -> ClientPlayNetworking.send(new Net.StableAction("view", "", ""))),
-            new Tile("Estate & Pets", "minecraft:bricks", hasChar, () -> ClientPlayNetworking.send(new Net.EstateAction("open", "")))});
+            new Tile("Estate & Pets", "minecraft:bricks", hasChar, () -> ClientPlayNetworking.send(new Net.EstateAction("open", ""))),
+            // Operators: every property in the world, owners, offers and resets.
+            new Tile("Properties", "minecraft:filled_map", client.player != null && client.player.hasPermissionLevel(2),
+                () -> client.player.networkHandler.sendChatCommand("home admin"))});
         if (war) {
             for (var el : children()) {
                 if (el instanceof AotButton b && b.getMessage().getString().startsWith("Factions")) b.accent = 0xFFE04A3A;

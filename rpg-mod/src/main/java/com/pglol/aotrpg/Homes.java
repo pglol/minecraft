@@ -463,6 +463,11 @@ public final class Homes {
                             return;
                         }
                     }
+                    // Operators without a home of their own get the property list instead.
+                    if (p.hasPermissionLevel(2)) {
+                        HomeAdmin.send(p, "");
+                        return;
+                    }
                     p.sendMessage(Text.literal("You don't own a home yet. Sneak + use the door of any town house, or the sign of a plot.").formatted(Formatting.GRAY), true);
                 }
             }
