@@ -121,7 +121,26 @@ public final class AotRpg implements ModInitializer {
                     EXCHANGE.deliver(p);
                     EXCHANGE.send(p);
                 }
-                case "list" -> EXCHANGE.list(p, payload.qty(), payload.number());
+                case "list" -> {
+                    // item carries "startBid:hours" for auctions (empty for buy-now only).
+                    long start = 0;
+                    int hours = 24;
+                    try {
+                        String[] parts = payload.item().split(":");
+                        if (!parts[0].isBlank()) start = Long.parseLong(parts[0]);
+                        if (parts.length > 1) hours = Integer.parseInt(parts[1]);
+                    } catch (NumberFormatException ignored) {
+                        // buy-now only
+                    }
+                    EXCHANGE.list(p, payload.qty(), payload.number(), start, hours);
+                }
+                case "bid" -> {
+                    try {
+                        EXCHANGE.bid(p, Long.parseLong(payload.item()), payload.number());
+                    } catch (NumberFormatException ignored) {
+                        // bad listing id
+                    }
+                }
                 case "buylisting" -> EXCHANGE.buy(p, payload.number());
                 case "cancel" -> EXCHANGE.cancel(p, payload.number());
                 default -> { }

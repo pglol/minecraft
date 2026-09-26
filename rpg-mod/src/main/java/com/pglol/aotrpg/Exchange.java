@@ -38,8 +38,17 @@ public final class Exchange {
         public String stem;
         public String sellerName;
         public String item;
+        /** Buy-now price (0: auction only). */
         public long price;
         public long created;
+        /** Auction: starting bid (0: buy-now only), the highest bid and who holds it, and when it ends. */
+        public long startBid, bid, ends;
+        public int bids;
+        public String bidder, bidderStem, bidderName;
+
+        long endsAt() {
+            return ends > 0 ? ends : created + EXPIRE_MS;
+        }
     }
 
     public static final class Mail {
@@ -125,7 +134,19 @@ public final class Exchange {
     }
 
     public void list(ServerPlayerEntity p, int slot, long price) {
-        if (price <= 0 || price > 10_000_000) return;
+        list(p, slot, price, 0, 24);
+    }
+
+    /** Lists an item with a buy-now price, a starting bid, or both (the auction runs for the given hours). */
+    public void list(ServerPlayerEntity p, int slot, long price, long startBid, int hours) {
+        price = Math.max(0, price);
+        startBid = Math.max(0, startBid);
+        if (price <= 0 && startBid <= 0 || price > 10_000_000 || startBid > 10_000_000) return;
+        if (price > 0 && startBid >= price) {
+            p.sendMessage(Text.literal("The starting bid must be below the buy-now price.").formatted(Formatting.RED), true);
+            return;
+        }
+        hours = hours <= 12 ? 12 : hours <= 24 ? 24 : 48;
         ItemStack s = AotRpg.SATCHEL.at(p, slot);
         if (s.isEmpty() || Satchel.isStory(s)) return;
         String st = stem(p);
@@ -142,11 +163,14 @@ public final class Exchange {
         l.item = encode(s);
         l.price = price;
         l.created = System.currentTimeMillis();
+        l.startBid = startBid;
+        l.ends = startBid > 0 ? l.created + hours * 3600_000L : l.created + EXPIRE_MS;
         data.listings.add(l);
         AotRpg.SATCHEL.set(p, slot, ItemStack.EMPTY);
         save();
         p.sendMessage(Text.literal("Listed ").formatted(Formatting.GRAY).append(s.getName().copy())
-            .append(Text.literal(" for ").formatted(Formatting.GRAY)).append(Wallet.marks(price)), true);
+            .append(Text.literal(startBid > 0 ? " for auction from " : " for ").formatted(Formatting.GRAY))
+            .append(Wallet.marks(startBid > 0 ? startBid : price)), true);
         send(p);
     }
 
@@ -157,11 +181,13 @@ public final class Exchange {
             cancel(p, id);
             return;
         }
+        if (l.price <= 0) return;
         if (!AotRpg.WALLET.spendMarks(p, l.price)) {
             p.sendMessage(Text.literal("Not enough Marks.").formatted(Formatting.RED), true);
             return;
         }
         data.listings.remove(l);
+        refund(l, "it was bought outright");
         ItemStack s = decode(l.item);
         AotRpg.SATCHEL.add(p, s.copy());
         long net = Math.round(l.price * (1 - FEE));
@@ -177,10 +203,73 @@ public final class Exchange {
     public void cancel(ServerPlayerEntity p, long id) {
         Listing l = byId(id);
         if (l == null || !l.stem.equals(stem(p))) return;
+        if (l.bids > 0) {
+            p.sendMessage(Text.literal("Someone has bid on it: it can't be taken back now.").formatted(Formatting.RED), true);
+            return;
+        }
         data.listings.remove(l);
         AotRpg.SATCHEL.add(p, decode(l.item));
         save();
         send(p);
+    }
+
+    /** A bid: at least the starting bid, then 5% over the last. The Marks are held until you are outbid or win. */
+    public void bid(ServerPlayerEntity p, long id, long amount) {
+        Listing l = byId(id);
+        long now = System.currentTimeMillis();
+        if (l == null || l.stem.equals(stem(p)) || now >= l.endsAt()) return;
+        if (l.startBid <= 0) {
+            p.sendMessage(Text.literal("That one is buy-now only.").formatted(Formatting.RED), true);
+            return;
+        }
+        if (l.price > 0 && amount >= l.price) {
+            buy(p, id);
+            return;
+        }
+        long min = minBid(l);
+        if (amount < min) {
+            p.sendMessage(Text.literal("The lowest bid now is " + min + " Marks.").formatted(Formatting.RED), true);
+            return;
+        }
+        if (stem(p).equals(l.bidderStem)) {
+            p.sendMessage(Text.literal("You already hold the top bid.").formatted(Formatting.GRAY), true);
+            return;
+        }
+        if (!AotRpg.WALLET.spendMarks(p, amount)) {
+            p.sendMessage(Text.literal("Not enough Marks.").formatted(Formatting.RED), true);
+            return;
+        }
+        refund(l, "you were outbid");
+        l.bid = amount;
+        l.bids++;
+        l.bidder = p.getUuidAsString();
+        l.bidderStem = stem(p);
+        l.bidderName = AotRpg.PROFILES.get(p.getUuid()).name;
+        // A late bid gives the others two minutes to answer.
+        if (l.endsAt() - now < 120_000) l.ends = now + 120_000;
+        save();
+        p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.5f, 1.2f);
+        send(p);
+    }
+
+    public static long minBid(Listing l) {
+        return l.bids == 0 ? Math.max(1, l.startBid) : l.bid + Math.max(1, l.bid * 5 / 100);
+    }
+
+    /** Hands the held top bid back to its bidder. */
+    private void refund(Listing l, String why) {
+        if (l.bids <= 0 || l.bidderStem == null) return;
+        ItemStack s = decode(l.item);
+        mail(l.bidderStem, l.bid, null, "your " + l.bid + " Marks bid on " + s.getName().getString() + " came back: " + why);
+        ServerPlayerEntity b = l.bidder == null ? null : server.getPlayerManager().getPlayer(java.util.UUID.fromString(l.bidder));
+        if (b != null && stem(b).equals(l.bidderStem)) {
+            deliver(b);
+            Notify.toast(b, Text.literal("Outbid").formatted(Formatting.RED), Text.literal(s.getName().getString() + ": your Marks are back"),
+                0xC0463A, "minecraft:emerald", null);
+        }
+        l.bids = 0;
+        l.bid = 0;
+        l.bidder = l.bidderStem = l.bidderName = null;
     }
 
     private Listing byId(long id) {
@@ -190,13 +279,27 @@ public final class Exchange {
 
     /** Every few minutes: expired listings go back to their sellers' mail. */
     public void tick(int ticks) {
-        if (ticks % 6000 != 0) return;
+        if (ticks % 200 != 0) return;
         long now = System.currentTimeMillis();
         boolean changed = false;
         for (Listing l : new ArrayList<>(data.listings)) {
-            if (now - l.created < EXPIRE_MS) continue;
+            if (now < l.endsAt()) continue;
             data.listings.remove(l);
-            mail(l.stem, 0, decode(l.item), "a listing expired and came back");
+            ItemStack s = decode(l.item);
+            if (l.bids > 0 && l.bidderStem != null) {
+                // Sold at auction: the item to the winner, the Marks (less the fee) to the seller.
+                long net = Math.round(l.bid * (1 - FEE));
+                mail(l.bidderStem, 0, s, "you won " + s.getCount() + "x " + s.getName().getString() + " for " + l.bid + " Marks");
+                mail(l.stem, net, null, "auction sold " + s.getCount() + "x " + s.getName().getString() + " for " + net + " Marks");
+                for (String who : new String[] {l.bidder, l.seller}) {
+                    ServerPlayerEntity o = who == null ? null : server.getPlayerManager().getPlayer(java.util.UUID.fromString(who));
+                    if (o != null) deliver(o);
+                }
+            } else {
+                mail(l.stem, 0, s, "a listing ended unsold and came back");
+                ServerPlayerEntity o = server.getPlayerManager().getPlayer(java.util.UUID.fromString(l.seller));
+                if (o != null) deliver(o);
+            }
             changed = true;
         }
         if (changed) save();
@@ -211,7 +314,9 @@ public final class Exchange {
         sorted.sort((a, b) -> Long.compare(b.created, a.created));
         for (Listing l : sorted) {
             if (out.size() >= 120) break;
-            out.add(new Net.ExchangeEntry(l.id, decode(l.item), l.price, l.sellerName, l.stem.equals(st)));
+            out.add(new Net.ExchangeEntry(l.id, decode(l.item), l.price, l.sellerName, l.stem.equals(st), l.startBid, l.bid, l.bids,
+                st.equals(l.bidderStem), l.bidderName == null ? "" : l.bidderName, Math.max(0, (l.endsAt() - System.currentTimeMillis()) / 1000),
+                l.startBid > 0 ? minBid(l) : 0));
         }
         ServerPlayNetworking.send(p, new Net.ExchangeView(out));
     }

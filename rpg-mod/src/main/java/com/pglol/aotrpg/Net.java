@@ -741,7 +741,9 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    public record ExchangeEntry(long id, net.minecraft.item.ItemStack item, long price, String seller, boolean mine) { }
+    /** A Global Market listing: buy-now price (0 none), auction start, top bid and bidder, bids, seconds left, lowest next bid. */
+    public record ExchangeEntry(long id, net.minecraft.item.ItemStack item, long price, String seller, boolean mine,
+                                long startBid, long bid, int bids, boolean leading, String bidder, long endsIn, long minBid) { }
 
     /** Server -> client: the Exchange listings. */
     public record ExchangeView(java.util.List<ExchangeEntry> list) implements CustomPayload {
@@ -751,13 +753,16 @@ public final class Net {
             for (ExchangeEntry e : v.list) {
                 b.writeVarLong(e.id()); net.minecraft.item.ItemStack.OPTIONAL_PACKET_CODEC.encode(b, e.item());
                 b.writeVarLong(e.price()); b.writeString(e.seller()); b.writeBoolean(e.mine());
+                b.writeVarLong(e.startBid()); b.writeVarLong(e.bid()); b.writeVarInt(e.bids()); b.writeBoolean(e.leading());
+                b.writeString(e.bidder()); b.writeVarLong(e.endsIn()); b.writeVarLong(e.minBid());
             }
         }, b -> {
             int n = Math.min(b.readVarInt(), 256);
             java.util.List<ExchangeEntry> l = new java.util.ArrayList<>();
             for (int i = 0; i < n; i++) {
                 l.add(new ExchangeEntry(b.readVarLong(), net.minecraft.item.ItemStack.OPTIONAL_PACKET_CODEC.decode(b), b.readVarLong(),
-                    b.readString(), b.readBoolean()));
+                    b.readString(), b.readBoolean(), b.readVarLong(), b.readVarLong(), b.readVarInt(), b.readBoolean(), b.readString(),
+                    b.readVarLong(), b.readVarLong()));
             }
             return new ExchangeView(l);
         });

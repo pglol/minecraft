@@ -22,7 +22,10 @@ public final class MarketScreen extends Screen {
     private int scroll;
     private int left, top, w, h;
     private int listSlot = -1;
-    private TextFieldWidget price;
+    private TextFieldWidget price, startBid, bidField;
+    /** The listing picked to bid on, and the auction length for new listings. */
+    private long selectedId = -1;
+    private static int hours = 24;
     private static final int ROW = 22;
 
     /** The Global Market: players' listings, open anywhere from the pause menu. Town markets are NPC trade only. */
@@ -50,9 +53,23 @@ public final class MarketScreen extends Screen {
     }
 
     public void refresh() {
-        String keep = price != null ? price.getText() : "";
+        String keep = price != null ? price.getText() : "", keepStart = startBid != null ? startBid.getText() : "",
+            keepBid = bidField != null ? bidField.getText() : "";
         clearAndInit();
         if (price != null) price.setText(keep);
+        if (startBid != null) startBid.setText(keepStart);
+        if (bidField != null && !keepBid.isEmpty()) bidField.setText(keepBid);
+    }
+
+    private static String left(long secs) {
+        if (secs <= 0) return "ending";
+        long h = secs / 3600, m = secs % 3600 / 60;
+        return h > 0 ? h + "h " + m + "m" : m > 0 ? m + "m " + secs % 60 + "s" : secs + "s";
+    }
+
+    private Net.ExchangeEntry selected() {
+        for (Net.ExchangeEntry e : ClientState.exchange) if (e.id() == selectedId) return e;
+        return null;
     }
 
     private static void send(String action, String item, int qty, long number) {
@@ -124,25 +141,67 @@ public final class MarketScreen extends Screen {
     private void initExchange() {
         List<Net.ExchangeEntry> list = ClientState.exchange;
         int y = top + 30;
-        int n = rows() - 3;
+        int n = rows() - 4;
         for (int i = scroll; i < Math.min(list.size(), scroll + n); i++) {
             Net.ExchangeEntry e = list.get(i);
-            AotButton b = addDrawableChild(new AotButton(left + w - 90, y + 2, 80, 18, Text.literal(e.mine() ? "Take back" : "Buy"),
-                () -> send(e.mine() ? "cancel" : "buylisting", "", 0, e.id())));
-            if (e.mine()) b.accent = Ui.RED;
+            int bx = left + w - 96;
+            if (e.mine()) {
+                if (e.bids() == 0) {
+                    AotButton b = addDrawableChild(new AotButton(bx, y + 2, 86, 18, Text.literal("Take back"), () -> send("cancel", "", 0, e.id())));
+                    b.accent = Ui.RED;
+                }
+            } else {
+                if (e.startBid() > 0) {
+                    AotButton b = addDrawableChild(new AotButton(bx, y + 2, 42, 18, Text.literal("Bid"), () -> {
+                        selectedId = e.id();
+                        clearAndInit();
+                        if (bidField != null) bidField.setText(String.valueOf(e.minBid()));
+                    }));
+                    b.selected = e.id() == selectedId;
+                }
+                if (e.price() > 0) {
+                    addDrawableChild(new AotButton(bx + 44, y + 2, 42, 18, Text.literal("Buy"), () -> send("buylisting", "", 0, e.id())))
+                        .accent = 0xFF5BD35B;
+                }
+            }
             y += ROW;
         }
-        // Listing an item: pick a slot below, set a price.
+        // Bidding on the chosen listing.
+        Net.ExchangeEntry sel = selected();
+        int ry = top + 30 + n * ROW + 4;
+        if (sel != null && !sel.mine() && sel.startBid() > 0) {
+            bidField = addDrawableChild(new TextFieldWidget(textRenderer, left + w - 200, ry, 90, 18, Text.literal("Bid")));
+            bidField.setTextPredicate(t -> t.matches("\\d{0,9}"));
+            bidField.setText(String.valueOf(sel.minBid()));
+            addDrawableChild(new AotButton(left + w - 104, ry, 94, 18, Ui.heading("Place bid"), () -> {
+                try {
+                    long v = Long.parseLong(bidField.getText());
+                    if (v > 0) send("bid", String.valueOf(sel.id()), 0, v);
+                } catch (NumberFormatException ignored) { }
+            })).accent = Ui.GOLD;
+        } else {
+            bidField = null;
+        }
+        // Listing an item: pick one from the satchel below, then a starting bid and/or a buy-now price.
         int by = top + h - 30;
-        price = addDrawableChild(new TextFieldWidget(textRenderer, left + w - 200, by, 90, 18, Text.literal("Price")));
-        price.setPlaceholder(Text.literal("price (Marks)"));
-        price.setTextPredicate(s -> s.matches("\\d{0,8}"));
+        startBid = addDrawableChild(new TextFieldWidget(textRenderer, left + w - 330, by, 80, 18, Text.literal("Start bid")));
+        startBid.setPlaceholder(Text.literal("start bid").withColor(Ui.DIM));
+        startBid.setTextPredicate(t -> t.matches("\\d{0,8}"));
+        price = addDrawableChild(new TextFieldWidget(textRenderer, left + w - 246, by, 80, 18, Text.literal("Buy now")));
+        price.setPlaceholder(Text.literal("buy now").withColor(Ui.DIM));
+        price.setTextPredicate(t -> t.matches("\\d{0,8}"));
+        addDrawableChild(new AotButton(left + w - 162, by, 54, 18, Text.literal(hours + "h"), () -> {
+            hours = hours == 12 ? 24 : hours == 24 ? 48 : 12;
+            refresh();
+        })).setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("How long the auction runs (buy-now only listings last 3 days)")));
         addDrawableChild(new AotButton(left + w - 104, by, 94, 18, Ui.heading("List item"), () -> {
+            long p = 0, st = 0;
             try {
-                long p = Long.parseLong(price.getText());
-                if (listSlot >= 0 && p > 0) send("list", "", listSlot, p);
-                listSlot = -1;
+                if (!price.getText().isEmpty()) p = Long.parseLong(price.getText());
+                if (!startBid.getText().isEmpty()) st = Long.parseLong(startBid.getText());
             } catch (NumberFormatException ignored) { }
+            if (listSlot >= 0 && (p > 0 || st > 0)) send("list", st > 0 ? st + ":" + hours : "", listSlot, p);
+            listSlot = -1;
         }));
     }
 
@@ -161,7 +220,7 @@ public final class MarketScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mx, double my, double hx, double vy) {
         int size = tab == 0 ? goods().size() : tab == 1 ? ClientState.exchange.size() : 0;
-        int max = Math.max(0, size - rows() + (tab == 1 ? 3 : 0));
+        int max = Math.max(0, size - rows() + (tab == 1 ? 4 : 0));
         scroll = Math.max(0, Math.min(max, scroll - (int) Math.signum(vy)));
         clearAndInit();
         return true;
@@ -236,27 +295,54 @@ public final class MarketScreen extends Screen {
 
     private void drawExchange(DrawContext c, int mx, int my) {
         Ui.text(c, Ui.heading("Player listings"), left + 10, top + 8, 1f, Ui.GOLD, false);
-        Ui.text(c, Text.literal("5% fee on sale. Your proceeds arrive in your purse the next time you open this."), left + 120, top + 10, 0.65f, Ui.MUTED, false);
+        Ui.text(c, Text.literal("Bid or buy now. 5% fee on sales. Outbid Marks come straight back; wins and sales arrive when you open this."),
+            left + 120, top + 10, 0.6f, Ui.MUTED, false);
         List<Net.ExchangeEntry> list = ClientState.exchange;
         int y = top + 30;
-        int n = rows() - 3;
+        int n = rows() - 4;
+        int cBid = left + w - 330, cBuy = left + w - 236, cTime = left + w - 168;
+        Ui.text(c, Text.literal("Bids"), cBid, y - 8, 0.6f, Ui.MUTED, false);
+        Ui.text(c, Text.literal("Buy now"), cBuy, y - 8, 0.6f, Ui.MUTED, false);
+        Ui.text(c, Text.literal("Ends"), cTime, y - 8, 0.6f, Ui.MUTED, false);
         if (list.isEmpty()) Ui.text(c, Text.literal("Nothing listed yet."), left + 14, y + 6, 0.8f, Ui.MUTED, false);
         for (int i = scroll; i < Math.min(list.size(), scroll + n); i++) {
             Net.ExchangeEntry e = list.get(i);
-            if ((i & 1) == 0) c.fill(left + 6, y, left + w - 6, y + ROW, 0x22000000);
+            if (e.id() == selectedId) c.fill(left + 6, y, left + w - 6, y + ROW, 0x40E0B96A);
+            else if ((i & 1) == 0) c.fill(left + 6, y, left + w - 6, y + ROW, 0x22000000);
             GearUi.backing(c, e.item(), left + 10, y + 3);
             c.drawItem(e.item(), left + 10, y + 3);
             c.drawItemInSlot(textRenderer, e.item(), left + 10, y + 3);
-            Ui.text(c, e.item().getName(), left + 32, y + 3, 0.85f, Ui.CREAM, false);
+            Ui.text(c, Text.literal(textRenderer.trimToWidth(e.item().getName().getString(), (int) ((cBid - left - 40) / 0.85f))),
+                left + 32, y + 3, 0.85f, Ui.CREAM, false);
             Ui.text(c, Text.literal("by " + e.seller() + (e.mine() ? " (you)" : "")), left + 32, y + 12, 0.6f, Ui.MUTED, false);
-            Ui.text(c, Text.literal(String.format(Locale.ROOT, "%,d M", e.price())), left + w - 170, y + 7, 0.9f, Ui.GOLD, false);
+            if (e.startBid() > 0) {
+                if (e.bids() > 0) {
+                    Ui.text(c, Text.literal(String.format(Locale.ROOT, "%,d M", e.bid())), cBid, y + 3, 0.8f, Ui.GOLD, false);
+                    Ui.text(c, Text.literal(e.leading() ? "you lead" : e.bids() + (e.bids() == 1 ? " bid" : " bids") + " · " + e.bidder()),
+                        cBid, y + 12, 0.55f, e.leading() ? 0xFF5BD35B : Ui.MUTED, false);
+                } else {
+                    Ui.text(c, Text.literal(String.format(Locale.ROOT, "%,d M", e.startBid())), cBid, y + 3, 0.8f, Ui.CREAM, false);
+                    Ui.text(c, Text.literal("no bids yet"), cBid, y + 12, 0.55f, Ui.MUTED, false);
+                }
+            } else {
+                Ui.text(c, Text.literal("—"), cBid, y + 7, 0.8f, Ui.DIM, false);
+            }
+            Ui.text(c, Text.literal(e.price() > 0 ? String.format(Locale.ROOT, "%,d M", e.price()) : "—"), cBuy, y + 7, 0.8f,
+                e.price() > 0 ? 0xFF9FD8A0 : Ui.DIM, false);
+            Ui.text(c, Text.literal(left(e.endsIn())), cTime, y + 7, 0.7f, e.endsIn() < 600 ? Ui.RED : Ui.CREAM, false);
             if (mx >= left + 10 && mx < left + 26 && my >= y + 3 && my < y + 19) c.drawItemTooltip(textRenderer, e.item(), mx, my);
             y += ROW;
+        }
+        Net.ExchangeEntry sel = selected();
+        if (sel != null && !sel.mine() && sel.startBid() > 0) {
+            int ry = top + 30 + n * ROW + 4;
+            Ui.text(c, Text.literal("Your bid on " + sel.item().getName().getString() + "  ·  at least "
+                + String.format(Locale.ROOT, "%,d", sel.minBid()) + " M"), left + 10, ry + 5, 0.75f, Ui.CREAM, false);
         }
         // Your inventory, to pick something to list.
         if (client.player == null) return;
         int gx = left + 10, gy = top + h - 52;
-        Ui.text(c, Text.literal("Pick something from your satchel to list (or use Sell in the satchel):"), gx, gy - 28, 0.65f, Ui.MUTED, false);
+        Ui.text(c, Text.literal("Pick an item from your satchel, then set a start bid, a buy-now price, or both:"), gx, gy - 28, 0.65f, Ui.MUTED, false);
         List<Integer> items = listable();
         for (int i = 0; i < 36; i++) {
             int x = gx + (i % 18) * 18, yy = gy + (i / 18) * 18 - 18;
