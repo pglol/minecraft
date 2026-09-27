@@ -67,6 +67,7 @@ public final class AotRpg implements ModInitializer {
     public static final Factions FACTIONS = new Factions();
     public static final FactionWar WAR = new FactionWar();
     public static final Duels DUELS = new Duels();
+    public static final Loot LOOT = new Loot();
     public static final Stats STATS = new Stats();
     public static final Regiments REGIMENTS = new Regiments();
     public static final Raids RAID_BOSSES = new Raids();
@@ -696,6 +697,7 @@ public final class AotRpg implements ModInitializer {
         CROWD.tick(server, ticks);
         WAR.tick(ticks);
         DUELS.tick(ticks);
+        LOOT.tick(ticks);
         TITAN_LEVELS.tick(server, ticks);
         RAID_BOSSES.tick(ticks);
         ACTIVITY.tick(ticks);
@@ -730,8 +732,13 @@ public final class AotRpg implements ModInitializer {
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);
         reward(killer, xp, true, "Titan slain");
         // A bounty in Marks, and maybe gear (bosses and shifters always drop).
-        Coins.drop(dead, 4 + Math.round(dead.getMaxHealth() / 40));
-        GEAR.titanDrop(killer, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
+        // Personal loot: everyone who fought it gets their own Marks and their own roll at gear.
+        java.util.List<ServerPlayerEntity> earners = LOOT.earners(killer, dead);
+        long bounty = 4 + Math.round(dead.getMaxHealth() / 40);
+        for (ServerPlayerEntity er : earners) {
+            Coins.drop(dead, er == killer ? bounty : Math.max(2, bounty * 3 / 4), er);
+            GEAR.titanDrop(er, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
+        }
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());
         WAR.onKill(killer, dead);

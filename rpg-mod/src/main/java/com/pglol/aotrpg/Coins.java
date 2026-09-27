@@ -28,6 +28,11 @@ public final class Coins {
     private final Map<UUID, long[]> tally = new HashMap<>();
 
     public static void drop(LivingEntity from, long total) {
+        drop(from, total, null);
+    }
+
+    /** Coins for one player only (null: anyone's). */
+    public static void drop(LivingEntity from, long total, ServerPlayerEntity owner) {
         if (total <= 0) return;
         int piles = (int) Math.max(1, Math.min(6, total / 4));
         long each = total / piles, rest = total - each * piles;
@@ -41,7 +46,7 @@ public final class Coins {
             ItemEntity e = new ItemEntity(from.getWorld(), from.getX(), from.getY() + 0.5, from.getZ(), s,
                 (from.getRandom().nextDouble() - 0.5) * 0.5, 0.35, (from.getRandom().nextDouble() - 0.5) * 0.5);
             e.setPickupDelayInfinite();
-            e.setGlowing(true);
+            if (owner != null) Loot.own(e, owner);
             from.getWorld().spawnEntity(e);
         }
     }
@@ -54,7 +59,8 @@ public final class Coins {
     /** Every few ticks: coins drift to nearby players and are collected on touch. */
     public void tick(ServerPlayerEntity p, int ticks) {
         if (ticks % 3 != 0 || p.isSpectator() || !AotRpg.PROFILES.get(p.getUuid()).created) return;
-        for (ItemEntity e : p.getServerWorld().getEntitiesByClass(ItemEntity.class, p.getBoundingBox().expand(5), x -> value(x) > 0)) {
+        for (ItemEntity e : p.getServerWorld().getEntitiesByClass(ItemEntity.class, p.getBoundingBox().expand(5),
+            x -> value(x) > 0 && !Loot.hiddenFrom(x, p))) {
             if (e.age > 20 * 120) {
                 e.discard();
                 continue;

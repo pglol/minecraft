@@ -443,9 +443,11 @@ public final class Gear {
         ItemStack s = roll(r, rar, ilvl);
         if (s.isEmpty()) return;
         ServerWorld w = (ServerWorld) titan.getWorld();
-        ItemEntity e = new ItemEntity(w, titan.getX(), titan.getY() + 1, titan.getZ(), s);
+        ItemEntity e = new ItemEntity(w, titan.getX(), titan.getY() + 1, titan.getZ(), s,
+            (r.nextDouble() - 0.5) * 0.3, 0.3, (r.nextDouble() - 0.5) * 0.3);
         e.setPickupDelay(10);
-        e.setGlowing(rar.ordinal() >= 1);
+        // Yours alone: nobody else sees it or can pick it up.
+        Loot.own(e, killer);
         w.spawnEntity(e);
         if (rar.ordinal() >= 2) announce(killer, s, rar);
     }

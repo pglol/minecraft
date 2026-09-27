@@ -74,6 +74,7 @@ public final class Combat {
         });
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
             if (!(source.getAttacker() instanceof ServerPlayerEntity attacker) || attacker == entity || taken <= 0) return;
+            if (AotRpg.isTitan(entity)) AotRpg.LOOT.hit(attacker, entity);
             if (!(entity instanceof PlayerEntity) && !AotRpg.isTitan(entity) && !(entity instanceof net.minecraft.entity.mob.HostileEntity)) return;
             boolean ranged = !melee(source);
             if (!ServerPlayNetworking.canSend(attacker, Net.HitMarker.ID)) return;

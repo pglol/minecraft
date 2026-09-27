@@ -29,7 +29,7 @@ public abstract class EntityTrackerMixin implements com.pglol.aotrpg.PhaseTracke
 
     @Inject(method = "updateTrackedStatus(Lnet/minecraft/server/network/ServerPlayerEntity;)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void aotrpg$phase(ServerPlayerEntity player, CallbackInfo ci) {
-        if (!Story.visibleTo(entity, player)) {
+        if (!Story.visibleTo(entity, player) || com.pglol.aotrpg.Loot.hiddenFrom(entity, player)) {
             stopTracking(player);
             ci.cancel();
         }

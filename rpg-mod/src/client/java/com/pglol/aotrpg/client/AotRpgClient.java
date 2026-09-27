@@ -80,6 +80,7 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.SlashFx.ID, (payload, ctx) -> CosmeticFx.slash(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(CosmeticFx::render);
         WorldRenderEvents.AFTER_ENTITIES.register(DuelRing::render);
+        WorldRenderEvents.AFTER_ENTITIES.register(GroundLoot::render);
         ClientTickEvents.END_CLIENT_TICK.register(DuelRing::tick);
         ClientPlayNetworking.registerGlobalReceiver(Net.DuelRing.ID, (payload, ctx) -> DuelRing.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.BagView.ID, (payload, ctx) -> {
