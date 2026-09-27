@@ -263,7 +263,8 @@ public final class Store {
                     icon = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString();
                     var lore = s.get(net.minecraft.component.DataComponentTypes.LORE);
                     if (lore != null) for (Text l : lore.lines()) if (!l.getString().isBlank() && lines.size() < 9) lines.add(l.getString());
-                    AotRpg.SATCHEL.add(p, s);
+                    // Straight into your hands (or at your feet if they're full).
+                    p.getInventory().offerOrDrop(s);
                 } else {
                     grant(p, got);
                 }

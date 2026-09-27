@@ -170,6 +170,7 @@ public class AotPauseScreen extends Screen {
             Ui.bar(c, cx + 16, cy + 86 + dy, cw - 32, 4, p.need() > 0 ? (float) p.xp() / p.need() : 1, Ui.XP);
             Ui.divider(c, cx + 12, cy + 98 + dy, cw - 24);
             Net.Objective o = ClientState.objective;
+            if (o != null && o.chapter().isEmpty() && o.text().isEmpty()) o = null;
             if (o != null) {
                 c.drawTextWithShadow(textRenderer, Ui.heading(textRenderer.trimToWidth(o.chapter(), cw - 20)), cx + 10, cy + 106 + dy, Ui.GOLD);
                 Ui.wrapped(c, Text.literal("▶ " + o.text() + (o.progress().isEmpty() ? "" : "  " + o.progress())), cx + 10, cy + 118 + dy, cw - 20, Ui.CREAM);

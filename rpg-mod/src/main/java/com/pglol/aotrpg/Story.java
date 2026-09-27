@@ -2289,6 +2289,8 @@ public final class Story {
 
     public View view(Profile pr) {
         Mission m = current(pr);
+        // The story is off: nothing to track (the barracks enlistment aside).
+        if (!STORY_ENABLED && (m == null || !m.id.equals(CREATION))) return new View("", "", "", false, 0, 0, 0, 0);
         Step st = step(pr);
         if (m == null && server != null) {
             // Between quests: point to the nearest one on offer.

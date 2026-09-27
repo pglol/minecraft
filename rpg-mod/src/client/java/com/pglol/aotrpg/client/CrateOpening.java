@@ -41,7 +41,7 @@ public final class CrateOpening {
     static final String[] NAMES = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"};
     private static final int[] TELL = {900, 1000, 1500, 2100, 3000, 4600};
     private static final int[] REEL = {1500, 1700, 2200, 2800, 3700, 3200};
-    private static final int TILE = 50, GAP = 4, TARGET = 34;
+    private static final int TILE = 68, GAP = 6, TARGET = 34;
 
     private static Net.CrateOpened got;
     private static int rar;
@@ -354,8 +354,8 @@ public final class CrateOpening {
         c.drawBorder(x, y, TILE, TILE, (col & 0xFFFFFF) | 0x90000000);
         if (!blank) {
             c.getMatrices().push();
-            c.getMatrices().translate(x + TILE / 2f - 12, y + TILE / 2f - 14, 0);
-            c.getMatrices().scale(1.5f, 1.5f, 1);
+            c.getMatrices().translate(x + TILE / 2f - 22, y + TILE / 2f - 24, 0);
+            c.getMatrices().scale(2.75f, 2.75f, 1);
             c.drawItem(icon, 0, 0);
             c.getMatrices().pop();
         }

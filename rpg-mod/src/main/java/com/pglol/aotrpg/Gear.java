@@ -149,10 +149,21 @@ public final class Gear {
         for (Item it : net.minecraft.registry.Registries.ITEM) {
             Identifier id = net.minecraft.registry.Registries.ITEM.getId(it);
             if (!id.getNamespace().equals("dannys-aot") || id.getPath().equals("odm_gear") || id.getPath().contains("spawn_egg")) continue;
+            // Real clothing only: keys, tokens and other wearable trinkets are not armor.
+            if (!(it instanceof net.minecraft.item.ArmorItem) && !clothingName(id.getPath())) continue;
             if (wornSlot(new ItemStack(it)) != null) out.add(it);
         }
         clothing = out;
         return out;
+    }
+
+    private static boolean clothingName(String path) {
+        if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note")) return false;
+        for (String w : new String[] {"uniform", "coat", "cloak", "cape", "jacket", "shirt", "pants", "trousers", "boots", "shoes",
+            "hat", "helmet", "cap", "hood", "vest", "armor", "armour", "belt", "harness", "gloves", "scarf", "dress", "robe", "suit"}) {
+            if (path.contains(w)) return true;
+        }
+        return false;
     }
 
     private static ItemStack armorBase(Random r, Rarity rarity, int ilvl) {

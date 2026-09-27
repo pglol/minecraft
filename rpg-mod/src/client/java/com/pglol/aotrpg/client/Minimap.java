@@ -294,6 +294,7 @@ public final class Minimap {
             diamond(c, x + p[0], y + p[1], 3, 0xFF101010, 0xFF000000 | m.color());
         }
         Net.Objective obj = ClientState.objective;
+        if (obj != null && obj.chapter().isEmpty() && obj.text().isEmpty()) obj = null;
         // You: a slim pointer.
         MatrixStack ms = c.getMatrices();
         ms.push();
