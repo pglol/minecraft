@@ -1076,6 +1076,38 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** One resident of a town house, for the door. */
+    public record DoorTenant(java.util.UUID id, String name, boolean online, boolean party, boolean you) { }
+
+    /** Server -> client: someone used the door of a town house. */
+    public record DoorView(int home, String town, String size, long price, boolean owned, int homes, int maxHomes,
+                           java.util.List<DoorTenant> tenants) implements CustomPayload {
+        public static final Id<DoorView> ID = Net.id("door_view");
+        public static final PacketCodec<RegistryByteBuf, DoorView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.home); b.writeString(v.town); b.writeString(v.size); b.writeVarLong(v.price); b.writeBoolean(v.owned);
+            b.writeVarInt(v.homes); b.writeVarInt(v.maxHomes);
+            b.writeVarInt(v.tenants.size());
+            for (DoorTenant t : v.tenants) { b.writeUuid(t.id()); b.writeString(t.name()); b.writeBoolean(t.online()); b.writeBoolean(t.party()); b.writeBoolean(t.you()); }
+        }, b -> {
+            int home = b.readVarInt(); String town = b.readString(), size = b.readString(); long price = b.readVarLong(); boolean owned = b.readBoolean();
+            int homes = b.readVarInt(), max = b.readVarInt();
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<DoorTenant> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new DoorTenant(b.readUuid(), b.readString(), b.readBoolean(), b.readBoolean(), b.readBoolean()));
+            return new DoorView(home, town, size, price, owned, homes, max, l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: you've just bought a home; hand over the key. */
+    public record HomeKey(int home, String town, String size) implements CustomPayload {
+        public static final Id<HomeKey> ID = Net.id("home_key");
+        public static final PacketCodec<RegistryByteBuf, HomeKey> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.home); b.writeString(v.town); b.writeString(v.size);
+        }, b -> new HomeKey(b.readVarInt(), b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the duel ring around (x, y, z), radius r (0 takes it down). Only the fighters get it. */
     public record DuelRing(double x, double y, double z, float r) implements CustomPayload {
         public static final Id<DuelRing> ID = Net.id("duel_ring");
@@ -1830,6 +1862,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(CrateOpened.ID, CrateOpened.CODEC);
         PayloadTypeRegistry.playS2C().register(DuelRing.ID, DuelRing.CODEC);
         PayloadTypeRegistry.playS2C().register(RewardReveal.ID, RewardReveal.CODEC);
+        PayloadTypeRegistry.playS2C().register(DoorView.ID, DoorView.CODEC);
+        PayloadTypeRegistry.playS2C().register(HomeKey.ID, HomeKey.CODEC);
         PayloadTypeRegistry.playC2S().register(StoreAction.ID, StoreAction.CODEC);
         PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
         PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);

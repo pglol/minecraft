@@ -387,6 +387,11 @@ public final class Homes {
         int home = homeAt(pos);
         if (home < 0) return false;
         Deed own = deed(p, home);
+        // With the mod: the door's own screen (go in, knock on a resident's door, or see the deed).
+        if (ServerPlayNetworking.canSend(p, Net.DoorView.ID)) {
+            sendDoor(p, home);
+            return true;
+        }
         if (own != null && !sneaking) {
             enter(p, own);
             return true;
@@ -402,6 +407,43 @@ public final class Homes {
         return false;
     }
 
+    /** The door screen: this house, who lives here (and who's in), and what you can do. */
+    public void sendDoor(ServerPlayerEntity p, int home) {
+        int[] h = AotRpg.PLACES.homes.get(home);
+        List<Net.DoorTenant> ts = new ArrayList<>();
+        for (var e : data.owners.entrySet()) {
+            for (Deed d : e.getValue()) {
+                if (d.home != home) continue;
+                ServerPlayerEntity o = null;
+                for (ServerPlayerEntity x : server.getPlayerManager().getPlayerList()) if (stem(x).equals(e.getKey())) o = x;
+                boolean you = e.getKey().equals(stem(p));
+                ts.add(new Net.DoorTenant(o == null ? new UUID(0, 0) : o.getUuid(), d.ownerName, o != null, o != null && !you && AotRpg.PARTIES.same(p.getUuid(), o.getUuid()), you));
+            }
+        }
+        ts.sort((a, b) -> Boolean.compare(b.you(), a.you()) != 0 ? Boolean.compare(b.you(), a.you()) : Boolean.compare(b.online(), a.online()));
+        String size = (h[2] - h[0] + 1) + " x " + (h[3] - h[1] + 1) + " · " + Math.max(1, (h[5] - h[4]) / 6) + (h[5] - h[4] >= 12 ? " floors" : " floor");
+        ServerPlayNetworking.send(p, new Net.DoorView(home, townOf(h), size, price(h), deed(p, home) != null, deeds(p).size(), MAX_HOMES, ts));
+    }
+
+    /** Knocking on one resident's door from the door screen. Party members just walk in. */
+    private void knock(ServerPlayerEntity p, int home, String who) {
+        ServerPlayerEntity o;
+        try {
+            o = server.getPlayerManager().getPlayer(UUID.fromString(who));
+        } catch (Exception e) {
+            return;
+        }
+        if (o == null || o == p || deed(o, home) == null) {
+            Notify.toast(p, Text.literal("Nobody's home").formatted(Formatting.GRAY), Text.literal("They aren't online right now"), 0x8F8A7A, null, "door");
+            return;
+        }
+        if (AotRpg.PARTIES.same(p.getUuid(), o.getUuid())) {
+            enter(p, deed(o, home));
+            return;
+        }
+        ring(p, home, o);
+    }
+
     // ------------------------------------------------------------------ the doorbell
 
     private record Ring(int home, long at) { }
@@ -410,8 +452,15 @@ public final class Homes {
 
     /** Ringing the bell of a house someone lives in (and is online): they get a "let them in". */
     private boolean ring(ServerPlayerEntity p, int home) {
+        return ring(p, home, null);
+    }
+
+    /** Rings one resident (or every resident who's online, when only is null). */
+    private boolean ring(ServerPlayerEntity p, int home, ServerPlayerEntity only) {
         List<ServerPlayerEntity> owners = new ArrayList<>();
-        for (ServerPlayerEntity o : server.getPlayerManager().getPlayerList()) if (o != p && deed(o, home) != null) owners.add(o);
+        for (ServerPlayerEntity o : server.getPlayerManager().getPlayerList()) {
+            if (o != p && deed(o, home) != null && (only == null || o == only)) owners.add(o);
+        }
         if (owners.isEmpty()) return false;
         long now = System.currentTimeMillis();
         Ring last = rings.get(p.getUuid());
@@ -419,10 +468,12 @@ public final class Homes {
         rings.put(p.getUuid(), new Ring(home, now));
         String who = AotRpg.PROFILES.get(p.getUuid()).name;
         p.playSoundToPlayer(SoundEvents.BLOCK_BELL_USE, SoundCategory.BLOCKS, 0.8f, 1.4f);
-        p.sendMessage(Text.literal("You ring the bell.").formatted(Formatting.GOLD)
-            .append(Text.literal(" Waiting for someone to answer...").formatted(Formatting.GRAY)), true);
+        Notify.toast(p, Text.literal("You knock").formatted(Formatting.GOLD),
+            Text.literal("Waiting for " + (only == null ? "someone" : AotRpg.PROFILES.get(only.getUuid()).name) + " to answer..."), 0xE0B96A, "minecraft:bell", "door");
         for (ServerPlayerEntity o : owners) {
             o.playSoundToPlayer(SoundEvents.BLOCK_BELL_USE, SoundCategory.BLOCKS, 1f, 1.4f);
+            Notify.toast(o, Text.literal(who + " is at your door").formatted(Formatting.GOLD), Text.literal("Click [Let them in] in chat, or /home letin"),
+                0xE0B96A, "minecraft:bell", "door");
             o.sendMessage(Text.literal("Ding-dong! " + who + " is at your door in " + townOf(AotRpg.PLACES.homes.get(home)) + ".  ").formatted(Formatting.GOLD)
                 .append(Text.literal("[Let them in]").formatted(Formatting.GREEN, Formatting.BOLD)
                     .styled(st -> st.withClickEvent(new net.minecraft.text.ClickEvent(net.minecraft.text.ClickEvent.Action.RUN_COMMAND, "/home letin " + p.getName().getString()))
@@ -772,24 +823,7 @@ public final class Homes {
         if (ticks % 10 != 0 || p.getWorld().getRegistryKey() != World.OVERWORLD || !AotRpg.PROFILES.get(p.getUuid()).created) return;
         BlockPos pos = p.getBlockPos();
         int home = homeAt(pos);
-        if (home >= 0 && !p.hasVehicle() && p.getWorld().getTime() - leftAt.getOrDefault(p.getUuid(), -1000L) > 60) {
-            int[] h = AotRpg.PLACES.homes.get(home);
-            boolean inside = pos.getX() >= h[0] && pos.getX() <= h[2] && pos.getZ() >= h[1] && pos.getZ() <= h[3] && pos.getY() >= h[4];
-            Deed own = deed(p, home);
-            if (inside && own == null) {
-                // Not yours, but a party member's: you go into their copy with them.
-                for (ServerPlayerEntity o : server.getPlayerManager().getPlayerList()) {
-                    if (o != p && AotRpg.PARTIES.same(p.getUuid(), o.getUuid()) && deed(o, home) != null) {
-                        own = deed(o, home);
-                        break;
-                    }
-                }
-            }
-            if (inside && own != null) {
-                enter(p, own);
-                return;
-            }
-        }
+        // Walking into a town house no longer takes you anywhere: only using its door does.
         if (ticks % 100 == 0) fixNear(p);
     }
 
@@ -892,9 +926,13 @@ public final class Homes {
                     return;
                 }
                 data.offers.remove(o);
-                enter(p, grant(stem(p), AotRpg.PROFILES.get(p.getUuid()).name, home));
+                handOver(p, grant(stem(p), AotRpg.PROFILES.get(p.getUuid()).name, home));
             }
             case "buy" -> buy(p, home);
+            case "door" -> sendDoor(p, home);
+            case "deed" -> send(p, home, true);
+            case "knock" -> knock(p, home, arg);
+            case "leave" -> leaveHome(p);
             case "enter" -> {
                 Deed d = deed(p, home);
                 if (d != null) enter(p, d);
@@ -922,7 +960,7 @@ public final class Homes {
                         HomeAdmin.send(p, "");
                         return;
                     }
-                    p.sendMessage(Text.literal("You don't own a home yet. Sneak + use the door of any town house, or the sign of a plot.").formatted(Formatting.GRAY), true);
+                    p.sendMessage(Text.literal("You don't own a home yet. Use the door of any town house, or the sign of a plot.").formatted(Formatting.GRAY), true);
                 }
             }
             default -> { }
@@ -946,9 +984,19 @@ public final class Homes {
             return;
         }
         Deed d = grant(stem(p), AotRpg.PROFILES.get(p.getUuid()).name, home);
-        Titles.show(p, Text.literal("HOME BOUGHT").formatted(Formatting.GOLD, Formatting.BOLD),
-            Text.literal(townOf(h)).formatted(Formatting.GRAY), 10, 50, 20);
-        enter(p, d);
+        handOver(p, d);
+    }
+
+    /** A home just bought: the key handed over on screen, then in or stay out (the player's choice). */
+    private void handOver(ServerPlayerEntity p, Deed d) {
+        int[] h = AotRpg.PLACES.homes.get(d.home);
+        if (!ServerPlayNetworking.canSend(p, Net.HomeKey.ID)) {
+            Titles.show(p, Text.literal("HOME BOUGHT").formatted(Formatting.GOLD, Formatting.BOLD), Text.literal(townOf(h)).formatted(Formatting.GRAY), 10, 50, 20);
+            enter(p, d);
+            return;
+        }
+        String size = (h[2] - h[0] + 1) + " x " + (h[3] - h[1] + 1) + " · " + Math.max(1, (h[5] - h[4]) / 6) + (h[5] - h[4] >= 12 ? " floors" : " floor");
+        ServerPlayNetworking.send(p, new Net.HomeKey(d.home, townOf(h), size));
     }
 
     /** Gives a character (by stem) a deed to a house and builds its copy. */

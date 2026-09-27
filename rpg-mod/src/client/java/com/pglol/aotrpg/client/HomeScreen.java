@@ -89,8 +89,10 @@ public final class HomeScreen extends Screen {
             }
         }
         if (!plot) {
-            addDrawableChild(new AotButton(left + 10, by, 120, 22, Ui.heading("Go inside"), () -> {
-                act("enter", v.home(), "");
+            // Already inside a home: the button takes you out instead.
+            boolean atHome = client.world != null && client.world.getRegistryKey().getValue().toString().equals("aot_rpg:homes");
+            addDrawableChild(new AotButton(left + 10, by, 120, 22, Ui.heading(atHome ? "Step outside" : "Go inside"), () -> {
+                act(atHome ? "leave" : "enter", v.home(), "");
                 close();
             }));
             int y = top + 70;
