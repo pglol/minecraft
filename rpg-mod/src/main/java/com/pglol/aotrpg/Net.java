@@ -1084,7 +1084,7 @@ public final class Net {
 
     /** Client -> server: open the store, buy an offer, open a crate. */
     public record StoreAction(String action, String id) implements CustomPayload {
-        public static final Id<StoreAction> ID = id("store_action");
+        public static final Id<StoreAction> ID = Net.id("store_action");
         public static final PacketCodec<RegistryByteBuf, StoreAction> CODEC = PacketCodec.of((v, b) -> { b.writeString(v.action); b.writeString(v.id); },
             b -> new StoreAction(b.readString(), b.readString()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
