@@ -110,6 +110,8 @@ public final class Homes {
         /** Bandit raids: days played since the last one, and when. */
         public int daysPlayed;
         public long lastDay, lastRaid;
+        /** The chests and barrels counted into the stash (packed positions), null until counted. */
+        public List<Long> stash;
     }
 
     /** An exclusive plot: one owner, the house is built on the plot in the real world. */
@@ -1014,6 +1016,7 @@ public final class Homes {
         save();
         build(AotRpg.PLACES.homes.get(home), d.instance);
         enclose(AotRpg.PLACES.homes.get(home), d);
+        countStash(d);
         return d;
     }
 
@@ -1093,6 +1096,7 @@ public final class Homes {
                 return;
             }
             d.upgrades.add(u.name());
+            countStash(d);
             Notify.toast(p, Text.literal("Cellar dug").formatted(Formatting.GOLD), Text.literal("The hatch is in the ground floor"), 0xE0B96A,
                 "minecraft:ladder", "home_up");
         } else {
@@ -1100,6 +1104,7 @@ public final class Homes {
             BlockPos a = map(h, d.instance, h[0] - 1, h[4], h[1] - 1), b = map(h, d.instance, h[2] + 1, h[5] + 3, h[3] + 1);
             HomeCellar.bay(homeWorld(), u, (a.getX() + b.getX()) / 2, (a.getZ() + b.getZ()) / 2, FLOOR);
             HomeCellar.hatch(homeWorld(), d.hatchX, d.hatchZ, FLOOR);
+            countStash(d);
             Notify.toast(p, Text.literal(u.title + " fitted out").formatted(Formatting.GOLD), Text.literal("Down in your cellar"), 0xE0B96A,
                 "minecraft:lantern", "home_up");
         }
@@ -1149,6 +1154,63 @@ public final class Homes {
         HomeCellar.hatch(hw, d.hatchX, d.hatchZ, FLOOR);
         save();
         return true;
+    }
+
+    // ------------------------------------------------------------------ stash
+
+    /**
+     * Counts the chests and barrels in a home (the house and its cellar) into its stash: the ones
+     * there when it was bought, and the ones each cellar upgrade brings. Chests placed later are
+     * just furniture.
+     */
+    void countStash(Deed d) {
+        ServerWorld hw = homeWorld();
+        if (hw == null) return;
+        int[] h = AotRpg.PLACES.homes.get(d.home);
+        int n = d.instance;
+        BlockPos a = map(h, n, h[0] - 1, h[4], h[1] - 1), b = map(h, n, h[2] + 1, h[5] + 3, h[3] + 1);
+        int cx = (a.getX() + b.getX()) / 2, cz = (a.getZ() + b.getZ()) / 2;
+        java.util.LinkedHashSet<Long> found = new java.util.LinkedHashSet<>();
+        if (d.stash != null) found.addAll(d.stash);
+        // The house, then the cellar under it.
+        scanContainers(hw, a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ(), found);
+        if (d.upgrades.contains(Upgrade.CELLAR.name())) {
+            int fy = HomeCellar.floor(FLOOR);
+            scanContainers(hw, cx - HomeCellar.HX - 1, fy, cz - HomeCellar.HZ - 1, cx + HomeCellar.HX + 1, FLOOR - 1, cz + HomeCellar.HZ + 1, found);
+        }
+        d.stash = new ArrayList<>(found);
+        save();
+    }
+
+    private static void scanContainers(ServerWorld w, int x0, int y0, int z0, int x1, int y1, int z1, java.util.Set<Long> out) {
+        for (int cx = x0 >> 4; cx <= x1 >> 4; cx++) {
+            for (int cz = z0 >> 4; cz <= z1 >> 4; cz++) {
+                var chunk = w.getChunk(cx, cz);
+                for (BlockPos bp : chunk.getBlockEntityPositions()) {
+                    if (bp.getX() < x0 || bp.getX() > x1 || bp.getY() < y0 || bp.getY() > y1 || bp.getZ() < z0 || bp.getZ() > z1) continue;
+                    if (Stash.counts(w.getBlockEntity(bp))) out.add(bp.asLong());
+                }
+            }
+        }
+    }
+
+    /** Every counted chest and barrel across this character's homes (counted now if never before). */
+    public List<BlockPos> stashSpots(ServerPlayerEntity p) {
+        List<BlockPos> out = new ArrayList<>();
+        for (Deed d : deeds(p)) {
+            migrate(d.instance);
+            if (d.stash == null) countStash(d);
+            if (d.stash != null) for (long l : d.stash) out.add(BlockPos.fromLong(l));
+        }
+        return out;
+    }
+
+    public ServerWorld stashWorld() {
+        return homeWorld();
+    }
+
+    static void border(ServerWorld hw, ServerPlayerEntity p) {
+        ensureBorder(hw, p);
     }
 
     /** Standing in your own home with a stable, or on your own plot's land with one built. */

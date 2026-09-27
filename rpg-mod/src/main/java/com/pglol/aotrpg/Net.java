@@ -1816,6 +1816,50 @@ public final class Net {
     }
 
     /** Client -> server: open, or choose a mode by id. */
+    /** A zone on the Extraction deployment board. */
+    public record ExtractionZone(String id, String name, int min, int max, int titans) { }
+
+    /** The deployment board: zones, the squad in the hall, Salvage and the stash (next row's cost, -1 at the cap). */
+    public record ExtractionView(java.util.List<ExtractionZone> zones, java.util.List<String> squad, boolean leader, long salvage,
+                                 int stashUsed, int stashCap, long rowCost, boolean open) implements CustomPayload {
+        public static final Id<ExtractionView> ID = id("extraction_view");
+        public static final PacketCodec<RegistryByteBuf, ExtractionView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.zones.size());
+            for (ExtractionZone z : v.zones) {
+                b.writeString(z.id()); b.writeString(z.name()); b.writeVarInt(z.min()); b.writeVarInt(z.max()); b.writeVarInt(z.titans());
+            }
+            b.writeVarInt(v.squad.size());
+            for (String s : v.squad) b.writeString(s);
+            b.writeBoolean(v.leader); b.writeVarLong(v.salvage); b.writeVarInt(v.stashUsed); b.writeVarInt(v.stashCap); b.writeLong(v.rowCost); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 256);
+            java.util.List<ExtractionZone> z = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) z.add(new ExtractionZone(b.readString(), b.readString(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+            int m = Math.min(b.readVarInt(), 16);
+            java.util.List<String> sq = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) sq.add(b.readString());
+            return new ExtractionView(z, sq, b.readBoolean(), b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readLong(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record ExtractionAction(String action, String arg) implements CustomPayload {
+        public static final Id<ExtractionAction> ID = id("extraction_action");
+        public static final PacketCodec<RegistryByteBuf, ExtractionAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeString(v.arg);
+        }, b -> new ExtractionAction(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** The stash page just opened: which of how many, and slots used of the total. */
+    public record StashInfo(int page, int pages, int used, int capacity) implements CustomPayload {
+        public static final Id<StashInfo> ID = id("stash_info");
+        public static final PacketCodec<RegistryByteBuf, StashInfo> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.page); b.writeVarInt(v.pages); b.writeVarInt(v.used); b.writeVarInt(v.capacity);
+        }, b -> new StashInfo(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record ModeAction(String mode) implements CustomPayload {
         public static final Id<ModeAction> ID = id("mode_action");
         public static final PacketCodec<RegistryByteBuf, ModeAction> CODEC = PacketCodec.of((v, b) -> b.writeString(v.mode), b -> new ModeAction(b.readString()));
@@ -1851,6 +1895,9 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(HomeView.ID, HomeView.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeAdminView.ID, HomeAdminView.CODEC);
         PayloadTypeRegistry.playC2S().register(HomeAction.ID, HomeAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(ExtractionView.ID, ExtractionView.CODEC);
+        PayloadTypeRegistry.playC2S().register(ExtractionAction.ID, ExtractionAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(StashInfo.ID, StashInfo.CODEC);
         PayloadTypeRegistry.playS2C().register(MarketView.ID, MarketView.CODEC);
         PayloadTypeRegistry.playS2C().register(ExchangeView.ID, ExchangeView.CODEC);
         PayloadTypeRegistry.playC2S().register(MarketAction.ID, MarketAction.CODEC);

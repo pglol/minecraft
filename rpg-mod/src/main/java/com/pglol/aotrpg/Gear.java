@@ -448,7 +448,7 @@ public final class Gear {
         boolean shifter = TitanGuard.isShifter(titan);
         float chance = shifter || boss ? 1f : Math.min(0.6f, 0.12f + size / 400f);
         if (r.nextFloat() >= chance) return;
-        int luck = (shifter ? 2 : boss ? 1 : 0) + (DeathCare.EXTRACTION.equals(AotRpg.PROFILES.get(killer.getUuid()).mode) ? 1 : 0);
+        int luck = (shifter ? 2 : boss ? 1 : 0) + (Extraction.inRun(killer.getUuid()) ? 1 : 0);
         Rarity rar = rollRarity(r, luck);
         int ilvl = dropLevel(killer, areaLevel, shifter ? 3 : boss ? 1 : 0);
         ItemStack s = roll(r, rar, ilvl);

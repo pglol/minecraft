@@ -28,6 +28,14 @@ public final class Profile {
     public String tracked = "main";
     /** "story" (gear protected on death) or "extraction" (items drop). */
     public String mode = "story";
+    /** Salvage: earned only by grinding (titan kills, extractions), spent on more stash space. */
+    public long salvage;
+    /** Stash rows bought with Salvage (9 slots each), on top of the home's chests and barrels. */
+    public int stashRows;
+    /** Where this character stood in the open world before going down to the Extraction lobby. */
+    public double[] openWorldPos;
+    /** Out on an Extraction run (a logout mid-run sends them back to the lobby). */
+    public boolean inRun;
     public int titanKills;
     /** Wallet: Marks, the in-game currency earned by playing. */
     public long marks;

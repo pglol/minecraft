@@ -41,10 +41,14 @@ public final class GameModes {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private List<Mode> modes = defaults();
 
+    private static final String OPEN_TITLE = "Open World",
+        OPEN_DESC = "Paradis is yours to roam: towns, titans, homes, trade. Your gear is kept when you fall.",
+        EXTRACT_DESC = "Gear up in the staging hall, drop into titan country with your squad, loot what you can and reach a flare to get out. Fall and it's all left behind.";
+
     private static List<Mode> defaults() {
         List<Mode> m = new ArrayList<>();
-        m.add(new Mode("story", "Story", "The main campaign. Your gear is protected when you die; your satchel is always safe.", 0, false));
-        m.add(new Mode("extraction", "Extraction", "High stakes: you drop your gear when you die, and titans drop rarer loot.", 3, false));
+        m.add(new Mode("story", OPEN_TITLE, OPEN_DESC, 0, false));
+        m.add(new Mode("extraction", "Extraction", EXTRACT_DESC, 0, false));
         m.add(new Mode("expedition", "Expedition", "Long-range missions beyond the walls with your squad.", 4, true));
         m.add(new Mode("ironblood", "Ironblood", "One life for this character. The walls remember the fallen.", 5, true));
         return m;
@@ -56,6 +60,18 @@ public final class GameModes {
             if (Files.exists(f)) {
                 List<Mode> read = GSON.fromJson(Files.readString(f, StandardCharsets.UTF_8), new TypeToken<List<Mode>>() { }.getType());
                 if (read != null && !read.isEmpty()) modes = read;
+                // The main mode is the open world now, and Extraction is open to everyone.
+                for (Mode m : modes) {
+                    if (m.id.equals("story")) {
+                        m.title = OPEN_TITLE;
+                        m.desc = OPEN_DESC;
+                    } else if (m.id.equals("extraction")) {
+                        m.desc = EXTRACT_DESC;
+                        m.unlockChapter = 0;
+                        m.soon = false;
+                    }
+                }
+                Files.writeString(f, GSON.toJson(modes), StandardCharsets.UTF_8);
             } else {
                 Files.createDirectories(f.getParent());
                 Files.writeString(f, GSON.toJson(modes), StandardCharsets.UTF_8);
@@ -87,11 +103,17 @@ public final class GameModes {
             p.sendMessage(Text.literal("You can't change mode in the middle of a fight.").formatted(Formatting.RED), true);
             return;
         }
+        if (Extraction.inRun(p.getUuid())) {
+            p.sendMessage(Text.literal("Get out of the zone first.").formatted(Formatting.RED), true);
+            return;
+        }
         pr.mode = m.id;
         AotRpg.PROFILES.save(p.getUuid());
-        p.sendMessage(Text.literal("Game mode: " + m.title).formatted(Formatting.GOLD, Formatting.BOLD)
-            .append(Text.literal("  ·  " + m.desc).formatted(Formatting.GRAY)), false);
+        Notify.toast(p, Text.literal(m.title).formatted(Formatting.GOLD, Formatting.BOLD), null, 0xE0B96A, "minecraft:compass", null);
         send(p, false);
+        // Extraction lives in its own staging hall; leaving it puts you back where you were.
+        if (DeathCare.EXTRACTION.equals(m.id) && !Extraction.inLobby(p)) AotRpg.EXTRACT.toLobby(p);
+        else if (!DeathCare.EXTRACTION.equals(m.id) && Extraction.inLobby(p)) AotRpg.EXTRACT.toOpenWorld(p);
     }
 
     public void unlock(ServerPlayerEntity p, String id) {

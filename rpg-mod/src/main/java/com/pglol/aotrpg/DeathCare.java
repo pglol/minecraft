@@ -15,7 +15,8 @@ public final class DeathCare {
     public static final String STORY = "story", EXTRACTION = "extraction";
 
     public static boolean keepsItems(ServerPlayerEntity p) {
-        return !EXTRACTION.equals(AotRpg.PROFILES.get(p.getUuid()).mode);
+        // Only out on an Extraction run do your items drop; the lobby is safe.
+        return !(EXTRACTION.equals(AotRpg.PROFILES.get(p.getUuid()).mode) && Extraction.inRun(p.getUuid()));
     }
 
     public void onDeath(ServerPlayerEntity p, DamageSource source) {

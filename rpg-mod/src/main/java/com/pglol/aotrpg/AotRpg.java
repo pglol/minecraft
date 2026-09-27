@@ -97,6 +97,7 @@ public final class AotRpg implements ModInitializer {
     public static final Fog FOG = new Fog();
     public static final Witness WITNESS = new Witness();
     public static final Horses HORSES = new Horses();
+    public static final Extraction EXTRACT = new Extraction();
     private static final java.util.Map<java.util.UUID, Long> LAST_SHOT = new java.util.HashMap<>();
 
     /** True if this player runs the mod on their client (custom screens and HUD). */
@@ -127,6 +128,12 @@ public final class AotRpg implements ModInitializer {
         Refueler.register();
         Net.register();
         SatchelHandler.register();
+        // The Extraction lobby's board and stash, and a run's supply barrels (ahead of the land protection).
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (world.isClient || !(player instanceof ServerPlayerEntity sp) || hand != net.minecraft.util.Hand.MAIN_HAND) return ActionResult.PASS;
+            return EXTRACT.use(sp, hit.getBlockPos()) ? ActionResult.SUCCESS : ActionResult.PASS;
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Net.ExtractionAction.ID, (payload, ctx) -> EXTRACT.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.MarketAction.ID, (payload, ctx) -> {
             ServerPlayerEntity p = ctx.player();
             if (!PROFILES.get(p.getUuid()).created) return;
@@ -522,6 +529,7 @@ public final class AotRpg implements ModInitializer {
             FURNITURE.open(server);
             HORSES.open(server);
             CAVES.open(server);
+            EXTRACT.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
@@ -559,6 +567,7 @@ public final class AotRpg implements ModInitializer {
                     NAMETAGS.update(p, pr);
                     SATCHEL.send(p, false);
                     STORY.send(p, pr);
+                    EXTRACT.joined(p);
                     p.sendMessage(Text.literal("Welcome back, ").formatted(Formatting.GRAY)
                         .append(Text.literal(pr.name).formatted(Formatting.GOLD, Formatting.BOLD))
                         .append(Text.literal(".").formatted(Formatting.GRAY)), true);
@@ -598,6 +607,7 @@ public final class AotRpg implements ModInitializer {
             WITNESS.forget(p.getUuid());
             STORY.forget(p);
             HORSES.forget(p);
+            EXTRACT.forget(p);
             COINS.forget(p.getUuid());
             PROFILES.unload(p.getUuid());
         });
@@ -614,7 +624,7 @@ public final class AotRpg implements ModInitializer {
             sync(newPlayer, pr);
             NAMETAGS.update(newPlayer, pr);
             // After a death: wake at the nearest recovery post, or at home if chosen.
-            if (!alive) RECOVERY.respawn(newPlayer);
+            if (!alive && !EXTRACT.respawn(newPlayer)) RECOVERY.respawn(newPlayer);
         });
 
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
@@ -698,6 +708,7 @@ public final class AotRpg implements ModInitializer {
         CROWD.tick(server, ticks);
         WAR.tick(ticks);
         DUELS.tick(ticks);
+        EXTRACT.tick(ticks);
         LOOT.tick(ticks);
         TITAN_LEVELS.tick(server, ticks);
         RAID_BOSSES.tick(ticks);
@@ -719,6 +730,7 @@ public final class AotRpg implements ModInitializer {
     private void onDeath(LivingEntity dead, net.minecraft.entity.damage.DamageSource source) {
         if (dead instanceof ServerPlayerEntity sp) {
             DEATH.onDeath(sp, source);
+            EXTRACT.onDeath(sp);
             RECOVERY.onDeath(sp);
             return;
         }
@@ -732,6 +744,9 @@ public final class AotRpg implements ModInitializer {
         long xp = Math.max(15, Math.round(10 + dead.getMaxHealth() / 4));
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);
         reward(killer, xp, true, "Titan slain");
+        // Salvage: a little for every titan, more for bosses and shifters, double out on a run.
+        long salvage = TitanGuard.isShifter(dead) ? 12 : dead.hasCustomName() || dead.getMaxHealth() >= 300 ? 5 : 1;
+        Stash.earn(killer, Extraction.inRun(killer.getUuid()) ? salvage * 2 : salvage);
         // A bounty in Marks, and maybe gear (bosses and shifters always drop).
         // Personal loot: everyone who fought it gets their own Marks and their own roll at gear.
         java.util.List<ServerPlayerEntity> earners = LOOT.earners(killer, dead);
