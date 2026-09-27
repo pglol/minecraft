@@ -150,8 +150,9 @@ public final class Store {
 
     private static Loot gear(int permille, int rarity) {
         String r = RARITY_NAMES[rarity];
-        return new Loot(permille, "gear:" + r.toLowerCase(java.util.Locale.ROOT), rarity, r + " gear", rarity == 5 ? "minecraft:netherite_sword"
-            : rarity >= 3 ? "minecraft:diamond_sword" : "minecraft:iron_sword");
+        // Icons are Danny's own gear (filled in when sent: "@blade", "@apg_gun", "@uniform").
+        return new Loot(permille, "gear:" + r.toLowerCase(java.util.Locale.ROOT), rarity, r + " gear: ODM blades, APG guns, uniforms",
+            rarity >= 4 ? "@apg_gun" : "@blade");
     }
 
     private static Loot title(int permille, int rarity) {
@@ -246,9 +247,27 @@ public final class Store {
                 String got = roll(p, c.id());
                 // Already have everything of that kind: it comes as money instead.
                 if (got.endsWith(":")) got = gold ? "gold:" + price / 3 : "marks:" + price / 2;
-                grant(p, got);
+                String desc = Rewards.describe(got), icon = Rewards.icon(got);
+                List<String> lines = new ArrayList<>();
+                if (got.startsWith("gear:")) {
+                    // Gear is rolled here, so the reveal can show exactly what came out: name, stats, perks.
+                    Gear.Rarity rar;
+                    try {
+                        rar = Gear.Rarity.valueOf(got.substring(5).toUpperCase(java.util.Locale.ROOT));
+                    } catch (Exception e) {
+                        rar = Gear.Rarity.RARE;
+                    }
+                    net.minecraft.item.ItemStack s = Gear.roll(p.getRandom(), rar, Gear.dropLevel(p, AotRpg.PROFILES.get(p.getUuid()).level, 1));
+                    desc = s.getName().getString();
+                    icon = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString();
+                    var lore = s.get(net.minecraft.component.DataComponentTypes.LORE);
+                    if (lore != null) for (Text l : lore.lines()) if (!l.getString().isBlank() && lines.size() < 9) lines.add(l.getString());
+                    AotRpg.SATCHEL.add(p, s);
+                } else {
+                    grant(p, got);
+                }
                 if (ServerPlayNetworking.canSend(p, Net.CrateOpened.ID)) {
-                    ServerPlayNetworking.send(p, new Net.CrateOpened(c.id(), c.title(), Rewards.describe(got), Rewards.icon(got), rarityOf(got)));
+                    ServerPlayNetworking.send(p, new Net.CrateOpened(c.id(), c.title(), desc, icon, rarityOf(got), lines));
                 } else {
                     Notify.toast(p, Text.literal(c.title() + ": " + Rewards.describe(got)).formatted(Formatting.GOLD),
                         Text.literal("Opened for " + price + (gold ? " Gold" : " Marks")), 0xE0B96A, Rewards.icon(got), "crate");
@@ -258,6 +277,14 @@ public final class Store {
         }
         AotRpg.PROFILES.save(p.getUuid());
         send(p, false);
+    }
+
+    /** "@path" -> Danny's item of that name (the item id), anything else as it is. */
+    static String aotIcon(String icon) {
+        if (!icon.startsWith("@")) return icon;
+        var it = AotItems.exact(icon.substring(1));
+        if (it == null) it = AotItems.exact("blade");
+        return it == null ? "minecraft:paper" : net.minecraft.registry.Registries.ITEM.getId(it).toString();
     }
 
     /** How rare a roll was, 0 (common) to 4 (legendary), for the opening's colour and fanfare. */
@@ -318,7 +345,7 @@ public final class Store {
         for (Crate c : CRATES) {
             // The preview: every line of the table, "rarity|permille|icon|label".
             List<String> loot = new ArrayList<>();
-            for (Loot l : TABLES.getOrDefault(c.id(), List.of())) loot.add(l.rarity() + "|" + l.permille() + "|" + l.icon() + "|" + l.label());
+            for (Loot l : TABLES.getOrDefault(c.id(), List.of())) loot.add(l.rarity() + "|" + l.permille() + "|" + aotIcon(l.icon()) + "|" + l.label());
             crates.add(new Net.StoreCrate(c.id(), c.title(), c.desc(), c.marks(), c.gold(), loot));
         }
         ServerPlayNetworking.send(p, new Net.StoreView(list, crates, secondsLeft(), open));

@@ -1118,11 +1118,18 @@ public final class Net {
     }
 
     /** Server -> client: a crate was opened (the reveal plays on screen). Rarity 0 common .. 4 legendary. */
-    public record CrateOpened(String crateId, String crate, String got, String icon, int rarity) implements CustomPayload {
+    public record CrateOpened(String crateId, String crate, String got, String icon, int rarity, java.util.List<String> lines) implements CustomPayload {
         public static final Id<CrateOpened> ID = Net.id("crate_opened");
         public static final PacketCodec<RegistryByteBuf, CrateOpened> CODEC = PacketCodec.of((v, b) -> {
-            b.writeString(v.crateId); b.writeString(v.crate); b.writeString(v.got); b.writeString(v.icon); b.writeVarInt(v.rarity);
-        }, b -> new CrateOpened(b.readString(), b.readString(), b.readString(), b.readString(), b.readVarInt()));
+            b.writeString(v.crateId); b.writeString(v.crate); b.writeString(v.got);
+            b.writeVarInt(v.lines.size()); for (String l : v.lines) b.writeString(l); b.writeString(v.icon); b.writeVarInt(v.rarity);
+        }, b -> {
+            String id = b.readString(), crate = b.readString(), got = b.readString();
+            int n = Math.min(b.readVarInt(), 16);
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) lines.add(b.readString());
+            return new CrateOpened(id, crate, got, b.readString(), b.readVarInt(), lines);
+        });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 

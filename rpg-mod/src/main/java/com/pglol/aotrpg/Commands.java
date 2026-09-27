@@ -555,12 +555,15 @@ final class Commands {
                 var p = c.getSource().getPlayerOrThrow();
                 int r = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "rarity");
                 AotRpg.STORE.send(p, true);
-                String[] got = {"Common gear", "Uncommon gear", "Rare gear", "Epic gear", "Legendary gear", "Title: The Rumbling"};
-                String[] icon = {"minecraft:iron_sword", "minecraft:iron_sword", "minecraft:iron_sword", "minecraft:diamond_sword",
-                    "minecraft:diamond_sword", "minecraft:nether_star"};
                 String crate = r >= 4 ? "commander" : r >= 2 ? "officer" : "supply";
                 String title = r >= 4 ? "Commander's Crate" : r >= 2 ? "Officer's Crate" : "Supply Crate";
-                AotRpg.SCHEDULER.later(4, () -> ServerPlayNetworking.send(p, new Net.CrateOpened(crate, title, got[r] + " (test)", icon[r], r)));
+                // A real roll of that rarity, shown but not given.
+                var s = Gear.roll(p.getRandom(), Gear.Rarity.values()[r], Math.max(1, AotRpg.PROFILES.get(p.getUuid()).level));
+                java.util.List<String> lines = new java.util.ArrayList<>();
+                var lore = s.get(net.minecraft.component.DataComponentTypes.LORE);
+                if (lore != null) for (var l : lore.lines()) if (!l.getString().isBlank() && lines.size() < 9) lines.add(l.getString());
+                String name = s.getName().getString() + " (test)", icon = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString();
+                AotRpg.SCHEDULER.later(4, () -> ServerPlayNetworking.send(p, new Net.CrateOpened(crate, title, name, icon, r, lines)));
                 return 1;
             }))));
         // Testing: see a reward reveal of a given rarity (0 common .. 5 mythic), nothing given.
@@ -569,7 +572,7 @@ final class Commands {
                 int r = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "rarity");
                 String[] names = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"};
                 Reveal.show(c.getSource().getPlayerOrThrow(), names[r] + " DROP", "A test reveal (nothing given)",
-                    r >= 5 ? "minecraft:nether_star" : r >= 3 ? "minecraft:diamond_sword" : "minecraft:iron_sword", r);
+                    Store.aotIcon(r >= 4 ? "@apg_gun" : "@blade"), r);
                 return 1;
             }))));
         d.register(CommandManager.literal("duel")

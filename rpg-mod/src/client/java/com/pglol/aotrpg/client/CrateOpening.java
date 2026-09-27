@@ -105,7 +105,8 @@ public final class CrateOpening {
 
     private static ItemStack pickIcon(List<int[]> weights, List<ItemStack> icons, int rarity) {
         for (int i = 0; i < weights.size(); i++) if (weights.get(i)[0] == rarity) return icons.get(i);
-        return new ItemStack(rarity >= 5 ? Items.NETHER_STAR : rarity >= 4 ? Items.DIAMOND_SWORD : Items.IRON_SWORD);
+        // Nothing of that rarity in this crate: show the prize's own kind of item (never vanilla gear).
+        return got != null ? icon(got.icon()) : new ItemStack(Items.CHEST);
     }
 
     private static ItemStack icon(String id) {
@@ -453,6 +454,20 @@ public final class CrateOpening {
         if (ta > 8) {
             Ui.text(c, Text.literal(got.got()), cx, cy + (rar == 5 ? 48 : 42), 1.25f, (ta << 24) | 0xEDE3C8, true);
             Ui.text(c, Text.literal("from the " + got.crate()), cx, cy + (rar == 5 ? 64 : 58), 0.65f, (ta << 24) | 0x8F8A7A, true);
+            // What it rolled: rarity and kind, item level, every stat and perk.
+            if (!got.lines().isEmpty()) {
+                int ly = cy + (rar == 5 ? 80 : 74);
+                int lw = 0;
+                for (String l : got.lines()) lw = Math.max(lw, (int) (Ui.font().getWidth(l) * 0.7f));
+                c.fill(cx - lw / 2 - 8, ly - 4, cx + lw / 2 + 8, ly + got.lines().size() * 9 + 2, (Math.min(200, ta) << 24) | 0x100E0C);
+                c.drawBorder(cx - lw / 2 - 8, ly - 4, lw + 16, got.lines().size() * 9 + 6, (Math.min(255, ta) << 24) | (col & 0xFFFFFF));
+                for (int i = 0; i < got.lines().size(); i++) {
+                    String l = got.lines().get(i);
+                    int lc = i == 0 ? col & 0xFFFFFF : l.startsWith("+") && l.contains("Power") ? 0xF2C14E : l.startsWith("+") ? 0x8FB8E8
+                        : l.startsWith("✦") ? 0x7FE0E0 : 0xB8B0A0;
+                    Ui.text(c, Text.literal(l), cx, ly + i * 9, 0.7f, (ta << 24) | lc, true);
+                }
+            }
         }
         if (p >= 1) Ui.text(c, Text.literal("click to continue"), cx, h - 16, 0.65f, 0xA0FFFFFF, true);
     }
