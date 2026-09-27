@@ -25,6 +25,42 @@ public final class TitanTypes {
         return banned(Registries.ENTITY_TYPE.getId(e.getType()).getPath());
     }
 
+    /**
+     * Titans too fast and wild to fight on ODM gear (abnormals, crawlers, jumpers, runners, ogres...).
+     * They're kept for titan-against-titan fights: they only exist near a player in titan form.
+     */
+    private static final String[] FAST = {"abnormal", "crawl", "jump", "runner", "sprint", "deviant", "ogre", "fast", "berserk",
+        "rabid", "hunter"};
+
+    public static boolean fast(String path) {
+        for (String f : FAST) if (path.contains(f)) return true;
+        return false;
+    }
+
+    public static boolean fast(Entity e) {
+        return AotRpg.isTitan(e) && fast(Registries.ENTITY_TYPE.getId(e.getType()).getPath());
+    }
+
+    /** The fast ones, for titan-against-titan fights. */
+    public static List<EntityType<?>> fastOnes() {
+        List<EntityType<?>> out = new ArrayList<>();
+        for (Identifier id : Registries.ENTITY_TYPE.getIds()) {
+            String path = id.getPath();
+            if (!id.getNamespace().equals(AotItems.namespace) || !path.contains("titan") || part(path) || banned(path) || isShifterPath(path)) continue;
+            if (fast(path)) out.add(Registries.ENTITY_TYPE.get(id));
+        }
+        return out;
+    }
+
+    /** Someone in titan form (riding and steering an AoT titan) within range of here. */
+    public static boolean shifterNear(net.minecraft.world.World w, double x, double z, double r) {
+        for (var p : w.getPlayers()) {
+            Entity v = p.getVehicle();
+            if (v != null && v.getControllingPassenger() == p && AotRpg.isTitan(v) && p.squaredDistanceTo(x, p.getY(), z) < r * r) return true;
+        }
+        return false;
+    }
+
     private static boolean part(String path) {
         return path.contains("nape") || path.contains("eye") || path.contains("grab") || path.contains("hand") || path.contains("leg")
             || path.contains("dummy") || path.contains("shell") || path.contains("shifter") || path.contains("spawn_egg");
@@ -40,7 +76,8 @@ public final class TitanTypes {
         for (Identifier id : Registries.ENTITY_TYPE.getIds()) {
             String path = id.getPath();
             if (!id.getNamespace().equals(AotItems.namespace) || !path.contains("titan") || part(path) || banned(path)) continue;
-            if (isShifterPath(path) == shifters) out.add(Registries.ENTITY_TYPE.get(id));
+            // Ordinary lists never include the fast ones (they're for titan fights only).
+            if (isShifterPath(path) == shifters && (shifters || !fast(path))) out.add(Registries.ENTITY_TYPE.get(id));
         }
         return out;
     }

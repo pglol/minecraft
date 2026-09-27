@@ -612,6 +612,9 @@ public final class AotRpg implements ModInitializer {
             if (NAMETAGS.isStray(entity)) entity.discard();
             // Triple T titans never walk this world (whatever spawned them).
             else if (!world.isClient && TitanTypes.banned(entity)) entity.discard();
+            // Fast, wild titans only where someone in titan form can fight them.
+            else if (!world.isClient && TitanTypes.fast(entity) && !(entity.hasPassengers() && entity.getControllingPassenger() instanceof ServerPlayerEntity)
+                && !TitanTypes.shifterNear(world, entity.getX(), entity.getZ(), 96)) entity.discard();
             else if (!world.isClient && ESTATE.stray(entity)) entity.discard();
             else if (!world.isClient && STORY.stray(entity)) entity.discard();
         });

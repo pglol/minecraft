@@ -89,6 +89,25 @@ public final class TitanActivity {
         tickHorde(w, now);
         tickAbnormal(w, now);
         if (ticks % 200 == 9) tickCaves(w, now);
+        if (ticks % 1200 == 609) titanFights(w);
+    }
+
+    /**
+     * Someone in titan form gets something worth fighting: now and then one of the fast, wild
+     * titans (the ones kept out of ODM fights) comes for them, if none is already near.
+     */
+    private void titanFights(ServerWorld w) {
+        List<EntityType<?>> kinds = TitanTypes.fastOnes();
+        if (kinds.isEmpty()) return;
+        for (ServerPlayerEntity p : w.getPlayers()) {
+            Entity v = p.getVehicle();
+            if (v == null || v.getControllingPassenger() != p || !AotRpg.isTitan(v)) continue;
+            Box box = p.getBoundingBox().expand(72);
+            if (!w.getEntitiesByClass(LivingEntity.class, box, e -> e.isAlive() && TitanTypes.fast(e)).isEmpty()) continue;
+            double a = w.getRandom().nextDouble() * Math.PI * 2;
+            Entity t = spawn(w, kinds.get(w.getRandom().nextInt(kinds.size())), (int) (p.getX() + Math.cos(a) * 40), (int) (p.getZ() + Math.sin(a) * 40), 0, TAG);
+            if (t instanceof MobEntity m) m.setTarget(v instanceof LivingEntity lv ? lv : p);
+        }
     }
 
     private List<ServerPlayerEntity> outside(ServerWorld w) {
@@ -195,7 +214,7 @@ public final class TitanActivity {
             t.addCommandTag(Raids.STRIKES + 5);
             t.setCustomName(Text.literal("Abnormal Titan").formatted(Formatting.DARK_PURPLE, Formatting.BOLD));
             t.setGlowing(true);
-            if (t instanceof LivingEntity le) le.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 20 * 60 * 20, 1, false, false));
+            // Tougher than most (more nape strikes), but no faster: it has to be fightable on gear.
             abnormal = t.getUuid();
             abX = x;
             abZ = z;
