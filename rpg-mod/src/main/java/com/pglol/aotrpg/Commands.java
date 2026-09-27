@@ -1,5 +1,7 @@
 package com.pglol.aotrpg;
 
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -547,6 +549,20 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Unlocked " + n + " titles for " + p.getName().getString() + "."), true);
                 return 1;
             })))));
+        // Testing: watch a crate opening of a given rarity (0 common .. 5 mythic), nothing given.
+        d.register(CommandManager.literal("aotrpg").requires(s -> s.hasPermissionLevel(2)).then(CommandManager.literal("cratetest")
+            .then(CommandManager.argument("rarity", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 5)).executes(c -> {
+                var p = c.getSource().getPlayerOrThrow();
+                int r = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "rarity");
+                AotRpg.STORE.send(p, true);
+                String[] got = {"Common gear", "Uncommon gear", "Rare gear", "Epic gear", "Legendary gear", "Title: The Rumbling"};
+                String[] icon = {"minecraft:iron_sword", "minecraft:iron_sword", "minecraft:iron_sword", "minecraft:diamond_sword",
+                    "minecraft:diamond_sword", "minecraft:nether_star"};
+                String crate = r >= 4 ? "commander" : r >= 2 ? "officer" : "supply";
+                String title = r >= 4 ? "Commander's Crate" : r >= 2 ? "Officer's Crate" : "Supply Crate";
+                AotRpg.SCHEDULER.later(4, () -> ServerPlayNetworking.send(p, new Net.CrateOpened(crate, title, got[r] + " (test)", icon[r], r)));
+                return 1;
+            }))));
         d.register(CommandManager.literal("duel")
             .then(CommandManager.literal("accept").executes(c -> {
                 AotRpg.DUELS.accept(c.getSource().getPlayerOrThrow());
