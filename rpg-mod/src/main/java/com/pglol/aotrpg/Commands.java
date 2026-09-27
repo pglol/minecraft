@@ -472,6 +472,14 @@ final class Commands {
         })).then(CommandManager.literal("manage").executes(c -> {
             AotRpg.HOMES.action(c.getSource().getPlayerOrThrow(), "manage", -1, "");
             return 1;
+        })).then(CommandManager.literal("letin").then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+            AotRpg.HOMES.letIn(c.getSource().getPlayerOrThrow(), EntityArgumentType.getPlayer(c, "player"));
+            return 1;
+        }))).then(CommandManager.literal("leave").executes(c -> {
+            if (!AotRpg.HOMES.leaveHome(c.getSource().getPlayerOrThrow())) {
+                c.getSource().sendFeedback(() -> Text.literal("You're not in a home."), false);
+            }
+            return 1;
         })));
         d.register(CommandManager.literal("story").executes(c -> {
             var p = c.getSource().getPlayerOrThrow();

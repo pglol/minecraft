@@ -50,6 +50,13 @@ public final class Homes {
     public static final RegistryKey<World> WORLD = RegistryKey.of(RegistryKeys.WORLD, Identifier.of("aot_rpg", "homes"));
     public static final int MAX_HOMES = 2;
     private static final int BASE_X = 200_000, CELL = 160, YARD = 72, FLOOR = 64, PER_ROW = 64;
+    /**
+     * Where homes are now: a kilometre apart, so nobody at home ever sees another home (the old
+     * layout, 160 apart around BASE_X, is only read to move homes over the first time they're used).
+     */
+    private static final int BASE_X2 = 1_000_000, CELL2 = 1024;
+    /** How far of the real street around a town house is copied in, to look at through the windows. */
+    private static final int BACKDROP = 14;
 
     public enum Upgrade {
         STABLE("Stable", 2500, "A paddock and stable in your yard: room for 4 more horses."),
@@ -77,6 +84,8 @@ public final class Homes {
         public boolean stairsFixed;
         /** Blocks over the stairs cleared, so you can walk up without hitting your head. */
         public boolean headroomFixed;
+        /** Walled in: no yard, the real street outside the windows, and an invisible wall at the doorstep. */
+        public boolean enclosed;
         /** Bandit raids: days played since the last one, and when. */
         public int daysPlayed;
         public long lastDay, lastRaid;
@@ -119,6 +128,8 @@ public final class Homes {
         List<String> recent = new ArrayList<>();
         /** Town houses (the shared ones in the world) whose stairs have been repaired. */
         java.util.Set<Integer> fixedWorld = new java.util.HashSet<>();
+        /** Homes already moved to the new, spread-out layout. */
+        java.util.Set<Integer> moved = new java.util.HashSet<>();
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -143,6 +154,7 @@ public final class Homes {
         if (data.offers == null) data.offers = new ArrayList<>();
         if (data.recent == null) data.recent = new ArrayList<>();
         if (data.fixedWorld == null) data.fixedWorld = new java.util.HashSet<>();
+        if (data.moved == null) data.moved = new java.util.HashSet<>();
         index();
     }
 
@@ -214,11 +226,65 @@ public final class Homes {
     // ------------------------------------------------------------------ instances
 
     private static int originX(int n) {
-        return BASE_X + (n % PER_ROW) * CELL;
+        return BASE_X2 + (n % PER_ROW) * CELL2;
     }
 
     private static int originZ(int n) {
+        return (n / PER_ROW) * CELL2;
+    }
+
+    private static int oldOriginX(int n) {
+        return BASE_X + (n % PER_ROW) * CELL;
+    }
+
+    private static int oldOriginZ(int n) {
         return (n / PER_ROW) * CELL;
+    }
+
+    /**
+     * Moves a home from the old, crowded layout to its own spot a kilometre from any other: every
+     * block (chests with their contents) and every creature or stand in its yard. Once per home.
+     */
+    private void migrate(int n) {
+        if (data.moved.contains(n)) return;
+        data.moved.add(n);
+        ServerWorld hw = homeWorld();
+        if (hw == null) return;
+        int fx = oldOriginX(n), fz = oldOriginZ(n), tx = originX(n), tz = originZ(n);
+        int flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
+        WorldCare.quiet(true);
+        try {
+            BlockPos.Mutable src = new BlockPos.Mutable(), dst = new BlockPos.Mutable();
+            for (int x = -2; x < YARD + 2; x++) {
+                for (int z = -2; z < YARD + 2; z++) {
+                    hw.getChunk((fx + x) >> 4, (fz + z) >> 4);
+                    hw.getChunk((tx + x) >> 4, (tz + z) >> 4);
+                    for (int y = FLOOR - 4; y <= FLOOR + 60; y++) {
+                        src.set(fx + x, y, fz + z);
+                        BlockState st = hw.getBlockState(src);
+                        if (st.isAir()) continue;
+                        dst.set(tx + x, y, tz + z);
+                        hw.setBlockState(dst, st, flags);
+                        BlockEntity be = hw.getBlockEntity(src);
+                        if (be != null) {
+                            NbtCompound nbt = be.createNbt(hw.getRegistryManager());
+                            BlockEntity nb = hw.getBlockEntity(dst);
+                            if (nb != null) {
+                                nb.read(nbt, hw.getRegistryManager());
+                                nb.markDirty();
+                            }
+                        }
+                    }
+                }
+            }
+            net.minecraft.util.math.Box old = new net.minecraft.util.math.Box(fx - 2, FLOOR - 4, fz - 2, fx + YARD + 2, FLOOR + 60, fz + YARD + 2);
+            for (net.minecraft.entity.Entity e : hw.getOtherEntities(null, old, e -> !(e instanceof ServerPlayerEntity))) {
+                e.refreshPositionAndAngles(e.getX() - fx + tx, e.getY(), e.getZ() - fz + tz, e.getYaw(), e.getPitch());
+            }
+        } finally {
+            WorldCare.quiet(false);
+        }
+        save();
     }
 
     /** Where house block (x, y, z) lands in the instance. */
@@ -301,9 +367,164 @@ public final class Homes {
             return true;
         }
         int[] h = AotRpg.PLACES.homes.get(home);
+        if (ring(p, home)) return true;
         p.sendMessage(Text.literal("For sale: ").formatted(Formatting.GRAY).append(Wallet.marks(price(h)))
             .append(Text.literal("  ·  Sneak + use the door to see the deed").formatted(Formatting.DARK_GRAY)), true);
         return false;
+    }
+
+    // ------------------------------------------------------------------ the doorbell
+
+    private record Ring(int home, long at) { }
+
+    private final Map<UUID, Ring> rings = new HashMap<>();
+
+    /** Ringing the bell of a house someone lives in (and is online): they get a "let them in". */
+    private boolean ring(ServerPlayerEntity p, int home) {
+        List<ServerPlayerEntity> owners = new ArrayList<>();
+        for (ServerPlayerEntity o : server.getPlayerManager().getPlayerList()) if (o != p && deed(o, home) != null) owners.add(o);
+        if (owners.isEmpty()) return false;
+        long now = System.currentTimeMillis();
+        Ring last = rings.get(p.getUuid());
+        if (last != null && last.home() == home && now - last.at() < 5000) return true;
+        rings.put(p.getUuid(), new Ring(home, now));
+        String who = AotRpg.PROFILES.get(p.getUuid()).name;
+        p.playSoundToPlayer(SoundEvents.BLOCK_BELL_USE, SoundCategory.BLOCKS, 0.8f, 1.4f);
+        p.sendMessage(Text.literal("You ring the bell.").formatted(Formatting.GOLD)
+            .append(Text.literal(" Waiting for someone to answer...").formatted(Formatting.GRAY)), true);
+        for (ServerPlayerEntity o : owners) {
+            o.playSoundToPlayer(SoundEvents.BLOCK_BELL_USE, SoundCategory.BLOCKS, 1f, 1.4f);
+            o.sendMessage(Text.literal("Ding-dong! " + who + " is at your door in " + townOf(AotRpg.PLACES.homes.get(home)) + ".  ").formatted(Formatting.GOLD)
+                .append(Text.literal("[Let them in]").formatted(Formatting.GREEN, Formatting.BOLD)
+                    .styled(st -> st.withClickEvent(new net.minecraft.text.ClickEvent(net.minecraft.text.ClickEvent.Action.RUN_COMMAND, "/home letin " + p.getName().getString()))
+                        .withHoverEvent(new net.minecraft.text.HoverEvent(net.minecraft.text.HoverEvent.Action.SHOW_TEXT, Text.literal("Open the door for " + who))))), false);
+        }
+        return true;
+    }
+
+    /** The owner answers the door: the guest who rang (in the last minute and a half) comes in. */
+    public void letIn(ServerPlayerEntity owner, ServerPlayerEntity guest) {
+        Ring r = rings.get(guest.getUuid());
+        if (r == null || System.currentTimeMillis() - r.at() > 90_000) {
+            owner.sendMessage(Text.literal("Nobody is waiting at your door.").formatted(Formatting.GRAY), true);
+            return;
+        }
+        Deed d = deed(owner, r.home());
+        if (d == null) return;
+        rings.remove(guest.getUuid());
+        enter(guest, d);
+        guest.sendMessage(Text.literal(AotRpg.PROFILES.get(owner.getUuid()).name + " let you in. Any door takes you back out.").formatted(Formatting.GOLD), true);
+        owner.sendMessage(Text.literal("You let " + AotRpg.PROFILES.get(guest.getUuid()).name + " in.").formatted(Formatting.GOLD), true);
+    }
+
+    /** Leaving a home from anywhere inside it (/home leave). */
+    public boolean leaveHome(ServerPlayerEntity p) {
+        if (p.getWorld().getRegistryKey() != WORLD) return false;
+        int n = instanceAt(p.getBlockPos());
+        Deed d = n < 0 ? null : find(data.instances.get(n), n);
+        if (d == null) return false;
+        leave(p, AotRpg.PLACES.homes.get(d.home));
+        return true;
+    }
+
+    // ------------------------------------------------------------------ walled-in town homes
+
+    /**
+     * A town home without a yard: the grass yard and fence are replaced by a copy of the real street
+     * around the house (so the windows look out on town), and an invisible wall stands on the
+     * doorstep and just outside the walls, so you stay inside. Doors take you out.
+     */
+    void enclose(int[] h, Deed d) {
+        ServerWorld ow = server.getOverworld(), hw = homeWorld();
+        if (hw == null || !d.upgrades.isEmpty()) return;
+        int n = d.instance;
+        int flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
+        WorldCare.quiet(true);
+        try {
+            // Clear the yard (everything in the cell outside the house box).
+            int x0 = originX(n), z0 = originZ(n);
+            BlockPos ha = map(h, n, h[0] - 1, h[4], h[1] - 1), hb = map(h, n, h[2] + 1, h[5] + 3, h[3] + 1);
+            BlockPos.Mutable m = new BlockPos.Mutable();
+            for (int x = x0 - 2; x < x0 + YARD + 2; x++) {
+                for (int z = z0 - 2; z < z0 + YARD + 2; z++) {
+                    if (x >= ha.getX() && x <= hb.getX() && z >= ha.getZ() && z <= hb.getZ()) continue;
+                    for (int y = FLOOR - 4; y <= FLOOR + 8; y++) {
+                        m.set(x, y, z);
+                        if (!hw.getBlockState(m).isAir()) hw.setBlockState(m, Blocks.AIR.getDefaultState(), flags);
+                    }
+                }
+            }
+            // The street around the house, as it stands in town.
+            for (int x = h[0] - 1 - BACKDROP; x <= h[2] + 1 + BACKDROP; x++) {
+                for (int z = h[1] - 1 - BACKDROP; z <= h[3] + 1 + BACKDROP; z++) {
+                    if (x >= h[0] - 1 && x <= h[2] + 1 && z >= h[1] - 1 && z <= h[3] + 1) continue;
+                    ow.getChunk(x >> 4, z >> 4);
+                    for (int y = h[4] - 4; y <= h[5] + 10; y++) {
+                        BlockState st = ow.getBlockState(new BlockPos(x, y, z));
+                        if (st.isAir()) continue;
+                        hw.setBlockState(map(h, n, x, y, z), st, flags);
+                    }
+                }
+            }
+            // The invisible wall: on the doorstep ring and over the roof.
+            for (int x = ha.getX(); x <= hb.getX(); x++) {
+                for (int z = ha.getZ(); z <= hb.getZ(); z++) {
+                    boolean ring = x == ha.getX() || x == hb.getX() || z == ha.getZ() || z == hb.getZ();
+                    for (int y = ha.getY(); y <= hb.getY() + 1; y++) {
+                        m.set(x, y, z);
+                        if ((ring || y == hb.getY() + 1) && hw.getBlockState(m).isAir()) hw.setBlockState(m, Blocks.BARRIER.getDefaultState(), flags);
+                    }
+                }
+            }
+        } finally {
+            WorldCare.quiet(false);
+        }
+        d.enclosed = true;
+        save();
+    }
+
+    /** Buying a yard upgrade for a walled-in home: take the wall and street away, lay the yard back. */
+    void unenclose(int[] h, Deed d) {
+        ServerWorld hw = homeWorld();
+        if (hw == null) return;
+        int n = d.instance, x0 = originX(n), z0 = originZ(n);
+        int flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
+        BlockPos ha = map(h, n, h[0] - 1, h[4], h[1] - 1), hb = map(h, n, h[2] + 1, h[5] + 3, h[3] + 1);
+        WorldCare.quiet(true);
+        try {
+            BlockPos.Mutable m = new BlockPos.Mutable();
+            for (int x = x0 - 2 - BACKDROP; x < x0 + YARD + 2 + BACKDROP; x++) {
+                for (int z = z0 - 2 - BACKDROP; z < z0 + YARD + 2 + BACKDROP; z++) {
+                    boolean house = x >= ha.getX() && x <= hb.getX() && z >= ha.getZ() && z <= hb.getZ();
+                    for (int y = FLOOR - 4; y <= FLOOR + 60; y++) {
+                        m.set(x, y, z);
+                        BlockState st = hw.getBlockState(m);
+                        if (house) {
+                            if (st.isOf(Blocks.BARRIER)) hw.setBlockState(m, Blocks.AIR.getDefaultState(), flags);
+                        } else if (!st.isAir()) {
+                            hw.setBlockState(m, Blocks.AIR.getDefaultState(), flags);
+                        }
+                    }
+                    if (house) continue;
+                    boolean inCell = x >= x0 - 2 && x < x0 + YARD + 2 && z >= z0 - 2 && z < z0 + YARD + 2;
+                    if (!inCell) continue;
+                    boolean edge = x < x0 || z < z0 || x >= x0 + YARD || z >= z0 + YARD;
+                    boolean fence = x == x0 - 1 || z == z0 - 1 || x == x0 + YARD || z == z0 + YARD;
+                    hw.setBlockState(new BlockPos(x, FLOOR - 3, z), Blocks.STONE.getDefaultState(), flags);
+                    hw.setBlockState(new BlockPos(x, FLOOR - 2, z), Blocks.DIRT.getDefaultState(), flags);
+                    hw.setBlockState(new BlockPos(x, FLOOR - 1, z), Blocks.DIRT.getDefaultState(), flags);
+                    hw.setBlockState(new BlockPos(x, FLOOR, z), edge ? Blocks.COARSE_DIRT.getDefaultState() : Blocks.GRASS_BLOCK.getDefaultState(), flags);
+                    if (fence) {
+                        hw.setBlockState(new BlockPos(x, FLOOR + 1, z), Blocks.SPRUCE_FENCE.getDefaultState(), flags);
+                        for (int y = FLOOR + 2; y <= FLOOR + 5; y++) hw.setBlockState(new BlockPos(x, y, z), Blocks.BARRIER.getDefaultState(), flags);
+                    }
+                }
+            }
+        } finally {
+            WorldCare.quiet(false);
+        }
+        d.enclosed = false;
+        save();
     }
 
     /** A door inside a home: the front door leads back to town. */
@@ -314,8 +535,9 @@ public final class Homes {
         Deed d = find(owner, n);
         if (d == null) return false;
         int[] h = AotRpg.PLACES.homes.get(d.home);
-        BlockPos front = map(h, n, h[6], h[4] + 1, h[7]);
-        if (front.getSquaredDistance(pos) > 9) return false;
+        // Any door of the house itself leads back out to town (for the owner and guests alike).
+        BlockPos a = map(h, n, h[0] - 1, h[4], h[1] - 1), b = map(h, n, h[2] + 1, h[5] + 3, h[3] + 1);
+        if (pos.getX() < a.getX() || pos.getX() > b.getX() || pos.getZ() < a.getZ() || pos.getZ() > b.getZ()) return false;
         leave(p, h);
         return true;
     }
@@ -339,8 +561,15 @@ public final class Homes {
     }
 
     private int instanceAt(BlockPos pos) {
-        int ix = Math.floorDiv(pos.getX() - BASE_X, CELL), iz = Math.floorDiv(pos.getZ(), CELL);
+        int ix = Math.floorDiv(pos.getX() - BASE_X2, CELL2), iz = Math.floorDiv(pos.getZ(), CELL2);
         if (ix < 0 || ix >= PER_ROW || iz < 0) return -1;
+        return iz * PER_ROW + ix;
+    }
+
+    /** Which home stood here in the old layout (to bring anyone left there over to the new one). */
+    private int oldInstanceAt(BlockPos pos) {
+        int ix = Math.floorDiv(pos.getX() - BASE_X, CELL), iz = Math.floorDiv(pos.getZ(), CELL);
+        if (pos.getX() >= BASE_X2 - CELL2 || ix < 0 || ix >= PER_ROW || iz < 0) return -1;
         return iz * PER_ROW + ix;
     }
 
@@ -351,6 +580,8 @@ public final class Homes {
             return;
         }
         int[] h = AotRpg.PLACES.homes.get(d.home);
+        migrate(d.instance);
+        if (!d.enclosed && d.upgrades.isEmpty()) enclose(h, d);
         if (p.getWorld().getRegistryKey() != WORLD) {
             // Come back out on the doorstep, outside (never inside the town copy, or you'd walk straight back in).
             int ccx = (h[0] + h[2]) / 2, ccz = (h[1] + h[3]) / 2;
@@ -414,7 +645,7 @@ public final class Homes {
         ensureBorder(hw, p);
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_WOODEN_DOOR_CLOSE, SoundCategory.BLOCKS, 0.7f, 1f);
         p.sendMessage(Text.literal("Home").formatted(Formatting.GOLD, Formatting.BOLD)
-            .append(Text.literal("  ·  " + townOf(h) + "  ·  the front door leads back out").formatted(Formatting.GRAY)), true);
+            .append(Text.literal("  ·  " + townOf(h) + "  ·  any door takes you back out").formatted(Formatting.GRAY)), true);
     }
 
     /**
@@ -454,6 +685,14 @@ public final class Homes {
         // The home world is empty apart from the homes: anyone falling below a home's floor is
         // caught before the void and set back inside it (the house is rebuilt if it's missing).
         if (p.getWorld().getRegistryKey() == WORLD && ticks % 40 == 0) ensureBorder(p.getServerWorld(), null);
+        if (p.getWorld().getRegistryKey() == WORLD && ticks % 20 == 7) {
+            int old = oldInstanceAt(p.getBlockPos());
+            Deed od = old < 0 ? null : find(data.instances.get(old), old);
+            if (od != null) {
+                enter(p, od);
+                return;
+            }
+        }
         if (p.getWorld().getRegistryKey() == WORLD && p.getY() < FLOOR - 12) {
             int n = instanceAt(p.getBlockPos());
             Deed d = n < 0 ? null : find(data.instances.get(n), n);
@@ -658,8 +897,10 @@ public final class Homes {
         d.ownerName = name;
         data.owners.computeIfAbsent(stem, k -> new ArrayList<>()).add(d);
         data.instances.put(d.instance, stem);
+        data.moved.add(d.instance);
         save();
         build(AotRpg.PLACES.homes.get(home), d.instance);
+        enclose(AotRpg.PLACES.homes.get(home), d);
         return d;
     }
 
@@ -719,6 +960,8 @@ public final class Homes {
             return;
         }
         d.upgrades.add(u.name());
+        migrate(d.instance);
+        if (d.enclosed) unenclose(AotRpg.PLACES.homes.get(d.home), d);
         save();
         HomeYard.build(homeWorld(), u, originX(d.instance), FLOOR, originZ(d.instance), YARD, p);
         p.sendMessage(Text.literal(u.title + " built in your yard.").formatted(Formatting.GOLD), false);
