@@ -240,6 +240,11 @@ public final class TitanLevels {
         return behind && rel >= 0.45;
     }
 
+    /** Public view of napeSlashed, for Combat's damage scaling. */
+    public boolean napeHit(Entity titan) {
+        return napeSlashed(titan);
+    }
+
     /** A blade just struck this titan's nape (Danny's nape passes its hit on to the titan). */
     private boolean napeSlashed(Entity titan) {
         Swing s = swings.get(titan.getUuid());

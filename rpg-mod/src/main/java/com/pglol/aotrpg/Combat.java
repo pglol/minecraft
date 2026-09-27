@@ -43,7 +43,15 @@ public final class Combat {
                 if (Story.gentle(titan)) mult *= 0.3;
             }
         }
-        return Math.abs(mult - 1) < 1e-4 ? amount : (float) (amount * mult);
+        float out = Math.abs(mult - 1) < 1e-4 ? amount : (float) (amount * mult);
+        // Face, eyes, arms, legs: a player's cut always lands (so the titan flinches, staggers,
+        // is blinded) but never kills. Only the nape does that: a hit that would finish a titan
+        // anywhere else leaves it at 1 health instead of being swallowed as a nape strike.
+        if (source.getAttacker() instanceof ServerPlayerEntity && AotRpg.isTitan(entity) && TitanLevels.rootOf(entity) == entity
+            && !AotRpg.TITAN_LEVELS.napeHit(entity) && out >= entity.getHealth() && entity.getHealth() > 1) {
+            out = entity.getHealth() - 1;
+        }
+        return out;
     }
 
     public void register() {
