@@ -82,6 +82,11 @@ public final class LevelDat {
                 .putString("doTraderSpawning", "false")
                 .putString("doPatrolSpawning", "false")
                 .putString("spawnRadius", "0"))
+            // An untouched End fight, so the server doesn't log "key missing: DragonFight" on load.
+            .put("DragonFight", new Nbt.Compound()
+                .putByte("NeedsStateScanning", 1)
+                .putByte("DragonKilled", 0)
+                .putByte("PreviouslyKilled", 0))
             .put("DataPacks", new Nbt.Compound()
                 .put("Enabled", new Nbt.ListTag(Nbt.STRING).add("vanilla"))
                 .put("Disabled", new Nbt.ListTag(Nbt.STRING)))
