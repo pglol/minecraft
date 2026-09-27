@@ -79,6 +79,9 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.CosmeticsOf.ID, (payload, ctx) -> CosmeticFx.onWorn(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.SlashFx.ID, (payload, ctx) -> CosmeticFx.slash(payload));
         WorldRenderEvents.AFTER_ENTITIES.register(CosmeticFx::render);
+        WorldRenderEvents.AFTER_ENTITIES.register(DuelRing::render);
+        ClientTickEvents.END_CLIENT_TICK.register(DuelRing::tick);
+        ClientPlayNetworking.registerGlobalReceiver(Net.DuelRing.ID, (payload, ctx) -> DuelRing.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.BagView.ID, (payload, ctx) -> {
             java.util.Map<Integer, net.minecraft.item.ItemStack> m = new java.util.TreeMap<>();
             for (Net.BagEntry e : payload.items()) m.put(e.slot(), e.stack());
@@ -325,6 +328,7 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof WorldMapScreen m) m.refresh();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            DuelRing.clear();
             ClientState.reset();
             ClientState.sheaths.clear();
             MapData.reset();

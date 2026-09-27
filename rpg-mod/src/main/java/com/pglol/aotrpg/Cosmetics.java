@@ -115,7 +115,13 @@ public final class Cosmetics {
         new Def("kill_holy", "kill", "Ascension", false),
         new Def("kill_wings", "kill", "Wings Unfurled", false),
         new Def("block_petal", "block", "Blossom Ward", false),
-        new Def("clash_gold", "clash", "Gilded Clash", false));
+        new Def("clash_gold", "clash", "Gilded Clash", false),
+        // Mythic: crates only, on the rarest rolls.
+        new Def("back_wings_crimson", "back", "Crimson Seraph", false),
+        new Def("kill_rumbling", "kill", "The Rumbling", false),
+        new Def("body_coordinate", "body", "The Coordinate", false),
+        new Def("head_founder", "head", "Founder's Crown", false),
+        new Def("slash_moon", "slash", "Crimson Moon", false));
 
     private static final class Data {
         Set<String> allowlist = new LinkedHashSet<>();

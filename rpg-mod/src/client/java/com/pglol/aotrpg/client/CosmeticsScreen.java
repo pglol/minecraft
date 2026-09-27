@@ -204,7 +204,7 @@ public final class CosmeticsScreen extends Screen {
                 c.fill(xx, y + 1, xx + 1, y + 1 + bh, (a << 24) | 0xFFFFFF);
             }
         }
-        if (e.tier() == 3 && owned) {
+        if (e.tier() >= 3 && owned) {
             // Legendary: a few glints drift over the banner.
             for (int k = 0; k < 4; k++) {
                 float life = (t * 0.8f + k * 0.29f) % 1f;
@@ -213,6 +213,12 @@ public final class CosmeticsScreen extends Screen {
                 c.fill(gx, gy, gx + 1, gy + 1, (a << 24) | 0xFFFFFF);
                 c.fill(gx - 1, gy, gx + 2, gy + 1, ((a / 3) << 24) | 0xFFFFFF);
             }
+        }
+        if (e.tier() == 4) {
+            // Mythic: a pulsing red glow around the card.
+            int pa = (int) (70 + 60 * Math.sin(t * 3 + i));
+            c.drawBorder(x - 2, y - 2, cw + 4, CARD_H + 4, (pa << 24) | 0xE02A2A);
+            c.drawBorder(x - 3, y - 3, cw + 6, CARD_H + 6, ((pa / 2) << 24) | 0xE02A2A);
         }
         // Frame in the rarity colour (dim when locked, gold when worn).
         int frame = sel ? Ui.GOLD : owned ? tierCol : 0xFF3A3830;
@@ -282,7 +288,7 @@ public final class CosmeticsScreen extends Screen {
                         }
                     }
                     case "head_laurel" -> ellipse(c, cx, hy + 2, 13, 3, col, 1f);
-                    case "head_sun" -> {
+                    case "head_sun", "head_founder" -> {
                         for (int k = 0; k < 12; k++) {
                             double a = k * Math.PI / 6 + t * 0.4;
                             int len = k % 2 == 0 ? 20 : 14;

@@ -146,6 +146,7 @@ public final class Ui {
             case 2 -> 0xFF5E7C9E;
             case 3 -> 0xFF8A6A9E;
             case 4 -> 0xFFC89A48;
+            case 5 -> 0xFFC0302A;
             default -> 0xFF6A6258;
         };
     }

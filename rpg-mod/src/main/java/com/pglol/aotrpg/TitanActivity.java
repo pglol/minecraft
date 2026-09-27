@@ -42,6 +42,8 @@ public final class TitanActivity {
     private static final class Horde {
         final List<UUID> titans = new ArrayList<>();
         final Set<UUID> fighters = new HashSet<>();
+        /** Who has had the horde's intro (it plays as you ride up on it). */
+        final Set<UUID> seen = new HashSet<>();
         int x, z;
         long until;
         String where = "";
@@ -52,6 +54,7 @@ public final class TitanActivity {
     private int abX, abZ;
     private long abUntil;
     private final Set<UUID> abHunters = new HashSet<>();
+    private final Set<UUID> abSeen = new HashSet<>();
     private long nextHorde = System.currentTimeMillis() + 6 * 60_000L, nextAbnormal = System.currentTimeMillis() + 15 * 60_000L;
     private final Map<String, Long> caveReady = new HashMap<>();
     private MinecraftServer server;
@@ -161,6 +164,25 @@ public final class TitanActivity {
             return;
         }
         Horde h = horde;
+        // Riding up on the horde: the camera shows it off first.
+        List<ServerPlayerEntity> arriving = new ArrayList<>();
+        for (ServerPlayerEntity o : w.getPlayers()) {
+            if (!o.isSpectator() && !h.seen.contains(o.getUuid()) && o.squaredDistanceTo(h.x, o.getY(), h.z) < 80 * 80) {
+                h.seen.add(o.getUuid());
+                arriving.add(o);
+            }
+        }
+        if (!arriving.isEmpty()) {
+            List<Entity> show = new ArrayList<>();
+            for (UUID id : h.titans) {
+                Entity t = w.getEntity(id);
+                if (t != null && t.isAlive() && show.size() < 3) show.add(t);
+            }
+            if (!show.isEmpty()) {
+                net.minecraft.util.math.Vec3d at = show.get(0).getPos();
+                Cinematics.intro(arriving, at, show, "TITAN HORDE", h.titans.size() + " titans · " + h.where, 0xE04A3A);
+            }
+        }
         h.titans.removeIf(id -> {
             Entity e = w.getEntity(id);
             return e == null || !e.isAlive();
@@ -220,6 +242,7 @@ public final class TitanActivity {
             abZ = z;
             abUntil = now + 15 * 60_000L;
             abHunters.clear();
+            abSeen.clear();
             Net.Area area = AotRpg.PLACES.areaAt(x, z);
             for (ServerPlayerEntity o : w.getPlayers()) {
                 Notify.toast(o, Text.literal("Abnormal titan sighted").formatted(Formatting.DARK_PURPLE, Formatting.BOLD),
@@ -233,6 +256,14 @@ public final class TitanActivity {
         if (e != null && e.isAlive()) {
             abX = (int) e.getX();
             abZ = (int) e.getZ();
+            List<ServerPlayerEntity> arriving = new ArrayList<>();
+            for (ServerPlayerEntity o : w.getPlayers()) {
+                if (!o.isSpectator() && !abSeen.contains(o.getUuid()) && o.squaredDistanceTo(e) < 70 * 70) {
+                    abSeen.add(o.getUuid());
+                    arriving.add(o);
+                }
+            }
+            if (!arriving.isEmpty()) Cinematics.intro(arriving, e.getPos(), List.of(e), "ABNORMAL TITAN", "5 nape strikes · fine loot", 0x9A5CC8);
         }
         if ((e == null || !e.isAlive()) && w.isChunkLoaded(abX >> 4, abZ >> 4) || now > abUntil) {
             if (e != null && e.isAlive()) e.discard();

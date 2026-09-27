@@ -45,8 +45,8 @@ public final class CosmeticFx {
         }
     }
 
-    public static final String[] TIERS = {"Standard", "Rare", "Epic", "Legendary"};
-    public static final int[] TIER_COLORS = {0xFF8F8A7A, 0xFF5A9AE0, 0xFFB06AE0, 0xFFF2C14E};
+    public static final String[] TIERS = {"Standard", "Rare", "Epic", "Legendary", "Mythic"};
+    public static final int[] TIER_COLORS = {0xFF8F8A7A, 0xFF5A9AE0, 0xFFB06AE0, 0xFFF2C14E, 0xFFE02A2A};
 
     public record Category(String slot, String title, String blurb, List<Entry> entries) { }
 
@@ -72,7 +72,8 @@ public final class CosmeticFx {
             new Entry("slash_petal", "Blossom Cut", "Petals scatter from the arc.", 0xFFB0D0, 0xFF7AA8, 2),
             new Entry("slash_gold", "Gilded Edge", "A sweep of gold leaf and light.", 0xF2C14E, 0xFFF3B0, 2),
             new Entry("slash_lightning", "Thunderstrike", "Your blades crackle like a thunder spear.", 0xB9A8FF, 0xFFFFFF, 3),
-            new Entry("slash_rainbow", "Prism Edge", "Every colour, in one clean cut.", 0xFF6FD8, 0x6FFFD8, 3))),
+            new Entry("slash_rainbow", "Prism Edge", "Every colour, in one clean cut.", 0xFF6FD8, 0x6FFFD8, 3),
+            new Entry("slash_moon", "Crimson Moon", "A blood-red crescent that hangs in the air.", 0xE02A2A, 0x2A0A0A, 4))),
         new Category("body", "Body Particles", "Always drifting around you.", List.of(
             new Entry("body_none", "None", "Nothing at all.", 0x55524A, 0x55524A),
             new Entry("body_embers", "Embers", "Glowing embers rise from you.", 0xFF8A2A, 0xFFD24A),
@@ -84,7 +85,8 @@ public final class CosmeticFx {
             new Entry("body_leaves", "Giant Forest", "Leaves of the giant trees drift around you.", 0x5E8C4A, 0x9AC060),
             new Entry("body_gold", "Gilded", "Flecks of gold glitter as you move.", 0xF2C14E, 0xFFF3B0, 2),
             new Entry("body_steam", "Titan Steam", "You steam like a titan healing.", 0xF0F0F0, 0xD0D0D0, 2),
-            new Entry("body_spark", "Shifter Spark", "The crackle before a transformation, and now and then a flash.", 0xFFE08A, 0xB9A8FF, 3))),
+            new Entry("body_spark", "Shifter Spark", "The crackle before a transformation, and now and then a flash.", 0xFFE08A, 0xB9A8FF, 3),
+            new Entry("body_coordinate", "The Coordinate", "Threads of light rise from you, like the Paths.", 0x9FE3FF, 0xE02A2A, 4))),
         new Category("odm", "ODM Speed Trails", "When you fly fast on ODM gear (not on horseback).", List.of(
             new Entry("odm_wind", "Wind", "Streaks of air.", 0xEDEDED, 0xBFBFBF),
             new Entry("odm_ember", "Afterburn", "A trail of fire and smoke.", 0xFF8A2A, 0x6A6A6A),
@@ -112,7 +114,8 @@ public final class CosmeticFx {
             new Entry("head_embers", "Ember Ring", "A ring of fire above you.", 0xFF8A2A, 0xFFD24A),
             new Entry("head_laurel", "Laurel Wreath", "A victor's wreath of green leaves.", 0x5E9C4A, 0xB8D870, 2),
             new Entry("head_crows", "Crows of the Paths", "Dark birds circle over you.", 0x2A2A38, 0x5AD8FF, 3),
-            new Entry("head_sun", "Sunburst", "A turning crown of golden rays.", 0xFFD24A, 0xFFF6C0, 3))),
+            new Entry("head_sun", "Sunburst", "A turning crown of golden rays.", 0xFFD24A, 0xFFF6C0, 3),
+            new Entry("head_founder", "Founder's Crown", "A crown of red light, turning, with a burning heart.", 0xE02A2A, 0xFFD24A, 4))),
         new Category("back", "Back & Wings", "Worn on your back: cloaks, banners and wings.", List.of(
             new Entry("back_none", "None", "Nothing at all.", 0x55524A, 0x55524A),
             new Entry("back_cloak_green", "Survey Cloak", "The green cloak with the Wings of Freedom.", 0x2F4A2A, 0x9AB8D8),
@@ -122,7 +125,8 @@ public final class CosmeticFx {
             new Entry("back_wings_frost", "Frost Wings", "Wings of ice crystals.", 0x8FD8FF, 0xFFFFFF, 2),
             new Entry("back_wings_freedom", "Wings of Freedom", "Blue and white wings of light, spread wide.", 0x5A8FD8, 0xFFFFFF, 3),
             new Entry("back_wings_ember", "Phoenix Wings", "Wings of fire that trail embers.", 0xFF6A1A, 0xFFD24A, 3),
-            new Entry("back_wings_void", "Wings of Night", "Dark wings edged with violet.", 0x3A1A5A, 0xB06AE0, 3))),
+            new Entry("back_wings_void", "Wings of Night", "Dark wings edged with violet.", 0x3A1A5A, 0xB06AE0, 3),
+            new Entry("back_wings_crimson", "Crimson Seraph", "Huge blood-red wings that drip light.", 0xE02A2A, 0x1A0A0A, 4))),
         new Category("kill", "Kill Effects", "When you finish a titan, or win a fight.", List.of(
             new Entry("kill_steam", "Evaporate", "A burst of steam, as a titan should go.", 0xF0F0F0, 0xD0D0D0),
             new Entry("kill_ember", "Pyre", "A column of fire.", 0xFF8A2A, 0xFFD24A, 1),
@@ -131,7 +135,8 @@ public final class CosmeticFx {
             new Entry("kill_firework", "Salute", "Fireworks for a job well done.", 0xF2C14E, 0xE03A3A, 2),
             new Entry("kill_lightning", "Thunder Spear", "A thunder spear's flash and crack.", 0xB9A8FF, 0xFFFFFF, 3),
             new Entry("kill_holy", "Ascension", "A pillar of light rises to the sky.", 0xFFE08A, 0xFFFFFF, 3),
-            new Entry("kill_wings", "Wings Unfurled", "Great wings of light open over the body.", 0x5A8FD8, 0xFFFFFF, 3))),
+            new Entry("kill_wings", "Wings Unfurled", "Great wings of light open over the body.", 0x5A8FD8, 0xFFFFFF, 3),
+            new Entry("kill_rumbling", "The Rumbling", "The ground shakes, rings of blasts roll out, a column of steam climbs to the sky.", 0xE02A2A, 0xF0F0F0, 4))),
         new Category("block", "Block Effects", "When you block a hit with your guard.", List.of(
             new Entry("block_steel", "Steel Sparks", "Sparks off steel.", 0xF4F0E6, 0xFFD24A),
             new Entry("block_frost", "Ice Ward", "Ice bursts from the block.", 0x8FD8FF, 0xFFFFFF),
@@ -205,6 +210,8 @@ public final class CosmeticFx {
             case "steam" -> new ParticleEffect[] {ParticleTypes.CLOUD, ParticleTypes.WHITE_SMOKE, new DustParticleEffect(rgb(0xF0F0F0), 1.4f)};
             case "spark" -> new ParticleEffect[] {ParticleTypes.ELECTRIC_SPARK, ParticleTypes.ELECTRIC_SPARK, new DustParticleEffect(rgb(0xFFE08A), 1f)};
             case "leaves" -> new ParticleEffect[] {new DustParticleEffect(rgb(0x5E8C4A), 1.1f), new DustParticleEffect(rgb(0x9AC060), 0.9f), ParticleTypes.COMPOSTER};
+            case "coordinate" -> new ParticleEffect[] {new DustParticleEffect(rgb(0x9FE3FF), 1.2f), ParticleTypes.END_ROD, new DustParticleEffect(rgb(0xE02A2A), 0.8f)};
+            case "moon" -> new ParticleEffect[] {new DustParticleEffect(rgb(0xE02A2A), 1.7f), new DustParticleEffect(rgb(0x7A0A0A), 1.3f), ParticleTypes.CRIMSON_SPORE};
             case "gold" -> new ParticleEffect[] {new DustParticleEffect(rgb(0xF2C14E), 1f), ParticleTypes.WAX_ON, new DustParticleEffect(rgb(0xFFF3B0), 0.7f)};
             case "wind" -> new ParticleEffect[] {ParticleTypes.CLOUD, new DustParticleEffect(rgb(0xEDEDED), 0.8f)};
             default -> new ParticleEffect[] {ParticleTypes.CRIT, ParticleTypes.ELECTRIC_SPARK};
@@ -290,6 +297,30 @@ public final class CosmeticFx {
                 w.addImportantParticle(ParticleTypes.EXPLOSION_EMITTER, x, y, z, 0, 0, 0);
                 w.playSound(x, y, z, net.minecraft.sound.SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, net.minecraft.sound.SoundCategory.PLAYERS, 0.8f, 1.2f, false);
             }
+            case "kill_rumbling" -> {
+                // Rings of blasts rolling outwards, the ground heaving, a column of steam into the sky.
+                for (int ring = 1; ring <= 4; ring++) {
+                    double rr = ring * 2.5 * Math.max(1, r * 0.5);
+                    for (int k = 0; k < 10 + ring * 4; k++) {
+                        double a = k * Math.PI * 2 / (10 + ring * 4);
+                        w.addImportantParticle(k % 3 == 0 ? ParticleTypes.EXPLOSION : ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                            x + Math.cos(a) * rr, bottom + 0.3, z + Math.sin(a) * rr, Math.cos(a) * 0.05, 0.04, Math.sin(a) * 0.05);
+                        w.addImportantParticle(new DustParticleEffect(rgb(0xE02A2A), 2f), x + Math.cos(a) * rr, bottom + 0.5, z + Math.sin(a) * rr, 0, 0.1, 0);
+                    }
+                }
+                for (int i = 0; i < 120; i++) {
+                    w.addImportantParticle(i % 2 == 0 ? ParticleTypes.CLOUD : ParticleTypes.WHITE_SMOKE, x + (rnd.nextDouble() - 0.5) * 2,
+                        bottom + i * 0.25, z + (rnd.nextDouble() - 0.5) * 2, 0, 0.3, 0);
+                }
+                w.addImportantParticle(ParticleTypes.EXPLOSION_EMITTER, x, bottom + 1, z, 0, 0, 0);
+                w.playSound(x, y, z, net.minecraft.sound.SoundEvents.ENTITY_GENERIC_EXPLODE.value(), net.minecraft.sound.SoundCategory.PLAYERS, 1.2f, 0.5f, false);
+                w.playSound(x, y, z, net.minecraft.sound.SoundEvents.ENTITY_WARDEN_SONIC_BOOM, net.minecraft.sound.SoundCategory.PLAYERS, 0.8f, 0.6f, false);
+                if (mc.player != null && mc.player.squaredDistanceTo(x, y, z) < 40 * 40) {
+                    // The ground heaves: a jolt to the view.
+                    mc.player.setPitch(mc.player.getPitch() + (float) (rnd.nextDouble() * 4 - 2));
+                    mc.player.setYaw(mc.player.getYaw() + (float) (rnd.nextDouble() * 4 - 2));
+                }
+            }
             case "kill_holy" -> {
                 for (int i = 0; i < 160; i++) {
                     double a = i * 0.45, rr = r * 0.5 + (i % 7) * 0.05;
@@ -369,6 +400,10 @@ public final class CosmeticFx {
                         p.getX() + sx, p.getY() + 1.4, p.getZ() + sz, sx * 0.05, 0.06, sz * 0.05);
                 }
             }
+            if (back.equals("back_wings_crimson") && t % 2 == 0 && !me) {
+                mc.world.addParticle(new DustParticleEffect(rgb(Math.random() < 0.5 ? 0xE02A2A : 0x7A0A0A), 1.3f),
+                    p.getX() + (Math.random() - 0.5) * 2.2, p.getY() + 1.1 + Math.random() * 1.2, p.getZ() + (Math.random() - 0.5) * 2.2, 0, -0.04, 0);
+            }
             if (back.equals("back_wings_ember") && t % 3 == 0 && !me) {
                 mc.world.addParticle(Math.random() < 0.3 ? ParticleTypes.LAVA : ParticleTypes.SMALL_FLAME,
                     p.getX() + (Math.random() - 0.5) * 1.6, p.getY() + 1.2 + Math.random() * 0.8, p.getZ() + (Math.random() - 0.5) * 1.6, 0, -0.02, 0);
@@ -420,7 +455,8 @@ public final class CosmeticFx {
                     0.28f, 0.06f, 0xE0FFE08A);
                 case "head_crown" -> crown(vc.getBuffer(RenderLayer.getDebugQuads()), ms, bodyYaw(p, td));
                 case "head_laurel" -> laurel(vc.getBuffer(RenderLayer.getDebugQuads()), ms, bodyYaw(p, td));
-                case "head_sun" -> {
+                case "head_sun", "head_founder" -> {
+                    boolean founder = head.equals("head_founder");
                     // Rays turning slowly behind the head, like a halo seen from the front.
                     ms.push();
                     ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw(p, td)));
@@ -433,9 +469,11 @@ public final class CosmeticFx {
                         float len = k % 2 == 0 ? 0.62f : 0.45f, wd = 0.05f;
                         float cx0 = (float) Math.cos(a), sy0 = (float) Math.sin(a), px0 = (float) -Math.sin(a), py0 = (float) Math.cos(a);
                         quad2(glow, m, cx0 * 0.28f + px0 * wd, sy0 * 0.28f + py0 * wd, 0, cx0 * 0.28f - px0 * wd, sy0 * 0.28f - py0 * wd, 0,
-                            cx0 * len, sy0 * len, 0, cx0 * len, sy0 * len, 0, k % 2 == 0 ? 0xC0FFD24A : 0x90FFF6C0);
+                            cx0 * len, sy0 * len, 0, cx0 * len, sy0 * len, 0,
+                            founder ? (k % 2 == 0 ? 0xD0E02A2A : 0x90FFD24A) : (k % 2 == 0 ? 0xC0FFD24A : 0x90FFF6C0));
                     }
-                    ring(glow, m, 0, 0.3f, 0.04f, 0xC0FFE08A);
+                    ring(glow, m, 0, 0.3f, 0.04f, founder ? 0xE0E02A2A : 0xC0FFE08A);
+                    if (founder) orb(glow, m, 0.08f + (float) Math.sin(time * 4) * 0.02f, 0xF0FF3A2A);
                     ms.pop();
                 }
                 case "head_crows" -> {
@@ -529,6 +567,7 @@ public final class CosmeticFx {
                 case "back_wings_ember" -> { a = 0xE0FF6A1A; b = 0x40FFD24A; }
                 case "back_wings_void" -> { a = 0xF03A1A5A; b = 0x60B06AE0; }
                 case "back_wings_frost" -> { a = 0xD08FD8FF; b = 0x50FFFFFF; }
+                case "back_wings_crimson" -> { a = 0xF0E02A2A; b = 0x80400000; }
                 default -> { a = 0xD05A8FD8; b = 0x50FFFFFF; }
             }
             float flap = (float) Math.sin(time * (speed > 0.3 ? 5 : 2.2)) * 0.18f;

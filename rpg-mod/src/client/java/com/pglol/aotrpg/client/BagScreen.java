@@ -364,7 +364,7 @@ public final class BagScreen extends Screen {
         c.drawText(textRenderer, TABS[category(s)], x + 8, y + 28, Ui.MUTED, false);
         if (Gear.isGear(s)) {
             Ui.text(c, Ui.title("Level " + level(s)), x + 8, y + 42, 1.1f, GearUi.locked(s) ? 0xFFE07A6A : Ui.CREAM, false);
-            String grade = new String[] {"Common", "Uncommon", "Rare", "Epic", "Legendary"}[Math.max(0, Math.min(4, GearUi.rarity(s)))];
+            String grade = new String[] {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"}[Math.max(0, Math.min(5, GearUi.rarity(s)))];
             c.drawText(textRenderer, grade, x + 8, y + 58, brighten(tone), false);
         } else if (s.getCount() > 1) {
             Ui.text(c, Ui.title("× " + s.getCount()), x + 8, y + 42, 1.1f, Ui.CREAM, false);

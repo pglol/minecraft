@@ -9,7 +9,7 @@ import net.minecraft.item.ItemStack;
 public final class GearUi {
     private GearUi() {}
 
-    /** Rarity ordinal (0 Common .. 4 Legendary), or -1 for items that are not gear. */
+    /** Rarity ordinal (0 Common .. 4 Legendary, 5 Mythic), or -1 for items that are not gear. */
     public static int rarity(ItemStack s) {
         if (s == null || s.isEmpty()) return -1;
         NbtComponent c = s.get(DataComponentTypes.CUSTOM_DATA);
@@ -21,6 +21,7 @@ public final class GearUi {
             case "RARE" -> 2;
             case "EPIC" -> 3;
             case "LEGENDARY" -> 4;
+            case "MYTHIC" -> 5;
             default -> 0;
         };
     }
@@ -31,6 +32,7 @@ public final class GearUi {
             case 2 -> 0x5599FF;
             case 3 -> 0xC055FF;
             case 4 -> 0xFFB020;
+            case 5 -> 0xFF2A2A;
             default -> 0xDDDDDD;
         };
     }

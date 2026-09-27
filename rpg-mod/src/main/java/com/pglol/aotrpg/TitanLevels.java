@@ -277,6 +277,7 @@ public final class TitanLevels {
                 case "RARE" -> 2;
                 case "EPIC" -> 3;
                 case "LEGENDARY" -> 4;
+                case "MYTHIC" -> 5;
                 default -> 0;
             };
             s += g.getInt("ilvl") * 0.5 + rarity * 3 + g.getInt("up") * 2 + Gear.power(w) * 20;

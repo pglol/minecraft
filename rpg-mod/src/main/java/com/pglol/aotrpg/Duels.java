@@ -21,11 +21,12 @@ import java.util.UUID;
  * Duels: challenge another player (/duel name), they accept, and an intro shows you both off, VS
  * card and all, with anyone nearby watching. A three-count, then fight. The blow that would kill
  * ends it instead: nobody dies or loses anything, the winner's kill effect plays over the loser.
- * Three minutes and it's a draw; walking off (or logging out) forfeits.
+ * A glowing ring (seen only by the two fighting) holds them in until it's over. Three minutes and
+ * it's a draw; logging out forfeits.
  */
 public final class Duels {
     private static final long CHALLENGE_MS = 30_000, LIMIT_MS = 180_000;
-    private static final double RANGE = 40;
+    private static final double RANGE = 40, RING = 16;
 
     private static final class Duel {
         UUID a, b;
@@ -95,6 +96,7 @@ public final class Duels {
         d.a = p.getUuid();
         d.b = t.getUuid();
         d.center = p.getPos().add(t.getPos()).multiply(0.5);
+        ring(d, true);
         List<ServerPlayerEntity> viewers = Cinematics.near(p.getServerWorld(), d.center, 32);
         if (!viewers.contains(p)) viewers.add(0, p);
         if (!viewers.contains(t)) viewers.add(t);
@@ -142,8 +144,38 @@ public final class Duels {
         return d.fighting;
     }
 
+    /** Shows (or takes down) the ring for the two fighters only. */
+    private void ring(Duel d, boolean on) {
+        Net.DuelRing msg = new Net.DuelRing(d.center.x, d.center.y, d.center.z, on ? (float) RING : 0f);
+        for (UUID id : List.of(d.a, d.b)) {
+            ServerPlayerEntity p = server.getPlayerManager().getPlayer(id);
+            if (p != null && ServerPlayNetworking.canSend(p, Net.DuelRing.ID)) ServerPlayNetworking.send(p, msg);
+        }
+    }
+
+    /** Keeps a fighter inside the ring: anyone at the wall is thrown back in. */
+    private void contain(Duel d, ServerPlayerEntity p) {
+        double dx = p.getX() - d.center.x, dz = p.getZ() - d.center.z, dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= RING - 0.4) return;
+        double k = (RING - 0.8) / Math.max(0.01, dist);
+        p.stopRiding();
+        p.networkHandler.requestTeleport(d.center.x + dx * k, p.getY(), d.center.z + dz * k, p.getYaw(), p.getPitch());
+        p.setVelocity(-dx / dist * 0.6, 0.25, -dz / dist * 0.6);
+        p.velocityModified = true;
+        p.fallDistance = 0;
+        p.playSoundToPlayer(SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 1f, 0.6f);
+        p.sendMessage(Text.literal("The ring holds until the duel is over").formatted(Formatting.GOLD), true);
+    }
+
     public void tick(int ticks) {
-        if (ticks % 10 != 0 || duels.isEmpty()) return;
+        if (duels.isEmpty()) return;
+        for (Duel d : duels) {
+            for (UUID id : List.of(d.a, d.b)) {
+                ServerPlayerEntity p = server.getPlayerManager().getPlayer(id);
+                if (p != null) contain(d, p);
+            }
+        }
+        if (ticks % 10 != 0) return;
         long now = System.currentTimeMillis();
         for (Duel d : new ArrayList<>(duels)) {
             ServerPlayerEntity a = server.getPlayerManager().getPlayer(d.a), b = server.getPlayerManager().getPlayer(d.b);
@@ -151,8 +183,7 @@ public final class Duels {
                 finish(d, a == null ? d.b : d.a);
                 continue;
             }
-            if (a.squaredDistanceTo(d.center) > 64 * 64 || a.getServerWorld() != b.getServerWorld()) finish(d, d.b);
-            else if (b.squaredDistanceTo(d.center) > 64 * 64) finish(d, d.a);
+            if (a.getServerWorld() != b.getServerWorld()) finish(d, null);
             else if (now > d.endsAt) finish(d, null);
         }
     }
@@ -160,6 +191,7 @@ public final class Duels {
     /** Ends a duel: winner (null for a draw). */
     private void finish(Duel d, UUID winner) {
         if (!duels.remove(d)) return;
+        ring(d, false);
         ServerPlayerEntity a = server.getPlayerManager().getPlayer(d.a), b = server.getPlayerManager().getPlayer(d.b);
         if (winner == null) {
             for (ServerPlayerEntity p : new ServerPlayerEntity[] {a, b}) {

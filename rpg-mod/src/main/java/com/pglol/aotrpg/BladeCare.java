@@ -47,6 +47,7 @@ public final class BladeCare {
             case "RARE" -> 0.35;
             case "EPIC" -> 0.5;
             case "LEGENDARY" -> 0.65;
+            case "MYTHIC" -> 0.75;
             default -> 0;
         };
         if (g.getBoolean("tempered")) t += 0.25;

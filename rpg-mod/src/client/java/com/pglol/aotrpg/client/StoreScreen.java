@@ -23,8 +23,8 @@ public final class StoreScreen extends Screen {
     private static Net.CrateOpened reveal;
     private static long revealAt;
     private static boolean fanfare;
-    private static final int[] RARITY = {0xFFB0B0B0, 0xFF5BD35B, 0xFF5A9AE0, 0xFFB06AE0, 0xFFF2C14E};
-    private static final String[] RARITY_NAME = {"Common", "Uncommon", "Rare", "Epic", "Legendary"};
+    private static final int[] RARITY = {0xFFB0B0B0, 0xFF5BD35B, 0xFF5A9AE0, 0xFFB06AE0, 0xFFF2C14E, 0xFFE02A2A};
+    private static final String[] RARITY_NAME = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"};
     private final Screen parent;
 
     public StoreScreen(Screen parent) {
@@ -162,6 +162,20 @@ public final class StoreScreen extends Screen {
             c.fill(cx + 1, cy + 1, cx + 3, cy + 43, 0xFF000000 | o.color());
             Ui.text(c, Text.literal(fit(o.title(), cw - 12, 0.85f)), cx + 7, cy + 5, 0.85f, 0xFF000000 | o.color(), false);
             Ui.text(c, Text.literal(o.kind()), cx + 7, cy + 16, 0.6f, Ui.MUTED, false);
+            // A colour preview: the cosmetic's two colours, or the title in its own colour on a plaque.
+            CosmeticFx.Entry ce = o.id().startsWith("cosmetic:") ? CosmeticFx.entry(o.id().substring(9)) : null;
+            if (ce != null) {
+                for (int k = 0; k < 26; k++) {
+                    float u = k / 25f;
+                    int col = blend(ce.color(), ce.color2(), (float) (0.5 + 0.5 * Math.sin(u * 3 + (Util.getMeasuringTimeMs() % 100000) / 700.0)));
+                    c.fill(cx + 7 + k, cy + 27, cx + 8 + k, cy + 40, 0xFF000000 | col);
+                }
+                c.drawBorder(cx + 6, cy + 26, 28, 15, CosmeticFx.TIER_COLORS[ce.tier()]);
+            } else {
+                c.fill(cx + 6, cy + 27, cx + 40, cy + 40, 0xFF1A1612);
+                c.drawBorder(cx + 6, cy + 27, 34, 13, 0xFF000000 | o.color());
+                Ui.text(c, Text.literal("Aa"), cx + 23, cy + 30, 0.7f, 0xFF000000 | o.color(), true);
+            }
         }
         int ct = cratesTop();
         Ui.text(c, Text.literal("CRATES"), x + 12, ct, 0.8f, Ui.CREAM, false);
@@ -191,6 +205,87 @@ public final class StoreScreen extends Screen {
         if (revealing()) drawReveal(c, t);
     }
 
+    @Override
+    public void render(DrawContext c, int mouseX, int mouseY, float delta) {
+        super.render(c, mouseX, mouseY, delta);
+        if (view == null || revealing()) return;
+        int i = crateAt(mouseX, mouseY);
+        if (i >= 0) preview(c, view.crates().get(i), mouseX, mouseY);
+    }
+
+    private int crateAt(double mx, double my) {
+        if (view == null) return -1;
+        int w = panelW(), x = left(), cols = cols(), gap = 6, cw = (w - 20 - gap * (cols - 1)) / cols, ct = cratesTop() + 14;
+        for (int i = 0; i < view.crates().size(); i++) {
+            int cx = x + 10 + (i % cols) * (cw + gap), cy = ct + (i / cols) * (64 + gap);
+            // The card, above its buttons.
+            if (mx >= cx && mx < cx + cw && my >= cy && my < cy + 64 - 20) return i;
+        }
+        return -1;
+    }
+
+    private static int blend(int a, int b, float u) {
+        int r = (int) (((a >> 16) & 255) * (1 - u) + ((b >> 16) & 255) * u);
+        int g = (int) (((a >> 8) & 255) * (1 - u) + ((b >> 8) & 255) * u);
+        int bl = (int) ((a & 255) * (1 - u) + (b & 255) * u);
+        return (r << 16) | (g << 8) | bl;
+    }
+
+    /** What's inside a crate: every roll with its rarity colour, icon, chance, and colour swatches of the cosmetics. */
+    private void preview(DrawContext c, Net.StoreCrate k, int mx, int my) {
+        float t = (Util.getMeasuringTimeMs() % 100000) / 1000f;
+        int pw = 250, rowH = 20;
+        int rows = k.loot().size();
+        int ph = 34 + rows * rowH + 8;
+        int px = mx + 12 + pw > width - 4 ? mx - 12 - pw : mx + 12, py = Math.max(4, Math.min(my - 10, height - ph - 4));
+        c.getMatrices().push();
+        c.getMatrices().translate(0, 0, 400);
+        c.fill(px, py, px + pw, py + ph, 0xF0100E0C);
+        c.drawBorder(px, py, pw, ph, crateTone(k.id()));
+        Ui.text(c, Ui.heading(k.title()), px + 8, py + 6, 0.95f, crateTone(k.id()), false);
+        Ui.text(c, Text.literal("WHAT'S INSIDE  ·  odds per opening"), px + 8, py + 19, 0.55f, Ui.MUTED, false);
+        int y = py + 30;
+        for (String line : k.loot()) {
+            String[] f = line.split("\\|", 4);
+            if (f.length < 4) continue;
+            int rar = Math.max(0, Math.min(5, Integer.parseInt(f[0])));
+            int permille = Integer.parseInt(f[1]);
+            int col = RARITY[rar];
+            if (rar == 5) {
+                // Mythic lines pulse.
+                int pa = (int) (60 + 50 * Math.sin(t * 4));
+                c.fill(px + 3, y - 1, px + pw - 3, y + rowH - 3, (pa << 24) | 0xE02A2A);
+            }
+            c.fill(px + 4, y, px + 7, y + rowH - 4, col);
+            c.fill(px + 10, y, px + 26, y + 16, 0xFF1A1612);
+            c.drawBorder(px + 10, y, 16, 16, col);
+            c.drawItem(iconStack(f[2]), px + 10, y);
+            Ui.text(c, Text.literal(fit(f[3], pw - 110, 0.62f)), px + 30, y + 1, 0.62f, col, false);
+            Ui.text(c, Text.literal(RARITY_NAME[rar]), px + 30, y + 9, 0.5f, Ui.MUTED, false);
+            // The chance, and a bar for it (a log scale, so the tiny ones still show).
+            String pct = permille >= 10 ? (permille / 10.0 + "%").replace(".0%", "%") : (permille / 10.0) + "%";
+            Ui.text(c, Text.literal(pct), px + pw - 8 - Ui.font().getWidth(pct) * 0.65f, y + 1, 0.65f, Ui.CREAM, false);
+            int bw = (int) (60 * Math.log10(1 + permille) / 3);
+            c.fill(px + pw - 70, y + 11, px + pw - 10, y + 13, 0x40FFFFFF);
+            c.fill(px + pw - 70, y + 11, px + pw - 70 + bw, y + 13, col);
+            // Cosmetic lines: a strip of what could come out, in their colours.
+            if (f[2].endsWith("amethyst_shard") || f[2].endsWith("nether_star")) {
+                boolean myth = rar == 5;
+                int sx = px + 30 + (int) (Ui.font().getWidth(RARITY_NAME[rar]) * 0.5f) + 6, n = 0;
+                for (CosmeticFx.Category cat : CosmeticFx.CATEGORIES) {
+                    for (CosmeticFx.Entry e : cat.entries()) {
+                        if (e.tier() == 0 || (e.tier() == 4) != myth || n >= 12) continue;
+                        c.fill(sx + n * 6, y + 9, sx + n * 6 + 3, y + 13, 0xFF000000 | e.color());
+                        c.fill(sx + n * 6 + 3, y + 9, sx + n * 6 + 5, y + 13, 0xFF000000 | e.color2());
+                        n++;
+                    }
+                }
+            }
+            y += rowH;
+        }
+        c.getMatrices().pop();
+    }
+
     private static int crateTone(String id) {
         return switch (id) {
             case "armory" -> 0xFF5A9AE0;
@@ -206,9 +301,17 @@ public final class StoreScreen extends Screen {
     private void drawReveal(DrawContext c, float t) {
         long ms = Util.getMeasuringTimeMs() - revealAt;
         int cx = width / 2, cy = height / 2;
-        int rar = Math.max(0, Math.min(4, reveal.rarity()));
+        int rar = Math.max(0, Math.min(5, reveal.rarity()));
+        boolean mythic = rar == 5;
         int col = RARITY[rar];
         c.fill(0, 0, width, height, 0xC0000000);
+        if (mythic && ms > 900 && ms < 1300) {
+            // Mythic: a red flash, and the whole thing jolts.
+            int fa = (int) (200 * (1 - (ms - 900) / 400f));
+            c.fill(0, 0, width, height, (fa << 24) | 0xE02A2A);
+            cx += (int) (Math.sin(ms * 0.2) * 5);
+            cy += (int) (Math.cos(ms * 0.27) * 4);
+        }
         if (ms < 900) {
             // Shaking, harder towards the burst.
             float k = ms / 900f;
@@ -227,8 +330,8 @@ public final class StoreScreen extends Screen {
         }
         float k = Math.min(1, (ms - 900) / 500f);
         // Rays turning behind the prize.
-        for (int i = 0; i < 16; i++) {
-            double a = i * Math.PI / 8 + t * 0.6;
+        for (int i = 0; i < (mythic ? 28 : 16); i++) {
+            double a = i * Math.PI / (mythic ? 14 : 8) + t * (mythic ? -1.1 : 0.6);
             int len = (int) ((60 + rar * 18) * k);
             for (int d = 16; d < len; d += 3) {
                 int alpha = (int) (160 * (1 - d / (float) len));
@@ -237,7 +340,7 @@ public final class StoreScreen extends Screen {
             }
         }
         // Burst of sparks outward.
-        for (int i = 0; i < 40; i++) {
+        for (int i = 0; i < (mythic ? 90 : 40); i++) {
             double a = i * 2.39;
             float p = Math.min(1, (ms - 900) / 1200f);
             int d = (int) (p * (80 + (i % 7) * 12));
@@ -258,7 +361,11 @@ public final class StoreScreen extends Screen {
         Ui.text(c, Text.literal("from the " + reveal.crate() + "  ·  click to continue"), cx, cy + 64, 0.65f, Ui.MUTED, true);
         if (!fanfare && client != null && client.player != null && rar >= 3) {
             fanfare = true;
-            client.player.playSound(rar == 4 ? SoundEvents.UI_TOAST_CHALLENGE_COMPLETE : SoundEvents.ENTITY_PLAYER_LEVELUP, 0.7f, 1f);
+            client.player.playSound(rar >= 4 ? SoundEvents.UI_TOAST_CHALLENGE_COMPLETE : SoundEvents.ENTITY_PLAYER_LEVELUP, 0.7f, 1f);
+            if (mythic) {
+                client.player.playSound(SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, 0.6f, 0.8f);
+                client.player.playSound(SoundEvents.ENTITY_WITHER_SPAWN, 0.4f, 1.4f);
+            }
         }
     }
 

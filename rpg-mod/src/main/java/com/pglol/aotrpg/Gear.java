@@ -42,7 +42,9 @@ public final class Gear {
         UNCOMMON("Uncommon", Formatting.GREEN, 1, 25),
         RARE("Rare", Formatting.BLUE, 2, 10),
         EPIC("Epic", Formatting.DARK_PURPLE, 3, 4),
-        LEGENDARY("Legendary", Formatting.GOLD, 4, 1);
+        LEGENDARY("Legendary", Formatting.GOLD, 4, 1),
+        /** Above legendary, in red: never drops by chance, only from the rarest crate rolls and rewards. */
+        MYTHIC("Mythic", Formatting.RED, 5, 0);
 
         public final String title;
         public final Formatting color;
@@ -98,7 +100,8 @@ public final class Gear {
         {"Sturdy", "Honed", "Garrison"},
         {"Survey", "Veteran's", "Tempered"},
         {"Commander's", "Ackerman", "Wall-forged"},
-        {"Coordinate", "Founder's", "Paths-touched"}};
+        {"Coordinate", "Founder's", "Paths-touched"},
+        {"Ymir's", "Crimson", "Rumbling"}};
 
     public static boolean isGear(ItemStack s) {
         NbtComponent c = s.get(DataComponentTypes.CUSTOM_DATA);
@@ -171,9 +174,11 @@ public final class Gear {
                 case RARE -> 0.20f;
                 case EPIC -> 0.30f;
                 case LEGENDARY -> 0.45f;
+                case MYTHIC -> 0.7f;
                 default -> 0f;
             };
             if (r.nextFloat() < wind) g.putDouble("secondwind", switch (rarity) {
+                case MYTHIC -> 0.35;
                 case LEGENDARY -> 0.25;
                 case EPIC -> 0.18;
                 case RARE -> 0.12;
@@ -186,6 +191,7 @@ public final class Gear {
             case RARE -> 0.08f;
             case EPIC -> 0.15f;
             case LEGENDARY -> 0.30f;
+            case MYTHIC -> 0.5f;
             default -> 0f;
         };
         if (r.nextFloat() < chance) g.putBoolean("twin", true);
@@ -195,6 +201,7 @@ public final class Gear {
             case RARE -> 0.20f;
             case EPIC -> 0.30f;
             case LEGENDARY -> 0.45f;
+            case MYTHIC -> 0.7f;
             default -> 0f;
         };
         if (r.nextFloat() < temper) g.putBoolean("tempered", true);
@@ -344,7 +351,7 @@ public final class Gear {
         s.set(DataComponentTypes.RARITY, switch (rarity) {
             case COMMON, UNCOMMON -> net.minecraft.util.Rarity.COMMON;
             case RARE -> net.minecraft.util.Rarity.RARE;
-            case EPIC, LEGENDARY -> net.minecraft.util.Rarity.EPIC;
+            case EPIC, LEGENDARY, MYTHIC -> net.minecraft.util.Rarity.EPIC;
         });
         // Rare and up shimmer in the inventory; dropped ones glow in their colour.
         if (rarity.ordinal() >= 2) s.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);

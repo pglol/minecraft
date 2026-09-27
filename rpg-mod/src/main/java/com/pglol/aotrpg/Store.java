@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -43,9 +44,18 @@ public final class Store {
         new Title("st_garrison", "Garrison Drinker", 0xC06050, 0),
         new Title("st_mp", "Interior Police", 0x5A9A70, 1),
         new Title("st_titan_whisperer", "Titan Whisperer", 0xA070C0, 3),
-        new Title("st_paths", "Walker of the Paths", 0x80C8E8, 4));
+        new Title("st_paths", "Walker of the Paths", 0x80C8E8, 4),
+        // Mythic (red): crates only, and only on the rarest rolls.
+        new Title("st_rumbling", "The Rumbling", 0xE02A2A, 5),
+        new Title("st_strongest", "Humanity's Strongest", 0xE02A2A, 5),
+        new Title("st_ymir", "Ymir's Chosen", 0xE02A2A, 5));
 
-    private static final long[] TITLE_PRICE = {60, 120, 250, 450, 800};
+    /** Mythic cosmetics: never in the weekly shop, only from a crate's rarest roll. */
+    public static final java.util.Set<String> MYTHIC_COSMETICS = java.util.Set.of(
+        "back_wings_crimson", "kill_rumbling", "body_coordinate", "head_founder", "slash_moon");
+
+    private static final long[] TITLE_PRICE = {60, 120, 250, 450, 800, 2000};
+    public static final String[] RARITY_NAMES = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"};
     private static final long COSMETIC_PRICE = 220;
 
     public static Title title(String id) {
@@ -69,8 +79,8 @@ public final class Store {
     /** This week's offers: "title:id" and "cosmetic:id", six of them, the same for everyone. */
     public static List<String> offers() {
         List<String> pool = new ArrayList<>();
-        for (Title t : TITLES) pool.add("title:" + t.id());
-        for (Cosmetics.Def d : Cosmetics.ALL) if (!d.free()) pool.add("cosmetic:" + d.id());
+        for (Title t : TITLES) if (t.rarity() < 5) pool.add("title:" + t.id());
+        for (Cosmetics.Def d : Cosmetics.ALL) if (!d.free() && !MYTHIC_COSMETICS.contains(d.id())) pool.add("cosmetic:" + d.id());
         Random r = new Random(week() * 7919L + 17);
         java.util.Collections.shuffle(pool, r);
         return pool.subList(0, Math.min(6, pool.size()));
@@ -104,21 +114,77 @@ public final class Store {
         new Crate("officer", "Officer's Crate", "Rare and epic gear, cosmetics and titles, some Gold back.", 14000, 160),
         new Crate("commander", "Commander's Crate", "Epic and legendary gear, the rarest titles, cosmetics.", 30000, 350));
 
+    /**
+     * One line of a crate's table: its chance in thousandths, what it is ("gear:rare", "marks:800-2500",
+     * "gold:40-130", "supplies", "cosmetic", "cosmetic_mythic", "title:0-1"), its rarity (for colour), and how
+     * it reads in the preview.
+     */
+    public record Loot(int permille, String what, int rarity, String label, String icon) { }
+
+    public static final Map<String, List<Loot>> TABLES = new java.util.LinkedHashMap<>();
+    static {
+        TABLES.put("supply", List.of(
+            gear(320, 0), gear(280, 1), gear(120, 2),
+            new Loot(120, "marks:800-2500", 1, "800 to 2,500 Marks", "minecraft:gold_nugget"),
+            new Loot(130, "supplies", 1, "Blades, gas, ice burst or thunder spears", "minecraft:iron_ingot"),
+            new Loot(20, "cosmetic", 3, "A cosmetic you don't own", "minecraft:amethyst_shard"),
+            new Loot(10, "title:0-1", 1, "A common or uncommon title", "minecraft:name_tag")));
+        TABLES.put("armory", List.of(gear(500, 2), gear(380, 3), gear(115, 4), gear(5, 5)));
+        TABLES.put("wardrobe", List.of(
+            new Loot(995, "cosmetic", 3, "A cosmetic you don't own: wings, cloaks, trails, kill effects...", "minecraft:amethyst_shard"),
+            new Loot(5, "cosmetic_mythic", 5, "A Mythic cosmetic", "minecraft:nether_star")));
+        TABLES.put("honors", List.of(title(400, 0), title(300, 1), title(180, 2), title(90, 3), title(25, 4), title(5, 5)));
+        TABLES.put("officer", List.of(gear(280, 2), gear(120, 3),
+            new Loot(240, "cosmetic", 3, "A cosmetic you don't own", "minecraft:amethyst_shard"),
+            new Loot(238, "title:0-3", 3, "A title, common to epic", "minecraft:name_tag"),
+            new Loot(120, "gold:40-130", 2, "40 to 130 Gold back", "minecraft:gold_ingot"),
+            gear(2, 5)));
+        TABLES.put("commander", List.of(gear(300, 3), gear(115, 4),
+            new Loot(240, "cosmetic", 3, "A cosmetic you don't own", "minecraft:amethyst_shard"),
+            new Loot(285, "title:2-4", 4, "A title, rare to legendary", "minecraft:name_tag"),
+            new Loot(45, "gold:200-450", 2, "200 to 450 Gold back", "minecraft:gold_ingot"),
+            gear(7, 5), title(4, 5),
+            new Loot(4, "cosmetic_mythic", 5, "A Mythic cosmetic", "minecraft:nether_star")));
+    }
+
+    private static Loot gear(int permille, int rarity) {
+        String r = RARITY_NAMES[rarity];
+        return new Loot(permille, "gear:" + r.toLowerCase(java.util.Locale.ROOT), rarity, r + " gear", rarity == 5 ? "minecraft:netherite_sword"
+            : rarity >= 3 ? "minecraft:diamond_sword" : "minecraft:iron_sword");
+    }
+
+    private static Loot title(int permille, int rarity) {
+        return new Loot(permille, "title:" + rarity + "-" + rarity, rarity, RARITY_NAMES[rarity] + " title", "minecraft:name_tag");
+    }
+
     /** What a crate gives: a reward spec (see Rewards), rolled on the player's own luck. */
     private String roll(ServerPlayerEntity p, String crate) {
         Random r = new Random(p.getRandom().nextLong());
-        int x = r.nextInt(100);
-        return switch (crate) {
-            case "supply" -> x < 32 ? "gear:common" : x < 60 ? "gear:uncommon" : x < 72 ? "gear:rare" : x < 84 ? "marks:" + (800 + r.nextInt(1700))
-                : x < 97 ? supplies(r) : x < 99 ? "cosmetic:" + randomCosmetic(p, r) : "title:" + randomTitle(p, r, 0, 1);
-            case "armory" -> x < 50 ? "gear:rare" : x < 88 ? "gear:epic" : "gear:legendary";
-            case "wardrobe" -> "cosmetic:" + randomCosmetic(p, r);
-            case "honors" -> "title:" + randomTitle(p, r, x < 40 ? 0 : x < 70 ? 1 : x < 88 ? 2 : x < 97 ? 3 : 4, x < 40 ? 0 : x < 70 ? 1 : x < 88 ? 2 : x < 97 ? 3 : 4);
-            case "officer" -> x < 28 ? "gear:rare" : x < 40 ? "gear:epic" : x < 64 ? "cosmetic:" + randomCosmetic(p, r)
-                : x < 88 ? "title:" + randomTitle(p, r, 0, 3) : "gold:" + (40 + r.nextInt(90));
-            default -> x < 30 ? "gear:epic" : x < 42 ? "gear:legendary" : x < 66 ? "cosmetic:" + randomCosmetic(p, r)
-                : x < 95 ? "title:" + randomTitle(p, r, 2, 4) : "gold:" + (200 + r.nextInt(250));
-        };
+        List<Loot> table = TABLES.getOrDefault(crate, TABLES.get("supply"));
+        int x = r.nextInt(1000);
+        Loot pick = table.get(0);
+        for (Loot l : table) {
+            if (x < l.permille()) {
+                pick = l;
+                break;
+            }
+            x -= l.permille();
+        }
+        String w = pick.what();
+        if (w.equals("supplies")) return supplies(r);
+        if (w.equals("cosmetic")) return "cosmetic:" + randomCosmetic(p, r, false);
+        if (w.equals("cosmetic_mythic")) return "cosmetic:" + randomCosmetic(p, r, true);
+        String[] kv = w.split(":", 2);
+        if (kv[0].equals("title")) {
+            String[] lh = kv[1].split("-");
+            return "title:" + randomTitle(p, r, Integer.parseInt(lh[0]), Integer.parseInt(lh[1]));
+        }
+        if ((kv[0].equals("marks") || kv[0].equals("gold")) && kv[1].contains("-")) {
+            String[] lh = kv[1].split("-");
+            int lo = Integer.parseInt(lh[0]), hi = Integer.parseInt(lh[1]);
+            return kv[0] + ":" + (lo + r.nextInt(hi - lo + 1));
+        }
+        return w;
     }
 
     private static String supplies(Random r) {
@@ -130,10 +196,12 @@ public final class Store {
         return "marks:600";
     }
 
-    private static String randomCosmetic(ServerPlayerEntity p, Random r) {
+    private static String randomCosmetic(ServerPlayerEntity p, Random r, boolean mythic) {
         List<String> left = new ArrayList<>();
         var have = AotRpg.COSMETICS.unlocked(p);
-        for (Cosmetics.Def d : Cosmetics.ALL) if (!d.free() && !have.contains(d.id())) left.add(d.id());
+        for (Cosmetics.Def d : Cosmetics.ALL) {
+            if (!d.free() && !have.contains(d.id()) && MYTHIC_COSMETICS.contains(d.id()) == mythic) left.add(d.id());
+        }
         return left.isEmpty() ? "" : left.get(r.nextInt(left.size()));
     }
 
@@ -201,13 +269,14 @@ public final class Store {
                 case "rare" -> 2;
                 case "epic" -> 3;
                 case "legendary" -> 4;
+                case "mythic" -> 5;
                 default -> 0;
             };
             case "title" -> {
                 Title t = title(v);
                 yield t == null ? 1 : t.rarity();
             }
-            case "cosmetic" -> 3;
+            case "cosmetic" -> MYTHIC_COSMETICS.contains(v) ? 5 : 3;
             case "gold" -> 2;
             default -> 0;
         };
@@ -241,11 +310,16 @@ public final class Store {
             Title t = a[0].equals("title") ? title(a[1]) : null;
             String name = t != null ? t.text() : Rewards.describe(o);
             int color = t != null ? t.color() : 0xB08CD8;
-            String kind = t != null ? new String[] {"Common", "Uncommon", "Rare", "Epic", "Legendary"}[t.rarity()] + " title" : "Cosmetic";
+            String kind = t != null ? RARITY_NAMES[t.rarity()] + " title" : "Cosmetic";
             list.add(new Net.StoreOffer(o, name, kind, color, price(o), owns(p, o)));
         }
         List<Net.StoreCrate> crates = new ArrayList<>();
-        for (Crate c : CRATES) crates.add(new Net.StoreCrate(c.id(), c.title(), c.desc(), c.marks(), c.gold()));
+        for (Crate c : CRATES) {
+            // The preview: every line of the table, "rarity|permille|icon|label".
+            List<String> loot = new ArrayList<>();
+            for (Loot l : TABLES.getOrDefault(c.id(), List.of())) loot.add(l.rarity() + "|" + l.permille() + "|" + l.icon() + "|" + l.label());
+            crates.add(new Net.StoreCrate(c.id(), c.title(), c.desc(), c.marks(), c.gold(), loot));
+        }
         ServerPlayNetworking.send(p, new Net.StoreView(list, crates, secondsLeft(), open));
         AotRpg.WALLET.sync(p);
     }

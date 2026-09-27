@@ -1065,7 +1065,16 @@ public final class Net {
     // ---- the store (test run)
 
     public record StoreOffer(String id, String title, String kind, int color, long price, boolean owned) { }
-    public record StoreCrate(String id, String title, String desc, long marks, long gold) { }
+    public record StoreCrate(String id, String title, String desc, long marks, long gold, java.util.List<String> loot) { }
+
+    /** Server -> client: the duel ring around (x, y, z), radius r (0 takes it down). Only the fighters get it. */
+    public record DuelRing(double x, double y, double z, float r) implements CustomPayload {
+        public static final Id<DuelRing> ID = Net.id("duel_ring");
+        public static final PacketCodec<RegistryByteBuf, DuelRing> CODEC = PacketCodec.of((v, b) -> {
+            b.writeDouble(v.x); b.writeDouble(v.y); b.writeDouble(v.z); b.writeFloat(v.r);
+        }, b -> new DuelRing(b.readDouble(), b.readDouble(), b.readDouble(), b.readFloat()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
 
     /** Server -> client: a crate was opened (the reveal plays on screen). Rarity 0 common .. 4 legendary. */
     public record CrateOpened(String crate, String got, String icon, int rarity) implements CustomPayload {
@@ -1083,7 +1092,8 @@ public final class Net {
             b.writeVarInt(v.offers.size());
             for (StoreOffer o : v.offers) { b.writeString(o.id()); b.writeString(o.title()); b.writeString(o.kind()); b.writeInt(o.color()); b.writeVarLong(o.price()); b.writeBoolean(o.owned()); }
             b.writeVarInt(v.crates.size());
-            for (StoreCrate c : v.crates) { b.writeString(c.id()); b.writeString(c.title()); b.writeString(c.desc()); b.writeVarLong(c.marks()); b.writeVarLong(c.gold()); }
+            for (StoreCrate c : v.crates) { b.writeString(c.id()); b.writeString(c.title()); b.writeString(c.desc()); b.writeVarLong(c.marks()); b.writeVarLong(c.gold());
+                b.writeVarInt(c.loot().size()); for (String l : c.loot()) b.writeString(l); }
             b.writeVarLong(v.secondsLeft); b.writeBoolean(v.open);
         }, b -> {
             int n = Math.min(b.readVarInt(), 64);
@@ -1091,7 +1101,14 @@ public final class Net {
             for (int i = 0; i < n; i++) o.add(new StoreOffer(b.readString(), b.readString(), b.readString(), b.readInt(), b.readVarLong(), b.readBoolean()));
             int m = Math.min(b.readVarInt(), 16);
             java.util.List<StoreCrate> c = new java.util.ArrayList<>();
-            for (int i = 0; i < m; i++) c.add(new StoreCrate(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readVarLong()));
+            for (int i = 0; i < m; i++) {
+                String cid = b.readString(), ct = b.readString(), cd = b.readString();
+                long cm = b.readVarLong(), cg = b.readVarLong();
+                int k = Math.min(b.readVarInt(), 32);
+                java.util.List<String> loot = new java.util.ArrayList<>();
+                for (int j = 0; j < k; j++) loot.add(b.readString());
+                c.add(new StoreCrate(cid, ct, cd, cm, cg, loot));
+            }
             return new StoreView(o, c, b.readVarLong(), b.readBoolean());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -1802,6 +1819,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(Chatter.ID, Chatter.CODEC);
         PayloadTypeRegistry.playS2C().register(StoreView.ID, StoreView.CODEC);
         PayloadTypeRegistry.playS2C().register(CrateOpened.ID, CrateOpened.CODEC);
+        PayloadTypeRegistry.playS2C().register(DuelRing.ID, DuelRing.CODEC);
         PayloadTypeRegistry.playC2S().register(StoreAction.ID, StoreAction.CODEC);
         PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
         PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);
