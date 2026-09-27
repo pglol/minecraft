@@ -131,7 +131,7 @@ final class Scatter {
                 else if (c.forest > 0.5) kind = Poi.Kind.CAMPSITE;
                 else if (pick < 0.45) kind = Poi.Kind.SHRINE;
                 else continue;
-                int r = kind == Poi.Kind.TITAN_CAVE ? 62 : kind.reach + 10;
+                int r = kind == Poi.Kind.TITAN_CAVE ? 80 : kind.reach + 10;
                 if (kind == Poi.Kind.TITAN_CAVE ? !caveOk(w, roads, occ, lakes, x, z)
                                                 : !poiOk(w, roads, occ, lakes, x, z, r, kind == Poi.Kind.SHIPWRECK)) continue;
                 String name;

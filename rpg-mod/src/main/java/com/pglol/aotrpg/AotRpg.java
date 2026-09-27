@@ -78,6 +78,7 @@ public final class AotRpg implements ModInitializer {
     public static final Grab GRAB = new Grab();
     public static final OdmBoost ODM = new OdmBoost();
     public static final Townsfolk FOLK = new Townsfolk();
+    public static final CaveCarver CAVES = new CaveCarver();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -511,6 +512,7 @@ public final class AotRpg implements ModInitializer {
             SOCIAL.open(server);
             FURNITURE.open(server);
             HORSES.open(server);
+            CAVES.open(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PROFILES.saveAll();
@@ -647,6 +649,7 @@ public final class AotRpg implements ModInitializer {
         FOG.tick(ticks);
         WITNESS.tick(ticks);
         FOLK.tick(server.getOverworld(), ticks);
+        CAVES.tick(server.getOverworld());
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
@@ -657,6 +660,7 @@ public final class AotRpg implements ModInitializer {
             if (PROFILES.get(p.getUuid()).created) ROLES.tick(p, ticks);
             GRAB.tick(p, ticks);
             ODM.tick(p, ticks);
+            HOMES.tick(p, ticks);
             FURNITURE.tick(p, ticks);
             GUARD_FIGHT.tick(p, ticks);
             ABILITIES.tick(p);

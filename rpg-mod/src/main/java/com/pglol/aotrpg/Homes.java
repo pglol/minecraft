@@ -75,6 +75,8 @@ public final class Homes {
         public String ownerName = "";
         /** Staircases repaired (homes bought before the fix). */
         public boolean stairsFixed;
+        /** Blocks over the stairs cleared, so you can walk up without hitting your head. */
+        public boolean headroomFixed;
         /** Bandit raids: days played since the last one, and when. */
         public int daysPlayed;
         public long lastDay, lastRaid;
@@ -115,6 +117,8 @@ public final class Homes {
         Map<Integer, PlotDeed> plots = new HashMap<>();
         List<Offer> offers = new ArrayList<>();
         List<String> recent = new ArrayList<>();
+        /** Town houses (the shared ones in the world) whose stairs have been repaired. */
+        java.util.Set<Integer> fixedWorld = new java.util.HashSet<>();
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -138,6 +142,7 @@ public final class Homes {
         if (data.plots == null) data.plots = new HashMap<>();
         if (data.offers == null) data.offers = new ArrayList<>();
         if (data.recent == null) data.recent = new ArrayList<>();
+        if (data.fixedWorld == null) data.fixedWorld = new java.util.HashSet<>();
         index();
     }
 
@@ -345,8 +350,25 @@ public final class Homes {
             p.sendMessage(Text.literal("The home world is not loaded on this server.").formatted(Formatting.RED), true);
             return;
         }
-        if (p.getWorld().getRegistryKey() != WORLD) returnTo.put(p.getUuid(), new double[] {p.getX(), p.getY(), p.getZ(), p.getYaw()});
         int[] h = AotRpg.PLACES.homes.get(d.home);
+        if (p.getWorld().getRegistryKey() != WORLD) {
+            // Come back out on the doorstep, outside (never inside the town copy, or you'd walk straight back in).
+            int ccx = (h[0] + h[2]) / 2, ccz = (h[1] + h[3]) / 2;
+            int ox = Integer.signum(h[6] - ccx), oz = Integer.signum(h[7] - ccz);
+            if (Math.abs(ccx - h[6]) < Math.abs(ccz - h[7])) ox = 0;
+            else oz = 0;
+            returnTo.put(p.getUuid(), new double[] {h[6] + 0.5 + ox * 1.5, h[4] + 1, h[7] + 0.5 + oz * 1.5, p.getYaw() + 180});
+        }
+        if (!d.headroomFixed) {
+            d.headroomFixed = true;
+            WorldCare.quiet(true);
+            try {
+                HouseFix.headroom(hw, map(h, d.instance, h[0] - 1, h[4], h[1] - 1), map(h, d.instance, h[2] + 1, h[5] + 3, h[3] + 1));
+            } finally {
+                WorldCare.quiet(false);
+            }
+            save();
+        }
         if (!d.stairsFixed) {
             d.stairsFixed = true;
             WorldCare.quiet(true);
@@ -369,7 +391,60 @@ public final class Homes {
             .append(Text.literal("  ·  " + townOf(h) + "  ·  the front door leads back out").formatted(Formatting.GRAY)), true);
     }
 
+    /** When each player last came out of their home (so stepping out doesn't pull them straight back in). */
+    private final Map<UUID, Long> leftAt = new HashMap<>();
+
+    /**
+     * Twice a second: an owner stepping into their house in town (through the door or any way in)
+     * goes into their own private copy of it. Every few seconds, town houses near players have their
+     * staircases repaired once.
+     */
+    public void tick(ServerPlayerEntity p, int ticks) {
+        if (ticks % 10 != 0 || p.getWorld().getRegistryKey() != World.OVERWORLD || !AotRpg.PROFILES.get(p.getUuid()).created) return;
+        BlockPos pos = p.getBlockPos();
+        int home = homeAt(pos);
+        if (home >= 0 && !p.hasVehicle() && p.getWorld().getTime() - leftAt.getOrDefault(p.getUuid(), -1000L) > 60) {
+            int[] h = AotRpg.PLACES.homes.get(home);
+            boolean inside = pos.getX() >= h[0] && pos.getX() <= h[2] && pos.getZ() >= h[1] && pos.getZ() <= h[3] && pos.getY() >= h[4];
+            Deed own = deed(p, home);
+            if (inside && own != null) {
+                enter(p, own);
+                return;
+            }
+        }
+        if (ticks % 100 == 0) fixNear(p);
+    }
+
+    private void fixNear(ServerPlayerEntity p) {
+        ServerWorld w = p.getServerWorld();
+        int pcx = p.getBlockX() >> 4, pcz = p.getBlockZ() >> 4;
+        boolean changed = false;
+        WorldCare.quiet(true);
+        try {
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    List<Integer> list = byChunk.get(((long) (pcx + dx) << 32) ^ ((pcz + dz) & 0xFFFFFFFFL));
+                    if (list == null) continue;
+                    for (int i : list) {
+                        if (data.fixedWorld.contains(i)) continue;
+                        int[] h = AotRpg.PLACES.homes.get(i);
+                        if (!w.isChunkLoaded(h[0] >> 4, h[1] >> 4) || !w.isChunkLoaded(h[2] >> 4, h[3] >> 4)) continue;
+                        BlockPos a = new BlockPos(h[0] - 1, h[4], h[1] - 1), b = new BlockPos(h[2] + 1, h[5] + 3, h[3] + 1);
+                        HouseFix.stairs(w, a, b);
+                        HouseFix.headroom(w, a, b);
+                        data.fixedWorld.add(i);
+                        changed = true;
+                    }
+                }
+            }
+        } finally {
+            WorldCare.quiet(false);
+        }
+        if (changed) save();
+    }
+
     private void leave(ServerPlayerEntity p, int[] h) {
+        leftAt.put(p.getUuid(), server.getOverworld().getTime());
         ServerWorld ow = server.getOverworld();
         double[] r = returnTo.remove(p.getUuid());
         if (r != null) p.teleport(ow, r[0], r[1], r[2], (float) r[3], 0);

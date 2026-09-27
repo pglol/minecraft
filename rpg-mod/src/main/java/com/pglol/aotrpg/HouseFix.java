@@ -15,6 +15,32 @@ import net.minecraft.util.math.Direction;
 final class HouseFix {
     private HouseFix() {}
 
+    /**
+     * Clears whatever solid block sits right over a step (usually the upper floor, laid over the
+     * flight with no opening), so you can walk up the stairs without hitting your head.
+     */
+    static int headroom(ServerWorld w, BlockPos a, BlockPos b) {
+        int n = 0;
+        for (BlockPos pos : BlockPos.iterate(a, b)) {
+            BlockState s = w.getBlockState(pos);
+            if (!(s.getBlock() instanceof StairsBlock) || s.get(StairsBlock.HALF) != BlockHalf.BOTTOM) continue;
+            // Part of a flight (another step below-behind or above-ahead), not a lone decorative stair.
+            Direction f = s.get(StairsBlock.FACING);
+            boolean flight = w.getBlockState(pos.offset(f.getOpposite()).down()).getBlock() instanceof StairsBlock
+                || w.getBlockState(pos.offset(f).up()).getBlock() instanceof StairsBlock;
+            if (!flight) continue;
+            for (int k = 1; k <= 2; k++) {
+                BlockPos up = pos.up(k).toImmutable();
+                BlockState u = w.getBlockState(up);
+                if (u.isAir() || u.getBlock() instanceof StairsBlock || w.getBlockEntity(up) != null) continue;
+                if (!u.isFullCube(w, up) && u.getCollisionShape(w, up).isEmpty()) continue;
+                w.setBlockState(up, net.minecraft.block.Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                n++;
+            }
+        }
+        return n;
+    }
+
     static int stairs(ServerWorld w, BlockPos a, BlockPos b) {
         int n = 0;
         for (BlockPos pos : BlockPos.iterate(a, b)) {

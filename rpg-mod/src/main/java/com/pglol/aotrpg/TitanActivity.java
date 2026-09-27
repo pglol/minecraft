@@ -235,6 +235,8 @@ public final class TitanActivity {
                 if (!p.isSpectator() && p.squaredDistanceTo(a.x(), a.y(), a.z()) < 80 * 80) near = true;
             }
             if (!near || !w.isChunkLoaded(a.x() >> 4, a.z() >> 4)) continue;
+            // The hall is made big enough for titans first (once per cave).
+            if (!AotRpg.CAVES.ready(w, a)) continue;
             Box box = new Box(a.x() - 48, a.y() - 30, a.z() - 48, a.x() + 48, a.y() + 40, a.z() + 48);
             int have = w.getEntitiesByClass(LivingEntity.class, box, e -> e.isAlive() && AotRpg.isTitan(e)).size();
             int want = 3 + w.getRandom().nextInt(2);

@@ -16,7 +16,7 @@ import com.pglol.aotworld.core.Pad;
  */
 public final class Poi extends Feature {
     public enum Kind {
-        TITAN_CAVE(95), EXPEDITION_CAMP(42), WATCHTOWER(8), CAMPSITE(14), SHRINE(10), HERMIT(14), SHIPWRECK(12), REST_STOP(7);
+        TITAN_CAVE(120), EXPEDITION_CAMP(42), WATCHTOWER(8), CAMPSITE(14), SHRINE(10), HERMIT(14), SHIPWRECK(12), REST_STOP(7);
 
         public final int reach;
 
@@ -138,35 +138,36 @@ public final class Poi extends Feature {
     // ---- Titan cave ----------------------------------------------------------------------
 
     private void buildCave(AotWorld world) {
-        double cy = y - 24;
+        // Deep enough for a hall titans can stand up in.
+        double cy = y - 34;
         double ax = Math.atan2(dirZ, dirX);
         chambers = new double[3][];
-        chambers[0] = new double[] {x, cy, z, 26, 15, 21};
+        chambers[0] = new double[] {x, cy, z, 38, 26, 32};
         double[][] side = new double[2][];
         for (int s = 0; s < 2; s++) {
             double a = ax + Math.PI + (s == 0 ? 1.9 : -1.9);
-            double sx = x + Math.cos(a) * 38, sz = z + Math.sin(a) * 38;
-            chambers[s + 1] = new double[] {sx, cy - 2, sz, 13, 10, 13};
+            double sx = x + Math.cos(a) * 52, sz = z + Math.sin(a) * 52;
+            chambers[s + 1] = new double[] {sx, cy - 2, sz, 20, 16, 20};
             side[s] = chambers[s + 1];
         }
         // Entrance: from the hillside down into the main hall.
         double drop = 0, run = 0;
         double ex = x, ez = z, ey = y;
-        for (int d = 40; d <= 90; d += 5) {
+        for (int d = 50; d <= 110; d += 5) {
             ex = x + dirX * d / Math.hypot(dirX, dirZ);
             ez = z + dirZ * d / Math.hypot(dirX, dirZ);
             ey = world.terrain.naturalHeight(ex, ez);
-            run = d - 18;
+            run = d - 30;
             drop = ey - cy;
             if (drop <= run * 0.8) break;
         }
-        double ix = x + dirX * 18 / Math.hypot(dirX, dirZ), iz = z + dirZ * 18 / Math.hypot(dirX, dirZ);
+        double ix = x + dirX * 30 / Math.hypot(dirX, dirZ), iz = z + dirZ * 30 / Math.hypot(dirX, dirZ);
         tunnels = new double[][] {
-            {ex, ey + 3, ez, ix, cy, iz, 6.5},
-            {x, cy - 1, z, side[0][0], side[0][1], side[0][2], 4.5},
-            {x, cy - 1, z, side[1][0], side[1][1], side[1][2], 4.5},
+            {ex, ey + 3, ez, ix, cy, iz, 10},
+            {x, cy - 1, z, side[0][0], side[0][1], side[0][2], 7.5},
+            {x, cy - 1, z, side[1][0], side[1][1], side[1][2], 7.5},
         };
-        double backX = x - dirX * 17 / Math.hypot(dirX, dirZ), backZ = z - dirZ * 17 / Math.hypot(dirX, dirZ);
+        double backX = x - dirX * 28 / Math.hypot(dirX, dirZ), backZ = z - dirZ * 28 / Math.hypot(dirX, dirZ);
         chests = new int[][] {
             {(int) Math.round(backX), (int) cy, (int) Math.round(backZ), 2},
             {(int) Math.round(side[0][0]), (int) side[0][1], (int) Math.round(side[0][2]), 0},
