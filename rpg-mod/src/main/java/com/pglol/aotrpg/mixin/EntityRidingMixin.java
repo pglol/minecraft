@@ -14,5 +14,8 @@ public abstract class EntityRidingMixin {
     @Inject(method = "startRiding(Lnet/minecraft/entity/Entity;Z)Z", at = @At("HEAD"), cancellable = true, require = 0)
     private void aotrpg$grace(Entity vehicle, boolean force, CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof ServerPlayerEntity p && AotRpg.GRAB != null && AotRpg.GRAB.immune(p, vehicle)) cir.setReturnValue(false);
+        // Titans don't pick up townsfolk (they can't die, so they'd only dangle), nor anyone downed.
+        if ((Object) this instanceof net.minecraft.entity.passive.MerchantEntity && AotRpg.isTitan(vehicle)) cir.setReturnValue(false);
+        if ((Object) this instanceof ServerPlayerEntity p && AotRpg.DOWNED != null && AotRpg.DOWNED.isDowned(p) && AotRpg.isTitan(vehicle)) cir.setReturnValue(false);
     }
 }

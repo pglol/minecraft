@@ -177,7 +177,6 @@ public class CharacterScreen extends Screen {
         int cy = statY(Stat.values().length) + 6;
         Ui.divider(c, left + 10, cy - 4, w - 20);
         c.drawTextWithShadow(textRenderer, Ui.heading("Crafts"), left + 10, cy, Ui.GOLD);
-        c.drawTextWithShadow(textRenderer, Text.literal("raised by practice"), left + 60, cy, Ui.MUTED);
         String[] names = {"Smithing", "Fishing", "Cooking"};
         ItemStack[] icons = {new ItemStack(net.minecraft.item.Items.ANVIL), new ItemStack(net.minecraft.item.Items.FISHING_ROD), new ItemStack(net.minecraft.item.Items.CAMPFIRE)};
         String[] perks = {"better forge odds and quality", "shorter waits, better catches", "stronger meals, extra portions"};
@@ -189,19 +188,6 @@ public class CharacterScreen extends Screen {
             c.drawItem(icons[i], x, y);
             c.drawTextWithShadow(textRenderer, Ui.heading(names[i] + " " + lv), x + 20, y, Ui.CREAM);
             Ui.bar(c, x + 20, y + 11, colW - 30, 3, (crafts[i] % 1000) / 1000f, Ui.XP);
-            Ui.text(c, Text.literal(perks[i]), x + 20, y + 16, 0.55f, Ui.MUTED, false);
-        }
-        // Derived values from the live player
-        var pl = MinecraftClient.getInstance().player;
-        if (pl != null) {
-            int y = top + h - 16;
-            String line = String.format(Locale.ROOT, "Health %d   Armor %d   Damage %.1f   Speed %.0f%%   Stamina %d",
-                Math.round(pl.getMaxHealth()), pl.getArmor(),
-                pl.getAttributeValue(EntityAttributes.GENERIC_ATTACK_DAMAGE),
-                pl.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) / 0.1 * 100,
-                Math.round(ClientState.maxStamina));
-            c.fill(left + 1, y - 4, left + w - 1, top + h - 1, 0x40000000);
-            c.drawCenteredTextWithShadow(textRenderer, Text.literal(line), left + w / 2, y, Ui.MUTED);
         }
     }
 
@@ -216,9 +202,12 @@ public class CharacterScreen extends Screen {
     }
 
     private void drawSkills(DrawContext c, Net.Sync p) {
+        // Skill points: their own badge along the bottom, clear of the tree headers.
         String pts = p.skillPoints() + " skill point" + (p.skillPoints() == 1 ? "" : "s");
-        c.drawTextWithShadow(textRenderer, Text.literal(pts), left + w - 10 - textRenderer.getWidth(pts), top + 9,
-            p.skillPoints() > 0 ? Ui.GOLD : Ui.MUTED);
+        int pw = textRenderer.getWidth(pts) + 16, px = left + w - 10 - pw, py = top + h - 28;
+        c.fill(px, py, px + pw, py + 20, 0xC0100E0C);
+        c.drawBorder(px, py, pw, 20, p.skillPoints() > 0 ? Ui.GOLD : 0xFF3A3830);
+        c.drawTextWithShadow(textRenderer, Text.literal(pts), px + 8, py + 6, p.skillPoints() > 0 ? Ui.GOLD : Ui.MUTED);
         if (tab == 1) c.drawTextWithShadow(textRenderer, Ui.heading("Skills"), left + 10, top + 9, Ui.GOLD);
         int colW = w / columns();
         for (Skill.Branch b : Skill.Branch.values()) {
@@ -226,10 +215,7 @@ public class CharacterScreen extends Screen {
             int bc = column(b);
             int cx = left + bc * colW + colW / 2;
             Text t = Ui.heading(b.title);
-            if (tab == 2) {
-                String sub = b.cls.role + (p.role() == b.cls ? " · your role" : "");
-                Ui.text(c, Text.literal(sub), cx, top + 29, 0.6f, p.role() == b.cls ? Ui.GOLD : Ui.MUTED, true);
-            } else {
+            if (tab != 2) {
                 c.drawTextWithShadow(textRenderer, t, cx - textRenderer.getWidth(t) / 2, top + 20, b.color);
             }
             if (bc > 0) c.fill(left + bc * colW, top + 18, left + bc * colW + 1, top + h - 30, 0x307A6139);
@@ -253,13 +239,6 @@ public class CharacterScreen extends Screen {
                 String sp = spent + " pts";
                 c.drawTextWithShadow(textRenderer, Text.literal(sp), cx - textRenderer.getWidth(sp) / 2, top + h - 38, b.color);
             }
-        }
-        if (tab == 2) {
-            com.pglol.aotrpg.PlayerClass r = p.role();
-            String line = r.blurb + "  Z " + r.abilities[0] + " · X " + r.abilities[1] + " · V " + r.abilities[2];
-            Ui.text(c, Text.literal("Every tree is open to you. Your role decides your Z / X / V abilities and what others see."),
-                left + w / 2f, top + h - 44, 0.55f, Ui.MUTED, true);
-            Ui.text(c, Text.literal(line), left + w / 2f, top + h - 36, 0.55f, r.color, true);
         }
     }
 

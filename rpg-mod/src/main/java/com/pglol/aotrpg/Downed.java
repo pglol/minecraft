@@ -99,6 +99,7 @@ public final class Downed {
         p.stopRiding();
         p.clearStatusEffects();
         p.setInvulnerable(true);
+        untargetable(p, true);
         ServerWorld w = p.getServerWorld();
         w.playSound(null, p.getBlockPos(), SoundEvents.ENTITY_PLAYER_HURT, SoundCategory.PLAYERS, 1f, 0.6f);
         w.spawnParticles(new DustParticleEffect(new Vector3f(0.6f, 0.02f, 0.02f), 1.6f), p.getX(), p.getY() + 0.5, p.getZ(), 30, 0.4, 0.3, 0.4, 0.02);
@@ -109,6 +110,13 @@ public final class Downed {
             Notify.toast(o, Text.literal(AotRpg.PROFILES.get(p.getUuid()).name + " is down!").formatted(Formatting.RED),
                 Text.literal("Crouch beside them for 4 seconds to revive"), 0xC0463A, "minecraft:golden_apple", "downed:" + p.getUuidAsString());
         }
+    }
+
+    /** While downed, nothing targets you (mobs skip players flagged invulnerable, as in creative). */
+    private static void untargetable(ServerPlayerEntity p, boolean on) {
+        if (p.isCreative() || p.isSpectator()) return;
+        p.getAbilities().invulnerable = on;
+        p.sendAbilitiesUpdate();
     }
 
     /** Every tick: bleeding, crawling, the revive, and the view of it for everyone near. */
@@ -204,6 +212,7 @@ public final class Downed {
     /** Brought back: a burst of golden light, some health, a moment's protection. */
     private void revive(ServerPlayerEntity p, ServerPlayerEntity by) {
         p.setInvulnerable(false);
+        untargetable(p, false);
         p.setPose(EntityPose.STANDING);
         p.clearStatusEffects();
         p.setHealth(Math.max(4, p.getMaxHealth() * 0.35f));
@@ -236,6 +245,7 @@ public final class Downed {
 
     private void bleedOut(ServerPlayerEntity p, State s) {
         p.setInvulnerable(false);
+        untargetable(p, false);
         finishing = true;
         try {
             DamageSource src = s.cause != null ? s.cause : p.getDamageSources().generic();
@@ -287,6 +297,7 @@ public final class Downed {
         State s = downed.remove(p.getUuid());
         if (s != null) {
             p.setInvulnerable(false);
+        untargetable(p, false);
             finishing = true;
             try {
                 p.setHealth(0);

@@ -72,9 +72,23 @@ public final class TitanGuard {
         boolean walls = (rose != 0 || !zones.isEmpty()) && !breach(server);
         ServerWorld w = server.getOverworld();
         List<Entity> gone = new ArrayList<>();
+        List<Entity> dangling = new ArrayList<>();
         for (Entity e : w.iterateEntities()) {
+            // Townsfolk caught by a titan (or left hanging in the air): set back down on the street.
+            if (e instanceof net.minecraft.entity.passive.MerchantEntity v
+                && (v.getVehicle() != null && AotRpg.isTitan(v.getVehicle()) || !v.isOnGround() && !v.isTouchingWater() && v.getVelocity().y > -0.05 && v.fallDistance < 0.5
+                    && w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, v.getBlockX(), v.getBlockZ()) < v.getY() - 2)) {
+                dangling.add(v);
+            }
             // Homes stay safe even during a breach (their raids are separate).
             if (wanderingTitan(e) && ((walls && protectedAt(e.getX(), e.getZ())) || AotRpg.RAIDS.guarded(e.getX(), e.getZ()))) gone.add(e);
+        }
+        for (Entity v : dangling) {
+            v.stopRiding();
+            int y = w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, v.getBlockX(), v.getBlockZ());
+            v.refreshPositionAndAngles(v.getX(), y, v.getZ(), v.getYaw(), 0);
+            v.setVelocity(net.minecraft.util.math.Vec3d.ZERO);
+            v.fallDistance = 0;
         }
         for (Entity e : gone) {
             w.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + e.getHeight() / 2, e.getZ(), 20,
