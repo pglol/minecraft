@@ -1,0 +1,977 @@
+{
+ "missions": [
+  {
+   "id": "cc",
+   "title": "Enlistment",
+   "chapter": "The 104th Training Corps, 847",
+   "thread": "people",
+   "purpose": [
+    "character"
+   ],
+   "place": "cadet-training-camp",
+   "level": [
+    1,
+    99
+   ],
+   "startAt": [
+    -18,
+    10
+   ],
+   "steps": [
+    {
+     "objective": "Create your character",
+     "goal": {
+      "flag": "enlisted"
+     },
+     "spawn": [
+      {
+       "actor": "eren",
+       "at": [
+        -17,
+        12
+       ]
+      },
+      {
+       "actor": "armin",
+       "at": [
+        -19,
+        12
+       ]
+      },
+      {
+       "actor": "connie",
+       "at": [
+        -16,
+        8
+       ]
+      },
+      {
+       "actor": "sasha",
+       "at": [
+        -20,
+        8
+       ]
+      },
+      {
+       "actor": "marco",
+       "at": [
+        -15,
+        10
+       ]
+      },
+      {
+       "actor": "jean",
+       "at": [
+        -21,
+        10
+       ]
+      }
+     ],
+     "start": [
+      {
+       "cutscene": {
+        "fade": true,
+        "shots": [
+         {
+          "from": [
+           -23,
+           6
+          ],
+          "h": 2.4,
+          "to": [
+           -13,
+           6
+          ],
+          "h2": 2.2,
+          "look": [
+           -18,
+           12
+          ],
+          "lh": 1.0,
+          "lookTo": [
+           -16,
+           12
+          ],
+          "lh2": 1.0,
+          "seconds": 45
+         },
+         {
+          "from": [
+           -13,
+           14
+          ],
+          "h": 2.0,
+          "to": [
+           -22,
+           13
+          ],
+          "h2": 2.3,
+          "look": [
+           -18,
+           8
+          ],
+          "lh": 1.2,
+          "lookTo": [
+           -20,
+           8
+          ],
+          "lh2": 1.2,
+          "seconds": 45
+         },
+         {
+          "from": [
+           -20,
+           10
+          ],
+          "h": 3.2,
+          "to": [
+           -16,
+           10
+          ],
+          "h2": 3.0,
+          "look": [
+           -17,
+           12
+          ],
+          "lh": 0.8,
+          "lookTo": [
+           -19,
+           8
+          ],
+          "lh2": 0.8,
+          "seconds": 40
+         },
+         {
+          "from": [
+           -12,
+           9
+          ],
+          "h": 1.8,
+          "to": [
+           -12,
+           11
+          ],
+          "h2": 1.8,
+          "look": [
+           -24,
+           10
+          ],
+          "lh": 1.5,
+          "lookTo": [
+           -24,
+           10
+          ],
+          "lh2": 1.5,
+          "seconds": 40
+         },
+         {
+          "from": [
+           -23,
+           6
+          ],
+          "h": 2.4,
+          "to": [
+           -13,
+           6
+          ],
+          "h2": 2.2,
+          "look": [
+           -18,
+           12
+          ],
+          "lh": 1.0,
+          "lookTo": [
+           -16,
+           12
+          ],
+          "lh2": 1.0,
+          "seconds": 45
+         },
+         {
+          "from": [
+           -13,
+           14
+          ],
+          "h": 2.0,
+          "to": [
+           -22,
+           13
+          ],
+          "h2": 2.3,
+          "look": [
+           -18,
+           8
+          ],
+          "lh": 1.2,
+          "lookTo": [
+           -20,
+           8
+          ],
+          "lh2": 1.2,
+          "seconds": 45
+         },
+         {
+          "from": [
+           -20,
+           10
+          ],
+          "h": 3.2,
+          "to": [
+           -16,
+           10
+          ],
+          "h2": 3.0,
+          "look": [
+           -17,
+           12
+          ],
+          "lh": 0.8,
+          "lookTo": [
+           -19,
+           8
+          ],
+          "lh2": 0.8,
+          "seconds": 40
+         },
+         {
+          "from": [
+           -12,
+           9
+          ],
+          "h": 1.8,
+          "to": [
+           -12,
+           11
+          ],
+          "h2": 1.8,
+          "look": [
+           -24,
+           10
+          ],
+          "lh": 1.5,
+          "lookTo": [
+           -24,
+           10
+          ],
+          "lh2": 1.5,
+          "seconds": 40
+         },
+         {
+          "from": [
+           -23,
+           6
+          ],
+          "h": 2.4,
+          "to": [
+           -13,
+           6
+          ],
+          "h2": 2.2,
+          "look": [
+           -18,
+           12
+          ],
+          "lh": 1.0,
+          "lookTo": [
+           -16,
+           12
+          ],
+          "lh2": 1.0,
+          "seconds": 45
+         },
+         {
+          "from": [
+           -13,
+           14
+          ],
+          "h": 2.0,
+          "to": [
+           -22,
+           13
+          ],
+          "h2": 2.3,
+          "look": [
+           -18,
+           8
+          ],
+          "lh": 1.2,
+          "lookTo": [
+           -20,
+           8
+          ],
+          "lh2": 1.2,
+          "seconds": 45
+         },
+         {
+          "from": [
+           -20,
+           10
+          ],
+          "h": 3.2,
+          "to": [
+           -16,
+           10
+          ],
+          "h2": 3.0,
+          "look": [
+           -17,
+           12
+          ],
+          "lh": 0.8,
+          "lookTo": [
+           -19,
+           8
+          ],
+          "lh2": 0.8,
+          "seconds": 40
+         },
+         {
+          "from": [
+           -12,
+           9
+          ],
+          "h": 1.8,
+          "to": [
+           -12,
+           11
+          ],
+          "h2": 1.8,
+          "look": [
+           -24,
+           10
+          ],
+          "lh": 1.5,
+          "lookTo": [
+           -24,
+           10
+          ],
+          "lh2": 1.5,
+          "seconds": 40
+         }
+        ]
+       }
+      }
+     ],
+     "done": []
+    },
+    {
+     "objective": "Roll call",
+     "goal": {
+      "wait": 19
+     },
+     "spawn": [
+      {
+       "actor": "eren",
+       "at": [
+        -17,
+        12
+       ]
+      },
+      {
+       "actor": "armin",
+       "at": [
+        -19,
+        12
+       ]
+      },
+      {
+       "actor": "connie",
+       "at": [
+        -16,
+        8
+       ]
+      },
+      {
+       "actor": "sasha",
+       "at": [
+        -20,
+        8
+       ]
+      },
+      {
+       "actor": "marco",
+       "at": [
+        -15,
+        10
+       ]
+      },
+      {
+       "actor": "jean",
+       "at": [
+        -21,
+        10
+       ]
+      },
+      {
+       "actor": "keith",
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 0,
+        "front": 5
+       },
+       "face": true
+      },
+      {
+       "actor": "mikasa",
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -6,
+        "front": 0
+       }
+      },
+      {
+       "actor": "annie",
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -5,
+        "front": 0
+       }
+      },
+      {
+       "actor": "reiner",
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -4,
+        "front": 0
+       }
+      },
+      {
+       "actor": "bertholdt",
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": -3,
+        "front": 0
+       }
+      },
+      {
+       "actor": "krista",
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 5,
+        "front": 0
+       }
+      },
+      {
+       "actor": "ymir",
+       "at": {
+        "row": "roll",
+        "rel": [
+         6,
+         0
+        ],
+        "size": 13,
+        "spacing": 1.6,
+        "slot": 6,
+        "front": 0
+       }
+      }
+     ],
+     "start": [
+      {
+       "card": {
+        "title": "847",
+        "sub": "The 104th Training Corps"
+       }
+      },
+      {
+       "cutscene": {
+        "fade": true,
+        "shots": [
+         {
+          "from": [
+           -18,
+           10
+          ],
+          "h": 0.3,
+          "to": [
+           -18,
+           10
+          ],
+          "h2": 0.9,
+          "look": [
+           -18,
+           10
+          ],
+          "lh": 8,
+          "lookTo": [
+           -10,
+           10
+          ],
+          "lh2": 1.4,
+          "seconds": 4,
+          "sound": "minecraft:block.bell.use",
+          "say": {
+           "who": "keith",
+           "text": "UP! Everyone up! Out of those bunks, now!",
+           "after": 0.6
+          }
+         },
+         {
+          "from": [
+           -24,
+           5
+          ],
+          "h": 3,
+          "to": [
+           -22,
+           7
+          ],
+          "h2": 2.6,
+          "look": [
+           -18,
+           10
+          ],
+          "lh": 1,
+          "seconds": 4,
+          "say": {
+           "who": "connie",
+           "text": "Is he serious? It's still dark out."
+          }
+         },
+         {
+          "from": [
+           -22,
+           14
+          ],
+          "h": 2,
+          "to": [
+           -20,
+           13
+          ],
+          "h2": 2,
+          "look": [
+           -17,
+           12
+          ],
+          "lh": 1.4,
+          "seconds": 3,
+          "say": {
+           "who": "sasha",
+           "text": "Five more minutes... please..."
+          }
+         },
+         {
+          "from": [
+           -6,
+           -16
+          ],
+          "h": 8,
+          "to": [
+           0,
+           -14
+          ],
+          "h2": 7,
+          "look": [
+           6,
+           0
+          ],
+          "lh": 1,
+          "seconds": 5,
+          "sound": "minecraft:block.bell.use",
+          "say": {
+           "who": "keith",
+           "text": "Roll call! Anyone not in line in thirty seconds runs laps until they drop!"
+          }
+         },
+         {
+          "from": [
+           14,
+           4
+          ],
+          "h": 1.9,
+          "to": [
+           13,
+           3
+          ],
+          "h2": 1.8,
+          "look": [
+           10,
+           0
+          ],
+          "lh": 1.7,
+          "seconds": 3,
+          "say": {
+           "who": "keith",
+           "text": "MOVE!"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "walk": {
+        "actor": "mikasa",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -6,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -6,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "annie",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -5,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -5,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "reiner",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -4,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -4,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "bertholdt",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -3,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -3,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "eren",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -2,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -2,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "armin",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -1,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": -1,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "jean",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 1,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 1,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "marco",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 2,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 2,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "connie",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 3,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 3,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "sasha",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 4,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 4,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "krista",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 5,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 5,
+         "front": 12
+        }
+       }
+      },
+      {
+       "walk": {
+        "actor": "ymir",
+        "to": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 6,
+         "front": 0
+        },
+        "face": {
+         "row": "roll",
+         "rel": [
+          6,
+          0
+         ],
+         "size": 13,
+         "spacing": 1.6,
+         "slot": 6,
+         "front": 12
+        }
+       }
+      }
+     ],
+     "done": []
+    }
+   ],
+   "complete": [
+    {
+     "flag": "prologue_done"
+    },
+    {
+     "toast": "Welcome to the 104th. The world is yours."
+    }
+   ],
+   "xp": 0
+  }
+ ],
+ "dialogues": {}
+}

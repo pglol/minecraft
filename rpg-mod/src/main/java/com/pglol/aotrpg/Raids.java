@@ -257,6 +257,14 @@ public final class Raids {
             m.playSoundToPlayer(SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.MASTER, 1f, 0.9f);
         }
         raids.add(r);
+        // The squad, the arena, and then it begins.
+        List<ServerPlayerEntity> squad = new ArrayList<>();
+        for (UUID id : r.players) {
+            ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+            if (m != null) squad.add(m);
+        }
+        int ticks = Cinematics.intro(squad, r.center, squad, boss.name().toUpperCase() + " RAID", DIFFS[diff] + " · clear the waves, then take its nape", 0xE04A3A);
+        r.nextWave = r.started + Math.max(12_000, ticks * 50L + 3_000);
     }
 
     /** A clear spot beyond Wall Maria, on the ground. */
@@ -374,6 +382,13 @@ public final class Raids {
         TitanLevels.fix(b, raidLevel(r));
         b.setCustomName(Text.literal(r.boss.name()).formatted(Formatting.DARK_RED, Formatting.BOLD));
         r.bossId = b.getUuid();
+        List<ServerPlayerEntity> squad = new ArrayList<>();
+        for (UUID id : r.players) {
+            ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+            if (m != null) squad.add(m);
+        }
+        // The boss gets its own entrance.
+        Cinematics.intro(squad, b.getPos(), List.of(b), r.boss.name().toUpperCase(), "It has come. " + STRIKE_N[r.diff] + " nape strikes to bring it down.", 0xC0263A);
         for (UUID id : r.players) {
             ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
             if (m == null) continue;

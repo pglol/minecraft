@@ -547,6 +547,15 @@ final class Commands {
                 c.getSource().sendFeedback(() -> Text.literal("Unlocked " + n + " titles for " + p.getName().getString() + "."), true);
                 return 1;
             })))));
+        d.register(CommandManager.literal("duel")
+            .then(CommandManager.literal("accept").executes(c -> {
+                AotRpg.DUELS.accept(c.getSource().getPlayerOrThrow());
+                return 1;
+            }))
+            .then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                AotRpg.DUELS.challenge(c.getSource().getPlayerOrThrow(), EntityArgumentType.getPlayer(c, "player"));
+                return 1;
+            })));
         d.register(CommandManager.literal("odmcheck").executes(c -> {
             for (String line : OdmBoost.describe(c.getSource().getPlayerOrThrow())) c.getSource().sendFeedback(() -> Text.literal(line), false);
             return 1;

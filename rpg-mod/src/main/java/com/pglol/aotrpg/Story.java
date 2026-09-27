@@ -1350,6 +1350,31 @@ public final class Story {
         send(p, pr);
     }
 
+    /** The enlistment scene: the barracks at night behind the character creator, then roll call. */
+    public static final String CREATION = "cc";
+
+    /** Starts the enlistment scene for a player about to create a character (false if it isn't loaded). */
+    public boolean creationScene(ServerPlayerEntity p) {
+        if (server == null || !missions.containsKey(CREATION)) return false;
+        Profile pr = pr(p);
+        pr.story = new State();
+        startMission(p, pr, CREATION);
+        return true;
+    }
+
+    /** Whether this player is in the enlistment scene. */
+    public boolean inCreationScene(ServerPlayerEntity p) {
+        return pr(p).story.mission.equals(CREATION);
+    }
+
+    /** A new character has been made: keeps the scene going (their story starts fresh) and wakes the barracks. */
+    public void enlisted(ServerPlayerEntity p, Profile pr) {
+        pr.story.mission = CREATION;
+        pr.story.step = 0;
+        pr.story.flags.add("enlisted");
+        AotRpg.PROFILES.save(p.getUuid());
+    }
+
     private void startMission(ServerPlayerEntity p, Profile pr, String id) {
         Mission m = missions.get(id);
         if (m == null) return;
@@ -1370,7 +1395,9 @@ public final class Story {
         }
         AotRpg.PROFILES.save(p.getUuid());
         if (m.memory && ServerPlayNetworking.canSend(p, Net.StoryCard.ID)) ServerPlayNetworking.send(p, new Net.StoryCard("A memory", m.chapter));
-        Notify.toast(p, Text.literal(m.title).formatted(Formatting.GOLD), Text.literal(m.chapter + " · " + threadName(m.thread)), 0xE0B96A, "minecraft:writable_book", "story");
+        if (!id.equals(CREATION)) {
+            Notify.toast(p, Text.literal(m.title).formatted(Formatting.GOLD), Text.literal(m.chapter + " · " + threadName(m.thread)), 0xE0B96A, "minecraft:writable_book", "story");
+        }
         send(p, pr);
     }
 
@@ -1383,7 +1410,10 @@ public final class Story {
     }
 
     public void tick(ServerPlayerEntity p, Profile pr, int ticks) {
-        if (!pr.created || server == null) return;
+        if (server == null) return;
+        // Before a character exists, only the enlistment scene (the barracks, behind the creator) runs.
+        boolean creating = !pr.created;
+        if (creating && !pr.story.mission.equals(CREATION) && !pr.story.mission.equals("@" + CREATION)) return;
         State s = pr.story;
         if (ticks % 10 == 0) {
             // Stepping into or out of a story moment: who can see whom changes, so look again now.
@@ -1394,16 +1424,16 @@ public final class Story {
                 refreshPlayers(p);
             }
         }
-        if (!s.openingSkipped && s.begun) skipOpening(p, pr);
+        if (!creating && !s.openingSkipped && s.begun) skipOpening(p, pr);
         if (s.mission.startsWith("@")) {
             startMission(p, pr, s.mission.substring(1));
             return;
         }
-        if (!s.begun && s.mission.isEmpty()) {
+        if (!creating && !s.begun && s.mission.isEmpty()) {
             if (ticks % 20 == 0) begin(p, pr);
             return;
         }
-        if (ticks % 20 == 3) givers(p, pr);
+        if (ticks % 20 == 3 && !creating) givers(p, pr);
         Mission m = current(pr);
         if (m == null) return;
         Scene sc = scenes.computeIfAbsent(p.getUuid(), Scene::new);
@@ -1433,7 +1463,7 @@ public final class Story {
         }
         animate(sc, p, ticks);
         if (ticks % 20 == 0) sendActors(sc);
-        if (ticks % 40 == 0) inviteParty(p, sc, m);
+        if (ticks % 40 == 0 && !creating) inviteParty(p, sc, m);
         checkGoal(p, pr, sc, m, st);
     }
 
@@ -1761,6 +1791,8 @@ public final class Story {
             }
         } else if (g.has("wait")) {
             met = now - sc.stepAt > g.get("wait").getAsDouble() * 1000;
+        } else if (g.has("flag")) {
+            met = pr.story.flags.contains(g.get("flag").getAsString());
         } else if (g.has("wear")) {
             String want = g.get("wear").getAsString();
             for (var slot : new net.minecraft.entity.EquipmentSlot[] {net.minecraft.entity.EquipmentSlot.LEGS, net.minecraft.entity.EquipmentSlot.CHEST,

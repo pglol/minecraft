@@ -242,7 +242,10 @@ public final class Net {
                        double mx, double my, double mz, float seconds) { }
 
     /** Server -> client: play a cutscene (fade: open from black). */
-    public record Cutscene(java.util.List<Shot> shots, boolean fade) implements CustomPayload {
+    public record Cutscene(java.util.List<Shot> shots, boolean fade, String title, String sub, int color) implements CustomPayload {
+        public Cutscene(java.util.List<Shot> shots, boolean fade) {
+            this(shots, fade, "", "", 0);
+        }
         public static final Id<Cutscene> ID = Net.id("cutscene");
         public static final PacketCodec<RegistryByteBuf, Cutscene> CODEC = PacketCodec.of((v, b) -> {
             b.writeVarInt(v.shots.size());
@@ -254,12 +257,15 @@ public final class Net {
                 b.writeFloat(s.seconds());
             }
             b.writeBoolean(v.fade);
+            b.writeString(v.title);
+            b.writeString(v.sub);
+            b.writeInt(v.color);
         }, b -> {
             int n = Math.min(b.readVarInt(), 64);
             java.util.List<Shot> l = new java.util.ArrayList<>();
             for (int i = 0; i < n; i++) l.add(new Shot(b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(),
                 b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readFloat()));
-            return new Cutscene(l, b.readBoolean());
+            return new Cutscene(l, b.readBoolean(), b.readString(), b.readString(), b.readInt());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }

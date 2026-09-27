@@ -63,7 +63,12 @@ public final class CharacterCreation {
         sessions.put(p.getUuid(), s);
         p.setInvulnerable(true);
         if (AotRpg.hasClient(p)) {
-            // Players with the mod get the real creator screen.
+            // Players with the mod get the real creator screen, over the barracks at night: the camera
+            // drifts past sleeping cadets while you choose, and roll call wakes everyone when you enlist.
+            if (AotRpg.STORY.creationScene(p)) {
+                s.anchor = p.getPos();
+                p.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, 20 * 60 * 60, 0, false, false));
+            }
             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new Net.OpenCreator(""));
             return;
         }
@@ -340,14 +345,17 @@ public final class CharacterCreation {
         pr.cls = PlayerClass.of(s.discipline);
         pr.skills = new java.util.HashSet<>();
         pr.chapter = 1;
+        boolean scene = AotRpg.STORY.inCreationScene(p);
         pr.story = new Story.State();
         pr.story.freeStart = false;
+        if (scene) AotRpg.STORY.enlisted(p, pr);
         pr.storyV2 = true;
         pr.storyV3 = true;
         AotRpg.PROFILES.save(p.getUuid());
 
         p.setInvulnerable(false);
         p.removeStatusEffect(StatusEffects.BLINDNESS);
+        p.removeStatusEffect(StatusEffects.INVISIBILITY);
         AotRpg.PROGRESSION.apply(p, pr);
         p.setHealth(p.getMaxHealth());
         p.getHungerManager().setFoodLevel(20);
@@ -357,7 +365,8 @@ public final class CharacterCreation {
             ServerWorld w = p.getServer().getOverworld();
             // Underground places (the Underground City) keep their own height, on a real floor; others stand on the surface.
             BlockPos at = Safe.landing(w, home[0], home[1], home[2]);
-            p.teleport(w, at.getX() + 0.5, at.getY(), at.getZ() + 0.5, p.getYaw(), 0);
+            // Enlisting in the barracks: you wake up there for roll call (home is still your spawn).
+            if (!scene) p.teleport(w, at.getX() + 0.5, at.getY(), at.getZ() + 0.5, p.getYaw(), 0);
             p.setSpawnPoint(w.getRegistryKey(), at, 0, true, false);
         }
         if (!pr.kitGiven) {

@@ -66,6 +66,7 @@ public final class AotRpg implements ModInitializer {
     public static final Exchange EXCHANGE = new Exchange();
     public static final Factions FACTIONS = new Factions();
     public static final FactionWar WAR = new FactionWar();
+    public static final Duels DUELS = new Duels();
     public static final Stats STATS = new Stats();
     public static final Regiments REGIMENTS = new Regiments();
     public static final Raids RAID_BOSSES = new Raids();
@@ -257,7 +258,7 @@ public final class AotRpg implements ModInitializer {
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
             !(entity instanceof net.minecraft.entity.passive.AbstractHorseEntity h) || !HORSES.spare(h));
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
-            !(entity instanceof ServerPlayerEntity sp) || DOWNED.allowDeath(sp, source, amount));
+            !(entity instanceof ServerPlayerEntity sp) || DUELS.allowDeath(sp) && DOWNED.allowDeath(sp, source, amount));
         // A scene's titans and actors only touch the players in that scene (and vice versa).
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             net.minecraft.entity.Entity att = source.getAttacker();
@@ -505,6 +506,7 @@ public final class AotRpg implements ModInitializer {
             EXCHANGE.open(server);
             FACTIONS.open(server);
             WAR.open(server);
+            DUELS.open(server);
             STATS.open(server);
             REGIMENTS.open(server);
             RAID_BOSSES.open(server);
@@ -636,10 +638,12 @@ public final class AotRpg implements ModInitializer {
             PARTIES.register(dispatcher);
         });
 
-        // No friendly fire inside a party.
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
-            !(entity instanceof ServerPlayerEntity victim && source.getAttacker() instanceof ServerPlayerEntity attacker
-                && PARTIES.same(attacker.getUuid(), victim.getUuid())));
+        // No friendly fire inside a party (unless the two are dueling), and no duel hits before the count.
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (!(entity instanceof ServerPlayerEntity victim && source.getAttacker() instanceof ServerPlayerEntity attacker)) return true;
+            if (DUELS.dueling(victim.getUuid(), attacker.getUuid())) return DUELS.allowHit(victim, attacker);
+            return !PARTIES.same(attacker.getUuid(), victim.getUuid());
+        });
         GUARD_FIGHT.register();
         COMBAT.register();
         TITAN_LEVELS.register();
@@ -691,6 +695,7 @@ public final class AotRpg implements ModInitializer {
         if (ticks % 600 == 300) HORSES.sweep(server.getOverworld());
         CROWD.tick(server, ticks);
         WAR.tick(ticks);
+        DUELS.tick(ticks);
         TITAN_LEVELS.tick(server, ticks);
         RAID_BOSSES.tick(ticks);
         ACTIVITY.tick(ticks);

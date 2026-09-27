@@ -25,6 +25,9 @@ public final class CutscenePlayer {
     private static long startedAt;
     private static boolean fade, active, hudWas;
     private static float total;
+    /** An intro's title card (empty for story cutscenes). */
+    private static String title = "", sub = "";
+    private static int color;
 
     public static boolean active() {
         return active;
@@ -34,6 +37,9 @@ public final class CutscenePlayer {
         MinecraftClient mc = MinecraftClient.getInstance();
         shots = c.shots();
         fade = c.fade();
+        title = c.title();
+        sub = c.sub();
+        color = c.color() == 0 ? 0xE0B96A : c.color();
         total = 0;
         for (Net.Shot s : shots) total += s.seconds();
         startedAt = Util.getMeasuringTimeMs();
@@ -105,6 +111,20 @@ public final class CutscenePlayer {
         }
         float left = total - t;
         if (left < 0.5f) c.fill(0, 0, w, h, (int) (200 * (1 - left / 0.5f)) << 24);
+        if (!title.isEmpty()) {
+            // The title card: slides in over the lower bar, holds, fades before the end.
+            float in = MathHelper.clamp((t - 0.6f) / 0.5f, 0, 1), out = MathHelper.clamp((total - t - 0.4f) / 0.6f, 0, 1);
+            float k = in * out;
+            int a = (int) (255 * k);
+            if (a > 8) {
+                int cy = h - bar - 42;
+                int slide = (int) ((1 - in) * 30);
+                c.fillGradient(0, cy - 10, w, cy + 34, 0x00000000, (a * 3 / 5) << 24);
+                c.fill(w / 2 - 90 + slide, cy + 19, w / 2 + 90 - slide, cy + 20, (a << 24) | (color & 0xFFFFFF));
+                Ui.text(c, com.pglol.aotrpg.client.Ui.title(title), w / 2f - slide, cy - 4, 2.2f, (a << 24) | (color & 0xFFFFFF), true);
+                if (!sub.isEmpty()) Ui.text(c, net.minecraft.text.Text.literal(sub), w / 2f + slide, cy + 24, 1f, (a << 24) | 0xEDE3C8, true);
+            }
+        }
         Ui.text(c, net.minecraft.text.Text.literal("▸ cutscene"), w - 50, h - bar + 3, 0.5f, 0x60FFFFFF, false);
     }
 }

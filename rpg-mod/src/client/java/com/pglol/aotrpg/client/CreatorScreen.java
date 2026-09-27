@@ -213,7 +213,14 @@ public class CreatorScreen extends Screen {
 
     @Override
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
-        Ui.backdrop(c, width, height);
+        if (com.pglol.aotrpg.client.story.CutscenePlayer.active()) {
+            // The barracks shows through: dark at the edges and behind the panel, clear around it.
+            c.fillGradient(0, 0, width, height, 0x50000000, 0x90000000);
+            c.fill(left - 10, top - 6, left + w + 10, height - 32, 0xB00C100D);
+            c.fillGradient(0, 0, width, 56, 0xC0000000, 0x00000000);
+        } else {
+            Ui.backdrop(c, width, height);
+        }
         Ui.text(c, Ui.title("ATTACK ON TITAN"), width / 2f, 10, 2.2f, Ui.GOLD, true);
         Ui.text(c, Text.literal("Year 845  ·  Create your character"), width / 2f, 34, 1f, Ui.MUTED, true);
 

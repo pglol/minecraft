@@ -94,6 +94,13 @@ public final class SocialScreen extends Screen {
                 x -= 50;
                 addDrawableChild(new AotButton(x, y + 3, 48, 18, Text.literal(p.party() ? "In party" : "Invite"),
                     () -> ClientPlayNetworking.send(new Net.SocialAction("invite", p.uuid())))).active = !p.party();
+                if (client.player != null && !p.account().equals(client.player.getGameProfile().getName())) {
+                    x -= 44;
+                    addDrawableChild(new AotButton(x, y + 3, 42, 18, Text.literal("Duel"), () -> {
+                        client.player.networkHandler.sendChatCommand("duel " + p.account());
+                        close();
+                    }));
+                }
             }
             x -= 58;
             addDrawableChild(new AotButton(x, y + 3, 56, 18, Text.literal(p.friend() ? "Unfriend" : "+ Friend"),

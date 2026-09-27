@@ -77,9 +77,25 @@ public final class FactionWar {
         }
         ServerWorld w = server.getOverworld();
         if (active.wavesLeft > 0 && now >= active.nextWave) {
+            boolean first = active.wavesLeft == 4;
             wave(w);
             active.wavesLeft--;
             active.nextWave = now + WAVE_EVERY;
+            if (first) {
+                // The first wave in sight: everyone at the town sees them come.
+                net.minecraft.util.math.Vec3d at = new net.minecraft.util.math.Vec3d(active.x, w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, active.x, active.z), active.z);
+                List<Entity> show = new ArrayList<>();
+                for (UUID id : active.titans) {
+                    Entity e = w.getEntity(id);
+                    if (e != null) show.add(e);
+                }
+                List<ServerPlayerEntity> there = Cinematics.near(w, at, 140);
+                there.sort(java.util.Comparator.comparingDouble(pl -> pl.squaredDistanceTo(at)));
+                List<Entity> subjects = new ArrayList<>();
+                if (!there.isEmpty()) subjects.add(there.get(0));
+                subjects.addAll(show.subList(0, Math.min(3, show.size())));
+                Cinematics.intro(there, at, subjects, "CALL TO ARMS", "Titans march on " + active.town + ". Hold the town!", 0xE04A3A);
+            }
         }
         boolean alive = false;
         for (UUID id : active.titans) {
