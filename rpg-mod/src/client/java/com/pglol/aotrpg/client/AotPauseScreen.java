@@ -152,23 +152,30 @@ public class AotPauseScreen extends Screen {
         // Character card on the right (when there is room).
         int cw = 190, cx = gridX + gridW + 20, cy = height / 2 - 80;
         if (cx + cw > width - 8) return;
-        Ui.panel(c, cx, cy, cw, 160);
+        Ui.panel(c, cx, cy, cw, 172);
         Ui.crest(c, cx + cw / 2 - 24, cy + 8, 48, 1f);
         Net.Sync p = ClientState.profile;
         if (p != null) {
             Ui.text(c, Ui.heading(p.name()), cx + cw / 2f, cy + 60, 1.1f, Ui.CREAM, true);
+            // The title you wear, as others see it (Mythic ones animate).
+            Net.RosterEntry me = client.player == null ? null : ClientState.roster.get(client.player.getUuid());
+            int dy = 0;
+            if (me != null && !me.title().isEmpty() && !me.title().equals(me.tag())) {
+                Ui.text(c, TitleFx.styled(me.title(), me.titleColor()), cx + cw / 2f, cy + 73, 0.85f, 0xFF000000 | me.titleColor(), true);
+                dy = 12;
+            }
             Text sub = Text.literal("Level " + p.level() + " ").withColor(Ui.GOLD)
                 .append(Text.literal(p.role().tag() + " " + p.role().title).withColor(p.role().color));
-            c.drawCenteredTextWithShadow(textRenderer, sub, cx + cw / 2, cy + 74, 0xFFFFFFFF);
-            Ui.bar(c, cx + 16, cy + 86, cw - 32, 4, p.need() > 0 ? (float) p.xp() / p.need() : 1, Ui.XP);
-            Ui.divider(c, cx + 12, cy + 98, cw - 24);
+            c.drawCenteredTextWithShadow(textRenderer, sub, cx + cw / 2, cy + 74 + dy, 0xFFFFFFFF);
+            Ui.bar(c, cx + 16, cy + 86 + dy, cw - 32, 4, p.need() > 0 ? (float) p.xp() / p.need() : 1, Ui.XP);
+            Ui.divider(c, cx + 12, cy + 98 + dy, cw - 24);
             Net.Objective o = ClientState.objective;
             if (o != null) {
-                c.drawTextWithShadow(textRenderer, Ui.heading(textRenderer.trimToWidth(o.chapter(), cw - 20)), cx + 10, cy + 106, Ui.GOLD);
-                Ui.wrapped(c, Text.literal("▶ " + o.text() + (o.progress().isEmpty() ? "" : "  " + o.progress())), cx + 10, cy + 118, cw - 20, Ui.CREAM);
+                c.drawTextWithShadow(textRenderer, Ui.heading(textRenderer.trimToWidth(o.chapter(), cw - 20)), cx + 10, cy + 106 + dy, Ui.GOLD);
+                Ui.wrapped(c, Text.literal("▶ " + o.text() + (o.progress().isEmpty() ? "" : "  " + o.progress())), cx + 10, cy + 118 + dy, cw - 20, Ui.CREAM);
             }
             int party = ClientState.party.size();
-            if (party > 0) c.drawTextWithShadow(textRenderer, Text.literal("Party: " + (party + 1) + " members"), cx + 10, cy + 146, 0xFF5BD35B);
+            if (party > 0) c.drawTextWithShadow(textRenderer, Text.literal("Party: " + (party + 1) + " members"), cx + 10, cy + 158, 0xFF5BD35B);
         } else {
             c.drawCenteredTextWithShadow(textRenderer, Text.literal("No character yet"), cx + cw / 2, cy + 70, Ui.MUTED);
         }
