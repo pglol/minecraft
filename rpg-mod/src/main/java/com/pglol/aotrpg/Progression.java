@@ -103,10 +103,8 @@ public final class Progression {
         if (up) {
             apply(p, pr);
             AotRpg.NAMETAGS.update(p, pr);
-            Titles.show(p, Text.literal("LEVEL UP").formatted(Formatting.GOLD, Formatting.BOLD),
-                Text.literal("Level " + pr.level + "  ·  +1 stat point" + (pr.level % 10 == 0 ? ", +2 skill points" : pr.level % 2 == 0 ? ", +1 skill point" : "")
-                    + (AotRpg.hasClient(p) ? "  (K)" : "  (/character)")).formatted(Formatting.YELLOW), 10, 50, 20);
-            p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1.1f);
+            Reveal.show(p, "LEVEL " + pr.level, "+1 stat point" + (pr.level % 10 == 0 ? ", +2 skill points" : pr.level % 2 == 0 ? ", +1 skill point" : "")
+                + (AotRpg.hasClient(p) ? "  ·  open with K" : "  (/character)"), "minecraft:experience_bottle", pr.level % 10 == 0 ? 4 : 3);
         }
         AotRpg.sync(p, pr);
     }

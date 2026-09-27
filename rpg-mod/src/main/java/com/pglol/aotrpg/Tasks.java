@@ -173,9 +173,7 @@ public final class Tasks {
             if (!a.stat().equals(stat) || pr.achievements.contains(a.id()) || pr.counters.getOrDefault(stat, 0L) < a.goal()) continue;
             pr.achievements.add(a.id());
             Rewards.give(p, a.reward(), "Achievement: " + a.title());
-            Titles.show(p, Text.literal("ACHIEVEMENT").formatted(Formatting.GOLD, Formatting.BOLD),
-                Text.literal(a.title() + "  ·  " + a.desc()).withColor(a.color()), 10, 60, 20);
-            p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1f);
+            Reveal.show(p, "ACHIEVEMENT: " + a.title().toUpperCase(), a.desc() + "  ·  " + Rewards.describe(a.reward()), "minecraft:name_tag", 3);
             Notify.toast(p, Text.literal("Title unlocked: " + a.title()).withColor(a.color()), Text.literal("Wear it from Tasks → Achievements"),
                 a.color(), "minecraft:name_tag", null);
         }

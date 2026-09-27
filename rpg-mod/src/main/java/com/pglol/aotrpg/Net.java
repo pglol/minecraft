@@ -1067,6 +1067,15 @@ public final class Net {
     public record StoreOffer(String id, String title, String kind, int color, long price, boolean owned) { }
     public record StoreCrate(String id, String title, String desc, long marks, long gold, java.util.List<String> loot) { }
 
+    /** Server -> client: an animated reward reveal (rarity 0..5 sets how big it plays). */
+    public record RewardReveal(String title, String sub, String icon, int rarity) implements CustomPayload {
+        public static final Id<RewardReveal> ID = Net.id("reward_reveal");
+        public static final PacketCodec<RegistryByteBuf, RewardReveal> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.title); b.writeString(v.sub); b.writeString(v.icon); b.writeVarInt(v.rarity);
+        }, b -> new RewardReveal(b.readString(), b.readString(), b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the duel ring around (x, y, z), radius r (0 takes it down). Only the fighters get it. */
     public record DuelRing(double x, double y, double z, float r) implements CustomPayload {
         public static final Id<DuelRing> ID = Net.id("duel_ring");
@@ -1820,6 +1829,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(StoreView.ID, StoreView.CODEC);
         PayloadTypeRegistry.playS2C().register(CrateOpened.ID, CrateOpened.CODEC);
         PayloadTypeRegistry.playS2C().register(DuelRing.ID, DuelRing.CODEC);
+        PayloadTypeRegistry.playS2C().register(RewardReveal.ID, RewardReveal.CODEC);
         PayloadTypeRegistry.playC2S().register(StoreAction.ID, StoreAction.CODEC);
         PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
         PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);

@@ -131,9 +131,7 @@ public final class Season {
         AotRpg.PROFILES.saveAccount(p.getUuid());
         AotRpg.TASKS.set(p, Tasks.PASS, after);
         if (after > before) {
-            Titles.show(p, Text.literal("PASS TIER " + after).formatted(Formatting.GOLD, Formatting.BOLD),
-                Text.literal("Rewards ready: Pause menu → Battle Pass").formatted(Formatting.YELLOW), 5, 50, 15);
-            p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.6f, 1.3f);
+            Reveal.show(p, "PASS TIER " + after, "Rewards ready · Pause menu → Battle Pass", "minecraft:paper", after % 10 == 0 ? 4 : 2);
         }
     }
 
@@ -167,9 +165,7 @@ public final class Season {
                 }
                 a.passPremium = true;
                 AotRpg.PROFILES.saveAccount(p.getUuid());
-                Titles.show(p, Text.literal("PREMIUM PASS").formatted(Formatting.GOLD, Formatting.BOLD),
-                    Text.literal(data.name).formatted(Formatting.YELLOW), 5, 50, 15);
-                p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1f);
+                Reveal.show(p, "PREMIUM PASS", data.name, "minecraft:nether_star", 4);
             }
             default -> { }
         }

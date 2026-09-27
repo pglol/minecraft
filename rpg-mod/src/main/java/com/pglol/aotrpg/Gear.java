@@ -449,7 +449,11 @@ public final class Gear {
         // Yours alone: nobody else sees it or can pick it up.
         Loot.own(e, killer);
         w.spawnEntity(e);
-        if (rar.ordinal() >= 2) announce(killer, s, rar);
+        if (rar.ordinal() >= 2) {
+            // A good drop gets its moment (the loot is on the ground, yours alone).
+            Reveal.show(killer, rar.title.toUpperCase() + " DROP", s.getName().getString(), net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString(),
+                rar.ordinal());
+        }
     }
 
     private static void announce(ServerPlayerEntity p, ItemStack s, Rarity r) {

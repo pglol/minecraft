@@ -197,8 +197,7 @@ public final class TitanActivity {
                 AotRpg.WALLET.earn(p, marks, "Horde cleared");
                 AotRpg.SEASON.xp(p, 300);
                 AotRpg.REGIMENTS.gain(p, 60);
-                Notify.toast(p, Text.literal("Horde cleared!").formatted(Formatting.GOLD, Formatting.BOLD),
-                    Text.literal("+" + marks + " Marks · pass XP"), 0xE0B96A, "minecraft:gold_ingot", "horde");
+                Reveal.show(p, "HORDE CLEARED", "+" + marks + " Marks · pass XP", "minecraft:gold_ingot", 2);
             }
             end(w);
         } else if (System.currentTimeMillis() > h.until) {
@@ -347,9 +346,7 @@ public final class TitanActivity {
                 AotRpg.REGIMENTS.gain(p, 100);
                 Gear.Rarity rar = p.getRandom().nextFloat() < 0.3f ? Gear.Rarity.EPIC : Gear.Rarity.RARE;
                 AotRpg.SATCHEL.add(p, Gear.roll(p.getRandom(), rar, Gear.dropLevel(p, TitanLevels.level(dead), 1)));
-                Notify.toast(p, Text.literal("Abnormal slain!").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD),
-                    Text.literal("+" + marks + " Marks · " + rar.title + " gear in your satchel"), 0x9A5CC8, "minecraft:nether_star", "abnormal");
-                p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.9f, 1.1f);
+                Reveal.show(p, "ABNORMAL SLAIN", "+" + marks + " Marks · " + rar.title + " gear in your satchel", "minecraft:nether_star", rar.ordinal());
             }
             abnormal = null;
         }

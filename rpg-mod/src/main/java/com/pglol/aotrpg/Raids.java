@@ -462,9 +462,7 @@ public final class Raids {
         AotRpg.REGIMENTS.gain(m, Math.round(250 * pay));
         Gear.Rarity rar = r.diff == 2 ? Gear.Rarity.LEGENDARY : r.diff == 1 ? Gear.Rarity.EPIC : Gear.Rarity.RARE;
         AotRpg.SATCHEL.add(m, Gear.roll(m.getRandom(), rar, Gear.dropLevel(m, raidLevel(r), 2)));
-        Notify.toast(m, Text.literal("RAID CLEARED").formatted(Formatting.GOLD, Formatting.BOLD),
-            Text.literal(r.boss.name() + " · +" + marks + " Marks · " + rar.title + " gear in your satchel"), 0xF2C14E, "minecraft:nether_star", "raid");
-        m.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 1f, 1f);
+        Reveal.show(m, "RAID CLEARED", r.boss.name() + " · +" + marks + " Marks · " + rar.title + " gear in your satchel", "minecraft:nether_star", rar.ordinal());
     }
 
     public void forget(ServerPlayerEntity p) {

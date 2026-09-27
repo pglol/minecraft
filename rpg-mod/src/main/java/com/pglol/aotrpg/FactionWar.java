@@ -235,9 +235,7 @@ public final class FactionWar {
             Cosmetics.Def d = Cosmetics.def(c);
             extra = " and the " + (d == null ? c : d.title()) + " cosmetic";
         }
-        Notify.toast(p, Text.literal("MVP!").formatted(Formatting.GOLD, Formatting.BOLD),
-            Text.literal("You won " + rar.title + " gear" + extra), 0xF2C14E, "minecraft:nether_star", null);
-        p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 1f, 1f);
+        Reveal.show(p, "MVP", "You won " + rar.title + " gear" + extra, "minecraft:nether_star", Math.max(3, rar.ordinal()));
     }
 
     /** The event on the map, for faction soldiers. */

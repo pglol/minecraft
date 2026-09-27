@@ -81,6 +81,8 @@ public final class AotRpgClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_ENTITIES.register(CosmeticFx::render);
         WorldRenderEvents.AFTER_ENTITIES.register(DuelRing::render);
         WorldRenderEvents.AFTER_ENTITIES.register(GroundLoot::render);
+        HudRenderCallback.EVENT.register(RewardFx::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.RewardReveal.ID, (payload, ctx) -> RewardFx.on(payload));
         ClientTickEvents.END_CLIENT_TICK.register(DuelRing::tick);
         ClientPlayNetworking.registerGlobalReceiver(Net.DuelRing.ID, (payload, ctx) -> DuelRing.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.BagView.ID, (payload, ctx) -> {
@@ -330,6 +332,7 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             DuelRing.clear();
+            RewardFx.clear();
             ClientState.reset();
             ClientState.sheaths.clear();
             MapData.reset();
