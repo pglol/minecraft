@@ -1077,11 +1077,11 @@ public final class Net {
     }
 
     /** Server -> client: a crate was opened (the reveal plays on screen). Rarity 0 common .. 4 legendary. */
-    public record CrateOpened(String crate, String got, String icon, int rarity) implements CustomPayload {
+    public record CrateOpened(String crateId, String crate, String got, String icon, int rarity) implements CustomPayload {
         public static final Id<CrateOpened> ID = Net.id("crate_opened");
         public static final PacketCodec<RegistryByteBuf, CrateOpened> CODEC = PacketCodec.of((v, b) -> {
-            b.writeString(v.crate); b.writeString(v.got); b.writeString(v.icon); b.writeVarInt(v.rarity);
-        }, b -> new CrateOpened(b.readString(), b.readString(), b.readString(), b.readVarInt()));
+            b.writeString(v.crateId); b.writeString(v.crate); b.writeString(v.got); b.writeString(v.icon); b.writeVarInt(v.rarity);
+        }, b -> new CrateOpened(b.readString(), b.readString(), b.readString(), b.readString(), b.readVarInt()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 

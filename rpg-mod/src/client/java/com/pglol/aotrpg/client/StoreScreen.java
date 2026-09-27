@@ -11,6 +11,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
+import java.util.List;
+
 /**
  * The server store (test run, no website link yet): this week's shop for Gold, and crates for
  * Marks or Gold. Opening a crate plays a reveal: the crate shakes, bursts in the colour of what
@@ -19,10 +21,6 @@ import net.minecraft.util.Util;
 public final class StoreScreen extends Screen {
     /** The last store view from the server. */
     public static Net.StoreView view;
-    /** The crate being revealed, and when it started. */
-    private static Net.CrateOpened reveal;
-    private static long revealAt;
-    private static boolean fanfare;
     private static final int[] RARITY = {0xFFB0B0B0, 0xFF5BD35B, 0xFF5A9AE0, 0xFFB06AE0, 0xFFF2C14E, 0xFFE02A2A};
     private static final String[] RARITY_NAME = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"};
     private final Screen parent;
@@ -33,11 +31,9 @@ public final class StoreScreen extends Screen {
     }
 
     public static void onOpened(Net.CrateOpened o) {
-        reveal = o;
-        revealAt = Util.getMeasuringTimeMs();
-        fanfare = false;
-        var mc = net.minecraft.client.MinecraftClient.getInstance();
-        if (mc.player != null) mc.player.playSound(SoundEvents.BLOCK_CHEST_OPEN, 0.8f, 0.8f);
+        List<String> loot = List.of();
+        if (view != null) for (Net.StoreCrate c : view.crates()) if (c.id().equals(o.crateId())) loot = c.loot();
+        CrateOpening.start(o, loot);
     }
 
     private int panelW() { return Math.min(width - 24, 460); }
@@ -98,14 +94,12 @@ public final class StoreScreen extends Screen {
     }
 
     private static boolean revealing() {
-        return reveal != null && Util.getMeasuringTimeMs() - revealAt < 3200;
+        return CrateOpening.active();
     }
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        if (revealing() && Util.getMeasuringTimeMs() - revealAt > 900) {
-            // Click to skip the rest of the reveal.
-            revealAt = Util.getMeasuringTimeMs() - 3200;
+        if (CrateOpening.click()) {
             refresh();
             return true;
         }
@@ -115,7 +109,6 @@ public final class StoreScreen extends Screen {
     @Override
     public void close() {
         view = null;
-        reveal = null;
         client.setScreen(parent);
     }
 
@@ -202,13 +195,16 @@ public final class StoreScreen extends Screen {
             c.drawTextWrapped(Ui.font(), Text.literal(k.desc()), (int) ((cx + 27) / 0.58f), (int) ((cy + 17) / 0.58f), (int) ((cw - 32) / 0.58f), Ui.MUTED);
             c.getMatrices().pop();
         }
-        if (revealing()) drawReveal(c, t);
     }
 
     @Override
     public void render(DrawContext c, int mouseX, int mouseY, float delta) {
         super.render(c, mouseX, mouseY, delta);
-        if (view == null || revealing()) return;
+        if (revealing()) {
+            CrateOpening.render(c, width, height);
+            return;
+        }
+        if (view == null) return;
         int i = crateAt(mouseX, mouseY);
         if (i >= 0) preview(c, view.crates().get(i), mouseX, mouseY);
     }
@@ -295,78 +291,6 @@ public final class StoreScreen extends Screen {
             case "commander" -> 0xFFF2C14E;
             default -> 0xFFB0B0B0;
         };
-    }
-
-    /** The crate reveal: it shakes, bursts, and what came out rises in its rarity's colour. */
-    private void drawReveal(DrawContext c, float t) {
-        long ms = Util.getMeasuringTimeMs() - revealAt;
-        int cx = width / 2, cy = height / 2;
-        int rar = Math.max(0, Math.min(5, reveal.rarity()));
-        boolean mythic = rar == 5;
-        int col = RARITY[rar];
-        c.fill(0, 0, width, height, 0xC0000000);
-        if (mythic && ms > 900 && ms < 1300) {
-            // Mythic: a red flash, and the whole thing jolts.
-            int fa = (int) (200 * (1 - (ms - 900) / 400f));
-            c.fill(0, 0, width, height, (fa << 24) | 0xE02A2A);
-            cx += (int) (Math.sin(ms * 0.2) * 5);
-            cy += (int) (Math.cos(ms * 0.27) * 4);
-        }
-        if (ms < 900) {
-            // Shaking, harder towards the burst.
-            float k = ms / 900f;
-            int dx = (int) (Math.sin(ms * 0.09) * 6 * k), dy = (int) (Math.cos(ms * 0.13) * 3 * k);
-            int s = 40;
-            c.fill(cx - s + dx, cy - s + dy, cx + s + dx, cy + s + dy, 0xFF6A4A2A);
-            c.fill(cx - s + dx, cy - 14 + dy, cx + s + dx, cy - 10 + dy, 0xFF3A2A1A);
-            c.fill(cx - s + dx, cy + 10 + dy, cx + s + dx, cy + 14 + dy, 0xFF3A2A1A);
-            c.fill(cx - 8 + dx, cy - 10 + dy, cx + 8 + dx, cy + 10 + dy, col);
-            c.drawBorder(cx - s + dx, cy - s + dy, s * 2, s * 2, 0xFF2A1A0A);
-            // Light leaking out of the seams.
-            int a = (int) (k * 200);
-            c.fill(cx - s + dx, cy - 1 + dy, cx + s + dx, cy + 1 + dy, (a << 24) | (col & 0xFFFFFF));
-            Ui.text(c, Text.literal(reveal.crate()), cx, cy + 56, 1f, Ui.CREAM, true);
-            return;
-        }
-        float k = Math.min(1, (ms - 900) / 500f);
-        // Rays turning behind the prize.
-        for (int i = 0; i < (mythic ? 28 : 16); i++) {
-            double a = i * Math.PI / (mythic ? 14 : 8) + t * (mythic ? -1.1 : 0.6);
-            int len = (int) ((60 + rar * 18) * k);
-            for (int d = 16; d < len; d += 3) {
-                int alpha = (int) (160 * (1 - d / (float) len));
-                int px = cx + (int) (Math.cos(a) * d), py = cy + (int) (Math.sin(a) * d);
-                c.fill(px - 1, py - 1, px + 1, py + 1, (alpha << 24) | (col & 0xFFFFFF));
-            }
-        }
-        // Burst of sparks outward.
-        for (int i = 0; i < (mythic ? 90 : 40); i++) {
-            double a = i * 2.39;
-            float p = Math.min(1, (ms - 900) / 1200f);
-            int d = (int) (p * (80 + (i % 7) * 12));
-            int alpha = (int) (255 * (1 - p));
-            if (alpha > 8) c.fill(cx + (int) (Math.cos(a) * d), cy + (int) (Math.sin(a) * d), cx + (int) (Math.cos(a) * d) + 2,
-                cy + (int) (Math.sin(a) * d) + 2, (alpha << 24) | (i % 3 == 0 ? 0xFFFFFF : col & 0xFFFFFF));
-        }
-        // The prize.
-        ItemStack icon = iconStack(reveal.icon());
-        c.getMatrices().push();
-        float sc = 1.5f + 1.5f * k;
-        c.getMatrices().translate(cx - 8 * sc, cy - 8 * sc - (1 - k) * 20, 0);
-        c.getMatrices().scale(sc, sc, 1);
-        c.drawItem(icon, 0, 0);
-        c.getMatrices().pop();
-        Ui.text(c, Text.literal(RARITY_NAME[rar].toUpperCase()), cx, cy + 34, 0.8f, col, true);
-        Ui.text(c, Text.literal(reveal.got()), cx, cy + 46, 1.2f, Ui.CREAM, true);
-        Ui.text(c, Text.literal("from the " + reveal.crate() + "  ·  click to continue"), cx, cy + 64, 0.65f, Ui.MUTED, true);
-        if (!fanfare && client != null && client.player != null && rar >= 3) {
-            fanfare = true;
-            client.player.playSound(rar >= 4 ? SoundEvents.UI_TOAST_CHALLENGE_COMPLETE : SoundEvents.ENTITY_PLAYER_LEVELUP, 0.7f, 1f);
-            if (mythic) {
-                client.player.playSound(SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, 0.6f, 0.8f);
-                client.player.playSound(SoundEvents.ENTITY_WITHER_SPAWN, 0.4f, 1.4f);
-            }
-        }
     }
 
     private static ItemStack iconStack(String id) {

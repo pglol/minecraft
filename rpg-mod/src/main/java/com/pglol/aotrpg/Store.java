@@ -247,7 +247,7 @@ public final class Store {
                 if (got.endsWith(":")) got = gold ? "gold:" + price / 3 : "marks:" + price / 2;
                 grant(p, got);
                 if (ServerPlayNetworking.canSend(p, Net.CrateOpened.ID)) {
-                    ServerPlayNetworking.send(p, new Net.CrateOpened(c.title(), Rewards.describe(got), Rewards.icon(got), rarityOf(got)));
+                    ServerPlayNetworking.send(p, new Net.CrateOpened(c.id(), c.title(), Rewards.describe(got), Rewards.icon(got), rarityOf(got)));
                 } else {
                     Notify.toast(p, Text.literal(c.title() + ": " + Rewards.describe(got)).formatted(Formatting.GOLD),
                         Text.literal("Opened for " + price + (gold ? " Gold" : " Marks")), 0xE0B96A, Rewards.icon(got), "crate");
