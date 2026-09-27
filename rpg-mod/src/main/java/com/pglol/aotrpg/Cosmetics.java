@@ -25,7 +25,7 @@ public final class Cosmetics {
     public record Def(String id, String slot, String title, boolean free) { }
 
     /** Every cosmetic slot, in menu order. */
-    public static final List<String> SLOTS = List.of("trail", "slash", "body", "odm", "horse", "head", "block", "clash");
+    public static final List<String> SLOTS = List.of("trail", "slash", "body", "odm", "horse", "head", "back", "kill", "block", "clash");
 
     public static final List<Def> ALL = List.of(
         new Def("slash_steel", "slash", "Steel", true),
@@ -78,7 +78,44 @@ public final class Cosmetics {
         new Def("trail_confetti", "trail", "Confetti", false),
         new Def("trail_hearts", "trail", "Hearts", false),
         new Def("trail_void", "trail", "Void", false),
-        new Def("trail_lightning", "trail", "Lightning", false));
+        new Def("trail_lightning", "trail", "Lightning", false),
+        new Def("trail_gold", "trail", "Gilded", false),
+        new Def("slash_steam", "slash", "Hot Steel", false),
+        new Def("slash_lightning", "slash", "Thunderstrike", false),
+        new Def("slash_petal", "slash", "Blossom Cut", false),
+        new Def("slash_rainbow", "slash", "Prism Edge", false),
+        new Def("slash_gold", "slash", "Gilded Edge", false),
+        new Def("body_steam", "body", "Titan Steam", false),
+        new Def("body_spark", "body", "Shifter Spark", false),
+        new Def("body_leaves", "body", "Giant Forest", false),
+        new Def("body_gold", "body", "Gilded", false),
+        new Def("odm_petal", "odm", "Blossom Rush", false),
+        new Def("odm_steam", "odm", "Steam Jet", false),
+        new Def("odm_gold", "odm", "Gilded Wake", false),
+        new Def("horse_gold", "horse", "Golden Stride", false),
+        new Def("horse_void", "horse", "Nightmare", false),
+        new Def("head_laurel", "head", "Laurel Wreath", false),
+        new Def("head_sun", "head", "Sunburst", false),
+        new Def("head_crows", "head", "Crows of the Paths", false),
+        new Def("back_none", "back", "None", true),
+        new Def("back_cloak_green", "back", "Survey Cloak", false),
+        new Def("back_cloak_crimson", "back", "Crimson Cloak", false),
+        new Def("back_banner", "back", "Regiment Banner", false),
+        new Def("back_steam", "back", "Titan Steam", false),
+        new Def("back_wings_frost", "back", "Frost Wings", false),
+        new Def("back_wings_freedom", "back", "Wings of Freedom", false),
+        new Def("back_wings_ember", "back", "Phoenix Wings", false),
+        new Def("back_wings_void", "back", "Wings of Night", false),
+        new Def("kill_steam", "kill", "Evaporate", true),
+        new Def("kill_ember", "kill", "Pyre", false),
+        new Def("kill_petal", "kill", "Blossom Fall", false),
+        new Def("kill_void", "kill", "Devoured", false),
+        new Def("kill_firework", "kill", "Salute", false),
+        new Def("kill_lightning", "kill", "Thunder Spear", false),
+        new Def("kill_holy", "kill", "Ascension", false),
+        new Def("kill_wings", "kill", "Wings Unfurled", false),
+        new Def("block_petal", "block", "Blossom Ward", false),
+        new Def("clash_gold", "clash", "Gilded Clash", false));
 
     private static final class Data {
         Set<String> allowlist = new LinkedHashSet<>();

@@ -58,6 +58,14 @@ public final class Combat {
             if (source.getAttacker() instanceof ServerPlayerEntity killer) {
                 AotRpg.ABILITIES.onKill(killer, entity);
                 AotRpg.CLASSES.onKill(killer, entity);
+                // The killer's kill effect, for a titan or a player (everyone nearby sees it).
+                if ((AotRpg.isTitan(entity) || entity instanceof PlayerEntity) && entity != killer) {
+                    net.minecraft.util.math.Vec3d c = entity.getBoundingBox().getCenter();
+                    Net.SlashFx fx = new Net.SlashFx(AotRpg.COSMETICS.selected(killer, "kill"), c.x, c.y, c.z, (float) entity.getHeight());
+                    for (ServerPlayerEntity o : net.fabricmc.fabric.api.networking.v1.PlayerLookup.around(killer.getServerWorld(), c, 96)) {
+                        if (ServerPlayNetworking.canSend(o, Net.SlashFx.ID)) ServerPlayNetworking.send(o, fx);
+                    }
+                }
             }
         });
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {

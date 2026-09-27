@@ -93,12 +93,16 @@ public final class Store {
 
     // ------------------------------------------------------------------ crates
 
-    public record Crate(String id, String title, String desc, boolean gold, long price) { }
+    /** A crate: bought for Marks (a lot of them) or for Gold. */
+    public record Crate(String id, String title, String desc, long marks, long gold) { }
 
     public static final List<Crate> CRATES = List.of(
-        new Crate("supply", "Supply Crate", "Gear, supplies and Marks, with a small chance of a title or cosmetic.", false, 1500),
-        new Crate("officer", "Officer's Crate", "Rare and epic gear, cosmetics and titles.", true, 120),
-        new Crate("commander", "Commander's Crate", "Epic and legendary gear, rare titles and cosmetics.", true, 350));
+        new Crate("supply", "Supply Crate", "Common to rare gear, blades, gas and thunder spears, Marks. A small chance of a cosmetic or title.", 1500, 25),
+        new Crate("armory", "Armory Crate", "Gear only: rare, epic, and a real chance at legendary.", 9000, 110),
+        new Crate("wardrobe", "Wardrobe Crate", "Cosmetics only: wings, cloaks, trails, kill effects and more.", 12000, 140),
+        new Crate("honors", "Honors Crate", "Titles only, from common to legendary.", 7500, 90),
+        new Crate("officer", "Officer's Crate", "Rare and epic gear, cosmetics and titles, some Gold back.", 14000, 160),
+        new Crate("commander", "Commander's Crate", "Epic and legendary gear, the rarest titles, cosmetics.", 30000, 350));
 
     /** What a crate gives: a reward spec (see Rewards), rolled on the player's own luck. */
     private String roll(ServerPlayerEntity p, String crate) {
@@ -107,10 +111,13 @@ public final class Store {
         return switch (crate) {
             case "supply" -> x < 32 ? "gear:common" : x < 60 ? "gear:uncommon" : x < 72 ? "gear:rare" : x < 84 ? "marks:" + (800 + r.nextInt(1700))
                 : x < 97 ? supplies(r) : x < 99 ? "cosmetic:" + randomCosmetic(p, r) : "title:" + randomTitle(p, r, 0, 1);
+            case "armory" -> x < 50 ? "gear:rare" : x < 88 ? "gear:epic" : "gear:legendary";
+            case "wardrobe" -> "cosmetic:" + randomCosmetic(p, r);
+            case "honors" -> "title:" + randomTitle(p, r, x < 40 ? 0 : x < 70 ? 1 : x < 88 ? 2 : x < 97 ? 3 : 4, x < 40 ? 0 : x < 70 ? 1 : x < 88 ? 2 : x < 97 ? 3 : 4);
             case "officer" -> x < 28 ? "gear:rare" : x < 40 ? "gear:epic" : x < 64 ? "cosmetic:" + randomCosmetic(p, r)
-                : x < 88 ? "title:" + randomTitle(p, r, 0, 3) : "gold:" + (60 + r.nextInt(120));
+                : x < 88 ? "title:" + randomTitle(p, r, 0, 3) : "gold:" + (40 + r.nextInt(90));
             default -> x < 30 ? "gear:epic" : x < 42 ? "gear:legendary" : x < 66 ? "cosmetic:" + randomCosmetic(p, r)
-                : x < 95 ? "title:" + randomTitle(p, r, 2, 4) : "gold:" + (250 + r.nextInt(300));
+                : x < 95 ? "title:" + randomTitle(p, r, 2, 4) : "gold:" + (200 + r.nextInt(250));
         };
     }
 
@@ -134,6 +141,8 @@ public final class Store {
         List<String> left = new ArrayList<>();
         var have = AotRpg.PROFILES.get(p.getUuid()).achievements;
         for (Title t : TITLES) if (t.rarity() >= minRarity && t.rarity() <= maxRarity && !have.contains(t.id())) left.add(t.id());
+        // Everything of that rarity owned: any title you don't have yet.
+        if (left.isEmpty()) for (Title t : TITLES) if (!have.contains(t.id())) left.add(t.id());
         return left.isEmpty() ? "" : left.get(r.nextInt(left.size()));
     }
 
@@ -153,27 +162,55 @@ public final class Store {
                 grant(p, id);
                 Notify.toast(p, Text.literal("Bought: " + Rewards.describe(id)).formatted(Formatting.GOLD), Text.literal("-" + cost + " Gold"), 0xE0B96A);
             }
-            case "crate" -> {
+            case "crate", "crate_gold" -> {
                 Crate c = null;
                 for (Crate k : CRATES) if (k.id().equals(id)) c = k;
                 if (c == null) return;
-                boolean paid = c.gold() ? AotRpg.WALLET.spendGold(p, c.price()) : AotRpg.WALLET.spendMarks(p, c.price());
+                boolean gold = action.equals("crate_gold");
+                long price = gold ? c.gold() : c.marks();
+                boolean paid = gold ? AotRpg.WALLET.spendGold(p, price) : AotRpg.WALLET.spendMarks(p, price);
                 if (!paid) {
-                    Notify.toast(p, Text.literal("Not enough " + (c.gold() ? "Gold" : "Marks")).formatted(Formatting.RED),
-                        Text.literal(c.title() + " costs " + c.price()), 0xC0463A);
+                    Notify.toast(p, Text.literal("Not enough " + (gold ? "Gold" : "Marks")).formatted(Formatting.RED),
+                        Text.literal(c.title() + " costs " + price + (gold ? " Gold" : " Marks")), 0xC0463A);
                     return;
                 }
                 String got = roll(p, c.id());
                 // Already have everything of that kind: it comes as money instead.
-                if (got.endsWith(":")) got = c.gold() ? "gold:" + c.price() / 3 : "marks:" + c.price() / 2;
+                if (got.endsWith(":")) got = gold ? "gold:" + price / 3 : "marks:" + price / 2;
                 grant(p, got);
-                Notify.toast(p, Text.literal(c.title() + ": " + Rewards.describe(got)).formatted(Formatting.GOLD),
-                    Text.literal("Opened for " + c.price() + (c.gold() ? " Gold" : " Marks")), 0xE0B96A, Rewards.icon(got), "crate");
+                if (ServerPlayNetworking.canSend(p, Net.CrateOpened.ID)) {
+                    ServerPlayNetworking.send(p, new Net.CrateOpened(c.title(), Rewards.describe(got), Rewards.icon(got), rarityOf(got)));
+                } else {
+                    Notify.toast(p, Text.literal(c.title() + ": " + Rewards.describe(got)).formatted(Formatting.GOLD),
+                        Text.literal("Opened for " + price + (gold ? " Gold" : " Marks")), 0xE0B96A, Rewards.icon(got), "crate");
+                }
             }
             default -> { }
         }
         AotRpg.PROFILES.save(p.getUuid());
         send(p, false);
+    }
+
+    /** How rare a roll was, 0 (common) to 4 (legendary), for the opening's colour and fanfare. */
+    static int rarityOf(String spec) {
+        String[] a = spec.split(":", 2);
+        String v = a.length > 1 ? a[1] : "";
+        return switch (a[0]) {
+            case "gear" -> switch (v) {
+                case "uncommon" -> 1;
+                case "rare" -> 2;
+                case "epic" -> 3;
+                case "legendary" -> 4;
+                default -> 0;
+            };
+            case "title" -> {
+                Title t = title(v);
+                yield t == null ? 1 : t.rarity();
+            }
+            case "cosmetic" -> 3;
+            case "gold" -> 2;
+            default -> 0;
+        };
     }
 
     /** Hands over a store reward, titles included. */
@@ -208,7 +245,7 @@ public final class Store {
             list.add(new Net.StoreOffer(o, name, kind, color, price(o), owns(p, o)));
         }
         List<Net.StoreCrate> crates = new ArrayList<>();
-        for (Crate c : CRATES) crates.add(new Net.StoreCrate(c.id(), c.title(), c.desc(), c.gold(), c.price()));
+        for (Crate c : CRATES) crates.add(new Net.StoreCrate(c.id(), c.title(), c.desc(), c.marks(), c.gold()));
         ServerPlayNetworking.send(p, new Net.StoreView(list, crates, secondsLeft(), open));
         AotRpg.WALLET.sync(p);
     }

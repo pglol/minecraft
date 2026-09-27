@@ -1059,7 +1059,16 @@ public final class Net {
     // ---- the store (test run)
 
     public record StoreOffer(String id, String title, String kind, int color, long price, boolean owned) { }
-    public record StoreCrate(String id, String title, String desc, boolean gold, long price) { }
+    public record StoreCrate(String id, String title, String desc, long marks, long gold) { }
+
+    /** Server -> client: a crate was opened (the reveal plays on screen). Rarity 0 common .. 4 legendary. */
+    public record CrateOpened(String crate, String got, String icon, int rarity) implements CustomPayload {
+        public static final Id<CrateOpened> ID = Net.id("crate_opened");
+        public static final PacketCodec<RegistryByteBuf, CrateOpened> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.crate); b.writeString(v.got); b.writeString(v.icon); b.writeVarInt(v.rarity);
+        }, b -> new CrateOpened(b.readString(), b.readString(), b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
 
     /** Server -> client: this week's shop and the crates. */
     public record StoreView(java.util.List<StoreOffer> offers, java.util.List<StoreCrate> crates, long secondsLeft, boolean open) implements CustomPayload {
@@ -1068,7 +1077,7 @@ public final class Net {
             b.writeVarInt(v.offers.size());
             for (StoreOffer o : v.offers) { b.writeString(o.id()); b.writeString(o.title()); b.writeString(o.kind()); b.writeInt(o.color()); b.writeVarLong(o.price()); b.writeBoolean(o.owned()); }
             b.writeVarInt(v.crates.size());
-            for (StoreCrate c : v.crates) { b.writeString(c.id()); b.writeString(c.title()); b.writeString(c.desc()); b.writeBoolean(c.gold()); b.writeVarLong(c.price()); }
+            for (StoreCrate c : v.crates) { b.writeString(c.id()); b.writeString(c.title()); b.writeString(c.desc()); b.writeVarLong(c.marks()); b.writeVarLong(c.gold()); }
             b.writeVarLong(v.secondsLeft); b.writeBoolean(v.open);
         }, b -> {
             int n = Math.min(b.readVarInt(), 64);
@@ -1076,7 +1085,7 @@ public final class Net {
             for (int i = 0; i < n; i++) o.add(new StoreOffer(b.readString(), b.readString(), b.readString(), b.readInt(), b.readVarLong(), b.readBoolean()));
             int m = Math.min(b.readVarInt(), 16);
             java.util.List<StoreCrate> c = new java.util.ArrayList<>();
-            for (int i = 0; i < m; i++) c.add(new StoreCrate(b.readString(), b.readString(), b.readString(), b.readBoolean(), b.readVarLong()));
+            for (int i = 0; i < m; i++) c.add(new StoreCrate(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readVarLong()));
             return new StoreView(o, c, b.readVarLong(), b.readBoolean());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -1786,6 +1795,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(OdmState.ID, OdmState.CODEC);
         PayloadTypeRegistry.playS2C().register(Chatter.ID, Chatter.CODEC);
         PayloadTypeRegistry.playS2C().register(StoreView.ID, StoreView.CODEC);
+        PayloadTypeRegistry.playS2C().register(CrateOpened.ID, CrateOpened.CODEC);
         PayloadTypeRegistry.playC2S().register(StoreAction.ID, StoreAction.CODEC);
         PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
         PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);
