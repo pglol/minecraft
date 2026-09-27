@@ -47,12 +47,21 @@ public final class BladeCare {
         return Math.min(0.85, t);
     }
 
-    /** Where a grip keeps its blade wear: a path of NBT keys to the durability number, or null. */
+    /**
+     * Where a grip keeps its blade wear: a path of NBT keys to the number, or null. Danny's grips
+     * count wear up in "BladeDamage" (higher is more worn); other grips may keep a durability that
+     * counts down. The damage count is preferred when both are there.
+     */
     private static List<String> path(NbtCompound n, List<String> prefix) {
+        List<String> dmg = pathFor(n, prefix, k -> k.contains("bladedamage") || (k.contains("blade") && k.contains("damage")));
+        return dmg != null ? dmg : pathFor(n, prefix, k -> k.contains("durab") && !k.contains("max"));
+    }
+
+    private static List<String> pathFor(NbtCompound n, List<String> prefix, java.util.function.Predicate<String> want) {
         for (String k : n.getKeys()) {
             NbtElement e = n.get(k);
             String lk = k.toLowerCase(java.util.Locale.ROOT);
-            if (e instanceof AbstractNbtNumber && lk.contains("durab") && !lk.contains("max")) {
+            if (e instanceof AbstractNbtNumber && want.test(lk)) {
                 List<String> p = new ArrayList<>(prefix);
                 p.add(k);
                 return p;
@@ -60,17 +69,18 @@ public final class BladeCare {
             if (e instanceof NbtCompound c && !k.equals("aot_gear")) {
                 List<String> p = new ArrayList<>(prefix);
                 p.add(k);
-                List<String> found = path(c, p);
+                List<String> found = pathFor(c, p, want);
                 if (found != null) return found;
             }
         }
         return null;
     }
 
-    /**
-     * Where a blade keeps its wear. Danny's grips may keep it in custom NBT, in a data component of
-     * their own, or as vanilla damage; every place is tried, modded ones first.
-     */
+    /** +1 when the number is how much is left, -1 when it's how much is worn (so "health" is always sign * value). */
+    private static int sign(List<String> p) {
+        return p.get(p.size() - 1).toLowerCase(java.util.Locale.ROOT).contains("damage") ? -1 : 1;
+    }
+
     private interface Wear {
         int get();
 
@@ -84,16 +94,17 @@ public final class BladeCare {
             NbtCompound n = cd.copyNbt();
             List<String> p = path(n, new ArrayList<>());
             if (p != null) {
+                int sg = sign(p);
                 return new Wear() {
                     public int get() {
-                        return ((AbstractNbtNumber) at(n, p).get(p.get(p.size() - 1))).intValue();
+                        return sg * ((AbstractNbtNumber) at(n, p).get(p.get(p.size() - 1))).intValue();
                     }
 
                     public void set(int value) {
                         NbtCompound fresh = s.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
                         NbtCompound a = at(fresh, p);
                         String k = p.get(p.size() - 1);
-                        a.put(k, like(a.get(k), value));
+                        a.put(k, like(a.get(k), Math.max(0, sg * value)));
                         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(fresh));
                     }
                 };
@@ -142,16 +153,17 @@ public final class BladeCare {
         if (!(e instanceof NbtCompound n)) return null;
         List<String> p = path(n, new ArrayList<>());
         if (p == null) return null;
+        int sg = sign(p);
         return new Wear() {
             public int get() {
-                return ((AbstractNbtNumber) at(n, p).get(p.get(p.size() - 1))).intValue();
+                return sg * ((AbstractNbtNumber) at(n, p).get(p.get(p.size() - 1))).intValue();
             }
 
             public void set(int v) {
                 NbtCompound fresh = n.copy();
                 NbtCompound a = at(fresh, p);
                 String k = p.get(p.size() - 1);
-                a.put(k, like(a.get(k), v));
+                a.put(k, like(a.get(k), Math.max(0, sg * v)));
                 codec.parse(NbtOps.INSTANCE, fresh).result().ifPresent(x -> s.set(type, x));
             }
         };
@@ -209,7 +221,7 @@ public final class BladeCare {
         StringBuilder b = new StringBuilder(Registries.ITEM.getId(s.getItem()).toString());
         b.append(" | grip: ").append(Loadout.isGrip(s)).append(" | temper: ").append(Math.round(temper(s) * 100)).append('%');
         Wear w = find(s);
-        b.append(" | wear: ").append(w == null ? "NOT FOUND" : String.valueOf(w.get()));
+        b.append(" | wear: ").append(w == null ? "NOT FOUND" : (w.get() < 0 ? "BladeDamage " + (-w.get()) : "durability " + w.get()));
         b.append(" | damageable: ").append(s.isDamageable());
         NbtComponent cd = s.get(DataComponentTypes.CUSTOM_DATA);
         if (cd != null) b.append(" | nbt keys: ").append(cd.copyNbt().getKeys());
