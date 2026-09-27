@@ -28,9 +28,9 @@ import java.util.UUID;
  * a clear line of sight; they hear you right beside them unless you sneak.
  *
  * Seeing you builds their awareness. Walking through town with a blade, sword or gun drawn makes
- * people suspicious: they stare ("?"), then call you out ("!"), then the Garrison puts a bounty
- * on you. Opening someone's chest in front of a witness is theft. A bounty makes merchants in town
- * charge more and makes you easier to recognise; pay it with /bounty pay.
+ * people suspicious: they stop and stare ("?"), then call you out ("!"). Opening someone's chest in
+ * front of a witness gets you shouted at. None of it sticks: there are no bounties, and once you're
+ * out of sight they soon lose interest.
  *
  * Players see who's watching: a mark over each aware person, and while sneaking their sight
  * cones on the minimap. Story stealth missions use the same eyes (seenBy).
@@ -195,17 +195,23 @@ public final class Witness {
             ServerWorld w = p.getServerWorld();
             List<LivingEntity> near = w.getEntitiesByClass(LivingEntity.class, p.getBoundingBox().expand(24), n -> watcherFor(n, p));
             Map<Integer, Eye> next = new HashMap<>();
-            float wanted = pr.bounty > 0 ? 1.5f : 1f;
+            // No bounties any more: clear any left over from before.
+            if (pr.bounty > 0) {
+                pr.bounty = 0;
+                AotRpg.PROFILES.save(p.getUuid());
+            }
+            float wanted = 1f;
             int alerted = 0;
             for (LivingEntity npc : near) {
                 Eye e = s.eyes.getOrDefault(npc.getId(), new Eye());
                 e.sees = sees(npc, p);
                 if (e.sees) {
                     float close = 1 + (float) (1 - npc.distanceTo(p) / RANGE);
-                    float cap = armed || pr.bounty > 0 ? 1f : 0.35f;
+                    float cap = armed ? 1f : 0.35f;
                     e.level = Math.min(cap, e.level + 0.07f * close * wanted * (armed ? 1.4f : 1f));
                 } else {
-                    e.level = Math.max(0, e.level - 0.04f);
+                    // Out of their sight, they lose interest fairly quickly.
+                    e.level = Math.max(0, e.level - 0.06f);
                 }
                 if (e.level >= 0.3f && e.sees && npc instanceof MobEntity m) m.getLookControl().lookAt(p, 30, 30);
                 if (e.level >= 1f) {
@@ -230,7 +236,7 @@ public final class Witness {
             s.lastBounty = now;
             p.playSoundToPlayer(SoundEvents.ENTITY_VILLAGER_NO, SoundCategory.NEUTRAL, 1f, 0.9f);
             Notify.toast(p, Text.literal("\"Put that away!\"").formatted(Formatting.GOLD),
-                Text.literal("Drawn weapons alarm the townsfolk · sheathe it (G) or face a fine"), 0xC9A53A, null, "witness");
+                Text.literal("Drawn weapons alarm the townsfolk · sheathe it (G)"), 0xC9A53A, null, "witness");
             return;
         }
         if (now - s.lastBounty < 20_000 || now - s.warnedAt < 6000) return;
@@ -238,13 +244,14 @@ public final class Witness {
         crime(p, pr, 25, "Disturbing the peace");
     }
 
-    /** A crime seen by townsfolk: a bounty in this part of the world. */
+    /**
+     * Seen doing something wrong: they shout and stare, and that's all. Nothing follows you around
+     * (there are no bounties); stay out of sight and it's forgotten.
+     */
     public void crime(ServerPlayerEntity p, Profile pr, long amount, String what) {
-        pr.bounty += amount;
-        AotRpg.PROFILES.save(p.getUuid());
         p.playSoundToPlayer(SoundEvents.BLOCK_BELL_USE, SoundCategory.NEUTRAL, 0.8f, 0.8f);
         Notify.toast(p, Text.literal(what).formatted(Formatting.RED),
-            Text.literal("Bounty " + pr.bounty + " Marks · merchants charge more · /bounty pay"), 0xC0463A, "minecraft:iron_bars", "bounty");
+            Text.literal("They saw you. Get out of sight until they lose interest"), 0xC0463A, null, "witness");
     }
 
     /** Opening a chest that isn't yours in town: theft if anyone is looking. Returns true if caught. */
