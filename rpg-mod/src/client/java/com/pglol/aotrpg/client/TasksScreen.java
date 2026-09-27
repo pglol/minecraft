@@ -139,7 +139,8 @@ public final class TasksScreen extends Screen {
                 int col = 0xFF000000 | a.color();
                 c.fill(left + 6, y, left + w - 6, y + ROW - 3, a.earned() ? 0x30E0B96A : 0x28000000);
                 c.fill(left + 6, y, left + 9, y + ROW - 3, a.earned() ? col : 0xFF3A3A34);
-                Ui.text(c, Ui.heading(a.title()), left + 16, y + 4, 0.95f, a.earned() ? col : Ui.DIM, false);
+                Ui.text(c, a.earned() && TitleFx.mythic(a.color()) ? TitleFx.styled(a.title(), a.color()) : Ui.heading(a.title()),
+                    left + 16, y + 4, 0.95f, a.earned() ? col : Ui.DIM, false);
                 Ui.text(c, Text.literal(a.desc() + "  ·  " + a.reward()), left + 16, y + 15, 0.62f, a.earned() ? Ui.CREAM : Ui.MUTED, false);
                 if (!a.earned()) {
                     Ui.bar(c, left + 16, y + 25, w - 140, 3, a.progress() / (float) Math.max(1, a.goal()), Ui.XP);

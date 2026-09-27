@@ -147,7 +147,7 @@ public final class SocialScreen extends Screen {
             // The title they wear, after their name.
             if (!p.title().isEmpty() && !p.title().equals(p.tag())) {
                 float nx = x + Ui.font().getWidth(Ui.heading(p.name())) * 0.9f + 6;
-                Ui.text(c, Text.literal("« " + p.title() + " »").styled(st -> st.withItalic(true)), nx, y + 4, 0.7f, 0xFF000000 | p.titleColor(), false);
+                Ui.text(c, TitleFx.styled(p.title(), p.titleColor()), nx, y + 4, 0.7f, 0xFF000000 | p.titleColor(), false);
             }
             String sub = p.online() ? "Lv " + p.level() + "  ·  " + p.where() : p.where();
             Ui.text(c, Text.literal(sub), left + 22, y + 14, 0.6f, Ui.MUTED, false);

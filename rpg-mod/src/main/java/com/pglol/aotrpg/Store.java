@@ -48,7 +48,8 @@ public final class Store {
         // Mythic (red): crates only, and only on the rarest rolls.
         new Title("st_rumbling", "The Rumbling", 0xE02A2A, 5),
         new Title("st_strongest", "Humanity's Strongest", 0xE02A2A, 5),
-        new Title("st_ymir", "Ymir's Chosen", 0xE02A2A, 5));
+        new Title("st_ymir", "Ymir's Chosen", 0xE02A2A, 5),
+        new Title("st_pker", "Pk'er", 0xE02A2A, 5));
 
     /** Mythic cosmetics: never in the weekly shop, only from a crate's rarest roll. */
     public static final java.util.Set<String> MYTHIC_COSMETICS = java.util.Set.of(

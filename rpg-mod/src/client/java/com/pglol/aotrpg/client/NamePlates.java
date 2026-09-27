@@ -50,7 +50,7 @@ public final class NamePlates {
         sub.append(Text.literal("Lv " + r.level() + "  ").withColor(Ui.GOLD)).append(role == null ? Text.empty() : Text.literal(role.tag() + " " + role.title).withColor(role.color));
         // The title they wear, on its own line (whatever their role or rank tag says).
         boolean showTitle = !r.title().isEmpty() && !r.title().equals(r.tag());
-        Text title = showTitle ? Text.literal("« " + r.title() + " »").withColor(0xFF000000 | r.titleColor()).styled(st -> st.withItalic(true)) : Text.empty();
+        Text title = showTitle ? TitleFx.styled(r.title(), r.titleColor()) : Text.empty();
         int w = Math.max(Math.max(tr.getWidth(name), tr.getWidth(sub)), showTitle ? (int) (tr.getWidth(title) * 0.8f) : 0) + 12;
         int h = (party != null ? 25 : 22) + (showTitle ? 9 : 0);
 
