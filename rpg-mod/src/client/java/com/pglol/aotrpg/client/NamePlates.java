@@ -48,8 +48,11 @@ public final class NamePlates {
                 .append(Text.literal(" · ").withColor(0xFF8F8A7A));
         }
         sub.append(Text.literal("Lv " + r.level() + "  ").withColor(Ui.GOLD)).append(role == null ? Text.empty() : Text.literal(role.tag() + " " + role.title).withColor(role.color));
-        int w = Math.max(tr.getWidth(name), tr.getWidth(sub)) + 12;
-        int h = party != null ? 25 : 22;
+        // The title they wear, on its own line (whatever their role or rank tag says).
+        boolean showTitle = !r.title().isEmpty() && !r.title().equals(r.tag());
+        Text title = showTitle ? Text.literal("« " + r.title() + " »").withColor(0xFF000000 | r.titleColor()).styled(st -> st.withItalic(true)) : Text.empty();
+        int w = Math.max(Math.max(tr.getWidth(name), tr.getWidth(sub)), showTitle ? (int) (tr.getWidth(title) * 0.8f) : 0) + 12;
+        int h = (party != null ? 25 : 22) + (showTitle ? 9 : 0);
 
         matrices.push();
         matrices.translate(at.x, at.y + 0.55, at.z);
@@ -77,6 +80,14 @@ public final class NamePlates {
             TextRenderer.TextLayerType.POLYGON_OFFSET, 0, light);
         tr.draw(sub, -tr.getWidth(sub) / 2f, y0 + 12, fade(0xFFFFFFFF, alpha), false, m, consumers,
             TextRenderer.TextLayerType.POLYGON_OFFSET, 0, light);
+        if (showTitle) {
+            matrices.push();
+            matrices.translate(0, y0 + 21, 0);
+            matrices.scale(0.8f, 0.8f, 1);
+            tr.draw(title, -tr.getWidth(title) / 2f, 0, fade(0xFFFFFFFF, alpha), false, matrices.peek().getPositionMatrix(), consumers,
+                TextRenderer.TextLayerType.POLYGON_OFFSET, 0, light);
+            matrices.pop();
+        }
         // Roleplay tag: a small badge above the plate ("RP · Sergeant" or an operator role).
         if (!r.tag().isEmpty()) {
             Text tag = r.rp() ? Text.literal("RP · ").withColor(0xFF8F8A7A).append(Ui.heading(r.tag()).withColor(0xFF000000 | r.tagColor()))

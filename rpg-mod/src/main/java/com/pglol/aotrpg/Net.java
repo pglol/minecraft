@@ -409,7 +409,8 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp, int faction, String regiment, int regimentColor, int cls) { }
+    public record RosterEntry(java.util.UUID id, String name, int level, int discipline, String tag, int tagColor, boolean rp, int faction, String regiment, int regimentColor, int cls,
+                              String title, int titleColor) { }
 
     /** Server -> client: character names of everyone online, for name plates. */
     public record Roster(java.util.List<RosterEntry> players) implements CustomPayload {
@@ -428,11 +429,13 @@ public final class Net {
                 b.writeString(e.regiment());
                 b.writeInt(e.regimentColor());
                 b.writeVarInt(e.cls());
+                b.writeString(e.title());
+                b.writeInt(e.titleColor());
             }
         }, b -> {
             int n = Math.min(b.readVarInt(), 1000);
             java.util.List<RosterEntry> l = new java.util.ArrayList<>(n);
-            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean(), b.readVarInt() - 1, b.readString(), b.readInt(), b.readVarInt()));
+            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readVarInt(), b.readString(), b.readInt(), b.readBoolean(), b.readVarInt() - 1, b.readString(), b.readInt(), b.readVarInt(), b.readString(), b.readInt()));
             return new Roster(l);
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
@@ -1446,7 +1449,7 @@ public final class Net {
     }
 
     public record SocialPlayer(java.util.UUID uuid, String name, String account, int level, String tag, int tagColor, boolean online,
-                               boolean friend, boolean party, String where, String faction, int factionColor) { }
+                               boolean friend, boolean party, String where, String faction, int factionColor, String title, int titleColor) { }
 
     /** Server -> client: the social hub list. */
     public record SocialView(java.util.List<SocialPlayer> players, boolean open) implements CustomPayload {
@@ -1457,13 +1460,14 @@ public final class Net {
                 b.writeUuid(s.uuid()); b.writeString(s.name()); b.writeString(s.account()); b.writeVarInt(s.level()); b.writeString(s.tag());
                 b.writeInt(s.tagColor()); b.writeBoolean(s.online()); b.writeBoolean(s.friend()); b.writeBoolean(s.party());
                 b.writeString(s.where()); b.writeString(s.faction()); b.writeInt(s.factionColor());
+                b.writeString(s.title()); b.writeInt(s.titleColor());
             }
             b.writeBoolean(v.open);
         }, b -> {
             int n = Math.min(b.readVarInt(), 1000);
             java.util.List<SocialPlayer> l = new java.util.ArrayList<>();
             for (int i = 0; i < n; i++) l.add(new SocialPlayer(b.readUuid(), b.readString(), b.readString(), b.readVarInt(), b.readString(),
-                b.readInt(), b.readBoolean(), b.readBoolean(), b.readBoolean(), b.readString(), b.readString(), b.readInt()));
+                b.readInt(), b.readBoolean(), b.readBoolean(), b.readBoolean(), b.readString(), b.readString(), b.readInt(), b.readString(), b.readInt()));
             return new SocialView(l, b.readBoolean());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }

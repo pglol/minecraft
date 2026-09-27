@@ -73,7 +73,8 @@ public final class Social {
             boolean home = o.getServerWorld().getRegistryKey().equals(Homes.WORLD);
             list.add(new Net.SocialPlayer(o.getUuid(), pr.name, o.getGameProfile().getName(), pr.level, Roles.tag(pr), Roles.tagColor(pr), true,
                 a.friends.containsKey(id), AotRpg.PARTIES.same(p.getUuid(), o.getUuid()),
-                home ? "At home" : Sector.at(o.getX(), o.getZ()).title, f == null ? "" : f.title, f == null ? 0 : f.color));
+                home ? "At home" : Sector.at(o.getX(), o.getZ()).title, f == null ? "" : f.title, f == null ? 0 : f.color,
+                Tasks.worn(pr) == null ? "" : Tasks.worn(pr).title(), Tasks.worn(pr) == null ? 0 : Tasks.worn(pr).color()));
         }
         for (var e : a.friends.entrySet()) {
             if (seen.contains(e.getKey())) continue;
@@ -83,7 +84,7 @@ public final class Social {
             } catch (Exception ex) {
                 continue;
             }
-            list.add(new Net.SocialPlayer(id, e.getValue(), "", 0, "", 0, false, true, false, "Offline", "", 0));
+            list.add(new Net.SocialPlayer(id, e.getValue(), "", 0, "", 0, false, true, false, "Offline", "", 0, "", 0));
         }
         ServerPlayNetworking.send(p, new Net.SocialView(list, open));
     }
