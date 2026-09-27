@@ -429,6 +429,22 @@ public final class Homes {
      * staircases repaired once.
      */
     public void tick(ServerPlayerEntity p, int ticks) {
+        // The home world is empty apart from the homes: anyone falling below a home's floor is
+        // caught before the void and set back inside it (the house is rebuilt if it's missing).
+        if (p.getWorld().getRegistryKey() == WORLD && p.getY() < FLOOR - 12) {
+            int n = instanceAt(p.getBlockPos());
+            Deed d = n < 0 ? null : find(data.instances.get(n), n);
+            if (d != null) {
+                build(AotRpg.PLACES.homes.get(d.home), d.instance);
+                enter(p, d);
+            } else {
+                p.fallDistance = 0;
+                ServerWorld ow = server.getOverworld();
+                BlockPos sp = ow.getSpawnPos();
+                p.teleport(ow, sp.getX() + 0.5, ow.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, sp.getX(), sp.getZ()), sp.getZ() + 0.5, p.getYaw(), 0);
+            }
+            return;
+        }
         if (ticks % 10 != 0 || p.getWorld().getRegistryKey() != World.OVERWORLD || !AotRpg.PROFILES.get(p.getUuid()).created) return;
         BlockPos pos = p.getBlockPos();
         int home = homeAt(pos);
