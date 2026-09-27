@@ -28,6 +28,10 @@ public final class Rewards {
                 yield (d == null ? v : d.title()) + " " + (d == null ? "cosmetic" : d.slot());
             }
             case "gear" -> rarity(v).title + " gear";
+            case "title" -> {
+                Store.Title t = Store.title(v);
+                yield "Title: " + (t == null ? v : t.text());
+            }
             case "item" -> {
                 ItemStack s = item(v);
                 yield (s.getCount() > 1 ? s.getCount() + "x " : "") + s.getName().getString();
@@ -45,6 +49,7 @@ public final class Rewards {
             case "gold" -> "minecraft:gold_ingot";
             case "tokens" -> "minecraft:sunflower";
             case "cosmetic" -> "minecraft:amethyst_shard";
+            case "title" -> "minecraft:name_tag";
             case "gear" -> {
                 Item b = AotItems.exact("blade");
                 yield b != null ? Registries.ITEM.getId(b).toString() : "minecraft:iron_sword";
@@ -101,6 +106,7 @@ public final class Rewards {
             case "gold" -> AotRpg.WALLET.addGold(p, n);
             case "tokens" -> AotRpg.EVENTS.addTokens(p, n);
             case "cosmetic" -> AotRpg.COSMETICS.grant(p, v, true);
+            case "title" -> Store.grant(p, spec);
             case "gear" -> p.getInventory().offerOrDrop(Gear.roll(p.getRandom(), rarity(v), Math.max(1, AotRpg.PROFILES.get(p.getUuid()).level)));
             case "item" -> {
                 ItemStack s = item(v);

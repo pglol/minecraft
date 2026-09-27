@@ -1056,6 +1056,40 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    // ---- the store (test run)
+
+    public record StoreOffer(String id, String title, String kind, int color, long price, boolean owned) { }
+    public record StoreCrate(String id, String title, String desc, boolean gold, long price) { }
+
+    /** Server -> client: this week's shop and the crates. */
+    public record StoreView(java.util.List<StoreOffer> offers, java.util.List<StoreCrate> crates, long secondsLeft, boolean open) implements CustomPayload {
+        public static final Id<StoreView> ID = id("store");
+        public static final PacketCodec<RegistryByteBuf, StoreView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.offers.size());
+            for (StoreOffer o : v.offers) { b.writeString(o.id()); b.writeString(o.title()); b.writeString(o.kind()); b.writeInt(o.color()); b.writeVarLong(o.price()); b.writeBoolean(o.owned()); }
+            b.writeVarInt(v.crates.size());
+            for (StoreCrate c : v.crates) { b.writeString(c.id()); b.writeString(c.title()); b.writeString(c.desc()); b.writeBoolean(c.gold()); b.writeVarLong(c.price()); }
+            b.writeVarLong(v.secondsLeft); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<StoreOffer> o = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) o.add(new StoreOffer(b.readString(), b.readString(), b.readString(), b.readInt(), b.readVarLong(), b.readBoolean()));
+            int m = Math.min(b.readVarInt(), 16);
+            java.util.List<StoreCrate> c = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) c.add(new StoreCrate(b.readString(), b.readString(), b.readString(), b.readBoolean(), b.readVarLong()));
+            return new StoreView(o, c, b.readVarLong(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open the store, buy an offer, open a crate. */
+    public record StoreAction(String action, String id) implements CustomPayload {
+        public static final Id<StoreAction> ID = id("store_action");
+        public static final PacketCodec<RegistryByteBuf, StoreAction> CODEC = PacketCodec.of((v, b) -> { b.writeString(v.action); b.writeString(v.id); },
+            b -> new StoreAction(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record Struggle() implements CustomPayload {
         public static final Id<Struggle> ID = id("struggle");
         public static final PacketCodec<RegistryByteBuf, Struggle> CODEC = PacketCodec.unit(new Struggle());
@@ -1751,6 +1785,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(OdmMove.ID, OdmMove.CODEC);
         PayloadTypeRegistry.playS2C().register(OdmState.ID, OdmState.CODEC);
         PayloadTypeRegistry.playS2C().register(Chatter.ID, Chatter.CODEC);
+        PayloadTypeRegistry.playS2C().register(StoreView.ID, StoreView.CODEC);
+        PayloadTypeRegistry.playC2S().register(StoreAction.ID, StoreAction.CODEC);
         PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
         PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);
         PayloadTypeRegistry.playC2S().register(ToggleSheath.ID, ToggleSheath.CODEC);

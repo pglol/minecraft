@@ -65,6 +65,8 @@ public final class Story {
         public double mercy, paradis, independence;
         public List<String> deeds = new ArrayList<>();
         public boolean begun;
+        /** The long opening (barracks, roll call...) was skipped: players start in the world, story quests are optional. */
+        public boolean openingSkipped;
         /** Set aside by the player (legacy; quests are abandoned instead now). */
         public boolean paused;
         /** Quests offered and waiting to be picked up from their givers. */
@@ -1317,10 +1319,35 @@ public final class Story {
     private void begin(ServerPlayerEntity p, Profile pr) {
         State s = pr.story;
         s.begun = true;
-        // Everyone wakes up in the training corps; your origin comes back later, as a memory.
+        // Straight into the world: no opening chapter. The story's quests are there to pick up from
+        // their givers, whenever you like.
+        skipOpening(p, pr);
+    }
+
+    /** The opening is skipped: its quest counts as done (so what follows is offered), and the world is open. */
+    private void skipOpening(ServerPlayerEntity p, Profile pr) {
+        State s = pr.story;
+        s.openingSkipped = true;
+        s.flags.add("prologue_done");
         String first = starts.get("default");
-        if (first == null || !missions.containsKey(first)) return;
-        startMission(p, pr, first);
+        Mission m = first == null ? null : missions.get(first);
+        if (m != null && !s.done.contains(first)) {
+            if (s.mission.equals(first)) {
+                Scene old = scenes.remove(p.getUuid());
+                if (old != null) {
+                    clearScene(old);
+                    for (UUID g : old.guests) guestOf.remove(g);
+                }
+                s.mission = "";
+                s.step = 0;
+            }
+            s.done.add(first);
+            for (JsonObject o : m.unlock) {
+                if (test(p, o.has("if") ? o.getAsJsonObject("if") : null)) s.available.add(o.get("id").getAsString());
+            }
+        }
+        AotRpg.PROFILES.save(p.getUuid());
+        send(p, pr);
     }
 
     private void startMission(ServerPlayerEntity p, Profile pr, String id) {
@@ -1367,6 +1394,7 @@ public final class Story {
                 refreshPlayers(p);
             }
         }
+        if (!s.openingSkipped && s.begun) skipOpening(p, pr);
         if (s.mission.startsWith("@")) {
             startMission(p, pr, s.mission.substring(1));
             return;

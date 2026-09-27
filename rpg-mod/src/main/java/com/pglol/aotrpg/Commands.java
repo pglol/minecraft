@@ -520,12 +520,40 @@ final class Commands {
             c.getSource().sendFeedback(() -> Text.literal("Story content reloaded (see the server log for problems)."), false);
             return 1;
         })));
+        d.register(CommandManager.literal("odm").requires(s -> s.hasPermissionLevel(2))
+            .then(CommandManager.literal("infinite").executes(c -> {
+                var p = c.getSource().getPlayerOrThrow();
+                boolean on = AotRpg.ODM.toggleInfinite(p.getUuid());
+                c.getSource().sendFeedback(() -> Text.literal("Infinite gas " + (on ? "on" : "off") + " for you."), false);
+                return 1;
+            }).then(CommandManager.literal("all").executes(c -> {
+                boolean on = AotRpg.ODM.toggleInfiniteAll();
+                c.getSource().sendFeedback(() -> Text.literal("Infinite gas " + (on ? "on" : "off") + " for everyone."), true);
+                return 1;
+            })).then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                var p = EntityArgumentType.getPlayer(c, "player");
+                boolean on = AotRpg.ODM.toggleInfinite(p.getUuid());
+                c.getSource().sendFeedback(() -> Text.literal("Infinite gas " + (on ? "on" : "off") + " for " + p.getName().getString() + "."), true);
+                return 1;
+            }))));
+        d.register(CommandManager.literal("aotrpg").requires(s -> s.hasPermissionLevel(2)).then(CommandManager.literal("titles")
+            .then(CommandManager.literal("unlockall").executes(c -> {
+                int n = Store.unlockAllTitles(c.getSource().getPlayerOrThrow());
+                c.getSource().sendFeedback(() -> Text.literal("Unlocked " + n + " titles."), false);
+                return 1;
+            }).then(CommandManager.argument("player", EntityArgumentType.player()).executes(c -> {
+                var p = EntityArgumentType.getPlayer(c, "player");
+                int n = Store.unlockAllTitles(p);
+                c.getSource().sendFeedback(() -> Text.literal("Unlocked " + n + " titles for " + p.getName().getString() + "."), true);
+                return 1;
+            })))));
         d.register(CommandManager.literal("odmcheck").executes(c -> {
             for (String line : OdmBoost.describe(c.getSource().getPlayerOrThrow())) c.getSource().sendFeedback(() -> Text.literal(line), false);
             return 1;
         }));
         d.register(CommandManager.literal("bladecheck").executes(c -> {
-            String info = BladeCare.describe(c.getSource().getPlayerOrThrow().getMainHandStack());
+            var bp = c.getSource().getPlayerOrThrow();
+            String info = BladeCare.describe(bp.getMainHandStack()) + " | " + AotRpg.BLADES.session(bp.getUuid());
             c.getSource().sendFeedback(() -> Text.literal(info), false);
             return 1;
         }));

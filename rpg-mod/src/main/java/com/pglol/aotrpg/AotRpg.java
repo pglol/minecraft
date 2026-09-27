@@ -79,6 +79,7 @@ public final class AotRpg implements ModInitializer {
     public static final OdmBoost ODM = new OdmBoost();
     public static final Townsfolk FOLK = new Townsfolk();
     public static final CaveCarver CAVES = new CaveCarver();
+    public static final Store STORE = new Store();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -218,6 +219,10 @@ public final class AotRpg implements ModInitializer {
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.OdmJump.ID, (payload, ctx) -> ODM.boost(ctx.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(Net.StoreAction.ID, (payload, ctx) -> {
+            if (payload.action().equals("open")) STORE.send(ctx.player(), true);
+            else STORE.action(ctx.player(), payload.action(), payload.id());
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.FurnitureAction.ID, (payload, ctx) ->
             FURNITURE.action(ctx.player(), payload.action(), payload.piece(), payload.action().equals("place") ? net.minecraft.util.math.BlockPos.fromLong(payload.at()) : null));
         ServerPlayNetworking.registerGlobalReceiver(Net.SkillReset.ID, (payload, ctx) -> {

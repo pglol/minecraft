@@ -264,6 +264,10 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(DownedFx::renderHud);
         ClientTickEvents.END_CLIENT_TICK.register(DownedFx::tick);
         HudRenderCallback.EVENT.register(GameHints::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.StoreView.ID, (payload, ctx) -> {
+            StoreScreen.view = payload;
+            if (ctx.client().currentScreen instanceof StoreScreen s) s.refresh();
+        });
         ClientPlayNetworking.registerGlobalReceiver(Net.WalletSync.ID, (payload, ctx) -> {
             ClientState.marks = payload.marks();
             ClientState.gold = payload.gold();

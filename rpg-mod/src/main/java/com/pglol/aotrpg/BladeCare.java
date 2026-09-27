@@ -31,6 +31,12 @@ public final class BladeCare {
     private record Seen(net.minecraft.item.Item item, NbtCompound gear, int value) { }
 
     private final Map<UUID, Seen[]> seen = new HashMap<>();
+    /** This session: wear seen on each player's blades, and how much of it temper took back (for /bladecheck). */
+    private final Map<UUID, Long> worn = new HashMap<>(), refunded = new HashMap<>();
+
+    public String session(UUID id) {
+        return "this session: " + worn.getOrDefault(id, 0L) + " wear seen, " + refunded.getOrDefault(id, 0L) + " taken back by temper";
+    }
 
     /** Chance each point of wear is shrugged off. */
     public static double temper(ItemStack s) {
@@ -202,14 +208,18 @@ public final class BladeCare {
             Seen prev = last[i];
             boolean same = prev != null && prev.item() == s.getItem() && prev.gear().equals(Gear.data(s));
             int lost = same ? prev.value() - v : 0;
-            // A big drop is a different blade swapped in, not wear.
-            if (lost > 0 && lost <= 4) {
-                int back = 0;
-                for (int k = 0; k < lost; k++) if (p.getRandom().nextDouble() < t) back++;
+            // Wear since last look: temper takes back its share of it. (Danny's cuts can add several
+            // points of BladeDamage at once, so this isn't limited to a point at a time; only a huge
+            // jump, a different blade swapped in, is left alone.)
+            if (lost > 0 && lost <= 200) {
+                double share = lost * t;
+                int back = (int) share + (p.getRandom().nextDouble() < share - (int) share ? 1 : 0);
                 if (back > 0) {
                     v += back;
                     w.set(v);
+                    refunded.merge(p.getUuid(), (long) back, Long::sum);
                 }
+                worn.merge(p.getUuid(), (long) lost, Long::sum);
             }
             last[i] = new Seen(s.getItem(), Gear.data(s), v);
         }

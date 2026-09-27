@@ -79,7 +79,9 @@ public final class Tasks {
 
     public static Achievement achievement(String id) {
         for (Achievement a : ACHIEVEMENTS) if (a.id().equals(id)) return a;
-        return null;
+        // Store titles wear the same way.
+        Store.Title t = Store.title(id);
+        return t == null ? null : new Achievement(t.id(), t.text(), "From the store", "", 0, "", t.color());
     }
 
     // ------------------------------------------------------------------ periods
@@ -248,6 +250,11 @@ public final class Tasks {
         for (Achievement a : ACHIEVEMENTS) {
             ach.add(new Net.AchievementEntry(a.id(), a.title(), a.desc(), Math.min(a.goal(), pr.counters.getOrDefault(a.stat(), 0L)), a.goal(),
                 Rewards.describe(a.reward()), a.color(), pr.achievements.contains(a.id())));
+        }
+        // Titles you've bought or won, alongside the earned ones, to wear.
+        for (Store.Title t : Store.TITLES) {
+            if (!pr.achievements.contains(t.id())) continue;
+            ach.add(new Net.AchievementEntry(t.id(), t.text(), "Store title", 1, 1, "", t.color(), true));
         }
         long[] left = new long[Period.values().length];
         for (Period per : Period.values()) left[per.ordinal()] = secondsLeft(per);

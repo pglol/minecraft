@@ -45,11 +45,49 @@ public final class OdmBoost {
     private static final class St {
         long lastAt = -1000;
         int inAir;
-        boolean gear;
+        boolean gear, refilling;
         float gas = -2;
     }
 
     private final Map<UUID, St> states = new HashMap<>();
+    /** Testing: players whose gear never runs dry (ops toggle it), or everyone at once. */
+    private final java.util.Set<UUID> infinite = new java.util.HashSet<>();
+    private boolean infiniteAll;
+
+    public boolean toggleInfinite(UUID id) {
+        if (!infinite.remove(id)) {
+            infinite.add(id);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean toggleInfiniteAll() {
+        infiniteAll = !infiniteAll;
+        return infiniteAll;
+    }
+
+    private boolean infinite(ServerPlayerEntity p) {
+        return infiniteAll || infinite.contains(p.getUuid());
+    }
+
+    /** Towns, villages, camps and HQs are where the gear gets refilled. */
+    public static boolean refuelPoint(ServerPlayerEntity p) {
+        return AotRpg.PLACES.nearest(p.getX(), p.getZ(), 70, "town", "village", "city", "capital", "camp") != null;
+    }
+
+    /** Tops the gear up by `amount` (or to full); true if anything went in. */
+    private static boolean refill(ServerPlayerEntity p, double amount) {
+        ItemStack g = gear(p);
+        if (g.isEmpty()) return false;
+        Num v = find(g, GAS);
+        if (v == null) return false;
+        Num max = find(g, GAS_MAX);
+        double m = max != null && max.value() > 0 ? max.value() : FULL;
+        if (v.value() >= m) return false;
+        v.set().accept(Math.min(m, v.value() + amount));
+        return true;
+    }
 
     // ------------------------------------------------------------------ the gear and its gas
 
@@ -187,7 +225,7 @@ public final class OdmBoost {
             p.sendMessage(Text.literal("You need ODM gear on to do that.").formatted(Formatting.GRAY), true);
             return;
         }
-        if (!spend(p)) {
+        if (!infinite(p) && !spend(p)) {
             p.sendMessage(Text.literal("Out of gas.").formatted(Formatting.RED), true);
             sync(p, s, true);
             return;
@@ -210,6 +248,16 @@ public final class OdmBoost {
     public void tick(ServerPlayerEntity p, int ticks) {
         St s = states.computeIfAbsent(p.getUuid(), k -> new St());
         if (p.isOnGround() || p.isTouchingWater() || p.hasVehicle()) s.inAir = 0;
+        if (ticks % 20 == 11) {
+            if (infinite(p)) refill(p, 1e9);
+            else if (refuelPoint(p) && refill(p, FULL * 0.05)) {
+                // Refilling at a town, camp or HQ: a quiet hiss and a note the first time.
+                if (!s.refilling) p.sendMessage(net.minecraft.text.Text.literal("Refilling gas...").formatted(Formatting.AQUA), true);
+                s.refilling = true;
+            } else {
+                s.refilling = false;
+            }
+        }
         if (ticks % 10 == 0) sync(p, s, false);
     }
 
