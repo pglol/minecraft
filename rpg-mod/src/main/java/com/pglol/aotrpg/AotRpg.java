@@ -636,6 +636,7 @@ public final class AotRpg implements ModInitializer {
                 && !TitanTypes.shifterNear(world, entity.getX(), entity.getZ(), 96)) entity.discard();
             else if (!world.isClient && ESTATE.stray(entity)) entity.discard();
             else if (!world.isClient && STORY.stray(entity)) entity.discard();
+            else if (!world.isClient && Extraction.stray(entity)) entity.discard();
         });
 
         ServerTickEvents.END_SERVER_TICK.register(this::tick);
@@ -753,7 +754,7 @@ public final class AotRpg implements ModInitializer {
         long bounty = 4 + Math.round(dead.getMaxHealth() / 40);
         for (ServerPlayerEntity er : earners) {
             Coins.drop(dead, er == killer ? bounty : Math.max(2, bounty * 3 / 4), er);
-            GEAR.titanDrop(er, dead, PLACES.levelAt(dead.getX(), dead.getZ()));
+            GEAR.titanDrop(er, dead, Extraction.levelIn(dead.getWorld(), dead.getX(), dead.getZ()));
         }
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());
         FACTIONS.onTitanKill(killer, dead.getX(), dead.getZ());

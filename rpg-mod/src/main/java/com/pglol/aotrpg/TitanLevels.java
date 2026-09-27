@@ -143,7 +143,7 @@ public final class TitanLevels {
         rated.put(t.getUuid(), System.currentTimeMillis());
         t.getCommandTags().removeIf(tag -> tag.startsWith(LV) || tag.startsWith(PARTY));
         var r = t.getRandom();
-        int area = AotRpg.PLACES.levelAt(t.getX(), t.getZ());
+        int area = Extraction.levelIn(t.getWorld(), t.getX(), t.getZ());
         int ref = AotRpg.PROFILES.get(near.getUuid()).level;
         int size = 1;
         Parties.Party party = AotRpg.PARTIES.of(near.getUuid());
