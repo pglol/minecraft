@@ -22,7 +22,8 @@
     "ChatHudMixin",
     "ChatScreenMixin",
     "MessageHandlerMixin",
-    "HomeFogMixin"
+    "HomeFogMixin",
+    "ItemRendererTintMixin"
   ],
   "injectors": {
     "defaultRequire": 0
