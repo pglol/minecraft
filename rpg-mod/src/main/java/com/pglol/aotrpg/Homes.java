@@ -385,10 +385,39 @@ public final class Homes {
         int sx = Integer.signum(cx - h[6]), sz = Integer.signum(cz - h[7]);
         if (Math.abs(cx - h[6]) < Math.abs(cz - h[7])) sx = 0;
         else sz = 0;
-        p.teleport(hw, inside.getX() + 0.5 + sx * 2, inside.getY(), inside.getZ() + 0.5 + sz * 2, p.getYaw(), 0);
+        BlockPos want = inside.add(sx * 2, 0, sz * 2);
+        hw.getChunk(want.getX() >> 4, want.getZ() >> 4);
+        // A copy that was never built (or got lost) is rebuilt before anyone steps into thin air.
+        if (hw.getBlockState(new BlockPos(want.getX(), FLOOR - 1, want.getZ())).isAir()
+            && hw.getBlockState(new BlockPos(want.getX(), FLOOR - 3, want.getZ())).isAir()) {
+            build(h, d.instance);
+        }
+        // Somewhere you actually fit: open at the feet and head, a floor underneath.
+        BlockPos at = standable(hw, want) ? want : null;
+        for (int r = 1; at == null && r <= 4; r++) {
+            for (int dx = -r; dx <= r && at == null; dx++) {
+                for (int dz = -r; dz <= r && at == null; dz++) {
+                    for (int dy = -1; dy <= 2 && at == null; dy++) {
+                        BlockPos c = want.add(dx, dy, dz);
+                        if (standable(hw, c)) at = c;
+                    }
+                }
+            }
+        }
+        if (at == null) at = inside;
+        p.fallDistance = 0;
+        p.teleport(hw, at.getX() + 0.5, at.getY(), at.getZ() + 0.5, p.getYaw(), 0);
+        // A moment's grace while the house loads in around you.
+        p.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 60, 4, false, false, false));
+        p.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING, 40, 0, false, false, false));
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_WOODEN_DOOR_CLOSE, SoundCategory.BLOCKS, 0.7f, 1f);
         p.sendMessage(Text.literal("Home").formatted(Formatting.GOLD, Formatting.BOLD)
             .append(Text.literal("  ·  " + townOf(h) + "  ·  the front door leads back out").formatted(Formatting.GRAY)), true);
+    }
+
+    private static boolean standable(ServerWorld w, BlockPos p) {
+        return w.getBlockState(p).getCollisionShape(w, p).isEmpty() && w.getBlockState(p.up()).getCollisionShape(w, p.up()).isEmpty()
+            && !w.getBlockState(p.down()).getCollisionShape(w, p.down()).isEmpty() && w.getFluidState(p).isEmpty();
     }
 
     /** When each player last came out of their home (so stepping out doesn't pull them straight back in). */
@@ -407,6 +436,15 @@ public final class Homes {
             int[] h = AotRpg.PLACES.homes.get(home);
             boolean inside = pos.getX() >= h[0] && pos.getX() <= h[2] && pos.getZ() >= h[1] && pos.getZ() <= h[3] && pos.getY() >= h[4];
             Deed own = deed(p, home);
+            if (inside && own == null) {
+                // Not yours, but a party member's: you go into their copy with them.
+                for (ServerPlayerEntity o : server.getPlayerManager().getPlayerList()) {
+                    if (o != p && AotRpg.PARTIES.same(p.getUuid(), o.getUuid()) && deed(o, home) != null) {
+                        own = deed(o, home);
+                        break;
+                    }
+                }
+            }
             if (inside && own != null) {
                 enter(p, own);
                 return;
