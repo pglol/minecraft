@@ -1342,12 +1342,48 @@ public final class Story {
                 s.step = 0;
             }
             s.done.add(first);
-            for (JsonObject o : m.unlock) {
-                if (test(p, o.has("if") ? o.getAsJsonObject("if") : null)) s.available.add(o.get("id").getAsString());
-            }
+            // The story's first quests wait until the player has found their feet (see offerStory).
+            for (JsonObject o : m.unlock) s.available.remove(o.get("id").getAsString());
         }
         AotRpg.PROFILES.save(p.getUuid());
         send(p, pr);
+    }
+
+    /** The level at which story quests start being offered: before that, the world is yours to learn. */
+    public static final int STORY_LEVEL = 10;
+
+    /**
+     * New players get no story at first: no quest givers, nothing pulling them anywhere. Once they
+     * reach STORY_LEVEL the first quests open up (the opening's unlocks) and they're told where.
+     */
+    private void offerStory(ServerPlayerEntity p, Profile pr) {
+        State s = pr.story;
+        if (s.flags.contains("story_offered")) return;
+        String first = starts.get("default");
+        Mission m = first == null ? null : missions.get(first);
+        if (m == null) return;
+        if (pr.level < STORY_LEVEL) {
+            // Anything offered early (before this change) is taken back; one already picked up is set down.
+            boolean changed = false;
+            for (JsonObject o : m.unlock) {
+                String id = o.get("id").getAsString();
+                if (s.mission.equals(id)) abandon(p);
+                if (s.available.remove(id)) changed = true;
+            }
+            if (changed) {
+                AotRpg.PROFILES.save(p.getUuid());
+                send(p, pr);
+            }
+            return;
+        }
+        s.flags.add("story_offered");
+        for (JsonObject o : m.unlock) {
+            String id = o.get("id").getAsString();
+            if (!s.done.contains(id) && test(p, o.has("if") ? o.getAsJsonObject("if") : null)) s.available.add(id);
+        }
+        AotRpg.PROFILES.save(p.getUuid());
+        send(p, pr);
+        Reveal.show(p, "STORY QUESTS OPEN", "Optional · find the ! quest givers at the Cadet Training Camp (journal: J)", "minecraft:writable_book", 2);
     }
 
     /** The enlistment scene: the barracks at night behind the character creator, then roll call. */
@@ -1425,6 +1461,7 @@ public final class Story {
             }
         }
         if (!creating && !s.openingSkipped && s.begun) skipOpening(p, pr);
+        if (!creating && ticks % 100 == 41) offerStory(p, pr);
         if (s.mission.startsWith("@")) {
             startMission(p, pr, s.mission.substring(1));
             return;
