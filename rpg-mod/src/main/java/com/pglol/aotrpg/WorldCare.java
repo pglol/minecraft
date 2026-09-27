@@ -208,7 +208,9 @@ public final class WorldCare {
         }
         if (changed.containsKey(key)) return; // keep the first, original state
         BlockState old = w.getBlockState(pos);
-        if (transientBlock(old) || inBuildZone(pos.getX(), pos.getZ()) || HomePlots.ownedAt(pos)) return;
+        // Owned plots too: what titans, shifters and explosions wreck there is put back like anywhere
+        // else. What the owner breaks by hand is forgotten straight after (see the block-break hook).
+        if (transientBlock(old) || inBuildZone(pos.getX(), pos.getZ())) return;
         NbtCompound be = null;
         BlockEntity ent = w.getBlockEntity(pos);
         if (ent != null) {
@@ -273,12 +275,25 @@ public final class WorldCare {
         if (due.isEmpty()) return;
         due.sort((a, b) -> Integer.compare(BlockPos.unpackLongY(a.getKey()), BlockPos.unpackLongY(b.getKey())));
         int budget = force ? Integer.MAX_VALUE : Math.max(160, config.blocksPerSecond);
+        // Damage far from everyone used to wait for someone to wander by, and filled the list until
+        // nothing new was recorded. Load a few of those chunks each second and mend them too.
+        int loads = force ? 256 : 3;
+        java.util.Set<Long> opened = new java.util.HashSet<>();
         quiet(true);
         try {
             for (var e : due) {
                 if (budget <= 0) break;
                 BlockPos pos = BlockPos.fromLong(e.getKey());
-                if (!w.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) continue;
+                int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+                if (!w.isChunkLoaded(cx, cz)) {
+                    long ck = net.minecraft.util.math.ChunkPos.toLong(cx, cz);
+                    if (!opened.contains(ck)) {
+                        if (loads <= 0) continue;
+                        loads--;
+                        w.getChunk(cx, cz);
+                        opened.add(ck);
+                    }
+                }
                 if (!force && w.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 4, false) != null) continue;
                 changed.remove(e.getKey());
                 BlockState cur = w.getBlockState(pos);
