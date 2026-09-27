@@ -439,12 +439,9 @@ public final class CosmeticFx {
         for (PlayerEntity p : mc.world.getPlayers()) {
             if (p.isInvisible() || p == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
             if (p.squaredDistanceTo(cam) > 48 * 48) continue;
-            String backPiece = worn(p.getUuid(), "back");
-            if (backPiece.startsWith("back_wings") || backPiece.startsWith("back_cloak") || backPiece.equals("back_banner")) {
-                back(ms, vc, cam, p, td, time, backPiece);
-            }
+            // Back pieces and head pieces are worn on the model (CosmeticLayer); only what orbits is drawn here.
             String head = worn(p.getUuid(), "head");
-            if (head.isEmpty() || head.equals("head_none") || head.equals("head_embers")) continue;
+            if (!head.equals("head_crows") && !head.equals("head_planets") && !head.equals("head_orbs")) continue;
             Vec3d pos = p.getLerpedPos(td);
             double top = pos.y + p.getHeight() + (p.isInSneakingPose() ? -0.1 : 0.05);
             int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
@@ -518,22 +515,21 @@ public final class CosmeticFx {
         }
     }
 
-    /** Cloaks, banners and wings, hung from the shoulders and turned with the body. */
-    private static void back(MatrixStack ms, VertexConsumerProvider vc, Vec3d cam, PlayerEntity p, float td, float time, String id) {
-        Vec3d pos = p.getLerpedPos(td);
-        boolean sneak = p.isInSneakingPose();
-        double speed = p.getVelocity().horizontalLength();
+    /**
+     * Cloaks, banners and wings. Drawn by CosmeticLayer on the player's body, so they move with it;
+     * the matrix here sits between the shoulder blades with +Y up and +Z forward. swing is how hard
+     * the legs are moving (the cloak swings clear of them).
+     */
+    static void backShape(MatrixStack ms, VertexConsumerProvider vc, float time, String id, double speed, float swing) {
         ms.push();
-        ms.translate(pos.x - cam.x, pos.y - cam.y + (sneak ? 1.15 : 1.4), pos.z - cam.z);
-        ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw(p, td)));
-        if (sneak) ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(25));
         Matrix4f m = ms.peek().getPositionMatrix();
         if (id.startsWith("back_cloak")) {
             boolean green = id.equals("back_cloak_green");
             int cloth = green ? 0xFF2F4A2A : 0xFF7A1616, edge = green ? 0xFF22361F : 0xFF5A1010;
             // Local +Z is forward, so the cloak hangs at -Z and swings back as you move.
-            float sway = (float) Math.sin(time * 2.2) * 0.04f, blow = (float) Math.min(0.55, speed * 1.6) + 0.05f;
-            float zt = -0.17f, zb = zt - blow - sway, yb = -1.2f + blow * 0.35f;
+            float sway = (float) Math.sin(time * 2.2) * 0.04f;
+            float blow = (float) Math.min(0.6, Math.max(speed * 1.6, swing * 0.55)) + 0.12f;
+            float zt = -0.16f, zb = zt - blow - sway, yb = -1.2f + blow * 0.35f;
             VertexConsumer q = vc.getBuffer(RenderLayer.getDebugQuads());
             quad2(q, m, 0.3f, 0.02f, zt, -0.3f, 0.02f, zt, -0.36f, yb, zb, 0.36f, yb, zb, cloth);
             quad2(q, m, 0.36f, yb, zb, -0.36f, yb, zb, -0.36f, yb - 0.04f, zb - 0.01f, 0.36f, yb - 0.04f, zb - 0.01f, edge);
@@ -594,6 +590,36 @@ public final class CosmeticFx {
             }
         }
         ms.pop();
+    }
+
+    /** Worn head pieces, drawn by CosmeticLayer on the head (the matrix at the top of the head, +Y up, +Z forward). */
+    static void headShape(MatrixStack ms, VertexConsumerProvider vc, float time, String head) {
+        switch (head) {
+            case "head_halo" -> ring(vc.getBuffer(RenderLayer.getLightning()), ms.peek().getPositionMatrix(), 0.14f + (float) Math.sin(time * 2) * 0.03f,
+                0.28f, 0.06f, 0xE0FFE08A);
+            case "head_crown" -> crown(vc.getBuffer(RenderLayer.getDebugQuads()), ms, 0);
+            case "head_laurel" -> laurel(vc.getBuffer(RenderLayer.getDebugQuads()), ms, 0);
+            case "head_sun", "head_founder" -> {
+                boolean founder = head.equals("head_founder");
+                ms.push();
+                ms.translate(0, -0.25, -0.34);
+                ms.multiply(RotationAxis.POSITIVE_Z.rotation(time * 0.4f));
+                Matrix4f m = ms.peek().getPositionMatrix();
+                VertexConsumer glow = vc.getBuffer(RenderLayer.getLightning());
+                for (int k = 0; k < 12; k++) {
+                    double a = k * Math.PI * 2 / 12;
+                    float len = k % 2 == 0 ? 0.62f : 0.45f, wd = 0.05f;
+                    float cx0 = (float) Math.cos(a), sy0 = (float) Math.sin(a), px0 = (float) -Math.sin(a), py0 = (float) Math.cos(a);
+                    quad2(glow, m, cx0 * 0.28f + px0 * wd, sy0 * 0.28f + py0 * wd, 0, cx0 * 0.28f - px0 * wd, sy0 * 0.28f - py0 * wd, 0,
+                        cx0 * len, sy0 * len, 0, cx0 * len, sy0 * len, 0,
+                        founder ? (k % 2 == 0 ? 0xD0E02A2A : 0x90FFD24A) : (k % 2 == 0 ? 0xC0FFD24A : 0x90FFF6C0));
+                }
+                ring(glow, m, 0, 0.3f, 0.04f, founder ? 0xE0E02A2A : 0xC0FFE08A);
+                if (founder) orb(glow, m, 0.08f + (float) Math.sin(time * 4) * 0.02f, 0xF0FF3A2A);
+                ms.pop();
+            }
+            default -> { }
+        }
     }
 
     /** A wreath of leaves around the head. */

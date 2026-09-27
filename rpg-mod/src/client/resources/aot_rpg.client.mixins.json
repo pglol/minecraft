@@ -21,7 +21,8 @@
     "ChatHudAccessor",
     "ChatHudMixin",
     "ChatScreenMixin",
-    "MessageHandlerMixin"
+    "MessageHandlerMixin",
+    "HomeFogMixin"
   ],
   "injectors": {
     "defaultRequire": 0

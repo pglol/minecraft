@@ -56,7 +56,7 @@ public final class Homes {
      */
     private static final int BASE_X2 = 1_000_000, CELL2 = 1024;
     /** How far of the real street around a town house is copied in, to look at through the windows. */
-    private static final int BACKDROP = 14;
+    private static final int BACKDROP = 28, OLD_BACKDROP = 14;
 
     /**
      * Home upgrades. Yards (stable, garden, pond) belong to property plots now: town homes are walled
@@ -99,6 +99,8 @@ public final class Homes {
         public boolean headroomFixed;
         /** Walled in: no yard, the real street outside the windows, and an invisible wall at the doorstep. */
         public boolean enclosed;
+        /** The wider street copy (28 blocks out rather than 14) is in. */
+        public boolean backdrop2;
         /** Has a yard (bought yard upgrades before yards moved to plots). */
         public boolean yard;
         /** Headroom over the bottom step cleared too (the upper floor there blocked the climb). */
@@ -507,6 +509,32 @@ public final class Homes {
             WorldCare.quiet(false);
         }
         d.enclosed = true;
+        d.backdrop2 = true;
+        save();
+    }
+
+    /** Homes walled in before the street copy was widened: copy the ring from 14 out to 28 blocks. */
+    void widenBackdrop(int[] h, Deed d) {
+        ServerWorld ow = server.getOverworld(), hw = homeWorld();
+        if (hw == null) return;
+        int n = d.instance, flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
+        WorldCare.quiet(true);
+        try {
+            for (int x = h[0] - 1 - BACKDROP; x <= h[2] + 1 + BACKDROP; x++) {
+                for (int z = h[1] - 1 - BACKDROP; z <= h[3] + 1 + BACKDROP; z++) {
+                    if (x >= h[0] - 1 - OLD_BACKDROP && x <= h[2] + 1 + OLD_BACKDROP && z >= h[1] - 1 - OLD_BACKDROP && z <= h[3] + 1 + OLD_BACKDROP) continue;
+                    ow.getChunk(x >> 4, z >> 4);
+                    for (int y = h[4] - 4; y <= h[5] + 10; y++) {
+                        BlockState st = ow.getBlockState(new BlockPos(x, y, z));
+                        if (st.isAir()) continue;
+                        hw.setBlockState(map(h, n, x, y, z), st, flags);
+                    }
+                }
+            }
+        } finally {
+            WorldCare.quiet(false);
+        }
+        d.backdrop2 = true;
         save();
     }
 
@@ -609,6 +637,7 @@ public final class Homes {
         int[] h = AotRpg.PLACES.homes.get(d.home);
         migrate(d.instance);
         if (!d.enclosed && !d.yard) enclose(h, d);
+        else if (d.enclosed && !d.backdrop2) widenBackdrop(h, d);
         if (p.getWorld().getRegistryKey() != WORLD) {
             // Come back out on the doorstep, outside (never inside the town copy, or you'd walk straight back in).
             int ccx = (h[0] + h[2]) / 2, ccz = (h[1] + h[3]) / 2;
