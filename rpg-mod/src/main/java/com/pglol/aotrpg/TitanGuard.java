@@ -80,6 +80,11 @@ public final class TitanGuard {
                     && w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, v.getBlockX(), v.getBlockZ()) < v.getY() - 2)) {
                 dangling.add(v);
             }
+            // Titans left over from a Call to Arms that's over go, wherever they are.
+            if (AotRpg.WAR.stray(e)) {
+                gone.add(e);
+                continue;
+            }
             // Homes stay safe even during a breach (their raids are separate).
             if (wanderingTitan(e) && ((walls && protectedAt(e.getX(), e.getZ())) || AotRpg.RAIDS.guarded(e.getX(), e.getZ()))) gone.add(e);
         }

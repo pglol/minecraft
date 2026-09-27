@@ -40,6 +40,8 @@ public final class FactionWar {
         public long until, nextWave;
         public int wavesLeft = 4;
         public final List<UUID> titans = new ArrayList<>();
+        /** When the last defender left the town (0 while someone's there). */
+        public long emptySince;
         public final Map<UUID, Integer> kills = new HashMap<>();
         public final Map<UUID, String> names = new HashMap<>();
     }
@@ -97,10 +99,20 @@ public final class FactionWar {
                 Cinematics.intro(there, at, subjects, "CALL TO ARMS", "Titans march on " + active.town + ". Hold the town!", 0xE04A3A);
             }
         }
-        boolean alive = false;
-        for (UUID id : active.titans) {
+        // A titan only counts as gone once it's really dead: one out of loaded range is still out there.
+        active.titans.removeIf(id -> {
             Entity e = w.getEntity(id);
-            if (e != null && e.isAlive()) alive = true;
+            return e != null && !e.isAlive();
+        });
+        boolean alive = !active.titans.isEmpty();
+        // Nobody defending (everyone left): the titans withdraw after a minute, and no one is rewarded.
+        boolean anyone = false;
+        for (ServerPlayerEntity p : soldiers()) if (p.squaredDistanceTo(active.x, p.getY(), active.z) < 200 * 200) anyone = true;
+        if (anyone) active.emptySince = 0;
+        else if (active.emptySince == 0) active.emptySince = now;
+        if (!anyone && active.emptySince > 0 && now - active.emptySince > 60_000) {
+            withdraw();
+            return;
         }
         if ((!alive && active.wavesLeft == 0) || now > active.until) end(!alive && active.wavesLeft == 0);
     }
@@ -137,7 +149,8 @@ public final class FactionWar {
         if (kinds.isEmpty()) return;
         int near = 0;
         for (ServerPlayerEntity p : soldiers()) if (p.squaredDistanceTo(active.x, p.getY(), active.z) < 200 * 200) near++;
-        int n = 3 + Math.min(6, near * 2);
+        // Start small and build: the first wave is a handful, each one after a little bigger.
+        int n = 2 + Math.min(4, near) + (4 - active.wavesLeft);
         var r = w.getRandom();
         for (int i = 0; i < n; i++) {
             double a = r.nextDouble() * Math.PI * 2, d = 55 + r.nextDouble() * 30;
@@ -162,10 +175,33 @@ public final class FactionWar {
         return e.getCommandTags().contains(TAG);
     }
 
+    /** An event titan left over from a Call to Arms that is over (or not its own): it should go. */
+    public boolean stray(Entity e) {
+        return eventTitan(e) && (active == null || !active.titans.contains(e.getUuid()));
+    }
+
+    /** Everyone left: the event ends with no reward, the titans pull back. */
+    private void withdraw() {
+        Event ev = active;
+        active = null;
+        nextAt = System.currentTimeMillis() + (40 + server.getOverworld().getRandom().nextInt(31)) * 60_000L;
+        ServerWorld w = server.getOverworld();
+        for (UUID id : ev.titans) {
+            Entity e = w.getEntity(id);
+            if (e != null && e.isAlive()) e.discard();
+        }
+        for (ServerPlayerEntity p : soldiers()) {
+            Notify.toast(p, Text.literal("The titans withdrew from " + ev.town).formatted(Formatting.GRAY),
+                Text.literal("Nobody stood to defend it"), 0x8F8A7A, null, "war");
+            AotRpg.QUESTS.markers(p, true);
+        }
+    }
+
     /** A titan died: credit the killer if it was one of the event's. */
     public void onKill(ServerPlayerEntity killer, Entity dead) {
         if (active == null || !eventTitan(dead)) return;
         active.kills.merge(killer.getUuid(), 1, Integer::sum);
+        active.titans.remove(dead.getUuid());
         active.names.put(killer.getUuid(), AotRpg.PROFILES.get(killer.getUuid()).name);
         Factions.Faction f = Factions.of(AotRpg.PROFILES.get(killer.getUuid()));
         if (f != null) AotRpg.FACTIONS.influence(active.sector, f, 0.6);

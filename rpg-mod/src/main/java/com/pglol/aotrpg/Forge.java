@@ -26,7 +26,6 @@ public final class Forge {
     public static final List<Recipe> RECIPES = List.of(
         new Recipe("blade", "ODM Blade", mats("minecraft:iron_ingot", 4, "dannys-aot:ultrahard_steel_ingot", 1), 200, "dannys-aot:blade"),
         new Recipe("apg_gun", "APG Gun", mats("minecraft:iron_ingot", 6, "dannys-aot:ultrahard_steel_ingot", 2, "minecraft:gold_ingot", 2), 400, "dannys-aot:apg_gun"),
-        new Recipe("sword", "Sword", mats("minecraft:iron_ingot", 5), 120, "minecraft:iron_sword"),
         new Recipe("armor", "Armor piece", mats("minecraft:iron_ingot", 8, "dannys-aot:ultrahard_leather", 1), 250, ""),
         new Recipe("components", "Blade components x8", mats("minecraft:iron_ingot", 2), 20, "dannys-aot:blade_component"));
 
