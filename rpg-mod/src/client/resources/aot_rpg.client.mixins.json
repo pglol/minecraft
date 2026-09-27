@@ -17,7 +17,11 @@
     "DrawContextMixin",
     "CameraMixin",
     "OdmCameraMixin",
-    "OdmPlayerModelMixin"
+    "OdmPlayerModelMixin",
+    "ChatHudAccessor",
+    "ChatHudMixin",
+    "ChatScreenMixin",
+    "MessageHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 0
