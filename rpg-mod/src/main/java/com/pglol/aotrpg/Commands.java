@@ -563,6 +563,15 @@ final class Commands {
                 AotRpg.SCHEDULER.later(4, () -> ServerPlayNetworking.send(p, new Net.CrateOpened(crate, title, got[r] + " (test)", icon[r], r)));
                 return 1;
             }))));
+        // Testing: see a reward reveal of a given rarity (0 common .. 5 mythic), nothing given.
+        d.register(CommandManager.literal("aotrpg").requires(s -> s.hasPermissionLevel(2)).then(CommandManager.literal("revealtest")
+            .then(CommandManager.argument("rarity", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 5)).executes(c -> {
+                int r = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "rarity");
+                String[] names = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"};
+                Reveal.show(c.getSource().getPlayerOrThrow(), names[r] + " DROP", "A test reveal (nothing given)",
+                    r >= 5 ? "minecraft:nether_star" : r >= 3 ? "minecraft:diamond_sword" : "minecraft:iron_sword", r);
+                return 1;
+            }))));
         d.register(CommandManager.literal("duel")
             .then(CommandManager.literal("accept").executes(c -> {
                 AotRpg.DUELS.accept(c.getSource().getPlayerOrThrow());
