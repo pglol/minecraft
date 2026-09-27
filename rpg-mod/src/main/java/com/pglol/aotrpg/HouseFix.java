@@ -29,7 +29,12 @@ final class HouseFix {
             boolean flight = w.getBlockState(pos.offset(f.getOpposite()).down()).getBlock() instanceof StairsBlock
                 || w.getBlockState(pos.offset(f).up()).getBlock() instanceof StairsBlock;
             if (!flight) continue;
-            for (int k = 1; k <= 2; k++) {
+            // An indoor flight stands on something and has a roof over it (roof stairs are open to the sky).
+            BlockPos below = pos.down();
+            if (!w.getBlockState(below).isFullCube(w, below)) continue;
+            if (w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING, pos.getX(), pos.getZ()) <= pos.getY() + 4) continue;
+            // Three up: stepping from here onto the next step, your head still overhangs this one.
+            for (int k = 1; k <= 3; k++) {
                 BlockPos up = pos.up(k).toImmutable();
                 BlockState u = w.getBlockState(up);
                 if (u.isAir() || u.getBlock() instanceof StairsBlock || w.getBlockEntity(up) != null) continue;

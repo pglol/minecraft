@@ -82,7 +82,8 @@ public final class HomeScreen extends Screen {
             int y = top + 96;
             for (Net.HomeUpgrade u : v.upgrades()) {
                 AotButton b = addDrawableChild(new AotButton(left + w - 120, y + 2, 110, 18,
-                    Text.literal(u.owned() ? "Built" : "Build · " + u.price() + " M"), () -> act("stable", v.home(), "")));
+                    Text.literal(u.owned() ? "Built" : "Build · " + u.price() + " M"),
+                    () -> act(u.id().equals("STABLE") ? "stable" : "build", v.home(), u.id())));
                 b.active = !u.owned();
                 y += 28;
             }
@@ -94,10 +95,11 @@ public final class HomeScreen extends Screen {
             }));
             int y = top + 70;
             for (Net.HomeUpgrade u : v.upgrades()) {
-                AotButton b = addDrawableChild(new AotButton(left + w - 120, y + 2, 110, 18,
-                    Text.literal(u.owned() ? "Built" : "Build · " + u.price() + " M"), () -> act("upgrade", v.home(), u.id())));
-                b.active = !u.owned();
-                y += 28;
+                boolean locked = u.desc().startsWith("Needs the Cellar");
+                AotButton b = addDrawableChild(new AotButton(left + w - 120, y + 2, 110, 16,
+                    Text.literal(u.owned() ? "Built" : locked ? "Needs Cellar" : "Build · " + u.price() + " M"), () -> act("upgrade", v.home(), u.id())));
+                b.active = !u.owned() && !locked;
+                y += 22;
             }
         }
         AotButton sell = addDrawableChild(new AotButton(left + w - 170, by, 160, 22,
@@ -128,7 +130,7 @@ public final class HomeScreen extends Screen {
         if (!v.owned()) {
             String how = plot ? (v.owner().isEmpty() ? "Unique land. Once bought, a house is built right here and only you can build on the plot."
                     : "Owned by " + v.owner() + ".")
-                : "Every buyer gets their own private copy of this house behind its door, with a fenced yard for upgrades. "
+                : "Every buyer gets their own private copy of this house behind its door, with a cellar to dig and fit out. "
                     + "The house in town stays as it is. Homes owned: " + v.homes() + " / " + v.maxHomes() + ".";
             Ui.wrapped(c, Text.literal(how), left + 12, top + 54, w - 24, Ui.CREAM);
             if (v.offer() >= 0) Ui.text(c, Text.literal("Private offer for you: " + v.offer() + " Marks"), left + 12, top + 100, 0.85f, 0xFF5BD35B, false);
@@ -146,13 +148,17 @@ public final class HomeScreen extends Screen {
             }
             return;
         }
-        Ui.text(c, Ui.heading("Yard upgrades"), left + 12, top + 54, 0.95f, Ui.GOLD, false);
-        Ui.text(c, Text.literal("Built into your yard as soon as you buy them."), left + 120, top + 56, 0.6f, Ui.MUTED, false);
+        Ui.text(c, Ui.heading("Cellar & upgrades"), left + 12, top + 54, 0.95f, Ui.GOLD, false);
+        Ui.text(c, Text.literal("Dug and fitted out under your house. Yards are for property plots."), left + 128, top + 56, 0.6f, Ui.MUTED, false);
         int y = top + 70;
         for (Net.HomeUpgrade u : v.upgrades()) {
-            Ui.text(c, Ui.heading(u.title()), left + 12, y + 2, 0.9f, u.owned() ? Ui.GOLD : Ui.CREAM, false);
-            Ui.text(c, Text.literal(u.desc()), left + 12, y + 13, 0.6f, Ui.MUTED, false);
-            y += 28;
+            Ui.text(c, Ui.heading(u.title()), left + 12, y + 1, 0.8f, u.owned() ? Ui.GOLD : Ui.CREAM, false);
+            String d = u.desc();
+            int max = w - 150;
+            while (d.length() > 4 && Ui.font().getWidth(d) * 0.55f > max) d = d.substring(0, d.length() - 4) + "...";
+            if (!d.equals(u.desc()) && !d.endsWith("...")) d += "...";
+            Ui.text(c, Text.literal(d), left + 12, y + 11, 0.55f, Ui.MUTED, false);
+            y += 22;
         }
     }
 }

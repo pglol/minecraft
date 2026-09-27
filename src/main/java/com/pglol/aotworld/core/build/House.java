@@ -224,8 +224,9 @@ public final class House {
         int step = stairStep(a, c);
         for (int k = 0; k < floors; k++) {
             int fy = baseY + 4 * k;
-            // Stairwell: the floor above the upper two steps is left open for headroom.
-            boolean well = k > 0 && (step == 1 || step == 2);
+            // Stairwell: the floor above the first three steps is left open for headroom (stepping up
+            // onto the second step, your head still overhangs the first).
+            boolean well = k > 0 && step >= 0 && step <= 2;
             if (!well) b.set(x, fy, z, s.floor);
             boolean lamp = (a - ax0) % 6 == 3 && (c - cx0) % 6 == 3;
             if (lamp && !nearStairs(a, c)) b.set(x, fy + 3, z, Blocks.LANTERN_HANGING);

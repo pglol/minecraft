@@ -58,20 +58,33 @@ public final class Homes {
     /** How far of the real street around a town house is copied in, to look at through the windows. */
     private static final int BACKDROP = 14;
 
+    /**
+     * Home upgrades. Yards (stable, garden, pond) belong to property plots now: town homes are walled
+     * in, so their upgrades go inside and down, into a cellar under the house. Homes that bought yard
+     * upgrades before keep their yards.
+     */
     public enum Upgrade {
-        STABLE("Stable", 2500, "A paddock and stable in your yard: room for 4 more horses."),
-        FORGE("Forge", 3000, "Anvil, forge and tools: upgrade and craft gear."),
-        GARDEN("Garden", 1500, "Tilled beds with water for growing ingredients."),
-        POND("Fishing Pond", 1200, "A stocked pond to fish in at home."),
-        STORAGE("Storage Shed", 1000, "A shed with four large chests for your valuables.");
+        STABLE("Stable", 2500, "A paddock and stable in your yard: room for 4 more horses.", true),
+        GARDEN("Garden", 1500, "Tilled beds with water for growing ingredients.", true),
+        POND("Fishing Pond", 1200, "A stocked pond to fish in at home.", true),
+        CELLAR("Cellar", 2000, "Dig out a stone cellar under the house, down a ladder hatch: chests, barrels, six bays to fit out.", false),
+        STORAGE("Storage Vault", 1000, "Six large chests stacked along a cellar wall.", false),
+        FORGE("Cellar Forge", 3000, "Anvil, blast furnace, grindstone, lava trough: upgrade and craft gear.", false),
+        ARMORY("Armory", 1800, "Three armor stands for your sets, a weapons rack and a gear barrel.", false),
+        KITCHEN("Kitchen", 1200, "A working hearth to cook at, smoker, stores and a table.", false),
+        TRAINING("Training Room", 2200, "Straw cadets and targets to practise your cuts on.", false),
+        TROPHY("Trophy Hall", 1500, "Regiment banners, mounted skulls, a lectern and a record player.", false);
 
         public final String title, desc;
         public final int price;
+        /** Built in a yard (plots only now) rather than in the cellar. */
+        public final boolean yard;
 
-        Upgrade(String title, int price, String desc) {
+        Upgrade(String title, int price, String desc, boolean yard) {
             this.title = title;
             this.price = price;
             this.desc = desc;
+            this.yard = yard;
         }
     }
 
@@ -86,6 +99,12 @@ public final class Homes {
         public boolean headroomFixed;
         /** Walled in: no yard, the real street outside the windows, and an invisible wall at the doorstep. */
         public boolean enclosed;
+        /** Has a yard (bought yard upgrades before yards moved to plots). */
+        public boolean yard;
+        /** Headroom over the bottom step cleared too (the upper floor there blocked the climb). */
+        public boolean headroom3;
+        /** The cellar hatch, in the home world (x, z). */
+        public int hatchX, hatchZ;
         /** Bandit raids: days played since the last one, and when. */
         public int daysPlayed;
         public long lastDay, lastRaid;
@@ -98,6 +117,8 @@ public final class Homes {
         public int template = -1;
         /** A stable built on the plot (room for more horses). */
         public boolean stable;
+        /** Yard buildings on the plot: a fishing pond, a smithy. */
+        public boolean pond, smithy;
         /** Home raids: distinct days the owner has played since the last raid, and when it was. */
         public int daysPlayed;
         public long lastDay;
@@ -130,6 +151,8 @@ public final class Homes {
         java.util.Set<Integer> fixedWorld = new java.util.HashSet<>();
         /** Homes already moved to the new, spread-out layout. */
         java.util.Set<Integer> moved = new java.util.HashSet<>();
+        /** Town houses given the full stairwell headroom. */
+        java.util.Set<Integer> fixedWorld3 = new java.util.HashSet<>();
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -155,6 +178,9 @@ public final class Homes {
         if (data.recent == null) data.recent = new ArrayList<>();
         if (data.fixedWorld == null) data.fixedWorld = new java.util.HashSet<>();
         if (data.moved == null) data.moved = new java.util.HashSet<>();
+        if (data.fixedWorld3 == null) data.fixedWorld3 = new java.util.HashSet<>();
+        // Homes with yard upgrades from before yards moved to plots keep their yards.
+        for (List<Deed> list : data.owners.values()) for (Deed d : list) if (!d.enclosed && !d.upgrades.isEmpty()) d.yard = true;
         index();
     }
 
@@ -341,6 +367,7 @@ public final class Homes {
                 }
             }
             HouseFix.stairs(hw, map(h, n, h[0] - 1, h[4], h[1] - 1), map(h, n, h[2] + 1, h[5] + 3, h[3] + 1));
+            HouseFix.headroom(hw, map(h, n, h[0] - 1, h[4], h[1] - 1), map(h, n, h[2] + 1, h[5] + 3, h[3] + 1));
             // A gravel path from the front door to the yard gate.
             BlockPos step = map(h, n, h[6], h[4], h[7]);
             for (int z = step.getZ(); z < z0 + YARD; z++) {
@@ -436,7 +463,7 @@ public final class Homes {
      */
     void enclose(int[] h, Deed d) {
         ServerWorld ow = server.getOverworld(), hw = homeWorld();
-        if (hw == null || !d.upgrades.isEmpty()) return;
+        if (hw == null || d.yard) return;
         int n = d.instance;
         int flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
         WorldCare.quiet(true);
@@ -581,7 +608,7 @@ public final class Homes {
         }
         int[] h = AotRpg.PLACES.homes.get(d.home);
         migrate(d.instance);
-        if (!d.enclosed && d.upgrades.isEmpty()) enclose(h, d);
+        if (!d.enclosed && !d.yard) enclose(h, d);
         if (p.getWorld().getRegistryKey() != WORLD) {
             // Come back out on the doorstep, outside (never inside the town copy, or you'd walk straight back in).
             int ccx = (h[0] + h[2]) / 2, ccz = (h[1] + h[3]) / 2;
@@ -590,8 +617,9 @@ public final class Homes {
             else oz = 0;
             returnTo.put(p.getUuid(), new double[] {h[6] + 0.5 + ox * 1.5, h[4] + 1, h[7] + 0.5 + oz * 1.5, p.getYaw() + 180});
         }
-        if (!d.headroomFixed) {
+        if (!d.headroomFixed || !d.headroom3) {
             d.headroomFixed = true;
+            d.headroom3 = true;
             WorldCare.quiet(true);
             try {
                 HouseFix.headroom(hw, map(h, d.instance, h[0] - 1, h[4], h[1] - 1), map(h, d.instance, h[2] + 1, h[5] + 3, h[3] + 1));
@@ -623,6 +651,11 @@ public final class Homes {
         if (hw.getBlockState(new BlockPos(want.getX(), FLOOR - 1, want.getZ())).isAir()
             && hw.getBlockState(new BlockPos(want.getX(), FLOOR - 3, want.getZ())).isAir()) {
             build(h, d.instance);
+            if (d.enclosed) {
+                d.enclosed = false;
+                enclose(h, d);
+            }
+            if (d.upgrades.contains(Upgrade.CELLAR.name())) digCellar(h, d, null);
         }
         // Somewhere you actually fit: open at the feet and head, a floor underneath.
         BlockPos at = standable(hw, want) ? want : null;
@@ -742,13 +775,14 @@ public final class Homes {
                     List<Integer> list = byChunk.get(((long) (pcx + dx) << 32) ^ ((pcz + dz) & 0xFFFFFFFFL));
                     if (list == null) continue;
                     for (int i : list) {
-                        if (data.fixedWorld.contains(i)) continue;
+                        if (data.fixedWorld.contains(i) && data.fixedWorld3.contains(i)) continue;
                         int[] h = AotRpg.PLACES.homes.get(i);
                         if (!w.isChunkLoaded(h[0] >> 4, h[1] >> 4) || !w.isChunkLoaded(h[2] >> 4, h[3] >> 4)) continue;
                         BlockPos a = new BlockPos(h[0] - 1, h[4], h[1] - 1), b = new BlockPos(h[2] + 1, h[5] + 3, h[3] + 1);
                         HouseFix.stairs(w, a, b);
                         HouseFix.headroom(w, a, b);
                         data.fixedWorld.add(i);
+                        data.fixedWorld3.add(i);
                         changed = true;
                     }
                 }
@@ -807,7 +841,7 @@ public final class Homes {
         }
         if (!AotRpg.PROFILES.get(p.getUuid()).created) return;
         if (home < 0 && !action.equals("manage") && !action.equals("offers") && !action.equals("stables")) {
-            plotAction(p, action, -home - 1);
+            plotAction(p, action, -home - 1, arg);
             return;
         }
         switch (action) {
@@ -892,6 +926,8 @@ public final class Homes {
     Deed grant(String stem, String name, int home) {
         Deed d = new Deed();
         d.stairsFixed = true;
+        d.headroomFixed = true;
+        d.headroom3 = true;
         d.home = home;
         d.instance = data.nextInstance++;
         d.ownerName = name;
@@ -955,17 +991,87 @@ public final class Homes {
             return;
         }
         if (d == null || d.upgrades.contains(u.name())) return;
+        if (u.yard) {
+            Notify.toast(p, Text.literal("Yards are for property plots").formatted(Formatting.RED),
+                Text.literal("Town homes build inside and down: dig a Cellar"), 0xC0463A);
+            return;
+        }
+        boolean cellar = d.upgrades.contains(Upgrade.CELLAR.name());
+        if (u != Upgrade.CELLAR && !cellar) {
+            Notify.toast(p, Text.literal("Dig a Cellar first").formatted(Formatting.RED),
+                Text.literal(u.title + " is fitted out in a cellar bay"), 0xC0463A);
+            return;
+        }
         if (!AotRpg.WALLET.spendMarks(p, u.price)) {
             p.sendMessage(Text.literal("You need " + u.price + " Marks.").formatted(Formatting.RED), true);
             return;
         }
-        d.upgrades.add(u.name());
+        int[] h = AotRpg.PLACES.homes.get(d.home);
         migrate(d.instance);
-        if (d.enclosed) unenclose(AotRpg.PLACES.homes.get(d.home), d);
+        if (u == Upgrade.CELLAR) {
+            if (!digCellar(h, d, p)) {
+                AotRpg.WALLET.addMarks(p, u.price, null);
+                Notify.toast(p, Text.literal("No room for a hatch").formatted(Formatting.RED),
+                    Text.literal("Clear a spot of floor in the middle of the ground floor"), 0xC0463A);
+                return;
+            }
+            d.upgrades.add(u.name());
+            Notify.toast(p, Text.literal("Cellar dug").formatted(Formatting.GOLD), Text.literal("The hatch is in the ground floor"), 0xE0B96A,
+                "minecraft:ladder", "home_up");
+        } else {
+            d.upgrades.add(u.name());
+            BlockPos a = map(h, d.instance, h[0] - 1, h[4], h[1] - 1), b = map(h, d.instance, h[2] + 1, h[5] + 3, h[3] + 1);
+            HomeCellar.bay(homeWorld(), u, (a.getX() + b.getX()) / 2, (a.getZ() + b.getZ()) / 2, FLOOR);
+            HomeCellar.hatch(homeWorld(), d.hatchX, d.hatchZ, FLOOR);
+            Notify.toast(p, Text.literal(u.title + " fitted out").formatted(Formatting.GOLD), Text.literal("Down in your cellar"), 0xE0B96A,
+                "minecraft:lantern", "home_up");
+        }
         save();
-        HomeYard.build(homeWorld(), u, originX(d.instance), FLOOR, originZ(d.instance), YARD, p);
-        p.sendMessage(Text.literal(u.title + " built in your yard.").formatted(Formatting.GOLD), false);
         send(p, home, false);
+    }
+
+    /**
+     * Digs the cellar under house h (and fits out any bays already bought). The hatch goes in a clear
+     * spot of the ground floor near the middle, away from the door. False when there's no such spot.
+     */
+    boolean digCellar(int[] h, Deed d, ServerPlayerEntity p) {
+        ServerWorld hw = homeWorld();
+        if (hw == null) return false;
+        int n = d.instance;
+        BlockPos a = map(h, n, h[0], h[4], h[1]), b = map(h, n, h[2], h[4], h[3]);
+        int cx = (a.getX() + b.getX()) / 2, cz = (a.getZ() + b.getZ()) / 2;
+        BlockPos door = map(h, n, h[6], h[4], h[7]);
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (int x = a.getX() + 1; x <= b.getX() - 1; x++) {
+            for (int z = a.getZ() + 1; z <= b.getZ() - 1; z++) {
+                if (Math.abs(x - cx) > HomeCellar.HX - 3 || Math.abs(z - cz) > HomeCellar.HZ - 1) continue;
+                if (Math.abs(x - door.getX()) + Math.abs(z - door.getZ()) < 4) continue;
+                BlockPos f = new BlockPos(x, FLOOR, z);
+                BlockState fs = hw.getBlockState(f);
+                if (!fs.isFullCube(hw, f) || hw.getBlockEntity(f) != null) continue;
+                if (!hw.getBlockState(f.up()).isAir() || !hw.getBlockState(f.up(2)).isAir()) continue;
+                // Prefer the aisle (the ladder lands clear of the bays), then closeness to the middle.
+                double dd = Math.abs(x - cx) + Math.abs(z - cz) * 1.5 + (Math.abs(z - cz) <= 1 ? 0 : 20);
+                if (dd < bestD) {
+                    bestD = dd;
+                    best = f;
+                }
+            }
+        }
+        if (best == null) return false;
+        d.hatchX = best.getX();
+        d.hatchZ = best.getZ();
+        HomeCellar.dig(hw, cx, cz, FLOOR, d.hatchX, d.hatchZ);
+        for (String id : d.upgrades) {
+            try {
+                Upgrade u = Upgrade.valueOf(id);
+                if (HomeCellar.bay(u) >= 0 && !(d.yard && (u == Upgrade.FORGE || u == Upgrade.STORAGE))) HomeCellar.bay(hw, u, cx, cz, FLOOR);
+            } catch (Exception ignored) { }
+        }
+        HomeCellar.hatch(hw, d.hatchX, d.hatchZ, FLOOR);
+        save();
+        return true;
     }
 
     /** Standing in your own home with a stable, or on your own plot's land with one built. */
@@ -982,7 +1088,7 @@ public final class Homes {
         return d != null && d.upgrades.contains(u.name()) && stem(p).equals(data.instances.get(n));
     }
 
-    private void plotAction(ServerPlayerEntity p, String action, int idx) {
+    private void plotAction(ServerPlayerEntity p, String action, int idx, String arg) {
         if (idx >= AotRpg.PLACES.plots.size()) return;
         Places.PlotInfo plot = AotRpg.PLACES.plots.get(idx);
         switch (action) {
@@ -1010,6 +1116,30 @@ public final class Homes {
                 Notify.toast(p, Text.literal("Stable built").formatted(Formatting.GOLD), Text.literal("Room for 4 more horses"), 0xE0B96A,
                     "minecraft:hay_block", null);
             }
+            case "build" -> {
+                // Yard buildings on your land: a fishing pond, a smithy.
+                PlotDeed d = data.plots.get(idx);
+                if (d == null || !d.stem.equals(stem(p))) return;
+                boolean pond = arg.equals("POND");
+                if (pond ? d.pond : d.smithy) return;
+                int price = pond ? Upgrade.POND.price : 2400;
+                if (!AotRpg.WALLET.spendMarks(p, price)) {
+                    p.sendMessage(Text.literal("You need " + price + " Marks.").formatted(Formatting.RED), true);
+                    return;
+                }
+                boolean ok = pond ? HomePlots.buildPond(server.getOverworld(), plot) : HomePlots.buildSmithy(server.getOverworld(), plot);
+                if (!ok) {
+                    AotRpg.WALLET.addMarks(p, price, null);
+                    p.sendMessage(Text.literal("There's no clear corner on your land for that.").formatted(Formatting.RED), true);
+                    return;
+                }
+                if (pond) d.pond = true;
+                else d.smithy = true;
+                save();
+                Notify.toast(p, Text.literal(pond ? "Fishing pond dug" : "Smithy built").formatted(Formatting.GOLD),
+                    Text.literal(pond ? "Cast a line at home" : "Use the anvil to open the forge"), 0xE0B96A,
+                    pond ? "minecraft:fishing_rod" : "minecraft:anvil", null);
+            }
             case "sell" -> {
                 PlotDeed d = data.plots.get(idx);
                 if (d == null || !d.stem.equals(stem(p))) return;
@@ -1029,7 +1159,9 @@ public final class Homes {
         Offer o = HomeAdmin.offerFor(p, -idx - 1);
         String size = (plot.x1() - plot.x0() + 1) + " x " + (plot.z1() - plot.z0() + 1) + " · " + plot.size() + " " + plot.kind() + " plot";
         List<Net.HomeUpgrade> ups = List.of(new Net.HomeUpgrade("STABLE", "Stable", "A stall and run on your land: room for 4 more horses.",
-            Upgrade.STABLE.price, d != null && d.stable));
+                Upgrade.STABLE.price, d != null && d.stable),
+            new Net.HomeUpgrade("POND", "Fishing Pond", "A reed-lined pond in a corner of your land to fish in.", Upgrade.POND.price, d != null && d.pond),
+            new Net.HomeUpgrade("SMITHY", "Smithy", "An open forge with an anvil (opens the forge), furnace and grindstone.", 2400, d != null && d.smithy));
         ServerPlayNetworking.send(p, new Net.HomeView(-idx - 1, HomePlots.label(plot), size, HomePlots.price(plot),
             d != null && d.stem.equals(stem(p)), 0, 1, ups, List.of(), open, "plot", o == null ? -1 : o.price,
             d == null ? "" : d.ownerName));
@@ -1040,7 +1172,14 @@ public final class Homes {
         int[] h = AotRpg.PLACES.homes.get(home);
         Deed d = deed(p, home);
         List<Net.HomeUpgrade> ups = new ArrayList<>();
-        for (Upgrade u : Upgrade.values()) ups.add(new Net.HomeUpgrade(u.name(), u.title, u.desc, u.price, d != null && d.upgrades.contains(u.name())));
+        boolean cellar = d != null && d.upgrades.contains(Upgrade.CELLAR.name());
+        for (Upgrade u : Upgrade.values()) {
+            boolean owned = d != null && d.upgrades.contains(u.name());
+            // Yards are for plots: a town home only lists the yard buildings it already has.
+            if (u.yard && !owned) continue;
+            String desc = !owned && u != Upgrade.CELLAR && !u.yard && !cellar ? "Needs the Cellar. " + u.desc : u.desc;
+            ups.add(new Net.HomeUpgrade(u.name(), u.title, desc, u.price, owned));
+        }
         List<String> visits = new ArrayList<>();
         for (ServerPlayerEntity o : server.getPlayerManager().getPlayerList()) {
             if (o != p && AotRpg.PARTIES.same(p.getUuid(), o.getUuid()) && deed(o, home) != null) visits.add(o.getName().getString());

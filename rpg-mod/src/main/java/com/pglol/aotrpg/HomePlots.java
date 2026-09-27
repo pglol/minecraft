@@ -261,6 +261,93 @@ final class HomePlots {
         return false;
     }
 
+    /** The first corner of the plot's land with a clear w x d patch (and 5 of headroom), or null. */
+    private static int[] clearCorner(ServerWorld ow, Places.PlotInfo p, int w, int d) {
+        int y = p.y();
+        int[][] corners = {{p.x0(), p.z0()}, {p.x1() - w + 1, p.z0()}, {p.x0(), p.z1() - d + 1}, {p.x1() - w + 1, p.z1() - d + 1}};
+        for (int[] c : corners) {
+            boolean clear = true;
+            for (int x = c[0]; x < c[0] + w && clear; x++) {
+                for (int z = c[1]; z < c[1] + d && clear; z++) {
+                    ow.getChunk(x >> 4, z >> 4);
+                    for (int yy = y; yy <= y + 4; yy++) {
+                        BlockState s = ow.getBlockState(new BlockPos(x, yy, z));
+                        if (!s.isAir() && !s.isReplaceable()) {
+                            clear = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (clear) return c;
+        }
+        return null;
+    }
+
+    /** A round reed-lined pond in a clear corner of the land. */
+    static boolean buildPond(ServerWorld ow, Places.PlotInfo p) {
+        int[] c = clearCorner(ow, p, 7, 7);
+        if (c == null) return false;
+        int y = p.y(), flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
+        WorldCare.quiet(true);
+        try {
+            for (int x = 0; x < 7; x++) {
+                for (int z = 0; z < 7; z++) {
+                    double dd = Math.hypot(x - 3, z - 3);
+                    BlockPos at = new BlockPos(c[0] + x, y - 1, c[1] + z);
+                    if (dd <= 2.3) {
+                        ow.setBlockState(at.down(2), Blocks.CLAY.getDefaultState(), flags);
+                        ow.setBlockState(at.down(), Blocks.WATER.getDefaultState(), flags);
+                        ow.setBlockState(at, Blocks.WATER.getDefaultState(), flags);
+                        if (dd > 1.2 && (x + z) % 3 == 0) ow.setBlockState(at.up(), Blocks.LILY_PAD.getDefaultState(), flags);
+                    } else if (dd <= 3.4) {
+                        ow.setBlockState(at, Blocks.SAND.getDefaultState(), flags);
+                        if ((x * 3 + z) % 4 == 0) ow.setBlockState(at.up(), Blocks.SUGAR_CANE.getDefaultState(), flags);
+                        else if ((x + z * 5) % 7 == 0) ow.setBlockState(at.up(), Blocks.TALL_GRASS.getDefaultState(), flags);
+                    }
+                }
+            }
+            ow.setBlockState(new BlockPos(c[0], y, c[1] + 3), Blocks.OAK_FENCE.getDefaultState(), flags);
+            ow.setBlockState(new BlockPos(c[0], y + 1, c[1] + 3), Blocks.LANTERN.getDefaultState(), flags);
+        } finally {
+            WorldCare.quiet(false);
+        }
+        return true;
+    }
+
+    /** An open-sided smithy: anvil (your forge), furnace, grindstone, trough, under a tiled roof. */
+    static boolean buildSmithy(ServerWorld ow, Places.PlotInfo p) {
+        int w = 7, d = 6;
+        int[] c = clearCorner(ow, p, w, d);
+        if (c == null) return false;
+        int y = p.y(), flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
+        WorldCare.quiet(true);
+        try {
+            for (int x = c[0]; x < c[0] + w; x++) {
+                for (int z = c[1]; z < c[1] + d; z++) {
+                    ow.setBlockState(new BlockPos(x, y - 1, z), Blocks.STONE_BRICKS.getDefaultState(), flags);
+                    ow.setBlockState(new BlockPos(x, y + 3, z), Blocks.DEEPSLATE_TILE_SLAB.getDefaultState(), flags);
+                    boolean post = (x == c[0] || x == c[0] + w - 1) && (z == c[1] || z == c[1] + d - 1);
+                    if (post) for (int yy = y; yy <= y + 2; yy++) ow.setBlockState(new BlockPos(x, yy, z), Blocks.DARK_OAK_LOG.getDefaultState(), flags);
+                    else if (z == c[1]) for (int yy = y; yy <= y + 2; yy++) ow.setBlockState(new BlockPos(x, yy, z), Blocks.COBBLESTONE.getDefaultState(), flags);
+                }
+            }
+            int bz = c[1] + 1;
+            ow.setBlockState(new BlockPos(c[0] + 1, y, bz), Blocks.BLAST_FURNACE.getDefaultState()
+                .with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, net.minecraft.util.math.Direction.SOUTH), flags);
+            ow.setBlockState(new BlockPos(c[0] + 2, y, bz), Blocks.LAVA_CAULDRON.getDefaultState(), flags);
+            ow.setBlockState(new BlockPos(c[0] + 4, y, bz), Blocks.SMITHING_TABLE.getDefaultState(), flags);
+            ow.setBlockState(new BlockPos(c[0] + 5, y, bz), Blocks.GRINDSTONE.getDefaultState()
+                .with(net.minecraft.state.property.Properties.BLOCK_FACE, net.minecraft.block.enums.BlockFace.FLOOR), flags);
+            ow.setBlockState(new BlockPos(c[0] + 3, y, c[1] + 3), Blocks.ANVIL.getDefaultState(), flags);
+            ow.setBlockState(new BlockPos(c[0] + 3, y + 2, c[1] + 3), Blocks.LANTERN.getDefaultState()
+                .with(net.minecraft.state.property.Properties.HANGING, true), flags);
+        } finally {
+            WorldCare.quiet(false);
+        }
+        return true;
+    }
+
     /** Removes an old generated fence, gate, corner walls and lanterns around a plot. */
     static int clearFence(ServerWorld ow, Places.PlotInfo p) {
         int n = 0;

@@ -147,8 +147,8 @@ final class HomeYard {
         for (int i = 0; i < 4; i++) {
             int z = z0 + 2 + i * 2 + (i >= 2 ? 1 : 0);
             BlockState c = Blocks.CHEST.getDefaultState().with(ChestBlock.FACING, Direction.EAST);
-            set(w, x0 + 1, y + 1, z, c.with(ChestBlock.CHEST_TYPE, ChestType.RIGHT));
-            set(w, x0 + 1, y + 1, z + 1, c.with(ChestBlock.CHEST_TYPE, ChestType.LEFT));
+            set(w, x0 + 1, y + 1, z, c.with(ChestBlock.CHEST_TYPE, ChestType.LEFT));
+            set(w, x0 + 1, y + 1, z + 1, c.with(ChestBlock.CHEST_TYPE, ChestType.RIGHT));
         }
         set(w, x0 + 5, y + 3, z0 + 6, Blocks.LANTERN.getDefaultState().with(Properties.HANGING, true));
     }
