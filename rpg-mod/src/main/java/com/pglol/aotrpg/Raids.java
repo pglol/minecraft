@@ -62,6 +62,8 @@ public final class Raids {
         final Map<UUID, Vec3d> back = new HashMap<>();
         final List<UUID> mobs = new ArrayList<>();
         UUID bossId;
+        /** The boss driver: ticks until its next swipe and its next stomp. */
+        int swipeIn = 40, stompIn = 200;
         int wave;
         long started, nextWave, endAt;
         boolean won, over;
@@ -284,6 +286,7 @@ public final class Raids {
         if (server == null) return;
         ServerWorld w = server.getOverworld();
         if (ticks % 600 == 123) placeCommanders(w);
+        for (Raid r : raids) if (!r.over && r.bossId != null) drive(w, r);
         if (ticks % 10 != 0 || raids.isEmpty()) return;
         long now = System.currentTimeMillis();
         for (Raid r : new ArrayList<>(raids)) {
@@ -395,6 +398,78 @@ public final class Raids {
             Notify.toast(m, Text.literal(r.boss.name().toUpperCase()).formatted(Formatting.DARK_RED, Formatting.BOLD),
                 Text.literal("It has come. " + STRIKE_N[r.diff] + " nape strikes to bring it down."), 0xC0263A, "minecraft:wither_skeleton_skull", "raid");
             m.playSoundToPlayer(SoundEvents.ENTITY_ENDER_DRAGON_GROWL, SoundCategory.HOSTILE, 0.8f, 0.7f);
+        }
+    }
+
+    /**
+     * Danny's shifters are built to be piloted: with nobody inside, they stand still. In a raid the
+     * boss is driven instead: it turns to the nearest raider and strides toward them (climbing over
+     * what's in the way), swipes at whoever is in front of it when close, and every so often
+     * stomps, a shockwave that throws everyone on the ground nearby.
+     */
+    private void drive(ServerWorld w, Raid r) {
+        Entity e = w.getEntity(r.bossId);
+        if (!(e instanceof LivingEntity b) || !b.isAlive() || b.getControllingPassenger() instanceof net.minecraft.entity.player.PlayerEntity) return;
+        ServerPlayerEntity target = null;
+        double best = Double.MAX_VALUE;
+        for (UUID id : r.players) {
+            ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+            if (m == null || m.isDead() || m.isSpectator()) continue;
+            double d = m.squaredDistanceTo(b);
+            if (d < best) {
+                best = d;
+                target = m;
+            }
+        }
+        if (target == null) return;
+        double dx = target.getX() - b.getX(), dz = target.getZ() - b.getZ(), dist = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90);
+        b.setYaw(yaw);
+        b.setBodyYaw(yaw);
+        b.setHeadYaw(yaw);
+        double reach = b.getWidth() / 2 + 3.5;
+        // Stride: bigger bosses take longer steps; harder raids push faster.
+        double speed = Math.min(0.5, 0.1 + b.getHeight() * 0.01) * (1 + 0.15 * r.diff);
+        double vy = b.isOnGround() ? 0 : -0.4;
+        if (dist > reach) {
+            double mx = dx / dist * speed, mz = dz / dist * speed;
+            if (b.horizontalCollision) vy = 0.6; // climb over walls and rubble
+            b.move(net.minecraft.entity.MovementType.SELF, new Vec3d(mx, vy, mz));
+            b.limbAnimator.updateLimbs((float) speed * 4, 0.4f);
+        } else if (vy != 0) {
+            b.move(net.minecraft.entity.MovementType.SELF, new Vec3d(0, vy, 0));
+        }
+        float lvl = raidLevel(r);
+        // A swipe at whoever is in front and close.
+        if (--r.swipeIn <= 0 && dist < reach + 2.5) {
+            r.swipeIn = Math.max(22, 50 - r.diff * 10);
+            b.swingHand(net.minecraft.util.Hand.MAIN_HAND);
+            double fx = -Math.sin(Math.toRadians(yaw)), fz = Math.cos(Math.toRadians(yaw));
+            Vec3d at = b.getPos().add(fx * reach, b.getHeight() * 0.4, fz * reach);
+            w.playSound(null, at.x, at.y, at.z, SoundEvents.ENTITY_RAVAGER_ATTACK, SoundCategory.HOSTILE, 2f, 0.6f);
+            w.spawnParticles(net.minecraft.particle.ParticleTypes.SWEEP_ATTACK, at.x, at.y, at.z, 6, 2, 1, 2, 0);
+            for (UUID id : r.players) {
+                ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+                if (m == null || m.squaredDistanceTo(at) > 5.5 * 5.5) continue;
+                m.damage(w.getDamageSources().mobAttack(b), 5 + lvl * 0.35f);
+                m.takeKnockback(1.4, -fx, -fz);
+                m.velocityModified = true;
+            }
+        }
+        // The stomp: everyone on the ground nearby is thrown.
+        if (--r.stompIn <= 0 && dist < reach + 14) {
+            r.stompIn = Math.max(120, 240 - r.diff * 40);
+            w.playSound(null, b.getX(), b.getY(), b.getZ(), SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 2f, 0.5f);
+            w.spawnParticles(net.minecraft.particle.ParticleTypes.EXPLOSION, b.getX(), b.getY() + 0.5, b.getZ(), 12, 6, 0.3, 6, 0);
+            w.spawnParticles(net.minecraft.particle.ParticleTypes.CLOUD, b.getX(), b.getY() + 0.3, b.getZ(), 60, 8, 0.2, 8, 0.1);
+            for (UUID id : r.players) {
+                ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+                if (m == null || !m.isOnGround() || m.squaredDistanceTo(b) > 14 * 14) continue;
+                m.damage(w.getDamageSources().mobAttack(b), 3 + lvl * 0.2f);
+                double ax = m.getX() - b.getX(), az = m.getZ() - b.getZ(), al = Math.max(0.1, Math.hypot(ax, az));
+                m.setVelocity(ax / al * 1.1, 0.7, az / al * 1.1);
+                m.velocityModified = true;
+            }
         }
     }
 

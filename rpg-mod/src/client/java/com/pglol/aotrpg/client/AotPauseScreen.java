@@ -30,8 +30,8 @@ public class AotPauseScreen extends Screen {
         boolean hasChar = ClientState.profile != null;
         // Until your first memory is lived through, the wider world waits: community, adventure,
         // switching characters and game modes are shown but greyed out.
-        var journal = com.pglol.aotrpg.client.story.StoryClient.journal;
-        boolean open = journal == null || journal.free();
+        // (The story is off: nothing waits on it any more.)
+        boolean open = true;
         boolean war = ClientState.factions != null && !ClientState.factions.event().isEmpty();
         gridW = 3 * TW + 2 * GAP;
         gridX = Math.max(12, Math.min(width / 2 - gridW + 40, width - gridW - 12));

@@ -71,7 +71,8 @@ public final class GameModes {
     }
 
     public boolean unlocked(Profile pr, Mode m) {
-        return !m.soon && (pr.chapter >= m.unlockChapter || pr.unlockedModes.contains(m.id));
+        // The story is off, so modes no longer wait on story chapters: everything ready is open.
+        return !m.soon && (!Story.STORY_ENABLED || pr.chapter >= m.unlockChapter || pr.unlockedModes.contains(m.id));
     }
 
     public void choose(ServerPlayerEntity p, String id) {
