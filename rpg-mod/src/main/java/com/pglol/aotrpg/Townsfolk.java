@@ -8,6 +8,7 @@ import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.village.VillagerProfession;
@@ -26,7 +27,7 @@ import java.util.UUID;
  */
 public final class Townsfolk {
     public static final String TAG = "aot_folk";
-    private static final int PER_TOWN = 14, RADIUS = 40;
+    private static final int PER_TOWN = 26, RADIUS = 48;
     private final Random rng = new Random();
 
     private static final String[] FIRST_M = {"Hans", "Karl", "Otto", "Emil", "Franz", "Jurgen", "Dieter", "Ernst", "Walter", "Anton",
@@ -57,6 +58,25 @@ public final class Townsfolk {
         {"Keep your voice down.", "Why? Who's listening?"},
         {"Another supply wagon came in.", "About time."},
     };
+    /** Longer talks: three or four lines passed back and forth (A, B, A, B). */
+    private static final String[][] TALKS = {
+        {"Did you hear? The Survey Corps is back.", "How many this time?", "Fewer than left. Always fewer.", "Keep that to yourself."},
+        {"You look tired.", "Up all night with the baby.", "Still not sleeping?", "Not a wink. She's got her father's lungs."},
+        {"They raised the tax on salt.", "Salt! What next, air?", "Don't give them ideas."},
+        {"I saw the Commander ride past.", "Erwin Smith? Here?", "Didn't even look at us.", "Why would he?"},
+        {"Is that a titan steaming out past the gate?", "No, it's the smithy.", "Oh. Thank the Walls."},
+        {"My husband wants to move to Wall Rose.", "Further from the edge. Sensible.", "Further from his mother, he means."},
+        {"The cadets were training in the woods again.", "I heard the gas all night.", "Some of them will be heroes.", "Some of them will be names on a stone."},
+        {"Have you tried the new baker?", "Burnt everything.", "Cheaper though.", "That's the only reason anyone goes."},
+        {"The Garrison are drinking on the wall again.", "At least they're on the wall.", "Fair point."},
+        {"My daughter says she'll marry a soldier.", "Better than a Military Policeman.", "Anything's better than a Military Policeman."},
+    };
+    /** Called out by someone in the street (to no one in particular). */
+    private static final String[] CALLS = {
+        "Fresh bread! Still warm!", "Apples from Wall Rose, three for a copper!", "Knives sharpened, blades honed!",
+        "Anyone seen my goat?", "Mind your backs, cart coming through!", "News from the south gate! The Survey Corps rides tomorrow!",
+        "Firewood! Dry firewood!", "Fish! Fresh from the canal!", "Watch where you're going!", "Has anyone seen a little boy in a blue coat?",
+    };
     /** When you speak to someone. */
     private static final String[] GREETING = {
         "Morning. Or is it afternoon already?", "Can I help you with something?", "Mind the cart, it's heavy.",
@@ -82,6 +102,7 @@ public final class Townsfolk {
     public void tick(ServerWorld w, int ticks) {
         if (ticks % 100 == 17) populate(w);
         if (ticks % 40 == 5) chatter(w);
+        if (ticks % 200 == 77) callOut(w);
         walk(w, ticks);
     }
 
@@ -100,6 +121,11 @@ public final class Townsfolk {
         double hx, hz;
         int pause, linger, turnIn = 40;
         UUID watched;
+        /** Walking with someone: the one they follow, and where they keep beside them. */
+        UUID leader;
+        double side, back;
+        /** Children run, and tear about more. */
+        boolean runner;
     }
 
     private final java.util.Map<UUID, Walk> walks = new java.util.HashMap<>();
@@ -125,6 +151,8 @@ public final class Townsfolk {
                 continue;
             }
             Walk k = en.getValue();
+            // They walk by our hand, without the game's own physics: keep their feet on the ground.
+            if ((ticks + v.getId()) % 10 == 0) grounded(w, v);
             // Someone they don't trust: stop, turn, and keep an eye on them until it passes.
             ServerPlayerEntity sus = AotRpg.WITNESS.watching(v);
             if (sus != null) {
@@ -145,6 +173,13 @@ public final class Townsfolk {
             if (k.pause > 0) {
                 k.pause--;
                 continue;
+            }
+            if (k.leader != null) {
+                if (w.getEntity(k.leader) instanceof VillagerEntity lead && lead.isAlive() && lead.squaredDistanceTo(v) < 24 * 24) {
+                    follow(w, v, k, lead);
+                    continue;
+                }
+                k.leader = null; // lost them: off on their own
             }
             step(w, v, k);
         }
@@ -186,7 +221,7 @@ public final class Townsfolk {
             k.pause = 15 + rng.nextInt(20);
             return;
         }
-        double speed = v.isBaby() ? 0.06 : 0.085;
+        double speed = k.runner ? 0.16 : v.isBaby() ? 0.06 : 0.085;
         double nx = x + k.hx * speed + px * lat, nz = z + k.hz * speed + pz * lat;
         BlockPos next = street(w, nx, nz, y);
         if (next == null) {
@@ -198,6 +233,46 @@ public final class Townsfolk {
         v.refreshPositionAndAngles(nx, next.getY(), nz, yaw, 0);
         v.setHeadYaw(yaw);
         v.setBodyYaw(yaw);
+    }
+
+    /** Walking with someone: keep your place beside (and a little behind) them, and stop when they stop. */
+    private void follow(ServerWorld w, VillagerEntity v, Walk k, VillagerEntity lead) {
+        Walk lk = walks.get(lead.getUuid());
+        double hx = lk != null && (lk.hx != 0 || lk.hz != 0) ? lk.hx : -Math.sin(Math.toRadians(lead.getYaw()));
+        double hz = lk != null && (lk.hx != 0 || lk.hz != 0) ? lk.hz : Math.cos(Math.toRadians(lead.getYaw()));
+        double tx = lead.getX() - hx * k.back - hz * k.side, tz = lead.getZ() - hz * k.back + hx * k.side;
+        double dx = tx - v.getX(), dz = tz - v.getZ(), d = Math.hypot(dx, dz);
+        if (d < 0.15 || lk != null && lk.pause > 0 && d < 1.2) {
+            // Stopped with them: turn to face whoever they're facing.
+            face(v, lead.getX() + hx * 3, lead.getZ() + hz * 3);
+            return;
+        }
+        double sp = Math.min(d, d > 2 ? 0.14 : 0.09);
+        double nx = v.getX() + dx / d * sp, nz = v.getZ() + dz / d * sp;
+        BlockPos next = street(w, nx, nz, v.getY());
+        if (next == null) next = BlockPos.ofFloored(nx, v.getY(), nz);
+        float want = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        float yaw = v.getYaw() + net.minecraft.util.math.MathHelper.wrapDegrees(want - v.getYaw()) * 0.3f;
+        v.refreshPositionAndAngles(nx, next.getY(), nz, yaw, 0);
+        v.setHeadYaw(yaw);
+        v.setBodyYaw(yaw);
+    }
+
+    /** Standing on nothing (dropped, or a step that ran out): set down on the ground below. */
+    private static void grounded(ServerWorld w, VillagerEntity v) {
+        if (v.hasVehicle()) return;
+        BlockPos feet = v.getBlockPos();
+        if (!w.getBlockState(feet.down()).getCollisionShape(w, feet.down()).isEmpty()) return;
+        for (int dy = 1; dy <= 24; dy++) {
+            BlockPos b = feet.down(dy);
+            if (!w.getBlockState(b).getCollisionShape(w, b).isEmpty()) {
+                v.refreshPositionAndAngles(v.getX(), b.getY() + 1, v.getZ(), v.getYaw(), 0);
+                v.fallDistance = 0;
+                return;
+            }
+        }
+        int top = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, v.getBlockX(), v.getBlockZ());
+        v.refreshPositionAndAngles(v.getX(), top, v.getZ(), v.getYaw(), 0);
     }
 
     /** A new direction along the streets, as close as possible to (dx, dz). False if they're boxed in. */
@@ -248,6 +323,10 @@ public final class Townsfolk {
         for (ServerPlayerEntity p : players) {
             for (VillagerEntity v : w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(64), Townsfolk::folk)) {
                 if (!v.isSilent()) v.setSilent(true);
+                // Anyone with the game's physics switched off (ours, or left like that) stays on the ground.
+                if (v.isAiDisabled()) grounded(w, v);
+                // Their own name (other mods and the look-at label show it, never "Villager").
+                if (!v.hasCustomName() && v.getCommandTags().contains(TAG)) v.setCustomName(Text.literal(name(v)));
                 // Townsfolk who wander on the villager brain (or were walking before a restart) take to the streets.
                 boolean walker = v.getCommandTags().contains(TAG) || v.getCommandTags().contains(ROADS) || !v.isAiDisabled();
                 if (walker && !v.getCommandTags().contains("aot_walker") && !walks.containsKey(v.getUuid())
@@ -267,20 +346,40 @@ public final class Townsfolk {
             if (!w.isChunkLoaded(cx >> 4, cz >> 4)) continue;
             Box box = new Box(cx - RADIUS - 8, -64, cz - RADIUS - 8, cx + RADIUS + 8, 400, cz + RADIUS + 8);
             int have = w.getEntitiesByClass(VillagerEntity.class, box, Townsfolk::folk).size();
-            for (int i = 0; i < 2 && have < PER_TOWN; i++) {
+            for (int i = 0; i < 3 && have < PER_TOWN; i++) {
                 BlockPos at = spawnSpot(w, cx, cz, p);
                 if (at == null) continue;
-                VillagerEntity v = EntityType.VILLAGER.create(w);
-                if (v == null) continue;
-                v.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, rng.nextFloat() * 360, 0);
-                v.initialize(w, w.getLocalDifficulty(at), SpawnReason.EVENT, null);
-                v.setVillagerData(v.getVillagerData().withProfession(VillagerProfession.NONE));
-                v.setSilent(true);
-                v.addCommandTag(TAG);
-                if (rng.nextInt(9) == 0) v.setBaby(true);
-                w.spawnEntity(v);
-                adopt(v);
-                have++;
+                // Some walk alone; some in twos and threes (friends, a family with a child, kids chasing each other).
+                int roll = rng.nextInt(10);
+                int size = roll < 5 ? 1 : roll < 8 ? 2 : 3;
+                boolean kids = size > 1 && rng.nextInt(5) == 0;
+                VillagerEntity lead = null;
+                for (int m = 0; m < size && have < PER_TOWN + 2; m++) {
+                    VillagerEntity v = EntityType.VILLAGER.create(w);
+                    if (v == null) continue;
+                    double ox = m == 0 ? 0 : (m == 1 ? 0.9 : -0.9), oz = m == 0 ? 0 : -0.6;
+                    v.refreshPositionAndAngles(at.getX() + 0.5 + ox, at.getY(), at.getZ() + 0.5 + oz, rng.nextFloat() * 360, 0);
+                    v.initialize(w, w.getLocalDifficulty(at), SpawnReason.EVENT, null);
+                    v.setVillagerData(v.getVillagerData().withProfession(VillagerProfession.NONE));
+                    v.setSilent(true);
+                    v.addCommandTag(TAG);
+                    boolean child = kids || (size == 3 && m == 2) || (size == 1 && rng.nextInt(9) == 0);
+                    if (child) v.setBaby(true);
+                    w.spawnEntity(v);
+                    v.setCustomName(Text.literal(name(v)));
+                    adopt(v);
+                    Walk k = walks.get(v.getUuid());
+                    if (k != null) {
+                        k.runner = child && (kids || rng.nextInt(3) == 0);
+                        if (lead != null) {
+                            k.leader = lead.getUuid();
+                            k.side = m == 1 ? 1.0 : -1.0;
+                            k.back = kids ? 1.2 : 0.3;
+                        }
+                    }
+                    if (lead == null) lead = v;
+                    have++;
+                }
             }
         }
     }
@@ -313,16 +412,31 @@ public final class Townsfolk {
                 VillagerEntity b = null;
                 for (VillagerEntity o : near) if (o != a && o.squaredDistanceTo(a) < 5 * 5) b = o;
                 if (b == null || a.isBaby() || b.isBaby()) continue;
-                String[] pair = CHATTER[rng.nextInt(CHATTER.length)];
-                face(a, b.getX(), b.getZ());
-                face(b, a.getX(), a.getZ());
                 Walk wa = walks.get(a.getUuid()), wb = walks.get(b.getUuid());
-                if (wa != null) wa.pause = Math.max(wa.pause, 110);
-                if (wb != null) wb.pause = Math.max(wb.pause, 110);
-                say(w, a, pair[0], 0);
-                say(w, b, pair[1], 50);
+                boolean together = wa != null && wb != null && (b.getUuid().equals(wa.leader) || a.getUuid().equals(wb.leader));
+                // Longer talks now and then; a pair walking together talks as they go.
+                String[] lines = rng.nextInt(3) == 0 ? TALKS[rng.nextInt(TALKS.length)] : CHATTER[rng.nextInt(CHATTER.length)];
+                int span = 50 * lines.length + 30;
+                if (!together) {
+                    face(a, b.getX(), b.getZ());
+                    face(b, a.getX(), a.getZ());
+                    if (wa != null) wa.pause = Math.max(wa.pause, span);
+                    if (wb != null) wb.pause = Math.max(wb.pause, span);
+                }
+                for (int i = 0; i < lines.length; i++) say(w, i % 2 == 0 ? a : b, lines[i], i * 50);
                 break;
             }
+        }
+    }
+
+    /** Now and then someone near a player calls out: a seller, a lost parent, a bit of news. */
+    private void callOut(ServerWorld w) {
+        for (ServerPlayerEntity p : w.getPlayers()) {
+            if (rng.nextInt(6) != 0) continue;
+            List<VillagerEntity> near = w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(22), v -> folk(v) && !v.isBaby());
+            if (near.isEmpty()) continue;
+            VillagerEntity v = near.get(rng.nextInt(near.size()));
+            say(w, v, CALLS[rng.nextInt(CALLS.length)], 0);
         }
     }
 
