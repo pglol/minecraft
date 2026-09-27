@@ -270,30 +270,35 @@ public final class WorldCare {
         long now = w.getTime();
         // Towns mend quickly (at most a minute after the damage).
         long delay = Math.min(config.regenDelaySeconds, 60) * 20L;
-        List<Map.Entry<Long, Entry>> due = new ArrayList<>();
-        for (var e : changed.entrySet()) if (force || now - e.getValue().at() >= delay) due.add(e);
-        if (due.isEmpty()) return;
-        due.sort((a, b) -> Integer.compare(BlockPos.unpackLongY(a.getKey()), BlockPos.unpackLongY(b.getKey())));
         int budget = force ? Integer.MAX_VALUE : Math.max(160, config.blocksPerSecond);
-        // Damage far from everyone used to wait for someone to wander by, and filled the list until
-        // nothing new was recorded. Load a few of those chunks each second and mend them too.
-        int loads = force ? 256 : 3;
+        // Only gather what can be mended this second (never sort the whole backlog), and open at most
+        // one far-off chunk a second (loading chunks from disk is what costs).
+        int loads = force ? 256 : 1;
         java.util.Set<Long> opened = new java.util.HashSet<>();
+        List<Map.Entry<Long, Entry>> due = new ArrayList<>();
+        for (var e : changed.entrySet()) {
+            if (!force && now - e.getValue().at() < delay) continue;
+            BlockPos pos = BlockPos.fromLong(e.getKey());
+            int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+            if (!w.isChunkLoaded(cx, cz)) {
+                long ck = net.minecraft.util.math.ChunkPos.toLong(cx, cz);
+                if (!opened.contains(ck)) {
+                    if (opened.size() >= loads) continue;
+                    opened.add(ck);
+                }
+            }
+            due.add(e);
+            if (!force && due.size() >= budget * 2) break;
+        }
+        if (due.isEmpty()) return;
+        for (long ck : opened) w.getChunk(net.minecraft.util.math.ChunkPos.getPackedX(ck), net.minecraft.util.math.ChunkPos.getPackedZ(ck));
+        due.sort((x, y) -> Integer.compare(BlockPos.unpackLongY(x.getKey()), BlockPos.unpackLongY(y.getKey())));
         quiet(true);
         try {
             for (var e : due) {
                 if (budget <= 0) break;
                 BlockPos pos = BlockPos.fromLong(e.getKey());
-                int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-                if (!w.isChunkLoaded(cx, cz)) {
-                    long ck = net.minecraft.util.math.ChunkPos.toLong(cx, cz);
-                    if (!opened.contains(ck)) {
-                        if (loads <= 0) continue;
-                        loads--;
-                        w.getChunk(cx, cz);
-                        opened.add(ck);
-                    }
-                }
+                if (!w.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) continue;
                 if (!force && w.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 4, false) != null) continue;
                 changed.remove(e.getKey());
                 BlockState cur = w.getBlockState(pos);
