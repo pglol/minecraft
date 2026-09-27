@@ -55,7 +55,7 @@ public final class Loadout {
     public enum Kind {
         MELEE("Melee", "ODM grips, blades, swords, axes"),
         RANGED("Ranged", "APG gun, bows, crossbows, muskets"),
-        SIDEARM("Sidearm", "A second ranged weapon"),
+        SIDEARM("Sidearm", "A second ranged weapon (not ammo like thunder spears)"),
         TOOL("Tool", "Gas canisters, pickaxes, fishing rods, shears"),
         HEAL("Heal", "Food, meals and potions. [H] uses it instantly"),
         MOUNT("Mount", "Saddle, lead, horse armor, horse treats"),
@@ -76,7 +76,9 @@ public final class Loadout {
 
     private static final String NS = "dannys-aot";
     private static final Set<String> AOT_MELEE = Set.of("blade", "odm_apg");
-    private static final Set<String> AOT_RANGED = Set.of("apg_gun", "musket", "flinstock", "thunder_spear");
+    private static final Set<String> AOT_RANGED = Set.of("apg_gun", "musket", "flinstock");
+    /** Ammunition: thunder spears, blades, cartridges, clusters, arrows. Never a weapon slot. */
+    private static final Set<String> AOT_AMMO = Set.of("thunder_spear");
     private static final Set<String> AOT_HEAL = Set.of("syringe", "armor_potion", "canned_herring", "canned_herring_open", "vintage_wine");
     private static final Set<Item> MOUNT_ITEMS = Set.of(Items.HAY_BLOCK, Items.GOLDEN_CARROT, Items.NAME_TAG, Items.APPLE, Items.SUGAR);
     private static final Set<Item> SIGNAL_ITEMS = Set.of(Items.TORCH, Items.SOUL_TORCH, Items.LANTERN, Items.SOUL_LANTERN, Items.CLOCK,
@@ -108,6 +110,12 @@ public final class Loadout {
         return i instanceof BowItem || i instanceof CrossbowItem || i instanceof TridentItem || (p != null && AOT_RANGED.contains(p));
     }
 
+    public static boolean isAmmo(ItemStack s) {
+        String p = aot(s);
+        return (p != null && AOT_AMMO.contains(p)) || AotItems.isSupply(s) || s.isOf(Items.ARROW) || s.isOf(Items.SPECTRAL_ARROW)
+            || s.isOf(Items.TIPPED_ARROW);
+    }
+
     public static boolean isHeal(ItemStack s) {
         String p = aot(s);
         return Provisions.isProvision(s) || s.isOf(Items.GOLDEN_APPLE) || s.isOf(Items.ENCHANTED_GOLDEN_APPLE)
@@ -121,9 +129,9 @@ public final class Loadout {
         String p = aot(s);
         return switch (k) {
             case MELEE -> isMelee(s);
-            case RANGED -> isRanged(s) && !isMelee(s);
-            // The sidearm sits with the ranged pair: a second gun, never a blade.
-            case SIDEARM -> isRanged(s) && !isMelee(s);
+            case RANGED -> isRanged(s) && !isMelee(s) && !isAmmo(s);
+            // The sidearm sits with the ranged pair: a second gun, never a blade and never ammo.
+            case SIDEARM -> isRanged(s) && !isMelee(s) && !isAmmo(s);
             case TOOL -> AotItems.isGas(s) || i instanceof MiningToolItem || i instanceof ShearsItem || i instanceof FishingRodItem
                 || i instanceof FlintAndSteelItem || i instanceof BrushItem || i instanceof BucketItem;
             case HEAL -> isHeal(s);

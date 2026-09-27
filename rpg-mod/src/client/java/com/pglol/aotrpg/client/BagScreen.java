@@ -28,7 +28,7 @@ import java.util.Map;
  * level or count), with the chosen item's details on the right and what you can do with it.
  */
 public final class BagScreen extends Screen {
-    private static final String[] TABS = {"Weapons", "Armor", "Supplies", "Food", "Materials", "Gear & Mounts", "Quest"};
+    private static final String[] TABS = {"Weapons", "Armor", "Ammo & Supplies", "Food", "Materials", "Gear & Mounts", "Quest"};
     private static final Item[] TAB_ICONS = {Items.IRON_SWORD, Items.IRON_CHESTPLATE, Items.ARROW, Items.BREAD, Items.IRON_INGOT,
         Items.SADDLE, Items.WRITABLE_BOOK};
     private static final String[] SORTS = {"Quality", "Level", "Name", "Count"};
@@ -79,6 +79,8 @@ public final class BagScreen extends Screen {
         var pl = net.minecraft.client.MinecraftClient.getInstance().player;
         if (s.getItem() instanceof ArmorItem
             || (pl != null && pl.getPreferredEquipmentSlot(s).getType() == net.minecraft.entity.EquipmentSlot.Type.HUMANOID_ARMOR)) return 1;
+        // Ammo first: thunder spears, blades, cartridges and arrows are never "weapons".
+        if (Loadout.isAmmo(s)) return 2;
         if (Loadout.isMelee(s) || Loadout.isRanged(s) || i instanceof net.minecraft.item.ShieldItem) return 0;
         if (AotItems.isSupply(s) || AotItems.isGas(s) || i == Items.ARROW || i == Items.SPECTRAL_ARROW) return 2;
         if (s.contains(DataComponentTypes.FOOD) || i instanceof PotionItem || Loadout.isHeal(s)) return 3;
