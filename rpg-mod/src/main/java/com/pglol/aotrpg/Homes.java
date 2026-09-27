@@ -385,6 +385,7 @@ public final class Homes {
         int sx = Integer.signum(cx - h[6]), sz = Integer.signum(cz - h[7]);
         if (Math.abs(cx - h[6]) < Math.abs(cz - h[7])) sx = 0;
         else sz = 0;
+        ensureBorder(hw, null);
         BlockPos want = inside.add(sx * 2, 0, sz * 2);
         hw.getChunk(want.getX() >> 4, want.getZ() >> 4);
         // A copy that was never built (or got lost) is rebuilt before anyone steps into thin air.
@@ -410,9 +411,30 @@ public final class Homes {
         // A moment's grace while the house loads in around you.
         p.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 60, 4, false, false, false));
         p.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING, 40, 0, false, false, false));
+        ensureBorder(hw, p);
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_WOODEN_DOOR_CLOSE, SoundCategory.BLOCKS, 0.7f, 1f);
         p.sendMessage(Text.literal("Home").formatted(Formatting.GOLD, Formatting.BOLD)
             .append(Text.literal("  ·  " + townOf(h) + "  ·  the front door leads back out").formatted(Formatting.GRAY)), true);
+    }
+
+    /**
+     * The home world shares the main world's border by default, and homes are laid out far from its
+     * centre: with a map-sized border, everyone at home would be outside it and take damage. The home
+     * world gets the widest border there is (and players in it are told).
+     */
+    private static void ensureBorder(ServerWorld hw, ServerPlayerEntity p) {
+        net.minecraft.world.border.WorldBorder b = hw.getWorldBorder();
+        boolean changed = false;
+        if (b.getSize() < 5.9E7 || b.getCenterX() != 0 || b.getCenterZ() != 0) {
+            b.setCenter(0, 0);
+            b.setSize(5.9999968E7);
+            changed = true;
+        }
+        if (p != null || changed) {
+            var pkt = new net.minecraft.network.packet.s2c.play.WorldBorderInitializeS2CPacket(b);
+            if (p != null) p.networkHandler.sendPacket(pkt);
+            else for (ServerPlayerEntity o : hw.getPlayers()) o.networkHandler.sendPacket(pkt);
+        }
     }
 
     private static boolean standable(ServerWorld w, BlockPos p) {
@@ -431,6 +453,7 @@ public final class Homes {
     public void tick(ServerPlayerEntity p, int ticks) {
         // The home world is empty apart from the homes: anyone falling below a home's floor is
         // caught before the void and set back inside it (the house is rebuilt if it's missing).
+        if (p.getWorld().getRegistryKey() == WORLD && ticks % 40 == 0) ensureBorder(p.getServerWorld(), null);
         if (p.getWorld().getRegistryKey() == WORLD && p.getY() < FLOOR - 12) {
             int n = instanceAt(p.getBlockPos());
             Deed d = n < 0 ? null : find(data.instances.get(n), n);
