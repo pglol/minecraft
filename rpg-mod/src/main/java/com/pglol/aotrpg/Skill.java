@@ -148,7 +148,7 @@ public enum Skill {
         null, 0, false),
     MED_QUICK(Branch.MEDIC, 1, 1, 3, 1, "Quick Revive", Items.GOLDEN_CARROT, "✦ Revive the downed in 2.5s; Field Dressing on the downed revives them halfway",
         null, 0, false),
-    MED_AURA(Branch.MEDIC, 2, 0, 6, 2, "Triage Aura", Items.BEACON, "✦ You and your squad within 10 blocks regenerate 1 health every 3s",
+    MED_LONE(Branch.MEDIC, 2, 0, 6, 2, "Self-Sufficient", Items.HONEY_BOTTLE, "✦ With no ally within 40 blocks: Field Dressing heals double; +20% chance to be downed, not killed",
         null, 0, false),
     MED_ADRENALINE(Branch.MEDIC, 3, -1, 10, 2, "Adrenaline", Items.SUGAR, "✦ Field Dressing also grants Speed and 25 stamina",
         null, 0, false),
@@ -160,7 +160,7 @@ public enum Skill {
         null, 0, false),
     MED_COMBAT(Branch.MEDIC, 5, 1, 22, 3, "Combat Medic", Items.GOLDEN_SWORD, "✦ Your hits heal the most hurt ally near you (or you) for 15% of the damage",
         null, 0, false),
-    MED_LONE(Branch.MEDIC, 6, 0, 28, 3, "Self-Sufficient", Items.HONEY_BOTTLE, "✦ With no ally within 40 blocks: Field Dressing heals double; +20% chance to be downed, not killed",
+    MED_AURA(Branch.MEDIC, 6, 0, 28, 3, "Triage Aura", Items.BEACON, "✦ You and your squad within 8 blocks regenerate 1 health every 4s",
         null, 0, false),
     MED_ULT(Branch.MEDIC, 7, 0, 35, 5, "Blessing of the Walls", Items.TOTEM_OF_UNDYING, "★ V: Revive every downed ally within 20 blocks and heal everyone to full",
         null, 0, false),
@@ -187,12 +187,37 @@ public enum Skill {
     RCN_LONE(Branch.RECON, 6, 0, 28, 3, "Lone Scout", Items.RABBIT_FOOT, "✦ With no ally within 40 blocks: abilities recharge 25% faster, +15% damage to titans",
         null, 0, false),
     RCN_ULT(Branch.RECON, 7, 0, 35, 5, "Hunter's Eye", Items.ENDER_PEARL, "★ V: 10s: foes within 30 blocks are slowed and revealed; +30% damage and nape strikes count double",
+        null, 0, false),
+
+    // ==== Engineer
+    ENG_RIG(Branch.ENGINEER, 0, 0, 1, 1, "Gas Rig", Items.BLAZE_POWDER, "▶ Z: Refill 35% gas for you and your squad within 8 blocks (20s cooldown)",
+        null, 0, false),
+    ENG_FRAME(Branch.ENGINEER, 1, -1, 3, 1, "Light Frame", Items.IRON_NUGGET, "+6% movement speed",
+        EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.06, true),
+    ENG_SHOCK(Branch.ENGINEER, 1, 1, 3, 1, "Shock Absorbers", Items.SLIME_BALL, "No fall damage for 4 more blocks",
+        EntityAttributes.GENERIC_SAFE_FALL_DISTANCE, 4, false),
+    ENG_VALVES(Branch.ENGINEER, 2, 0, 6, 2, "Efficient Valves", Items.HOPPER, "ODM boosts cost 20% less gas",
+        null, 0, false),
+    ENG_QUICK(Branch.ENGINEER, 3, -1, 10, 2, "Quick Hands", Items.CLOCK, "✦ Gas Rig recharges 30% faster",
+        null, 0, false),
+    ENG_BURST(Branch.ENGINEER, 3, 1, 10, 2, "Pressure Burst", Items.FIREWORK_STAR, "✦ Gas Rig also gives Speed II for 4s",
+        null, 0, false),
+    ENG_OVERDRIVE(Branch.ENGINEER, 4, 0, 15, 3, "Overdrive", Items.PISTON, "▶ X: For 8s your ODM boosts cost no gas and you move 20% faster (35s cooldown)",
+        null, 0, false),
+    ENG_WORKSHOP(Branch.ENGINEER, 5, -1, 22, 3, "Field Workshop", Items.SMITHING_TABLE, "Craft Gas Refuelers at a forge",
+        null, 0, false),
+    ENG_LINES(Branch.ENGINEER, 5, 1, 22, 3, "Anchor Lines", Items.CHAIN, "✦ Break out of a titan's grip in 25% fewer strikes",
+        null, 0, false),
+    ENG_LONE(Branch.ENGINEER, 6, 0, 28, 3, "Lone Mechanic", Items.REDSTONE, "✦ With no ally within 40 blocks: Gas Rig fills you completely",
+        null, 0, false),
+    ENG_ULT(Branch.ENGINEER, 7, 0, 35, 5, "Airlift", Items.ELYTRA, "★ V: 10s: you and your squad within 12 blocks get full gas, free boosts, Speed II and no fall damage",
         null, 0, false);
 
     public enum Branch {
         BLADE("Blade", 0xFFC0463A, null), MOBILITY("Mobility", 0xFF5E9A4A, null), SURVIVAL("Survival", 0xFF4A74B0, null),
         INFANTRY("Infantry", 0xFFD0563A, PlayerClass.INFANTRY), TANK("Tank", 0xFF4A7AC0, PlayerClass.TANK),
-        MEDIC("Medic", 0xFF5BC06A, PlayerClass.MEDIC), RECON("Recon", 0xFFC9A53A, PlayerClass.RECON);
+        MEDIC("Medic", 0xFF5BC06A, PlayerClass.MEDIC), RECON("Recon", 0xFFC9A53A, PlayerClass.RECON),
+        ENGINEER("Engineer", 0xFFC0803A, PlayerClass.ENGINEER);
 
         public final String title;
         public final int color;
@@ -212,6 +237,17 @@ public enum Skill {
     }
 
     public static final int TIERS = 8;
+    /**
+     * From this tier down (the 4th row), a role's skills are that role's alone: they can only be
+     * learned, and only work, while it's your role. The top of every tree stays open to everyone,
+     * so nobody can stack the deep powers of several roles.
+     */
+    public static final int ROLE_LOCK_TIER = 3;
+
+    /** Locked to its role (see ROLE_LOCK_TIER). */
+    public boolean roleLocked() {
+        return branch.cls != null && tier >= ROLE_LOCK_TIER;
+    }
     public static final int MAX_RESETS = 3;
 
     public final Branch branch;
@@ -261,7 +297,13 @@ public enum Skill {
 
     /** Why this character can't learn this skill (null if it can). Shared by server and screen. */
     public String blocked(int level, int points, java.util.function.Predicate<Skill> has) {
+        return blocked(level, points, has, null);
+    }
+
+    /** As above, with the character's role (null skips the role check). */
+    public String blocked(int level, int points, java.util.function.Predicate<Skill> has, PlayerClass role) {
         if (has.test(this)) return "Learned";
+        if (role != null && roleLocked() && branch.cls != role) return "Only for the " + branch.cls.title + " role";
         if (level < this.level) return "Requires level " + this.level;
         if (!unlockedBy(has)) return "Learn a skill above it first";
         if (points < cost) return "Needs " + cost + " skill point" + (cost == 1 ? "" : "s");

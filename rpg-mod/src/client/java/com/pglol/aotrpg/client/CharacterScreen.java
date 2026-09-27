@@ -73,7 +73,7 @@ public class CharacterScreen extends Screen {
         } else {
             for (Skill s : Skill.values()) if (shown(s.branch)) addDrawableChild(new SkillNode(s, nodeX(s), nodeY(s)));
             if (tab == 2) {
-                int colW = w / 4;
+                int colW = w / com.pglol.aotrpg.PlayerClass.values().length;
                 for (com.pglol.aotrpg.PlayerClass rc : com.pglol.aotrpg.PlayerClass.values()) {
                     boolean mine = p.role() == rc;
                     AotButton b = addDrawableChild(new AotButton(left + rc.ordinal() * colW + 4, top + 6, colW - 8, 18,
@@ -112,7 +112,7 @@ public class CharacterScreen extends Screen {
     }
 
     private int columns() {
-        return tab == 2 ? 4 : 3;
+        return tab == 2 ? com.pglol.aotrpg.PlayerClass.values().length : 3;
     }
 
     private int column(Skill.Branch b) {
@@ -129,7 +129,7 @@ public class CharacterScreen extends Screen {
 
     private int nodeX(Skill s) {
         int colW = w / columns();
-        return left + column(s.branch) * colW + colW / 2 - 11 + s.lane * (tab == 2 ? 30 : 40);
+        return left + column(s.branch) * colW + colW / 2 - 11 + s.lane * (tab == 2 ? 24 : 40);
     }
 
     private int nodeY(Skill s) {
@@ -267,7 +267,7 @@ public class CharacterScreen extends Screen {
 
         private boolean available() {
             Net.Sync p = ClientState.profile;
-            return skill.blocked(p.level(), p.skillPoints(), p::has) == null;
+            return skill.blocked(p.level(), p.skillPoints(), p::has, p.role()) == null;
         }
 
         List<Text> tooltip() {
@@ -279,10 +279,13 @@ public class CharacterScreen extends Screen {
             if (skill.slot() >= 0 && skill.branch.cls != p.role()) {
                 l.add(Text.literal("On your keys while your role is " + skill.branch.cls.title).formatted(Formatting.DARK_AQUA));
             }
+            boolean lockedOut = skill.roleLocked() && skill.branch.cls != p.role();
             if (learned()) {
-                l.add(Text.literal("Learned").formatted(Formatting.GOLD));
+                l.add(lockedOut ? Text.literal("Learned · works only as " + skill.branch.cls.title).formatted(Formatting.RED)
+                    : Text.literal("Learned").formatted(Formatting.GOLD));
                 return l;
             }
+            if (lockedOut) l.add(Text.literal("Only for the " + skill.branch.cls.title + " role").formatted(Formatting.RED));
             l.add(Text.literal("Requires level " + skill.level).formatted(p.level() >= skill.level ? Formatting.GRAY : Formatting.RED));
             if (skill.tier > 0) {
                 boolean ok = skill.unlockedBy(p::has);

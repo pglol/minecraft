@@ -126,7 +126,8 @@ public final class Store {
     static {
         TABLES.put("supply", List.of(
             gear(320, 0), gear(280, 1), gear(120, 2),
-            new Loot(120, "marks:800-2500", 1, "800 to 2,500 Marks", "minecraft:gold_nugget"),
+            new Loot(100, "marks:800-2500", 1, "800 to 2,500 Marks", "minecraft:gold_nugget"),
+            new Loot(20, "item:aot_rpg:gas_refueler:1", 3, "A Gas Refueler", "aot_rpg:gas_refueler"),
             new Loot(130, "supplies", 1, "Blades, gas, ice burst or thunder spears", "minecraft:iron_ingot"),
             new Loot(20, "cosmetic", 3, "A cosmetic you don't own", "minecraft:amethyst_shard"),
             new Loot(10, "title:0-1", 1, "A common or uncommon title", "minecraft:name_tag")));

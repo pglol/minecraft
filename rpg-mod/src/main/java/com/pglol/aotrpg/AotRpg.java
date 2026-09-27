@@ -124,6 +124,7 @@ public final class AotRpg implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        Refueler.register();
         Net.register();
         SatchelHandler.register();
         ServerPlayNetworking.registerGlobalReceiver(Net.MarketAction.ID, (payload, ctx) -> {
@@ -383,7 +384,7 @@ public final class AotRpg implements ModInitializer {
             Profile pr = PROFILES.get(p.getUuid());
             if (!pr.created || payload.skill() < 0 || payload.skill() >= Skill.values().length) return;
             Skill sk = Skill.values()[payload.skill()];
-            if (sk.blocked(pr.level, pr.skillPoints, pr::has) != null) return;
+            if (sk.blocked(pr.level, pr.skillPoints, pr::learned, pr.cls()) != null) return;
             pr.skillPoints -= sk.cost;
             pr.skills.add(sk);
             PROGRESSION.apply(p, pr);

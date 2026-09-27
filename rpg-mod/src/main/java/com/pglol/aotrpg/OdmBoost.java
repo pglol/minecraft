@@ -77,6 +77,20 @@ public final class OdmBoost {
     }
 
     /** Tops the gear up by `amount` (or to full); true if anything went in. */
+    /** Wearing ODM gear? */
+    public static boolean gearOn(ServerPlayerEntity p) {
+        return !gear(p).isEmpty();
+    }
+
+    /** Refuels a fraction of the tank (Gas Rig, Airlift, the Gas Refueler). False if full or unreadable. */
+    public static boolean refuel(ServerPlayerEntity p, double fraction) {
+        ItemStack g = gear(p);
+        if (g.isEmpty()) return false;
+        Num max = find(g, GAS_MAX);
+        double m = max != null && max.value() > 0 ? max.value() : FULL;
+        return refill(p, m * fraction);
+    }
+
     private static boolean refill(ServerPlayerEntity p, double amount) {
         ItemStack g = gear(p);
         if (g.isEmpty()) return false;
@@ -208,7 +222,9 @@ public final class OdmBoost {
         if (v.value() <= 0) return false;
         Num max = find(g, GAS_MAX);
         double m = max != null && max.value() > 0 ? max.value() : Math.max(v.value(), FULL);
-        v.set().accept(Math.max(0, v.value() - Math.max(1, m * 0.05)));
+        // Efficient Valves (Engineer): every burst costs a fifth less.
+        double cost = Math.max(1, m * 0.05) * (AotRpg.PROFILES.get(p.getUuid()).has(Skill.ENG_VALVES) ? 0.8 : 1);
+        v.set().accept(Math.max(0, v.value() - cost));
         return true;
     }
 
@@ -225,7 +241,7 @@ public final class OdmBoost {
             p.sendMessage(Text.literal("You need ODM gear on to do that.").formatted(Formatting.GRAY), true);
             return;
         }
-        if (!infinite(p) && !spend(p)) {
+        if (!infinite(p) && !AotRpg.CLASSES.freeGas(p) && !spend(p)) {
             p.sendMessage(Text.literal("Out of gas.").formatted(Formatting.RED), true);
             sync(p, s, true);
             return;

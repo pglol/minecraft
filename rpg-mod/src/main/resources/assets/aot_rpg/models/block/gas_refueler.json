@@ -1,0 +1,26 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "particle": "aot_rpg:block/gas_refueler_side",
+    "side": "aot_rpg:block/gas_refueler_side",
+    "top": "aot_rpg:block/gas_refueler_top",
+    "base": "aot_rpg:block/gas_refueler_base"
+  },
+  "elements": [
+    {"from": [1, 0, 1], "to": [15, 2, 15],
+     "faces": {"north": {"uv": [1, 14, 15, 16], "texture": "#base"}, "south": {"uv": [1, 14, 15, 16], "texture": "#base"},
+               "east": {"uv": [1, 14, 15, 16], "texture": "#base"}, "west": {"uv": [1, 14, 15, 16], "texture": "#base"},
+               "up": {"texture": "#base"}, "down": {"texture": "#base", "cullface": "down"}}},
+    {"from": [3, 2, 3], "to": [13, 14, 13],
+     "faces": {"north": {"uv": [3, 2, 13, 14], "texture": "#side"}, "south": {"uv": [3, 2, 13, 14], "texture": "#side"},
+               "east": {"uv": [3, 2, 13, 14], "texture": "#side"}, "west": {"uv": [3, 2, 13, 14], "texture": "#side"},
+               "up": {"uv": [3, 3, 13, 13], "texture": "#top"}}},
+    {"from": [6, 14, 6], "to": [10, 16, 10],
+     "faces": {"north": {"uv": [6, 0, 10, 2], "texture": "#base"}, "south": {"uv": [6, 0, 10, 2], "texture": "#base"},
+               "east": {"uv": [6, 0, 10, 2], "texture": "#base"}, "west": {"uv": [6, 0, 10, 2], "texture": "#base"},
+               "up": {"uv": [4, 4, 12, 12], "texture": "#top"}}},
+    {"from": [7, 6, 13], "to": [9, 8, 15],
+     "faces": {"north": {"texture": "#base"}, "south": {"texture": "#base"}, "east": {"texture": "#base"},
+               "west": {"texture": "#base"}, "up": {"texture": "#base"}, "down": {"texture": "#base"}}}
+  ]
+}

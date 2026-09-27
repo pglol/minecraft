@@ -60,7 +60,7 @@ public final class AbilityBar {
     public static void render(DrawContext c, RenderTickCounter tick) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.options.hudHidden || mc.player == null || hud == null || ClientState.profile == null || mc.currentScreen != null) return;
-        PlayerClass role = PlayerClass.values()[Math.max(0, Math.min(3, hud.cls()))];
+        PlayerClass role = PlayerClass.values()[Math.max(0, Math.min(PlayerClass.values().length - 1, hud.cls()))];
         long now = Util.getMeasuringTimeMs(), since = now - gotAt;
         int w = c.getScaledWindowWidth(), h = c.getScaledWindowHeight();
         int S = 24, gap = 4;

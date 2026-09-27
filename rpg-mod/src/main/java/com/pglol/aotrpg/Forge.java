@@ -27,7 +27,9 @@ public final class Forge {
         new Recipe("blade", "ODM Blade", mats("minecraft:iron_ingot", 4, "dannys-aot:ultrahard_steel_ingot", 1), 200, "dannys-aot:blade"),
         new Recipe("apg_gun", "APG Gun", mats("minecraft:iron_ingot", 6, "dannys-aot:ultrahard_steel_ingot", 2, "minecraft:gold_ingot", 2), 400, "dannys-aot:apg_gun"),
         new Recipe("armor", "Armor piece", mats("minecraft:iron_ingot", 8, "dannys-aot:ultrahard_leather", 1), 250, ""),
-        new Recipe("components", "Blade components x8", mats("minecraft:iron_ingot", 2), 20, "dannys-aot:blade_component"));
+        new Recipe("components", "Blade components x8", mats("minecraft:iron_ingot", 2), 20, "dannys-aot:blade_component"),
+        new Recipe("refueler", "Gas Refueler (Engineer)", mats("minecraft:iron_ingot", 6, "minecraft:copper_ingot", 4, "dannys-aot:ultrahard_steel_ingot", 1), 350,
+            "aot_rpg:gas_refueler"));
 
     private static Map<String, Integer> mats(Object... kv) {
         Map<String, Integer> m = new LinkedHashMap<>();
@@ -124,6 +126,10 @@ public final class Forge {
         Recipe r = null;
         for (Recipe x : RECIPES) if (x.id().equals(id)) r = x;
         if (r == null) return;
+        if (r.id().equals("refueler") && !AotRpg.PROFILES.get(p.getUuid()).has(Skill.ENG_WORKSHOP)) {
+            p.sendMessage(Text.literal("Engineers only: learn Field Workshop (Engineer tree).").formatted(Formatting.RED), true);
+            return;
+        }
         for (var e : r.materials().entrySet()) {
             if (count(p, item(e.getKey())) < e.getValue()) {
                 p.sendMessage(Text.literal("Missing materials.").formatted(Formatting.RED), true);
@@ -141,6 +147,8 @@ public final class Forge {
         ItemStack out;
         if (r.id().equals("components")) {
             out = new ItemStack(item(r.base()), 8);
+        } else if (r.id().equals("refueler")) {
+            out = new ItemStack(item(r.base()));
         } else {
             // Craftsmanship shifts the odds towards rarer results.
             int luck = (quality > 0.85 ? 1 : 0) + (smith >= 25 ? 1 : 0);

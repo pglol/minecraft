@@ -45,7 +45,7 @@ public final class Classes {
     public static final double ALONE_RADIUS = 40;
     public static final float CHARGE_MAX = 100;
     /** Base cooldowns in seconds: [class][Z, X]. */
-    private static final int[][] COOLDOWN = {{10, 30}, {14, 35}, {12, 40}, {12, 30}};
+    private static final int[][] COOLDOWN = {{10, 30}, {14, 35}, {12, 40}, {12, 30}, {20, 35}};
 
     private static final class State {
         final long[] ready = new long[3], max = new long[3];
@@ -286,6 +286,8 @@ public final class Classes {
         s.wallUntil = 0;
         AotRpg.PROFILES.save(p.getUuid());
         AotRpg.NAMETAGS.update(p, pr);
+        // A role's deep skills switch on or off with it.
+        AotRpg.PROGRESSION.apply(p, pr);
         AotRpg.sync(p, pr);
         p.playSoundToPlayer(SoundEvents.ITEM_ARMOR_EQUIP_IRON.value(), SoundCategory.PLAYERS, 0.8f, 1.1f);
         Notify.toast(p, Text.literal(c.tag() + " " + c.title).formatted(Formatting.BOLD).styled(st -> st.withColor(c.color & 0xFFFFFF)),
@@ -321,6 +323,7 @@ public final class Classes {
             case TANK -> slot == 0 ? provoke(p, true) : slot == 1 ? bulwark(p) : resolve(p);
             case MEDIC -> slot == 0 ? dressing(p) : slot == 1 ? sanctuary(p) : blessing(p);
             case RECON -> slot == 0 ? mark(p) : slot == 1 ? smoke(p) : huntersEye(p);
+            case ENGINEER -> slot == 0 ? gasRig(p) : slot == 1 ? overdrive(p) : airlift(p);
         };
         if (!done) return;
         if (slot == 2) {
@@ -331,8 +334,64 @@ public final class Classes {
         if (c == PlayerClass.INFANTRY && pr.has(Skill.INF_QUICK)) cd *= 0.7;
         if (c == PlayerClass.MEDIC && slot == 0 && pr.has(Skill.MED_PURGE)) cd *= 0.75;
         if (c == PlayerClass.RECON && pr.has(Skill.RCN_LONE) && s.alone) cd *= 0.75;
+        if (c == PlayerClass.ENGINEER && slot == 0 && pr.has(Skill.ENG_QUICK)) cd *= 0.7;
         s.max[slot] = Math.round(cd * 1000);
         s.ready[slot] = now + s.max[slot];
+    }
+
+    // ---- Engineer
+
+    /** Until when each player's ODM boosts cost no gas (Overdrive, Airlift). */
+    private final Map<UUID, Long> freeGas = new HashMap<>();
+    /** Until when each player takes no fall damage (Airlift). */
+    private final Map<UUID, Long> airlifted = new HashMap<>();
+
+    /** Boosts free right now (Overdrive or Airlift)? */
+    public boolean freeGas(ServerPlayerEntity p) {
+        return System.currentTimeMillis() < freeGas.getOrDefault(p.getUuid(), 0L);
+    }
+
+    private boolean gasRig(ServerPlayerEntity p) {
+        Profile pr = pr(p);
+        boolean lone = pr.has(Skill.ENG_LONE) && st(p).alone;
+        for (ServerPlayerEntity a : squad(p, 8)) {
+            OdmBoost.refuel(a, a == p && lone ? 1.0 : 0.35);
+            if (pr.has(Skill.ENG_BURST)) a.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 80, 1, false, true, true));
+            fx(a, ParticleTypes.CLOUD, 16, 0.5);
+        }
+        sound(p, SoundEvents.BLOCK_FIRE_EXTINGUISH, 0.8f, 1.6f);
+        callout(p, "GAS RIG", Formatting.GOLD);
+        return true;
+    }
+
+    private boolean overdrive(ServerPlayerEntity p) {
+        freeGas.put(p.getUuid(), System.currentTimeMillis() + 8000);
+        p.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 160, 0, false, true, true));
+        sound(p, SoundEvents.BLOCK_PISTON_EXTEND, 1f, 0.7f);
+        fx(p, ParticleTypes.ELECTRIC_SPARK, 20, 0.6);
+        callout(p, "OVERDRIVE", Formatting.GOLD);
+        return true;
+    }
+
+    private boolean airlift(ServerPlayerEntity p) {
+        long until = System.currentTimeMillis() + 10_000;
+        for (ServerPlayerEntity a : squad(p, 12)) {
+            OdmBoost.refuel(a, 1.0);
+            freeGas.put(a.getUuid(), until);
+            airlifted.put(a.getUuid(), until);
+            a.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 200, 1, false, true, true));
+            fx(a, ParticleTypes.CLOUD, 30, 0.8);
+        }
+        sound(p, SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), 1f, 0.8f);
+        ring(p.getServerWorld(), p.getPos(), 12, ParticleTypes.CLOUD, 60);
+        callout(p, "AIRLIFT", Formatting.GOLD);
+        st(p).ultUntil = until;
+        return true;
+    }
+
+    /** Airlifted players take no fall damage while it lasts. */
+    public void tickAirlift(ServerPlayerEntity p) {
+        if (System.currentTimeMillis() < airlifted.getOrDefault(p.getUuid(), 0L)) p.fallDistance = 0;
     }
 
     // ---- Infantry
@@ -744,6 +803,7 @@ public final class Classes {
             Profile pr = pr(p);
             if (!pr.created) continue;
             State s = st(p);
+            tickAirlift(p);
             if (ticks % 10 == 0) s.alone = computeAlone(p);
             boolean ult = now < s.ultUntil;
             PlayerClass c = pr.cls();
@@ -765,8 +825,9 @@ public final class Classes {
                     }
                 }
             }
+            // Triage Aura: 1 health every 4s to you and your squad within 8 blocks.
+            if (ticks % 80 == 0 && pr.has(Skill.MED_AURA)) for (ServerPlayerEntity a : squad(p, 8)) if (!AotRpg.DOWNED.isDowned(a)) heal(p, a, 1);
             if (ticks % 60 == 0) {
-                if (pr.has(Skill.MED_AURA)) for (ServerPlayerEntity a : squad(p, 10)) if (!AotRpg.DOWNED.isDowned(a)) heal(p, a, 1);
                 if (pr.has(Skill.TNK_LONE) && s.alone && p.getHealth() < p.getMaxHealth()) p.heal(1);
             }
             if (now < s.wallUntil && ticks % 10 == 0) ring(w, p.getPos(), 8, ParticleTypes.END_ROD, 24);

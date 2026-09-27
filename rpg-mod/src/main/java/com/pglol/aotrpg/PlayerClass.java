@@ -21,7 +21,10 @@ public enum PlayerClass {
         new String[] {"Field Dressing", "Sanctuary", "Blessing of the Walls"}),
     RECON("Recon", "Scout", Items.SPYGLASS, 0xFFC9A53A,
         "Eyes of the Survey Corps. Marks weak points, vanishes into smoke, and hunts napes.",
-        new String[] {"Hunter's Mark", "Smoke Bomb", "Hunter's Eye"});
+        new String[] {"Hunter's Mark", "Smoke Bomb", "Hunter's Eye"}),
+    ENGINEER("Engineer", "Support", Items.PISTON, 0xFFC0803A,
+        "Keeps the squad in the air. Refuels gas in the field, overdrives ODM gear, and builds Gas Refuelers.",
+        new String[] {"Gas Rig", "Overdrive", "Airlift"});
 
     public final String title, role, blurb;
     public final Item icon;
@@ -56,6 +59,7 @@ public enum PlayerClass {
             case TANK -> "⛨";
             case MEDIC -> "✚";
             case RECON -> "◎";
+            case ENGINEER -> "⚙";
         };
     }
 }

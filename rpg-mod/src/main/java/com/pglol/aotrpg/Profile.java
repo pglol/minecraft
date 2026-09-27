@@ -99,7 +99,14 @@ public final class Profile {
         return cls != null ? cls : PlayerClass.of(discipline);
     }
 
+    /** A skill you have and that works now: a role's deep skills work only while it's your role. */
     public boolean has(Skill s) {
+        if (!skills.contains(s)) return false;
+        return !s.roleLocked() || s.branch.cls == cls();
+    }
+
+    /** Learned at all (whatever your role). */
+    public boolean learned(Skill s) {
         return skills.contains(s);
     }
 

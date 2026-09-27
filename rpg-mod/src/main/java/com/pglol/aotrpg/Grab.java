@@ -66,6 +66,7 @@ public final class Grab {
     private int need(ServerPlayerEntity p) {
         int need = Classes.alone(p) ? 8 : NEEDED;
         if (AotRpg.PROFILES.get(p.getUuid()).has(Skill.TNK_ANCHOR)) need = Math.max(4, need / 2);
+        if (AotRpg.PROFILES.get(p.getUuid()).has(Skill.ENG_LINES)) need = Math.max(4, (int) Math.ceil(need * 0.75));
         return need;
     }
 

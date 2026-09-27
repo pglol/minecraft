@@ -13,5 +13,6 @@
   "key.aot_rpg.sheath": "Draw / sheathe ODM grips",
   "key.aot_rpg.ability1": "Role ability 1",
   "key.aot_rpg.ability2": "Role ability 2",
-  "key.aot_rpg.ultimate": "Role ultimate"
+  "key.aot_rpg.ultimate": "Role ultimate",
+  "block.aot_rpg.gas_refueler": "Gas Refueler"
 }

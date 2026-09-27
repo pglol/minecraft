@@ -47,6 +47,8 @@ public final class AotRpgClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlock(com.pglol.aotrpg.Refueler.BLOCK,
+            net.minecraft.client.render.RenderLayer.getCutout());
         // Gear above your level says so plainly in its tooltip.
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, ctx, type, lines) -> {
             if (!GearUi.locked(stack)) return;
