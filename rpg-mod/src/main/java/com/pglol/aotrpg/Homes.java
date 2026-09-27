@@ -435,7 +435,7 @@ public final class Homes {
             int n = instanceAt(p.getBlockPos());
             Deed d = n < 0 ? null : find(data.instances.get(n), n);
             if (d != null) {
-                build(AotRpg.PLACES.homes.get(d.home), d.instance);
+                // enter() rebuilds the house only if it's actually missing (never over a lived-in one).
                 enter(p, d);
             } else {
                 p.fallDistance = 0;
