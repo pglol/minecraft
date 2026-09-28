@@ -131,7 +131,7 @@ public final class Extraction {
         Map<String, List<Long>> leftover = new HashMap<>();
     }
 
-    private static final int BALLOON_VERSION = 3;
+    private static final int BALLOON_VERSION = 4;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private Data data = new Data();
     private Path file;
