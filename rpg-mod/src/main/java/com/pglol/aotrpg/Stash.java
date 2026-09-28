@@ -12,9 +12,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtSizeTracker;
-import net.minecraft.screen.GenericContainerScreenHandler;
-import net.minecraft.screen.ScreenHandlerType;
-import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -114,8 +111,6 @@ public final class Stash {
         ServerWorld hw = AotRpg.HOMES.stashWorld();
         if (hw != null) {
             for (BlockPos bp : AotRpg.HOMES.stashSpots(p)) {
-                ChunkPos cp = new ChunkPos(bp);
-                if (chunks != null && chunks.add(cp)) hw.setChunkForced(cp.x, cp.z, true);
                 BlockEntity be = hw.getBlockEntity(bp);
                 if (!counts(be)) continue;
                 Inventory inv = (Inventory) be;
@@ -129,105 +124,131 @@ public final class Stash {
 
     /** {used, capacity} slots. */
     public static int[] usage(ServerPlayerEntity p) {
-        Set<ChunkPos> chunks = new LinkedHashSet<>();
-        List<Cell> cells = layout(p, chunks);
-        release(chunks);
+        List<Cell> cells = layout(p, null);
         int used = 0;
         for (Cell c : cells) if (!c.inv().getStack(c.slot()).isEmpty()) used++;
         return new int[] {used, cells.size()};
     }
 
-    private static void release(Set<ChunkPos> chunks) {
-        ServerWorld hw = AotRpg.HOMES.stashWorld();
-        if (hw == null) return;
-        for (ChunkPos cp : chunks) hw.setChunkForced(cp.x, cp.z, false);
+
+    /** Who has the stash open (it only works where it was opened: the balloon, or your own home). */
+    private static final Set<java.util.UUID> open = new java.util.HashSet<>();
+
+    /** Where the stash can be used: aboard the balloon, or inside your own home. */
+    public static boolean usable(ServerPlayerEntity p) {
+        return Extraction.inLobby(p) || p.getWorld().getRegistryKey() == Homes.WORLD && AotRpg.HOMES.canBuild(p, p.getBlockPos());
     }
 
-    /** A page of the stash as a plain chest screen. */
-    private static final class Page implements Inventory {
-        final List<Cell> cells;
-        final Set<ChunkPos> chunks;
-        final ServerPlayerEntity owner;
-        final SimpleInventory locker;
-
-        Page(ServerPlayerEntity owner, List<Cell> cells, Set<ChunkPos> chunks, SimpleInventory locker) {
-            this.owner = owner;
-            this.cells = cells;
-            this.chunks = chunks;
-            this.locker = locker;
-        }
-
-        public int size() { return cells.size(); }
-
-        public boolean isEmpty() {
-            for (Cell c : cells) if (!c.inv().getStack(c.slot()).isEmpty()) return false;
-            return true;
-        }
-
-        public ItemStack getStack(int i) { return cells.get(i).inv().getStack(cells.get(i).slot()); }
-
-        public ItemStack removeStack(int i, int n) {
-            ItemStack s = cells.get(i).inv().removeStack(cells.get(i).slot(), n);
-            markDirty();
-            return s;
-        }
-
-        public ItemStack removeStack(int i) {
-            ItemStack s = cells.get(i).inv().removeStack(cells.get(i).slot());
-            markDirty();
-            return s;
-        }
-
-        public void setStack(int i, ItemStack s) {
-            cells.get(i).inv().setStack(cells.get(i).slot(), s);
-            markDirty();
-        }
-
-        public void markDirty() {
-            for (Cell c : cells) if (c.inv() != locker) c.inv().markDirty();
-        }
-
-        public boolean canPlayerUse(PlayerEntity p) { return p == owner && Extraction.inLobby(owner); }
-
-        public void onClose(PlayerEntity p) {
-            saveLocker(owner, locker);
-            release(chunks);
-        }
-
-        public void clear() {
-            for (Cell c : cells) c.inv().setStack(c.slot(), ItemStack.EMPTY);
-        }
+    /** Opens the stash screen: stash and satchel side by side. */
+    public static void show(ServerPlayerEntity p, int ignored) {
+        if (!usable(p)) return;
+        open.add(p.getUuid());
+        p.playSoundToPlayer(SoundEvents.BLOCK_BARREL_OPEN, SoundCategory.BLOCKS, 0.8f, 1f);
+        AotRpg.SATCHEL.send(p, false);
+        send(p, true);
     }
 
-    public static void show(ServerPlayerEntity p, int page) {
-        Set<ChunkPos> chunks = new LinkedHashSet<>();
-        List<Cell> all = layout(p, chunks);
-        if (all.isEmpty()) {
-            release(chunks);
-            Notify.toast(p, Text.literal("Your stash is empty space").formatted(net.minecraft.util.Formatting.GOLD),
-                Text.literal("Buy a home: its chests and barrels are your stash"), 0xE0B96A, "minecraft:barrel", null);
+    public static void send(ServerPlayerEntity p, boolean openIt) {
+        if (!ServerPlayNetworking.canSend(p, Net.StashView.ID)) return;
+        List<Cell> cells = layout(p, null);
+        List<Net.BagEntry> items = new ArrayList<>();
+        for (int i = 0; i < cells.size(); i++) {
+            ItemStack s = cells.get(i).inv().getStack(cells.get(i).slot());
+            if (!s.isEmpty()) items.add(new Net.BagEntry(i, s.copy()));
+        }
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        ServerPlayNetworking.send(p, new Net.StashView(items, cells.size(), pr.salvage,
+            pr.stashRows >= MAX_ROWS ? -1 : rowCost(pr), openIt));
+    }
+
+    private static void dirty(List<Cell> cells) {
+        Set<Inventory> seen = new java.util.HashSet<>();
+        for (Cell c : cells) if (seen.add(c.inv())) c.inv().markDirty();
+    }
+
+    /** Buttons and clicks in the stash screen. */
+    public static void action(ServerPlayerEntity p, String action, int slot) {
+        if (action.equals("close")) {
+            open.remove(p.getUuid());
             return;
         }
-        int pages = (all.size() + PAGE - 1) / PAGE;
-        int pg = Math.max(0, Math.min(pages - 1, page));
-        List<Cell> cells = new ArrayList<>(all.subList(pg * PAGE, Math.min(all.size(), pg * PAGE + PAGE)));
-        int rows = Math.max(1, cells.size() / ROW);
-        int used = 0;
-        for (Cell c : all) if (!c.inv().getStack(c.slot()).isEmpty()) used++;
-        Page inv = new Page(p, cells, chunks, locker(p));
-        ScreenHandlerType<?> type = switch (rows) {
-            case 1 -> ScreenHandlerType.GENERIC_9X1;
-            case 2 -> ScreenHandlerType.GENERIC_9X2;
-            case 3 -> ScreenHandlerType.GENERIC_9X3;
-            case 4 -> ScreenHandlerType.GENERIC_9X4;
-            case 5 -> ScreenHandlerType.GENERIC_9X5;
-            default -> ScreenHandlerType.GENERIC_9X6;
-        };
-        int r = rows;
-        p.openHandledScreen(new SimpleNamedScreenHandlerFactory((id, pinv, pl) -> new GenericContainerScreenHandler(type, id, pinv, inv, r),
-            Text.literal("Stash")));
-        p.playSoundToPlayer(SoundEvents.BLOCK_BARREL_OPEN, SoundCategory.BLOCKS, 0.8f, 1f);
-        if (ServerPlayNetworking.canSend(p, Net.StashInfo.ID)) ServerPlayNetworking.send(p, new Net.StashInfo(pg, pages, used, all.size()));
+        if (!open.contains(p.getUuid()) || !usable(p)) return;
+        List<Cell> cells = layout(p, null);
+        SimpleInventory bag = AotRpg.SATCHEL.get(p.getUuid());
+        switch (action) {
+            // Satchel slot -> stash: stacks up with what's there, then the first free slot.
+            case "put" -> {
+                if (slot < 0 || slot >= bag.size()) return;
+                ItemStack s = bag.getStack(slot);
+                if (s.isEmpty() || Satchel.isStory(s)) return;
+                ItemStack rest = s.copy();
+                for (Cell c : cells) {
+                    ItemStack t = c.inv().getStack(c.slot());
+                    if (!t.isEmpty() && ItemStack.areItemsAndComponentsEqual(t, rest) && t.getCount() < t.getMaxCount()) {
+                        int n = Math.min(rest.getCount(), t.getMaxCount() - t.getCount());
+                        t.increment(n);
+                        rest.decrement(n);
+                        if (rest.isEmpty()) break;
+                    }
+                }
+                for (Cell c : cells) {
+                    if (rest.isEmpty()) break;
+                    if (c.inv().getStack(c.slot()).isEmpty()) {
+                        c.inv().setStack(c.slot(), rest);
+                        rest = ItemStack.EMPTY;
+                    }
+                }
+                if (rest.getCount() == s.getCount()) {
+                    Notify.toast(p, Text.literal("Your stash is full").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, "minecraft:barrel", null);
+                    return;
+                }
+                bag.setStack(slot, rest);
+                bag.markDirty();
+            }
+            // Stash slot -> satchel.
+            case "take" -> {
+                if (slot < 0 || slot >= cells.size()) return;
+                Cell c = cells.get(slot);
+                ItemStack s = c.inv().getStack(c.slot());
+                if (s.isEmpty()) return;
+                ItemStack rest = bag.addStack(s.copy());
+                if (rest.getCount() == s.getCount()) {
+                    Notify.toast(p, Text.literal("Your satchel is full").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, "minecraft:bundle", null);
+                    return;
+                }
+                c.inv().setStack(c.slot(), rest);
+                bag.markDirty();
+            }
+            // Tidies the stash: like with like stacked together, best first.
+            case "sort" -> {
+                List<ItemStack> all = new ArrayList<>();
+                for (Cell c : cells) {
+                    ItemStack s = c.inv().getStack(c.slot());
+                    if (s.isEmpty()) continue;
+                    boolean merged = false;
+                    for (ItemStack a : all) {
+                        if (ItemStack.areItemsAndComponentsEqual(a, s) && a.getCount() + s.getCount() <= a.getMaxCount()) {
+                            a.increment(s.getCount());
+                            merged = true;
+                            break;
+                        }
+                    }
+                    if (!merged) all.add(s.copy());
+                }
+                all.sort(java.util.Comparator.comparingInt((ItemStack s) -> Gear.isGear(s) ? 0 : 1)
+                    .thenComparingInt(s -> Gear.isGear(s) ? -Gear.requiredLevel(s) : 0)
+                    .thenComparing(s -> net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString()));
+                for (int i = 0; i < cells.size(); i++) cells.get(i).inv().setStack(cells.get(i).slot(), i < all.size() ? all.get(i) : ItemStack.EMPTY);
+                p.playSoundToPlayer(SoundEvents.ITEM_BUNDLE_INSERT, SoundCategory.PLAYERS, 0.8f, 1f);
+            }
+            case "expand" -> expand(p);
+            default -> { return; }
+        }
+        dirty(cells);
+        AotRpg.SATCHEL.save(p.getUuid());
+        saveLocker(p, locker(p));
+        AotRpg.SATCHEL.send(p, false);
+        send(p, false);
     }
 
     /** Buys one more row of stash with Salvage. */

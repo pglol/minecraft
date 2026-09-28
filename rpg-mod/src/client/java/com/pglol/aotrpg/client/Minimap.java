@@ -275,7 +275,8 @@ public final class Minimap {
             c.fill(x + p[0] - 1, y + p[1] - 1, x + p[0] + 2, y + p[1] + 2, col);
         }
         // Quest targets, map marks and party highlights (pinned to the rim when far away).
-        for (Net.Marker m : ClientState.markers) {
+        boolean open = MinecraftClient.getInstance().world != null && MinecraftClient.getInstance().world.getRegistryKey() == net.minecraft.world.World.OVERWORLD;
+        for (Net.Marker m : open ? ClientState.markers : java.util.List.<Net.Marker>of()) {
             if (m.kind().equals("ferry") || m.kind().equals("giver")) {
                 double fx = m.x() + 0.5 - ox, fz = m.z() + 0.5 - oz;
                 if (!onMap(fx, fz, 6)) continue;

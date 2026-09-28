@@ -97,8 +97,10 @@ public final class AotRpgClient implements ClientModInitializer {
             else WorkbenchScreen.update(payload);
         });
         ClientTickEvents.END_CLIENT_TICK.register(LobbyScreen::tick);
-        ClientPlayNetworking.registerGlobalReceiver(Net.StashInfo.ID, (payload, ctx) -> StashPager.on(payload));
-        StashPager.register();
+        ClientPlayNetworking.registerGlobalReceiver(Net.StashView.ID, (payload, ctx) -> {
+            if (payload.open()) ctx.client().setScreen(new StashScreen(payload));
+            else StashScreen.update(payload);
+        });
         ClientTickEvents.END_CLIENT_TICK.register(DuelRing::tick);
         ClientPlayNetworking.registerGlobalReceiver(Net.DuelRing.ID, (payload, ctx) -> DuelRing.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.BagView.ID, (payload, ctx) -> {
@@ -107,6 +109,7 @@ public final class AotRpgClient implements ClientModInitializer {
             ClientState.bag = m;
             ClientState.bagSize = payload.size();
             if (ctx.client().currentScreen instanceof BagScreen s) s.refresh();
+            else if (ctx.client().currentScreen instanceof StashScreen st) st.refresh();
             else if (payload.open()) ctx.client().setScreen(new BagScreen());
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.EstateView.ID, (payload, ctx) -> {

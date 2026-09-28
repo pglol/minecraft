@@ -110,6 +110,8 @@ public final class Homes {
         /** Bandit raids: days played since the last one, and when. */
         public int daysPlayed;
         public long lastDay, lastRaid;
+        /** The street closed in by a ring of town houses (no edge of the world out of the windows). */
+        public boolean streetWall;
         /** The chests and barrels counted into the stash (packed positions), null until counted. */
         public List<Long> stash;
     }
@@ -564,6 +566,70 @@ public final class Homes {
         d.enclosed = true;
         d.backdrop2 = true;
         save();
+        streetWall(h, d);
+    }
+
+    /**
+     * Closes the copied street in: a ring of tall town houses just beyond it, half-timbered fronts
+     * of varied heights facing in, with windows (a few lit), slate roofs and chimneys, standing on
+     * solid ground. From any window the street simply carries on to the next row of houses.
+     */
+    void streetWall(int[] h, Deed d) {
+        ServerWorld hw = homeWorld();
+        if (hw == null) return;
+        int n = d.instance, flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
+        int ix0 = h[0] - 1 - BACKDROP, ix1 = h[2] + 1 + BACKDROP, iz0 = h[1] - 1 - BACKDROP, iz1 = h[3] + 1 + BACKDROP;
+        BlockState[] infill = {Blocks.WHITE_TERRACOTTA.getDefaultState(), Blocks.CALCITE.getDefaultState(),
+            Blocks.SMOOTH_SANDSTONE.getDefaultState(), Blocks.MUD_BRICKS.getDefaultState(), Blocks.STONE_BRICKS.getDefaultState()};
+        BlockState frame = Blocks.STRIPPED_DARK_OAK_LOG.getDefaultState(), beam = Blocks.DARK_OAK_PLANKS.getDefaultState();
+        BlockState glass = Blocks.BLACK_STAINED_GLASS.getDefaultState(), lit = Blocks.YELLOW_STAINED_GLASS.getDefaultState();
+        BlockState roof = Blocks.DEEPSLATE_TILES.getDefaultState(), brick = Blocks.BRICKS.getDefaultState();
+        WorldCare.quiet(true);
+        try {
+            for (int x = ix0 - 4; x <= ix1 + 4; x++) {
+                for (int z = iz0 - 4; z <= iz1 + 4; z++) {
+                    if (x >= ix0 && x <= ix1 && z >= iz0 && z <= iz1) continue;
+                    // How far out (0 = the front facing the street) and where along the row.
+                    int out = Math.max(Math.max(ix0 - x, x - ix1), Math.max(iz0 - z, z - iz1)) - 1;
+                    boolean alongX = z < iz0 || z > iz1;
+                    int along = alongX ? x : z;
+                    int house = Math.floorDiv(along, 7);
+                    int seed = house * 31 + (alongX ? (z < iz0 ? 1 : 2) : (x < ix0 ? 3 : 4)) * 977;
+                    int height = 10 + Math.floorMod(seed * 7, 9);
+                    BlockState fill = infill[Math.floorMod(seed, infill.length)];
+                    int col = Math.floorMod(along, 7);
+                    for (int y = h[4] - 4; y <= h[4] + height + 3; y++) {
+                        int up = y - h[4];
+                        BlockState st;
+                        if (up < 0) st = Blocks.STONE.getDefaultState();
+                        else if (up > height) {
+                            // A slate roof stepping back from the street, a chimney now and then.
+                            int step = up - height;
+                            if (step <= out) st = roof;
+                            else if (out == 2 && col == 3 && Math.floorMod(seed, 3) == 0 && step <= 3) st = brick;
+                            else continue;
+                        } else if (out > 0) st = fill;
+                        else if (col == 0 || up == 0 || up % 5 == 0) st = up % 5 == 0 && col != 0 ? beam : frame;
+                        else if ((col == 2 || col == 4) && (up % 5 == 2 || up % 5 == 3) && up > 1) {
+                            st = Math.floorMod(seed + up * 13 + col, 7) == 0 ? lit : glass;
+                        } else if (up <= 3 && col == 3 && Math.floorMod(seed, 2) == 0) st = up <= 2 ? Blocks.SPRUCE_PLANKS.getDefaultState() : beam;
+                        else st = fill;
+                        hw.setBlockState(map(h, n, x, y, z), st, flags);
+                    }
+                }
+            }
+            // No holes to the void under the street.
+            for (int x = ix0; x <= ix1; x++) {
+                for (int z = iz0; z <= iz1; z++) {
+                    BlockPos under = map(h, n, x, h[4] - 5, z);
+                    if (hw.getBlockState(under).isAir()) hw.setBlockState(under, Blocks.STONE.getDefaultState(), flags);
+                }
+            }
+        } finally {
+            WorldCare.quiet(false);
+        }
+        d.streetWall = true;
+        save();
     }
 
     /** Homes walled in before the street copy was widened: copy the ring from 14 out to 28 blocks. */
@@ -691,6 +757,7 @@ public final class Homes {
         migrate(d.instance);
         if (!d.enclosed && !d.yard) enclose(h, d);
         else if (d.enclosed && !d.backdrop2) widenBackdrop(h, d);
+        if (d.enclosed && !d.yard && !d.streetWall) streetWall(h, d);
         if (p.getWorld().getRegistryKey() != WORLD) {
             // Come back out on the doorstep, outside (never inside the town copy, or you'd walk straight back in).
             int ccx = (h[0] + h[2]) / 2, ccz = (h[1] + h[3]) / 2;

@@ -21,7 +21,7 @@ public abstract class HomeFogMixin {
         if (w == null || !w.getRegistryKey().getValue().toString().equals("aot_rpg:homes")) return;
         // The Extraction balloons (far west in the same world) sail in open sky.
         if (camera.getPos().x < -399_744) return;
-        RenderSystem.setShaderFogStart(type == BackgroundRenderer.FogType.FOG_SKY ? 0 : 8f);
-        RenderSystem.setShaderFogEnd(type == BackgroundRenderer.FogType.FOG_SKY ? 20f : 30f);
+        RenderSystem.setShaderFogStart(type == BackgroundRenderer.FogType.FOG_SKY ? 0 : 14f);
+        RenderSystem.setShaderFogEnd(type == BackgroundRenderer.FogType.FOG_SKY ? 30f : 52f);
     }
 }

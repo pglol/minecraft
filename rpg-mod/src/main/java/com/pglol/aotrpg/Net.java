@@ -1892,12 +1892,30 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** The stash page just opened: which of how many, and slots used of the total. */
-    public record StashInfo(int page, int pages, int used, int capacity) implements CustomPayload {
-        public static final Id<StashInfo> ID = id("stash_info");
-        public static final PacketCodec<RegistryByteBuf, StashInfo> CODEC = PacketCodec.of((v, b) -> {
-            b.writeVarInt(v.page); b.writeVarInt(v.pages); b.writeVarInt(v.used); b.writeVarInt(v.capacity);
-        }, b -> new StashInfo(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
+    /** The stash: what's in it (cell -> stack), how many cells, Salvage and the next row's cost (-1 at the cap). */
+    public record StashView(java.util.List<BagEntry> items, int capacity, long salvage, long rowCost, boolean open) implements CustomPayload {
+        public static final Id<StashView> ID = id("stash_view");
+        public static final PacketCodec<RegistryByteBuf, StashView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.items.size());
+            for (BagEntry e : v.items) {
+                b.writeVarInt(e.slot());
+                ItemStack.OPTIONAL_PACKET_CODEC.encode(b, e.stack());
+            }
+            b.writeVarInt(v.capacity); b.writeVarLong(v.salvage); b.writeLong(v.rowCost); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 4096);
+            java.util.List<BagEntry> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new BagEntry(b.readVarInt(), ItemStack.OPTIONAL_PACKET_CODEC.decode(b)));
+            return new StashView(l, b.readVarInt(), b.readVarLong(), b.readLong(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record StashAction(String action, int slot) implements CustomPayload {
+        public static final Id<StashAction> ID = id("stash_action");
+        public static final PacketCodec<RegistryByteBuf, StashAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeVarInt(v.slot);
+        }, b -> new StashAction(b.readString(), b.readVarInt()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
@@ -1940,7 +1958,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(Autopilot.ID, Autopilot.CODEC);
         PayloadTypeRegistry.playS2C().register(BenchView.ID, BenchView.CODEC);
         PayloadTypeRegistry.playC2S().register(ExtractionAction.ID, ExtractionAction.CODEC);
-        PayloadTypeRegistry.playS2C().register(StashInfo.ID, StashInfo.CODEC);
+        PayloadTypeRegistry.playS2C().register(StashView.ID, StashView.CODEC);
+        PayloadTypeRegistry.playC2S().register(StashAction.ID, StashAction.CODEC);
         PayloadTypeRegistry.playS2C().register(MarketView.ID, MarketView.CODEC);
         PayloadTypeRegistry.playS2C().register(ExchangeView.ID, ExchangeView.CODEC);
         PayloadTypeRegistry.playC2S().register(MarketAction.ID, MarketAction.CODEC);

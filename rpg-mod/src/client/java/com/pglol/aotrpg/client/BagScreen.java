@@ -28,8 +28,8 @@ import java.util.Map;
  * level or count), with the chosen item's details on the right and what you can do with it.
  */
 public final class BagScreen extends Screen {
-    private static final String[] TABS = {"Weapons", "Armor", "Ammo & Supplies", "Food", "Materials", "Gear & Mounts", "Quest"};
-    private static final Item[] TAB_ICONS = {Items.IRON_SWORD, Items.IRON_CHESTPLATE, Items.ARROW, Items.BREAD, Items.IRON_INGOT,
+    static final String[] TABS = {"Weapons", "Armor", "Ammo & Supplies", "Food", "Materials", "Gear & Mounts", "Quest"};
+    static final Item[] TAB_ICONS = {Items.IRON_SWORD, Items.IRON_CHESTPLATE, Items.ARROW, Items.BREAD, Items.IRON_INGOT,
         Items.SADDLE, Items.WRITABLE_BOOK};
     private static final String[] SORTS = {"Quality", "Level", "Name", "Count"};
     private static int tab, sort;
@@ -88,14 +88,14 @@ public final class BagScreen extends Screen {
         return 4;
     }
 
-    private static int quality(ItemStack s) {
+    static int quality(ItemStack s) {
         int r = GearUi.rarity(s);
         if (r >= 0) return r;
         var rar = s.getRarity();
         return rar == net.minecraft.util.Rarity.EPIC ? 3 : rar == net.minecraft.util.Rarity.RARE ? 2 : rar == net.minecraft.util.Rarity.UNCOMMON ? 1 : 0;
     }
 
-    private static int level(ItemStack s) {
+    static int level(ItemStack s) {
         return Gear.isGear(s) ? Gear.requiredLevel(s) : 0;
     }
 

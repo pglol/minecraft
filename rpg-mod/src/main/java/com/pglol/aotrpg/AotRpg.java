@@ -134,6 +134,7 @@ public final class AotRpg implements ModInitializer {
             return EXTRACT.use(sp, hit.getBlockPos()) ? ActionResult.SUCCESS : ActionResult.PASS;
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.ExtractionAction.ID, (payload, ctx) -> EXTRACT.action(ctx.player(), payload.action(), payload.arg()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.StashAction.ID, (payload, ctx) -> Stash.action(ctx.player(), payload.action(), payload.slot()));
         ServerPlayNetworking.registerGlobalReceiver(Net.MarketAction.ID, (payload, ctx) -> {
             ServerPlayerEntity p = ctx.player();
             if (!PROFILES.get(p.getUuid()).created) return;

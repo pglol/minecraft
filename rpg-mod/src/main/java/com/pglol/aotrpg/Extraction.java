@@ -577,6 +577,12 @@ public final class Extraction {
      * opens the stash, the workbench the field kit, the anvil the forge.
      */
     public boolean use(ServerPlayerEntity p, BlockPos pos) {
+        // At home: the chests and barrels counted into the stash open the stash itself.
+        if (p.getWorld().getRegistryKey() == Homes.WORLD && !inLobby(pos) && Stash.counts(p.getWorld().getBlockEntity(pos))
+            && AotRpg.HOMES.canBuild(p, pos) && AotRpg.HOMES.stashSpots(p).contains(pos)) {
+            Stash.show(p, 0);
+            return true;
+        }
         if (p.getWorld().getRegistryKey() != Homes.WORLD || !inLobby(pos)) {
             Run r = runOf(p.getUuid());
             if (r != null && r.barrels.contains(pos) && p.getServerWorld().getBlockEntity(pos) instanceof BarrelBlockEntity b) {

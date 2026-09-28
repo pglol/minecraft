@@ -24,6 +24,8 @@ public final class Beams {
     public static void render(WorldRenderContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null || mc.player == null || (ClientState.markers.isEmpty() && ClientState.party.isEmpty())) return;
+        // Markers (yours, quests, the map's) are places in the open world: none in homes, the balloon or the islands.
+        if (mc.world.getRegistryKey() != net.minecraft.world.World.OVERWORLD) return;
         MatrixStack ms = ctx.matrixStack();
         VertexConsumerProvider vc = ctx.consumers();
         if (ms == null || vc == null) return;
