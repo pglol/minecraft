@@ -815,7 +815,7 @@ public final class AotRpg implements ModInitializer {
             RECOVERY.onDeath(sp);
             return;
         }
-        if (Troops.is(dead) && dead instanceof net.minecraft.entity.passive.VillagerEntity v && dead.getWorld() instanceof ServerWorld sw) {
+        if (Troops.is(dead) && dead instanceof net.minecraft.entity.passive.VillagerEntity v && dead.getWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
             Troops.died(sw, v, source, Extraction.levelIn(sw, dead.getX(), dead.getZ()));
             return;
         }
