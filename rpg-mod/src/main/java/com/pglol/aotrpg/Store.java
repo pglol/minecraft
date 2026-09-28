@@ -81,7 +81,7 @@ public final class Store {
     public static List<String> offers() {
         List<String> pool = new ArrayList<>();
         for (Title t : TITLES) if (t.rarity() < 5) pool.add("title:" + t.id());
-        for (Cosmetics.Def d : Cosmetics.ALL) if (!d.free() && !MYTHIC_COSMETICS.contains(d.id())) pool.add("cosmetic:" + d.id());
+        for (Cosmetics.Def d : Cosmetics.ALL) if (!d.free() && !MYTHIC_COSMETICS.contains(d.id()) && !notSold(d)) pool.add("cosmetic:" + d.id());
         Random r = new Random(week() * 7919L + 17);
         java.util.Collections.shuffle(pool, r);
         return pool.subList(0, Math.min(6, pool.size()));
@@ -110,7 +110,7 @@ public final class Store {
     public static final List<Crate> CRATES = List.of(
         new Crate("supply", "Supply Crate", "Common to rare gear, blades, gas and thunder spears, Marks. A small chance of a cosmetic or title.", 1500, 25),
         new Crate("armory", "Armory Crate", "Gear only: rare, epic, and a real chance at legendary.", 9000, 110),
-        new Crate("wardrobe", "Wardrobe Crate", "Cosmetics only: wings, cloaks, trails, kill effects and more.", 12000, 140),
+        new Crate("wardrobe", "Wardrobe Crate", "Cosmetics only: wings, trails, kill effects and more.", 12000, 140),
         new Crate("honors", "Honors Crate", "Titles only, from common to legendary.", 7500, 90),
         new Crate("officer", "Officer's Crate", "Rare and epic gear, cosmetics and titles, some Gold back.", 14000, 160),
         new Crate("commander", "Commander's Crate", "Epic and legendary gear, the rarest titles, cosmetics.", 30000, 350));
@@ -133,7 +133,7 @@ public final class Store {
             new Loot(10, "title:0-1", 1, "A common or uncommon title", "minecraft:name_tag")));
         TABLES.put("armory", List.of(gear(500, 2), gear(380, 3), gear(115, 4), gear(5, 5)));
         TABLES.put("wardrobe", List.of(
-            new Loot(995, "cosmetic", 3, "A cosmetic you don't own: wings, cloaks, trails, kill effects...", "minecraft:amethyst_shard"),
+            new Loot(995, "cosmetic", 3, "A cosmetic you don't own: wings, trails, kill effects...", "minecraft:amethyst_shard"),
             new Loot(5, "cosmetic_mythic", 5, "A Mythic cosmetic", "minecraft:nether_star")));
         TABLES.put("honors", List.of(title(400, 0), title(300, 1), title(180, 2), title(90, 3), title(25, 4), title(5, 5)));
         TABLES.put("officer", List.of(gear(280, 2), gear(120, 3),
@@ -199,11 +199,16 @@ public final class Store {
         return "marks:600";
     }
 
+    /** Cloaks are uniform, not merchandise: never in the store or a crate. */
+    static boolean notSold(Cosmetics.Def d) {
+        return d.id().contains("cloak");
+    }
+
     private static String randomCosmetic(ServerPlayerEntity p, Random r, boolean mythic) {
         List<String> left = new ArrayList<>();
         var have = AotRpg.COSMETICS.unlocked(p);
         for (Cosmetics.Def d : Cosmetics.ALL) {
-            if (!d.free() && !have.contains(d.id()) && MYTHIC_COSMETICS.contains(d.id()) == mythic) left.add(d.id());
+            if (!d.free() && !notSold(d) && !have.contains(d.id()) && MYTHIC_COSMETICS.contains(d.id()) == mythic) left.add(d.id());
         }
         return left.isEmpty() ? "" : left.get(r.nextInt(left.size()));
     }
