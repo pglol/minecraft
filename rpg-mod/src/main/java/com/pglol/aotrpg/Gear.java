@@ -366,7 +366,12 @@ public final class Gear {
             lore.add(Text.literal("✦ Twin Cut").formatted(Formatting.GOLD, Formatting.BOLD).styled(st -> st.withItalic(false)));
             lore.add(Text.literal("  Nape strikes count double").formatted(Formatting.YELLOW).styled(st -> st.withItalic(false)));
         }
-        if (up < 10) lore.add(Text.literal("Upgrade at a forge").formatted(Formatting.DARK_GRAY));
+        // Boots break a fall like the ODM boots do (70%), whatever they are.
+        if (worn == net.minecraft.entity.EquipmentSlot.FEET && !net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath().contains("odm")) {
+            b.add(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, new EntityAttributeModifier(Identifier.of("aot_rpg", "gear_fall"), -0.7,
+                EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL), AttributeModifierSlot.FEET);
+            lore.add(Text.literal("70% Fall Damage Reduction").formatted(Formatting.GREEN).styled(st -> st.withItalic(false)));
+        }
         s.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, b.build());
         s.set(DataComponentTypes.LORE, new LoreComponent(lore));
         s.set(DataComponentTypes.RARITY, switch (rarity) {
@@ -427,6 +432,7 @@ public final class Gear {
         // part that was handed out as gear becomes a real piece of clothing of the same rarity and level.
         for (int a : AotRpg.SATCHEL.addresses(p)) {
             ItemStack s = AotRpg.SATCHEL.at(p, a);
+            if (missingFall(s)) apply(s);
             if (isGear(s) && bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath())) {
                 Rarity rar;
                 try {
@@ -449,6 +455,7 @@ public final class Gear {
         for (net.minecraft.entity.EquipmentSlot slot : new net.minecraft.entity.EquipmentSlot[] {net.minecraft.entity.EquipmentSlot.HEAD,
             net.minecraft.entity.EquipmentSlot.CHEST, net.minecraft.entity.EquipmentSlot.LEGS, net.minecraft.entity.EquipmentSlot.FEET}) {
             ItemStack s = p.getEquippedStack(slot);
+            if (missingFall(s)) apply(s);
             if (isGear(s) && bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath())) {
                 // A titan part worn as gear: off, and a real piece in its place.
                 Rarity rar;
@@ -517,6 +524,16 @@ public final class Gear {
         if (s.isEmpty()) return;
         p.sendMessage(Text.literal("Loot: ").formatted(Formatting.GRAY).append(s.getName().copy()), false);
         if (r.ordinal() >= 3) p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.6f, 1.4f);
+    }
+
+    /** Boots that don't break a fall yet (rolled before boots all did). */
+    private static boolean missingFall(ItemStack s) {
+        if (!isGear(s) || wornSlot(s) != net.minecraft.entity.EquipmentSlot.FEET) return false;
+        if (net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath().contains("odm")) return false;
+        var mods = s.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        if (mods == null) return true;
+        for (var e : mods.modifiers()) if (e.attribute().equals(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER)) return false;
+        return true;
     }
 
     /** Real gear: a weapon or something worn. Keys, tokens and notes that caught gear stats once are not. */
