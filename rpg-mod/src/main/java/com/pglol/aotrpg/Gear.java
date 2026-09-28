@@ -414,6 +414,10 @@ public final class Gear {
             lore.add(Text.literal("  " + fi.effect).formatted(fi.format).styled(st -> st.withItalic(false)));
         }
         if (weapon && rarity.ordinal() >= Rarity.EPIC.ordinal()) s.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+        if (g.getBoolean("stolen")) {
+            lore.add(Text.literal("\u2716 Stolen").formatted(Formatting.DARK_RED, Formatting.BOLD).styled(st -> st.withItalic(false)));
+            lore.add(Text.literal("  Worn or carried openly, someone may report you").formatted(Formatting.RED).styled(st -> st.withItalic(false)));
+        }
         // Boots break a fall like the ODM boots do (70%), whatever they are.
         if (worn == net.minecraft.entity.EquipmentSlot.FEET && !net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath().contains("odm")) {
             b.add(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, new EntityAttributeModifier(Identifier.of("aot_rpg", "gear_fall"), -0.7,

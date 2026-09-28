@@ -46,6 +46,12 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
         if (name.contains("ferry")) return "farmer";
         if (name.contains("stable")) return "farmer";
         if (name.contains("builder")) return "civilian_m";
+        if (name.contains("hooded stranger")) return "smuggler";
+        if (name.contains("armorer")) return "merchant";
+        if (name.contains("provisioner")) return "baker";
+        if (name.contains("toolmaker")) return "farmer";
+        if (name.contains("bladesmith")) return "garrison_soldier";
+        if (name.contains("merchant")) return "merchant";
         long h = e.getUuid().getLeastSignificantBits() ^ e.getUuid().getMostSignificantBits();
         // Townsfolk skins alternate men and women; match the name the server gives them.
         int i = (int) Math.floorMod(h >> 5, 40L) * 2 + (int) (h & 1);

@@ -88,7 +88,8 @@ public final class Townsfolk {
     };
 
     public static boolean folk(Entity e) {
-        return e instanceof VillagerEntity && !Story.phased(e) && !Raids.commander(e) && !Ferries.ferryman(e) && !Horses.isStableMaster(e);
+        return e instanceof VillagerEntity && !Story.phased(e) && !Raids.commander(e) && !Ferries.ferryman(e) && !Horses.isStableMaster(e)
+            && !Vendors.vendor(e) && !Escorts.escort(e);
     }
 
     /** Their name: plain, and the same every time (from who they are). */

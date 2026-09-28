@@ -2115,6 +2115,36 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: a trader's stall (items empty where already sold). */
+    public record VendorView(int entity, String name, String sub, boolean shady, java.util.List<ItemStack> items, java.util.List<Long> prices,
+                             boolean open) implements CustomPayload {
+        public static final Id<VendorView> ID = Net.id("vendor_view");
+        public static final PacketCodec<RegistryByteBuf, VendorView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.entity); b.writeString(v.name); b.writeString(v.sub); b.writeBoolean(v.shady);
+            b.writeVarInt(v.items.size());
+            for (int i = 0; i < v.items.size(); i++) { ItemStack.OPTIONAL_PACKET_CODEC.encode(b, v.items.get(i)); b.writeVarLong(v.prices.get(i)); }
+            b.writeBoolean(v.open);
+        }, b -> {
+            int e = b.readVarInt();
+            String n = b.readString(), sub = b.readString();
+            boolean shady = b.readBoolean();
+            int k = Math.min(b.readVarInt(), 32);
+            java.util.List<ItemStack> items = new java.util.ArrayList<>();
+            java.util.List<Long> prices = new java.util.ArrayList<>();
+            for (int i = 0; i < k; i++) { items.add(ItemStack.OPTIONAL_PACKET_CODEC.decode(b)); prices.add(b.readVarLong()); }
+            return new VendorView(e, n, sub, shady, items, prices, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: buy offer number index from this trader. */
+    public record VendorBuy(int entity, int index) implements CustomPayload {
+        public static final Id<VendorBuy> ID = Net.id("vendor_buy");
+        public static final PacketCodec<RegistryByteBuf, VendorBuy> CODEC = PacketCodec.of((v, b) -> { b.writeVarInt(v.entity); b.writeVarInt(v.index); },
+            b -> new VendorBuy(b.readVarInt(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2177,6 +2207,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(DuelSetup.ID, DuelSetup.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeList.ID, HomeList.CODEC);
         PayloadTypeRegistry.playS2C().register(Talk.ID, Talk.CODEC);
+        PayloadTypeRegistry.playS2C().register(VendorView.ID, VendorView.CODEC);
+        PayloadTypeRegistry.playC2S().register(VendorBuy.ID, VendorBuy.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);
         PayloadTypeRegistry.playS2C().register(AlertsView.ID, AlertsView.CODEC);
         PayloadTypeRegistry.playS2C().register(Dream.ID, Dream.CODEC);

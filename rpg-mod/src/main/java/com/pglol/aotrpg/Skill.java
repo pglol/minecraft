@@ -55,6 +55,8 @@ public enum Skill {
         null, 0, false),
     SECOND_WIND(Branch.MOBILITY, 3, 0, 18, 2, "Second Wind", Items.SUGAR, "+30 maximum stamina",
         null, 0, false),
+    LOW_PROFILE(Branch.MOBILITY, 3, 1, 18, 2, "Low Profile", Items.LEATHER_HELMET,
+        "Half as likely to be reported for stolen gear, and bounties on you run 3 minutes shorter", null, 0, false),
     AFTERIMAGE(Branch.MOBILITY, 4, -1, 26, 3, "Afterimage", Items.ENDER_EYE, "✦ Falling below 30% health: vanish and dash away (Speed II, invisible 3s; 60s cooldown)",
         null, 0, false),
     AERIAL_ACE(Branch.MOBILITY, 4, 1, 26, 3, "Aerial Ace", Items.ELYTRA, "✦ Strikes from the air deal +25% damage (+0.3% per level)",

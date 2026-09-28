@@ -192,6 +192,13 @@ public final class Dialogue {
 
     private String news(ServerPlayerEntity p, Residents.Member m) {
         List<String> pool = new ArrayList<>(List.of(RUMOURS));
+        String hunt = AotRpg.BOUNTIES.rumour(p);
+        if (hunt != null) {
+            pool.add(hunt);
+            pool.add(hunt);
+        }
+        String job = AotRpg.ESCORTS.rumour(p);
+        if (job != null) pool.add(job);
         if (m != null && (m.trait().equals("gossip") || m.trait().equals("bitter")) && rng.nextInt(3) == 0) {
             return pick("Keep this quiet: there's a fellow in the back streets selling gear no honest soldier could afford. Stolen, they say. Wear it where the Military Police can see and you'll regret it.",
                 "They say the black market's moved again. Look for a hooded man near the edge of town, after dark.");

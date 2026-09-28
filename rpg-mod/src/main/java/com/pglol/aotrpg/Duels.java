@@ -69,6 +69,10 @@ public final class Duels {
         return null;
     }
 
+    public static boolean isDueling(ServerPlayerEntity p) {
+        return AotRpg.DUELS.of(p.getUuid()) != null;
+    }
+
     /** Both in the same duel. */
     public boolean dueling(UUID x, UUID y) {
         Duel d = of(x);

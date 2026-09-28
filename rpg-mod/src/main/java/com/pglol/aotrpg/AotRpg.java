@@ -88,6 +88,9 @@ public final class AotRpg implements ModInitializer {
     public static final TownRepair TOWN_REPAIR = new TownRepair();
     public static final Residents RESIDENTS = new Residents();
     public static final Dialogue DIALOGUE = new Dialogue();
+    public static final Vendors VENDORS = new Vendors();
+    public static final Bounties BOUNTIES = new Bounties();
+    public static final Escorts ESCORTS = new Escorts();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -518,7 +521,8 @@ public final class AotRpg implements ModInitializer {
                 return ActionResult.SUCCESS;
             }
             if (HORSES.useHorse(sp, entity)) return ActionResult.SUCCESS;
-            if (DIALOGUE.talk(sp, entity) || FOLK.talk(sp, entity)) return ActionResult.SUCCESS;
+            if (ESCORTS.use(sp, entity)) return ActionResult.SUCCESS;
+            if (VENDORS.use(sp, entity) || DIALOGUE.talk(sp, entity) || FOLK.talk(sp, entity)) return ActionResult.SUCCESS;
             return ActionResult.PASS;
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
@@ -550,6 +554,7 @@ public final class AotRpg implements ModInitializer {
             WAR.open(server);
             DUELS.open(server);
             INBOX.open(server);
+            BOUNTIES.open(server);
             STATS.open(server);
             REGIMENTS.open(server);
             RAID_BOSSES.open(server);
@@ -582,6 +587,7 @@ public final class AotRpg implements ModInitializer {
             COSMETICS.broadcast(p);
             LOADOUT.sendAll(p);
             SCHEDULER.later(100, () -> { if (!p.isDisconnected()) INBOX.joined(p); });
+            SCHEDULER.later(120, () -> { if (!p.isDisconnected()) BOUNTIES.joined(p); });
             HomeAdmin.joined(p);
             SCHEDULER.later(60, () -> {
                 if (!p.isDisconnected()) HomeAdmin.notify(p);
@@ -625,6 +631,7 @@ public final class AotRpg implements ModInitializer {
             LOADOUT.forget(p);
             INBOX.forget(p.getUuid());
             ALERTS.forget(p.getUuid());
+            BOUNTIES.left(p);
             WAVES.forget(p);
             RAID_BOSSES.forget(p);
             ESTATE.forget(p);
@@ -681,7 +688,10 @@ public final class AotRpg implements ModInitializer {
         Infusions.register();
         DREAMS.register();
         ServerPlayNetworking.registerGlobalReceiver(Net.DreamDone.ID, (payload, ctx) -> DREAMS.done(ctx.player(), payload));
-        ServerPlayNetworking.registerGlobalReceiver(Net.TalkChoice.ID, (payload, ctx) -> DIALOGUE.choose(ctx.player(), payload.entity(), payload.option()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.VendorBuy.ID, (payload, ctx) -> VENDORS.buy(ctx.player(), payload.entity(), payload.index()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.TalkChoice.ID, (payload, ctx) -> {
+            if (!ESCORTS.choose(ctx.player(), payload.entity(), payload.option())) DIALOGUE.choose(ctx.player(), payload.entity(), payload.option());
+        });
 
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) ->
             !CREATION.chat(sender, message.getContent().getString()));
@@ -718,6 +728,9 @@ public final class AotRpg implements ModInitializer {
         FOLK.tick(server.getOverworld(), ticks);
         TOWN_REPAIR.tick(server.getOverworld(), ticks);
         RESIDENTS.tick(server.getOverworld(), ticks);
+        VENDORS.tick(server.getOverworld(), ticks);
+        BOUNTIES.tick(ticks);
+        ESCORTS.tick(server, ticks);
         CAVES.tick(server.getOverworld());
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
@@ -776,6 +789,8 @@ public final class AotRpg implements ModInitializer {
 
     private void onDeath(LivingEntity dead, net.minecraft.entity.damage.DamageSource source) {
         if (dead instanceof ServerPlayerEntity sp) {
+            if (source.getAttacker() instanceof ServerPlayerEntity pk && pk != sp) BOUNTIES.playerKilled(sp, pk);
+            ESCORTS.onPlayerDeath(sp);
             DEATH.onDeath(sp, source);
             EXTRACT.onDeath(sp);
             RECOVERY.onDeath(sp);

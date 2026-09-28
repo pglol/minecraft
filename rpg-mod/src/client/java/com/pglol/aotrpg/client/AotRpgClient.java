@@ -219,6 +219,7 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.HomeList.ID, (payload, ctx) -> HomesScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.Talk.ID, (payload, ctx) -> TalkScreen.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.VendorView.ID, (payload, ctx) -> VendorScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.Dream.ID, (payload, ctx) -> ctx.client().setScreen(new SheepScreen(payload.seed())));
         ClientPlayNetworking.registerGlobalReceiver(Net.AlertsView.ID, (payload, ctx) -> {
             ClientState.alerts = new java.util.HashSet<>(payload.keys());
