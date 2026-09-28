@@ -23,6 +23,10 @@ public final class Autopilot {
         startedAt = Util.getMeasuringTimeMs();
     }
 
+    public static void reset() {
+        target = null;
+    }
+
     public static boolean active() {
         if (target == null) return false;
         var mc = MinecraftClient.getInstance();

@@ -69,7 +69,8 @@ public final class PlayerList {
             groups.computeIfAbsent(where, k -> new ArrayList<>()).add(new Object[] {e, r});
         }
         int colW = 190, cols = Math.max(1, Math.min(2, (total + 11) / 12)), w = colW * cols + 20;
-        int x0 = (sw - w) / 2, y0 = 8 - (int) ((1 - in) * 20);
+        // Below the top bar (clock, level, Marks), never over it.
+        int x0 = (sw - w) / 2, y0 = 46 - (int) ((1 - in) * 20);
         int rows = 0;
         for (var g : groups.values()) rows += g.size() + 1;
         int perCol = (rows + cols - 1) / cols;

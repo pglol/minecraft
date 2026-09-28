@@ -39,6 +39,12 @@ public final class LobbyScreen extends Screen {
         super(Text.literal("Lobby"));
     }
 
+    public static void reset() {
+        view = null;
+        lastSeat = -1;
+        suppressUntil = 0;
+    }
+
     public static void on(Net.LobbyView v) {
         view = v;
         viewAt = Util.getMeasuringTimeMs();

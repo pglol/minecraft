@@ -175,6 +175,7 @@ public final class IslandMapScreen extends Screen {
             Ui.text(c, Text.literal(l[1]), lx + 10, ly, 0.75f, Ui.CREAM, false);
             lx += 70;
         }
-        Ui.text(c, Text.literal("Drag  ·  Scroll  ·  Right-click: mark"), width - 84, ly + 1, 0.65f, Ui.MUTED, false);
+        String hint = "Drag  \u00B7  Scroll  \u00B7  Right-click: mark";
+        Ui.text(c, Text.literal(hint), width - 10 - Ui.font().getWidth(hint) * 0.65f, height - 36, 0.65f, Ui.MUTED, false);
     }
 }

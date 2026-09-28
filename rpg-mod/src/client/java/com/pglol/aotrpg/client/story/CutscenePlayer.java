@@ -29,6 +29,12 @@ public final class CutscenePlayer {
     private static String title = "", sub = "";
     private static int color;
 
+    /** Drops any cutscene (a disconnect in the middle of one). */
+    public static void reset() {
+        active = false;
+        shots = List.of();
+    }
+
     public static boolean active() {
         return active;
     }

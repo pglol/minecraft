@@ -1206,7 +1206,14 @@ public final class Extraction {
             ServerWorld iw = server.getWorld(r.island.world);
             for (UUID id : new ArrayList<>(r.members)) {
                 ServerPlayerEntity p = server.getPlayerManager().getPlayer(id);
-                if (p == null) continue;
+                if (p == null) {
+                    // Away when the clock ran out: missing in action, settled when they come back.
+                    if (now > r.endsAt) {
+                        r.members.remove(id);
+                        missedOffline.add(id);
+                    }
+                    continue;
+                }
                 if (now > r.endsAt) {
                     missing(r, p);
                     continue;
@@ -1518,7 +1525,17 @@ public final class Extraction {
     @SuppressWarnings("unchecked")
     public boolean respawn(ServerPlayerEntity p) {
         Object[] at = fallen.remove(p.getUuid());
-        if (at == null) return false;
+        if (at == null) {
+            Profile pr = AotRpg.PROFILES.get(p.getUuid());
+            if (!pr.inRun && Island.of(p.getWorld()) == null) return false;
+            // Died on a run we no longer know about (a restart between): aboard, a moment after the respawn.
+            UUID id = p.getUuid();
+            AotRpg.SCHEDULER.later(3, () -> {
+                ServerPlayerEntity pl = server.getPlayerManager().getPlayer(id);
+                if (pl != null && pl.isAlive()) toLobby(pl, true);
+            });
+            return true;
+        }
         UUID id = p.getUuid();
         AotRpg.SCHEDULER.later(2, () -> {
             ServerPlayerEntity pl = server.getPlayerManager().getPlayer(id);
@@ -1549,21 +1566,66 @@ public final class Extraction {
         return true;
     }
 
-    /** Joining: someone who logged out mid-run (or whose run a restart ended) starts in the balloon. */
+    /** Divers whose run ran out while they were logged out: missing in action when they return. */
+    private final Set<UUID> missedOffline = new HashSet<>();
+
+    /**
+     * Coming back (a disconnect, a crash, a restart): put them back where they were if that still
+     * makes sense, otherwise somewhere safe in their game mode.
+     *   - still in a run: right where they logged out (or dropped onto the island if they left
+     *     mid-deploy), the run's HUD back up;
+     *   - their run ran out while away: missing in action, back aboard;
+     *   - a run that no longer exists (a restart), or stranded on an island: back aboard;
+     *   - Extraction mode anywhere else: aboard their balloon; Open World mode but aboard: back to
+     *     where they were in the open world.
+     * The dead are left to the respawn, which does the same once they're up.
+     */
     public void joined(ServerPlayerEntity p) {
-        Profile pr = AotRpg.PROFILES.get(p.getUuid());
-        if (pr.inRun && runOf(p.getUuid()) == null || inLobby(p)) toLobby(p);
+        if (!p.isAlive()) return;
+        UUID id = p.getUuid();
+        Profile pr = AotRpg.PROFILES.get(id);
+        if (missedOffline.remove(id)) {
+            p.getInventory().clear();
+            toLobby(p, true);
+            Titles.show(p, Text.literal("MISSING IN ACTION").formatted(Formatting.DARK_RED, Formatting.BOLD),
+                Text.literal("The run ended while you were away").formatted(Formatting.RED), 10, 70, 20);
+            return;
+        }
+        Run r = runOf(id);
+        if (r != null) {
+            ServerWorld iw = server.getWorld(r.island.world);
+            if (iw == null) {
+                r.members.remove(id);
+                toLobby(p, true);
+                return;
+            }
+            if (p.getWorld() != iw) {
+                // Left in the middle of the drop: they land now.
+                BlockPos c = centre(r.island, iw);
+                BlockPos at = land(iw, c.getX(), c.getZ(), p.getRandom(), 200);
+                if (at == null) at = new BlockPos(c.getX(), iw.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, c.getX(), c.getZ()), c.getZ());
+                p.stopRiding();
+                p.teleport(iw, at.getX() + 0.5, at.getY() + 40, at.getZ() + 0.5, p.getYaw(), 40);
+                p.fallDistance = 0;
+                p.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 20 * 12, 0, false, false));
+            }
+            Notify.toast(p, Text.literal("Back in the run").formatted(Formatting.GOLD, Formatting.BOLD), Text.literal(r.island.title), r.island.color, "minecraft:compass", null);
+            sendView(r, p, System.currentTimeMillis());
+            return;
+        }
+        if (pr.inRun || Island.of(p.getWorld()) != null) {
+            toLobby(p, true);
+            return;
+        }
+        if (DeathCare.EXTRACTION.equals(pr.mode)) toLobby(p);
+        else if (inLobby(p)) toOpenWorld(p);
     }
 
-    /** Leaving mid-run takes you out of it (you'll be back in the balloon next time, with what you carry). */
+    /** Logging out: a diver stays in their run (the clock keeps going), everything else lets go. */
     public void forget(ServerPlayerEntity p) {
         Run r = runOf(p.getUuid());
-        if (r != null) {
-            r.members.remove(p.getUuid());
-            r.extracting.remove(p.getUuid());
-        }
-        fallen.remove(p.getUuid());
-        // Logging out while watching the fall: back to their own game mode, aboard next time.
+        if (r != null) r.extracting.remove(p.getUuid());
+        // Logging out while watching the fall: their own game mode back, aboard next time.
         net.minecraft.world.GameMode mode = watching.remove(p.getUuid());
         if (mode != null) {
             p.changeGameMode(mode == net.minecraft.world.GameMode.SPECTATOR ? net.minecraft.world.GameMode.SURVIVAL : mode);

@@ -23,6 +23,12 @@ public final class HudHide {
         mc.options.hudHidden = true;
     }
 
+    /** Everything that asked is gone (a disconnect): the HUD goes back to the player's own choice. */
+    public static void reset() {
+        if (!reasons.isEmpty()) MinecraftClient.getInstance().options.hudHidden = userHidden;
+        reasons.clear();
+    }
+
     public static void show(String reason) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (!reasons.remove(reason)) return;

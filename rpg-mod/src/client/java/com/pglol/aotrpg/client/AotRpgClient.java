@@ -352,6 +352,12 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof WorldMapScreen m) m.refresh();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            // Nothing half-finished carries over to the next server or login.
+            com.pglol.aotrpg.client.story.CutscenePlayer.reset();
+            Autopilot.reset();
+            LobbyScreen.reset();
+            ExtractionHud.on(new Net.RunView("", "", 0, 0, 0, 0, 0, 0, java.util.List.of(), java.util.List.of()));
+            HudHide.reset();
             DuelRing.clear();
             RewardFx.clear();
             ClientState.reset();
