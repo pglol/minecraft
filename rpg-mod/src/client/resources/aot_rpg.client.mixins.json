@@ -32,7 +32,8 @@
     "CloakArmorMixin",
     "GameRendererFovMixin",
     "FallShakeMixin",
-    "PotionSwirlMixin"
+    "PotionSwirlMixin",
+    "PlayerArmsMixin"
   ],
   "injectors": {
     "defaultRequire": 0

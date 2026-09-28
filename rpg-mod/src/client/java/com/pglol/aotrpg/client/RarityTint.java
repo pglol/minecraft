@@ -39,14 +39,15 @@ public final class RarityTint {
 
     public static final class Sampler {
         public final ItemStack stack;
-        public final boolean firstPerson;
+        /** The right-hand item in first person (else the left). */
+        public final boolean right;
         public final float[][] picks = new float[6][3];
         public int seen;
         private final java.util.Random r = new java.util.Random();
 
-        Sampler(ItemStack stack, boolean firstPerson) {
+        Sampler(ItemStack stack, boolean right) {
             this.stack = stack;
-            this.firstPerson = firstPerson;
+            this.right = right;
         }
 
         /** Reservoir sampling: every drawn vertex has the same chance of being one of the picks. */
@@ -64,15 +65,26 @@ public final class RarityTint {
     public static VertexConsumerProvider enter(ItemStack s, net.minecraft.client.render.model.json.ModelTransformationMode mode, VertexConsumerProvider base) {
         ItemStack owner = s;
         if (!drawing.isEmpty() && (s == null || s.isEmpty() || !com.pglol.aotrpg.Gear.isGear(s))) owner = drawing.peek();
-        if (drawing.isEmpty() && mode != null && owner != null && com.pglol.aotrpg.Infusions.of(owner) != null
-            && (mode.isFirstPerson() || mode == net.minecraft.client.render.model.json.ModelTransformationMode.THIRD_PERSON_LEFT_HAND
-                || mode == net.minecraft.client.render.model.json.ModelTransformationMode.THIRD_PERSON_RIGHT_HAND
-                || mode == net.minecraft.client.render.model.json.ModelTransformationMode.NONE)) {
-            sampler = new Sampler(owner, mode.isFirstPerson());
+        // A loaded blade the AoT mod draws right after its grip (not inside it): it's that grip's blade.
+        if (drawing.isEmpty() && s != null && !s.isEmpty() && !com.pglol.aotrpg.Gear.isGear(s) && lastGrip != null && mode == lastMode
+            && System.nanoTime() - lastGripAt < 3_000_000L) {
+            var id = net.minecraft.registry.Registries.ITEM.getId(s.getItem());
+            if (id.getNamespace().equals("dannys-aot") && id.getPath().contains("blade")) owner = lastGrip;
+        }
+        if (drawing.isEmpty()) {
+            outerMode = mode;
+            if (mode != null && mode.isFirstPerson() && owner != null && com.pglol.aotrpg.Infusions.of(owner) != null) {
+                sampler = new Sampler(owner, mode == net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_RIGHT_HAND);
+            }
         }
         drawing.push(owner == null ? ItemStack.EMPTY : owner);
         return wrap(owner, base);
     }
+
+    /** The last grip drawn on its own, when, and how: its blade may follow straight after. */
+    private static ItemStack lastGrip;
+    private static long lastGripAt;
+    private static net.minecraft.client.render.model.json.ModelTransformationMode lastMode, outerMode;
 
     /** Between frames nothing is being drawn: a draw that never finished can't colour anything else. */
     public static void reset() {
@@ -81,8 +93,14 @@ public final class RarityTint {
     }
 
     public static void exit() {
-        if (!drawing.isEmpty()) drawing.pop();
-        if (drawing.isEmpty() && sampler != null) {
+        ItemStack top = drawing.isEmpty() ? null : drawing.pop();
+        if (!drawing.isEmpty()) return;
+        if (top != null && !top.isEmpty() && com.pglol.aotrpg.Gear.isGear(top) && com.pglol.aotrpg.Gear.aotWeapon(top)) {
+            lastGrip = top;
+            lastGripAt = System.nanoTime();
+            lastMode = outerMode;
+        }
+        if (sampler != null) {
             Sampler done = sampler;
             sampler = null;
             if (done.seen > 0) InfusionFx.emit(done);

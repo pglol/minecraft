@@ -126,6 +126,9 @@ public final class Townsfolk {
         double side, back;
         /** Children run, and tear about more. */
         boolean runner;
+        /** Heading home: their doorstep, and how long they've been stuck on the way. */
+        BlockPos home;
+        int stuck;
     }
 
     private final java.util.Map<UUID, Walk> walks = new java.util.HashMap<>();
@@ -153,6 +156,14 @@ public final class Townsfolk {
             Walk k = en.getValue();
             // They walk by our hand, without the game's own physics: keep their feet on the ground.
             if ((ticks + v.getId()) % 10 == 0) grounded(w, v);
+            if (k.home != null) {
+                if (homeward(w, v, k)) {
+                    it.remove();
+                    v.removeCommandTag(ROADS);
+                    AotRpg.RESIDENTS.arrived(w, v);
+                }
+                continue;
+            }
             // Someone they don't trust: stop, turn, and keep an eye on them until it passes.
             ServerPlayerEntity sus = AotRpg.WITNESS.watching(v);
             if (sus != null) {
@@ -310,8 +321,65 @@ public final class Townsfolk {
         v.setBodyYaw(yaw);
     }
 
+    /** Stops walking someone (they're home, or asleep). */
+    public void release(VillagerEntity v) {
+        walks.remove(v.getUuid());
+        v.removeCommandTag(ROADS);
+    }
+
+    /** Sends a resident walking home to their door. */
+    public void sendHome(VillagerEntity v, BlockPos door) {
+        adopt(v);
+        Walk k = walks.get(v.getUuid());
+        if (k != null && k.home == null) {
+            k.home = door;
+            k.stuck = 0;
+            k.leader = null;
+        }
+    }
+
+    /** A step toward home. True once they're at the door (or had to be put there, unseen). */
+    private boolean homeward(ServerWorld w, VillagerEntity v, Walk k) {
+        double dx = k.home.getX() + 0.5 - v.getX(), dz = k.home.getZ() + 0.5 - v.getZ(), d = Math.hypot(dx, dz);
+        if (d < 1.2) return true;
+        boolean seen = false;
+        for (ServerPlayerEntity p : w.getPlayers()) if (p.squaredDistanceTo(v) < 18 * 18) seen = true;
+        if (k.stuck > 80 && !seen) return true;
+        double sp = v.isBaby() ? 0.07 : 0.09;
+        // Straight for the door; round anything in the way by trying a little to either side.
+        for (double turn : new double[] {0, 0.6, -0.6, 1.2, -1.2}) {
+            double c = Math.cos(turn), s = Math.sin(turn);
+            double hx = (dx * c - dz * s) / d, hz = (dx * s + dz * c) / d;
+            double nx = v.getX() + hx * sp, nz = v.getZ() + hz * sp;
+            BlockPos next = walkable(w, nx, nz, v.getY());
+            if (next == null) continue;
+            float yaw = (float) Math.toDegrees(Math.atan2(-hx, hz));
+            v.refreshPositionAndAngles(nx, next.getY(), nz, yaw, 0);
+            v.setHeadYaw(yaw);
+            v.setBodyYaw(yaw);
+            if (turn != 0) k.stuck++;
+            return false;
+        }
+        k.stuck += 4;
+        return false;
+    }
+
+    /** Somewhere a person can stand at (x, z), within a step of height y: its feet position, or null. */
+    private static BlockPos walkable(ServerWorld w, double x, double z, double y) {
+        int bx = (int) Math.floor(x), bz = (int) Math.floor(z), by = (int) Math.floor(y + 0.01);
+        if (!w.isChunkLoaded(bx >> 4, bz >> 4)) return null;
+        for (int dy : new int[] {0, 1, -1}) {
+            BlockPos feet = new BlockPos(bx, by + dy, bz);
+            if (w.getBlockState(feet.down()).getCollisionShape(w, feet.down()).isEmpty()) continue;
+            if (!w.getBlockState(feet).getCollisionShape(w, feet).isEmpty()) continue;
+            if (!w.getBlockState(feet.up()).getCollisionShape(w, feet.up()).isEmpty()) continue;
+            return feet;
+        }
+        return null;
+    }
+
     /** Starts someone walking the streets (they walk by our hand from now on, not the villager brain). */
-    private void adopt(VillagerEntity v) {
+    public void adopt(VillagerEntity v) {
         v.setAiDisabled(true);
         v.addCommandTag(ROADS);
         walks.putIfAbsent(v.getUuid(), new Walk());
@@ -336,9 +404,16 @@ public final class Townsfolk {
         // Collected first: removing while walking the world's entity list breaks the walk.
         List<VillagerEntity> ours = new java.util.ArrayList<>();
         for (Entity e : w.iterateEntities()) if (e instanceof VillagerEntity v && v.getCommandTags().contains(TAG)) ours.add(v);
+        boolean night = Residents.phase(w) == 0;
+        int stragglers = 0;
         for (VillagerEntity v : ours) {
-            boolean near = false;
-            for (ServerPlayerEntity p : players) if (p.squaredDistanceTo(v) < 160 * 160) near = true;
+            boolean near = false, seen = false;
+            for (ServerPlayerEntity p : players) {
+                if (p.squaredDistanceTo(v) < 160 * 160) near = true;
+                if (p.squaredDistanceTo(v) < 24 * 24) seen = true;
+            }
+            // Passers-by go home for the night too (out of sight), bar a few.
+            if (night && !seen && ++stragglers > 4) near = false;
             if (!near) v.discard();
         }
         for (ServerPlayerEntity p : players) {
@@ -348,7 +423,9 @@ public final class Townsfolk {
             if (!w.isChunkLoaded(cx >> 4, cz >> 4)) continue;
             Box box = new Box(cx - RADIUS - 8, -64, cz - RADIUS - 8, cx + RADIUS + 8, 400, cz + RADIUS + 8);
             int have = w.getEntitiesByClass(VillagerEntity.class, box, Townsfolk::folk).size();
-            for (int i = 0; i < 3 && have < PER_TOWN; i++) {
+            // At night the streets empty: the townspeople are home in bed, only a few stragglers about.
+            int cap = Residents.phase(w) == 0 ? 4 : PER_TOWN;
+            for (int i = 0; i < 3 && have < cap; i++) {
                 BlockPos at = spawnSpot(w, cx, cz, p);
                 if (at == null) continue;
                 // Some walk alone; some in twos and threes (friends, a family with a child, kids chasing each other).

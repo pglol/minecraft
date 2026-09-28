@@ -86,6 +86,7 @@ public final class AotRpg implements ModInitializer {
     public static final Alerts ALERTS = new Alerts();
     public static final Dreams DREAMS = new Dreams();
     public static final TownRepair TOWN_REPAIR = new TownRepair();
+    public static final Residents RESIDENTS = new Residents();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -714,6 +715,7 @@ public final class AotRpg implements ModInitializer {
         WITNESS.tick(ticks);
         FOLK.tick(server.getOverworld(), ticks);
         TOWN_REPAIR.tick(server.getOverworld(), ticks);
+        RESIDENTS.tick(server.getOverworld(), ticks);
         CAVES.tick(server.getOverworld());
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
