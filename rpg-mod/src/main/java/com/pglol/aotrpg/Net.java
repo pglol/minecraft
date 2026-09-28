@@ -2177,32 +2177,60 @@ public final class Net {
     }
 
     /** Server -> client: a trader's stall (items empty where already sold). */
+    /**
+     * A trader's stall: each line of stock (one unit of the item, the price each, how many are left
+     * today), and what they'd buy from you (address, stack) at what each.
+     */
     public record VendorView(int entity, String name, String sub, boolean shady, java.util.List<ItemStack> items, java.util.List<Long> prices,
+                             java.util.List<Integer> units, java.util.List<BagEntry> sells, java.util.List<Long> sellPrices,
                              boolean open) implements CustomPayload {
         public static final Id<VendorView> ID = Net.id("vendor_view");
         public static final PacketCodec<RegistryByteBuf, VendorView> CODEC = PacketCodec.of((v, b) -> {
             b.writeVarInt(v.entity); b.writeString(v.name); b.writeString(v.sub); b.writeBoolean(v.shady);
             b.writeVarInt(v.items.size());
-            for (int i = 0; i < v.items.size(); i++) { ItemStack.OPTIONAL_PACKET_CODEC.encode(b, v.items.get(i)); b.writeVarLong(v.prices.get(i)); }
+            for (int i = 0; i < v.items.size(); i++) {
+                ItemStack.OPTIONAL_PACKET_CODEC.encode(b, v.items.get(i));
+                b.writeVarLong(v.prices.get(i));
+                b.writeVarInt(v.units.get(i));
+            }
+            b.writeVarInt(v.sells.size());
+            for (int i = 0; i < v.sells.size(); i++) {
+                b.writeVarInt(v.sells.get(i).slot());
+                ItemStack.OPTIONAL_PACKET_CODEC.encode(b, v.sells.get(i).stack());
+                b.writeVarLong(v.sellPrices.get(i));
+            }
             b.writeBoolean(v.open);
         }, b -> {
             int e = b.readVarInt();
             String n = b.readString(), sub = b.readString();
             boolean shady = b.readBoolean();
-            int k = Math.min(b.readVarInt(), 32);
+            int k = Math.min(b.readVarInt(), 64);
             java.util.List<ItemStack> items = new java.util.ArrayList<>();
             java.util.List<Long> prices = new java.util.ArrayList<>();
-            for (int i = 0; i < k; i++) { items.add(ItemStack.OPTIONAL_PACKET_CODEC.decode(b)); prices.add(b.readVarLong()); }
-            return new VendorView(e, n, sub, shady, items, prices, b.readBoolean());
+            java.util.List<Integer> units = new java.util.ArrayList<>();
+            for (int i = 0; i < k; i++) { items.add(ItemStack.OPTIONAL_PACKET_CODEC.decode(b)); prices.add(b.readVarLong()); units.add(b.readVarInt()); }
+            int m = Math.min(b.readVarInt(), 256);
+            java.util.List<BagEntry> sells = new java.util.ArrayList<>();
+            java.util.List<Long> sp = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) { int a = b.readVarInt(); sells.add(new BagEntry(a, ItemStack.OPTIONAL_PACKET_CODEC.decode(b))); sp.add(b.readVarLong()); }
+            return new VendorView(e, n, sub, shady, items, prices, units, sells, sp, b.readBoolean());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Client -> server: buy offer number index from this trader. */
-    public record VendorBuy(int entity, int index) implements CustomPayload {
+    /** Client -> server: buy qty of offer number index from this trader. */
+    public record VendorBuy(int entity, int index, int qty) implements CustomPayload {
         public static final Id<VendorBuy> ID = Net.id("vendor_buy");
-        public static final PacketCodec<RegistryByteBuf, VendorBuy> CODEC = PacketCodec.of((v, b) -> { b.writeVarInt(v.entity); b.writeVarInt(v.index); },
-            b -> new VendorBuy(b.readVarInt(), b.readVarInt()));
+        public static final PacketCodec<RegistryByteBuf, VendorBuy> CODEC = PacketCodec.of((v, b) -> { b.writeVarInt(v.entity); b.writeVarInt(v.index); b.writeVarInt(v.qty); },
+            b -> new VendorBuy(b.readVarInt(), b.readVarInt(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: sell qty of what's at this address to the trader. */
+    public record VendorSell(int entity, int addr, int qty) implements CustomPayload {
+        public static final Id<VendorSell> ID = Net.id("vendor_sell");
+        public static final PacketCodec<RegistryByteBuf, VendorSell> CODEC = PacketCodec.of((v, b) -> { b.writeVarInt(v.entity); b.writeVarInt(v.addr); b.writeVarInt(v.qty); },
+            b -> new VendorSell(b.readVarInt(), b.readVarInt(), b.readVarInt()));
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
@@ -2292,6 +2320,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(Rejoin.ID, Rejoin.CODEC);
         PayloadTypeRegistry.playS2C().register(VendorView.ID, VendorView.CODEC);
         PayloadTypeRegistry.playC2S().register(VendorBuy.ID, VendorBuy.CODEC);
+        PayloadTypeRegistry.playC2S().register(VendorSell.ID, VendorSell.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);
         PayloadTypeRegistry.playS2C().register(AlertsView.ID, AlertsView.CODEC);
         PayloadTypeRegistry.playS2C().register(Dream.ID, Dream.CODEC);

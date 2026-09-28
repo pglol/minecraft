@@ -702,7 +702,8 @@ public final class AotRpg implements ModInitializer {
         Infusions.register();
         DREAMS.register();
         ServerPlayNetworking.registerGlobalReceiver(Net.DreamDone.ID, (payload, ctx) -> DREAMS.done(ctx.player(), payload));
-        ServerPlayNetworking.registerGlobalReceiver(Net.VendorBuy.ID, (payload, ctx) -> VENDORS.buy(ctx.player(), payload.entity(), payload.index()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.VendorBuy.ID, (payload, ctx) -> VENDORS.buy(ctx.player(), payload.entity(), payload.index(), payload.qty()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.VendorSell.ID, (payload, ctx) -> VENDORS.sell(ctx.player(), payload.entity(), payload.addr(), payload.qty()));
         ServerPlayNetworking.registerGlobalReceiver(Net.TalkChoice.ID, (payload, ctx) -> {
             if (!ESCORTS.choose(ctx.player(), payload.entity(), payload.option())) DIALOGUE.choose(ctx.player(), payload.entity(), payload.option());
         });
