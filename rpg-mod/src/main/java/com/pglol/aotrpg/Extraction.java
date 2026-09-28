@@ -363,14 +363,20 @@ public final class Extraction {
             {BOARD, "Lobby", "green"}};
         for (Object[] l : list) {
             BlockPos b = o.add((BlockPos) l[0]);
-            var d = EntityType.TEXT_DISPLAY.create(w);
-            if (d == null) continue;
+            // A name floating over the station: an invisible marker stand showing its name.
+            ArmorStandEntity d = new ArmorStandEntity(EntityType.ARMOR_STAND, w);
             net.minecraft.nbt.NbtCompound tag = new net.minecraft.nbt.NbtCompound();
-            tag.putString("text", "{\"text\":\"" + l[1] + "\",\"color\":\"" + l[2] + "\",\"bold\":true}");
-            tag.putString("billboard", "center");
-            tag.putInt("background", 0x60000000);
-            d.readNbt(tag);
-            d.refreshPositionAndAngles(b.getX() + 0.5, b.getY() + 1.35, b.getZ() + 0.5, 0, 0);
+            tag.putBoolean("Marker", true);
+            tag.putBoolean("Invisible", true);
+            d.readCustomDataFromNbt(tag);
+            d.setInvisible(true);
+            d.setNoGravity(true);
+            d.setInvulnerable(true);
+            d.setSilent(true);
+            Formatting col = Formatting.byName((String) l[2]);
+            d.setCustomName(Text.literal((String) l[1]).formatted(col == null ? Formatting.GOLD : col, Formatting.BOLD));
+            d.setCustomNameVisible(true);
+            d.refreshPositionAndAngles(b.getX() + 0.5, b.getY() + 0.9, b.getZ() + 0.5, 0, 0);
             d.addCommandTag("aot_label");
             w.spawnEntity(d);
         }
@@ -584,9 +590,11 @@ public final class Extraction {
             }
         }
         if (ticks % 40 == 0) {
+            List<Entity> empty = new ArrayList<>();
             for (Entity e : w.iterateEntities()) {
-                if (e instanceof ArmorStandEntity a && a.getCommandTags().contains(SEAT) && !a.hasPassengers()) a.discard();
+                if (e instanceof ArmorStandEntity a && a.getCommandTags().contains(SEAT) && !a.hasPassengers()) empty.add(a);
             }
+            for (Entity e : empty) e.discard();
             // Balloons nobody is aboard are free for the next squad.
             slots.entrySet().removeIf(en -> !bySlot.containsKey(en.getValue())
                 && (server.getPlayerManager().getPlayer(en.getKey()) == null || !inLobby(server.getPlayerManager().getPlayer(en.getKey()))));

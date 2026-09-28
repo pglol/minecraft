@@ -333,8 +333,10 @@ public final class Townsfolk {
                     && street(w, v.getX(), v.getZ(), v.getY()) != null) adopt(v);
             }
         }
-        for (Entity e : w.iterateEntities()) {
-            if (!(e instanceof VillagerEntity v) || !v.getCommandTags().contains(TAG)) continue;
+        // Collected first: removing while walking the world's entity list breaks the walk.
+        List<VillagerEntity> ours = new java.util.ArrayList<>();
+        for (Entity e : w.iterateEntities()) if (e instanceof VillagerEntity v && v.getCommandTags().contains(TAG)) ours.add(v);
+        for (VillagerEntity v : ours) {
             boolean near = false;
             for (ServerPlayerEntity p : players) if (p.squaredDistanceTo(v) < 160 * 160) near = true;
             if (!near) v.discard();
