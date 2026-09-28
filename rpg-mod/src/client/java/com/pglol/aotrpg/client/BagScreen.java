@@ -45,8 +45,11 @@ public final class BagScreen extends Screen {
     private ItemStack placed(int t) {
         if (client == null || client.player == null) return ItemStack.EMPTY;
         if (t >= Satchel.ARMOR) return client.player.getEquippedStack(Satchel.armorSlot(t));
-        if (t == Satchel.OFF) return client.player.getOffHandStack();
-        return client.player.getInventory().main.get(t);
+        // Grips on your back still show in their places.
+        Net.SheathState sh = ClientState.sheaths.get(client.player.getUuid());
+        if (t == Satchel.OFF) return client.player.getOffHandStack().isEmpty() && sh != null && !sh.b().isEmpty() ? sh.b() : client.player.getOffHandStack();
+        ItemStack m = client.player.getInventory().main.get(t);
+        return t == 0 && m.isEmpty() && sh != null && !sh.a().isEmpty() ? sh.a() : m;
     }
 
     private static String placeName(int t) {

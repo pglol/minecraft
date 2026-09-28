@@ -208,6 +208,38 @@ public final class Loadout {
         return isGrip(g.getStack(SHEATH_A)) || isGrip(g.getStack(SHEATH_B));
     }
 
+    /**
+     * The satchel's Melee (0) and Off hand (40) places mean the sheath while the grips are on your
+     * back: the sheath slot a swap there should use, or -1 for the hand itself. Only grips (or
+     * taking one out) go through the sheath.
+     */
+    public static int sheathFor(ServerPlayerEntity p, int target, ItemStack incoming) {
+        if (!incoming.isEmpty() && !isGrip(incoming)) return -1;
+        SimpleInventory g = gear(p);
+        if (!sheathed(g)) return -1;
+        PlayerInventory inv = p.getInventory();
+        if (target == 0 && inv.main.get(0).isEmpty()) {
+            if (isGrip(g.getStack(SHEATH_A))) return SHEATH_A;
+            return incoming.isEmpty() ? -1 : g.getStack(SHEATH_A).isEmpty() ? SHEATH_A : -1;
+        }
+        if (target == Satchel.OFF && inv.offHand.get(0).isEmpty()) {
+            if (isGrip(g.getStack(SHEATH_B))) return SHEATH_B;
+            return incoming.isEmpty() ? -1 : g.getStack(SHEATH_B).isEmpty() ? SHEATH_B : -1;
+        }
+        return -1;
+    }
+
+    public static ItemStack sheathStack(ServerPlayerEntity p, int i) {
+        return gear(p).getStack(i);
+    }
+
+    public static void setSheath(ServerPlayerEntity p, int i, ItemStack s) {
+        SimpleInventory g = gear(p);
+        g.setStack(i, s);
+        g.markDirty();
+        AotRpg.LOADOUT.broadcast(p, true);
+    }
+
     /** Puts a grip straight into the sheath (starter kit); false if the sheath is full. */
     public boolean sheathe(ServerPlayerEntity p, ItemStack grip) {
         SimpleInventory g = gear(p);

@@ -378,6 +378,14 @@ public final class Satchel {
             Notify.toast(p, Text.literal("Doesn't go there").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, null, null);
             return;
         }
+        // Grips on your back swap right there in the sheath.
+        int sh = Loadout.sheathFor(p, target, s);
+        if (sh >= 0) {
+            ItemStack old = Loadout.sheathStack(p, sh).copy();
+            Loadout.setSheath(p, sh, s);
+            bag.setStack(slot, old);
+            return;
+        }
         ItemStack old = placed(p, target).copy();
         place(p, target, s);
         bag.setStack(slot, old);
@@ -386,6 +394,20 @@ public final class Satchel {
     /** Takes what is in a loadout, off-hand or armor place back into the satchel. */
     private void store(ServerPlayerEntity p, SimpleInventory bag, int target) {
         if (target != OFF && (target < 0 || target >= 9) && armorSlot(target) == null) return;
+        int sh = Loadout.sheathFor(p, target, ItemStack.EMPTY);
+        if (sh >= 0) {
+            ItemStack g = Loadout.sheathStack(p, sh).copy();
+            ItemStack left = bag.addStack(g);
+            if (!left.isEmpty()) {
+                Notify.toast(p, Text.literal("Satchel full").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, null, null);
+                if (left.getCount() == g.getCount()) return;
+            }
+            Loadout.setSheath(p, sh, left);
+            bag.markDirty();
+            save(p.getUuid());
+            send(p, false);
+            return;
+        }
         ItemStack s = placed(p, target);
         if (s.isEmpty() || isStory(s)) return;
         ItemStack copy = s.copy();
@@ -405,6 +427,10 @@ public final class Satchel {
         if (Gear.isGear(s) && !Gear.canUse(p, s)) {
             Notify.toast(p, Text.literal("Locked").formatted(net.minecraft.util.Formatting.RED),
                 Text.literal("Needs level " + Gear.requiredLevel(s)), 0xC0463A, null, null);
+            return;
+        }
+        if (Loadout.isGrip(s) && Loadout.sheathFor(p, 0, s) >= 0) {
+            equipTo(p, bag, slot, s, 0);
             return;
         }
         var es = p.getPreferredEquipmentSlot(s);

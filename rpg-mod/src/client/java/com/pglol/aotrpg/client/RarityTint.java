@@ -20,6 +20,28 @@ public final class RarityTint {
     private static final float[] STRENGTH = {0, 0, 0.22f, 0.32f, 0.42f, 0.62f};
 
     /** The provider to draw this stack with: tinted for rare-and-up Danny weapons, else as it was. */
+    /**
+     * Danny's grips draw their loaded blade as a second item inside their own render; that inner
+     * draw takes the grip's colour too, so the whole sword shows it, not just the hilt.
+     */
+    private static final java.util.ArrayDeque<ItemStack> drawing = new java.util.ArrayDeque<>();
+
+    public static VertexConsumerProvider enter(ItemStack s, VertexConsumerProvider base) {
+        ItemStack owner = s;
+        if (!drawing.isEmpty() && (s == null || s.isEmpty() || !com.pglol.aotrpg.Gear.isGear(s))) owner = drawing.peek();
+        drawing.push(owner == null ? ItemStack.EMPTY : owner);
+        return wrap(owner, base);
+    }
+
+    /** Between frames nothing is being drawn: a draw that never finished can't colour anything else. */
+    public static void reset() {
+        drawing.clear();
+    }
+
+    public static void exit() {
+        if (!drawing.isEmpty()) drawing.pop();
+    }
+
     public static VertexConsumerProvider wrap(ItemStack s, VertexConsumerProvider base) {
         if (base == null || s == null || s.isEmpty() || !com.pglol.aotrpg.Gear.aotWeapon(s)) return base;
         int r = GearUi.rarity(s);
