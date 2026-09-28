@@ -34,6 +34,8 @@ public final class Profile {
     public int stashRows;
     /** Where this character stood in the open world before going down to the Extraction lobby. */
     public double[] openWorldPos;
+    /** Who this character last dropped with (uuid|name, most recent first). */
+    public java.util.List<String> recentMates = new java.util.ArrayList<>();
     /** Out on an Extraction run (a logout mid-run sends them back to the lobby). */
     public boolean inRun;
     public int titanKills;

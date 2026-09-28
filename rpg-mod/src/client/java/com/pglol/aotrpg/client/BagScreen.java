@@ -34,6 +34,7 @@ public final class BagScreen extends Screen {
     private static final String[] SORTS = {"Quality", "Level", "Name", "Count"};
     private static int tab, sort;
     private int selected = -1, scroll;
+    private static int scrapAsk = -1;
     private int gx, gy, cols, rows, cw, ch, detailX, detailW;
     private TextFieldWidget price;
     private int equipRow = -1;
@@ -200,6 +201,21 @@ public final class BagScreen extends Screen {
             if (!Satchel.isStory(s)) {
                 AotButton drop = addDrawableChild(new AotButton(bx, by, 44, 18, Text.literal("Drop"), () -> act("drop", slot, 0)));
                 drop.accent = Ui.RED;
+            }
+            if (Gear.isGear(s)) {
+                // Two clicks: the first asks, the second breaks it down.
+                boolean sure = scrapAsk == slot;
+                AotButton sc = addDrawableChild(new AotButton(bx, by - 22, 92, 18, Text.literal(sure ? "Disassemble?" : "Disassemble"), () -> {
+                    if (scrapAsk == slot) {
+                        scrapAsk = -1;
+                        act("scrap", slot, 0);
+                    } else {
+                        scrapAsk = slot;
+                        clearAndInit();
+                    }
+                }));
+                sc.accent = Ui.RED;
+                sc.selected(sure);
             }
             int rx = bx + bw;
             if (usable) {

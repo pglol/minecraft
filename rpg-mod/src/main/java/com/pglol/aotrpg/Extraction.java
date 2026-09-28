@@ -131,7 +131,7 @@ public final class Extraction {
         Map<String, List<Long>> leftover = new HashMap<>();
     }
 
-    private static final int BALLOON_VERSION = 2;
+    private static final int BALLOON_VERSION = 3;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private Data data = new Data();
     private Path file;
@@ -260,7 +260,8 @@ public final class Extraction {
 
     // Offsets in a balloon (from its origin, the middle of the basket floor).
     private static final BlockPos BOARD = new BlockPos(4, 1, 0), STASH = new BlockPos(-4, 1, 0), FUEL = new BlockPos(-4, 1, 2),
-        BENCH = new BlockPos(-4, 1, -2), ANVIL = new BlockPos(4, 1, -2), ENTRY = new BlockPos(0, 1, 1);
+        BENCH = new BlockPos(-4, 1, -2), ANVIL = new BlockPos(4, 1, -2), FURNACE = new BlockPos(4, 1, -3), GRIND = new BlockPos(4, 1, 2),
+        ENTRY = new BlockPos(0, 1, 1);
     private static final int BASKET = 5, ENVELOPE = 11, ENVELOPE_Y = 18;
 
     /** Builds a hot air balloon: a wicker basket with benches, ropes up to a striped envelope, the burner between. */
@@ -305,7 +306,11 @@ public final class Extraction {
             // The workbench for field kit, and the forge's anvil.
             w.setBlockState(o.add(BENCH), Blocks.CRAFTING_TABLE.getDefaultState(), f);
             w.setBlockState(o.add(ANVIL), Blocks.ANVIL.getDefaultState().with(net.minecraft.block.AnvilBlock.FACING, Direction.NORTH), f);
-            w.setBlockState(o.add(4, 1, 2), Blocks.CARTOGRAPHY_TABLE.getDefaultState(), f);
+            // The forge corner: anvil, a lit blast furnace, a grindstone.
+            w.setBlockState(o.add(FURNACE), Blocks.BLAST_FURNACE.getDefaultState().with(net.minecraft.block.AbstractFurnaceBlock.FACING, Direction.WEST)
+                .with(net.minecraft.block.AbstractFurnaceBlock.LIT, true), f);
+            w.setBlockState(o.add(GRIND), Blocks.GRINDSTONE.getDefaultState().with(net.minecraft.block.GrindstoneBlock.FACE, net.minecraft.block.enums.BlockFace.FLOOR), f);
+            labels(w, o);
             // Sandbags hanging off the rail.
             for (int[] s : new int[][] {{BASKET + 1, -2}, {BASKET + 1, 2}, {-BASKET - 1, -2}, {-BASKET - 1, 2}, {0, BASKET + 1}, {0, -BASKET - 1}}) {
                 w.setBlockState(o.add(s[0], 1, s[1]), Blocks.CHAIN.getDefaultState(), f);
@@ -349,6 +354,37 @@ public final class Extraction {
         } finally {
             WorldCare.quiet(false);
         }
+    }
+
+    /** Floating names over each station, so there's no hunting for the forge. */
+    private void labels(ServerWorld w, BlockPos o) {
+        for (Entity e : w.getOtherEntities(null, new Box(o).expand(8), e -> e.getCommandTags().contains("aot_label"))) e.discard();
+        Object[][] list = {{STASH, "Stash", "gold"}, {BENCH, "Workbench", "yellow"}, {ANVIL, "Forge", "red"}, {FUEL, "Refuel", "aqua"},
+            {BOARD, "Lobby", "green"}};
+        for (Object[] l : list) {
+            BlockPos b = o.add((BlockPos) l[0]);
+            var d = EntityType.TEXT_DISPLAY.create(w);
+            if (d == null) continue;
+            net.minecraft.nbt.NbtCompound tag = new net.minecraft.nbt.NbtCompound();
+            tag.putString("text", "{\"text\":\"" + l[1] + "\",\"color\":\"" + l[2] + "\",\"bold\":true}");
+            tag.putString("billboard", "center");
+            tag.putInt("background", 0x60000000);
+            d.readNbt(tag);
+            d.refreshPositionAndAngles(b.getX() + 0.5, b.getY() + 1.35, b.getZ() + 0.5, 0, 0);
+            d.addCommandTag("aot_label");
+            w.spawnEntity(d);
+        }
+    }
+
+    /** Joined a party whose leader is aboard a balloon: straight up to join them. */
+    public void joinedParty(ServerPlayerEntity p, UUID leader) {
+        ServerPlayerEntity lead = server.getPlayerManager().getPlayer(leader);
+        if (lead == null || lead == p || !inLobby(lead) || runOf(p.getUuid()) != null || runOf(leader) != null) return;
+        if (inLobby(p) && slotAt(p.getX()) == slotAt(lead.getX())) return;
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        pr.mode = DeathCare.EXTRACTION;
+        AotRpg.PROFILES.save(p.getUuid());
+        toLobby(p);
     }
 
     /** Which balloon this player boards: their squad leader's if the leader is aboard one, else their own. */
@@ -601,7 +637,7 @@ public final class Extraction {
             bench(p, true);
             return true;
         }
-        if (rel.equals(ANVIL)) {
+        if (rel.equals(ANVIL) || rel.equals(FURNACE) || rel.equals(GRIND)) {
             AotRpg.FORGE.open(p);
             return true;
         }
@@ -648,6 +684,10 @@ public final class Extraction {
         for (ServerPlayerEntity m : aboard(slot)) sendLobby(m);
     }
 
+    private static String pr(ServerPlayerEntity p) {
+        return AotRpg.PROFILES.get(p.getUuid()).name;
+    }
+
     public void sendLobby(ServerPlayerEntity p) {
         if (!ServerPlayNetworking.canSend(p, Net.LobbyView.ID) || !inLobby(p)) return;
         int slot = slotAt(p.getX());
@@ -664,7 +704,46 @@ public final class Extraction {
         long cd = lb.countdownAt == 0 ? -1 : Math.max(0, lb.countdownAt - System.currentTimeMillis());
         int[] use = Stash.usage(p);
         ServerPlayNetworking.send(p, new Net.LobbyView(is, lb.island, lb.fill, p.getUuid().equals(lead), squad, cd, pr.salvage, use[0], use[1],
-            pr.stashRows >= Stash.MAX_ROWS ? -1 : Stash.rowCost(pr)));
+            pr.stashRows >= Stash.MAX_ROWS ? -1 : Stash.rowCost(pr), social(p, slot)));
+    }
+
+    /** Friends (account wide) and recent teammates, online first, for the lobby's social tab. */
+    private List<Net.LobbyFriend> social(ServerPlayerEntity p, int slot) {
+        var friends = AotRpg.PROFILES.account(p.getUuid()).friends;
+        Map<UUID, Net.LobbyFriend> out = new java.util.LinkedHashMap<>();
+        java.util.function.BiConsumer<UUID, String> add = (id, name) -> {
+            if (id.equals(p.getUuid()) || out.containsKey(id)) return;
+            boolean friend = friends.containsKey(id.toString());
+            boolean recent = false;
+            for (String r : AotRpg.PROFILES.get(p.getUuid()).recentMates) if (r.startsWith(id.toString())) recent = true;
+            ServerPlayerEntity o = server.getPlayerManager().getPlayer(id);
+            String where = o == null ? "offline" : inLobby(o) && slotAt(o.getX()) == slot ? "aboard" : runOf(id) != null ? "in a run" : "online";
+            String n = o != null ? AotRpg.PROFILES.get(id).name : name;
+            out.put(id, new Net.LobbyFriend(id, n, friend, recent, where));
+        };
+        for (String r : AotRpg.PROFILES.get(p.getUuid()).recentMates) {
+            int bar = r.indexOf('|');
+            try {
+                add.accept(UUID.fromString(r.substring(0, bar)), r.substring(bar + 1));
+            } catch (Exception ignored) { }
+        }
+        for (var e : friends.entrySet()) {
+            try {
+                add.accept(UUID.fromString(e.getKey()), e.getValue());
+            } catch (Exception ignored) { }
+        }
+        List<Net.LobbyFriend> list = new ArrayList<>(out.values());
+        list.sort((a, b) -> Integer.compare(rank(a.where()), rank(b.where())));
+        return list.size() > 24 ? list.subList(0, 24) : list;
+    }
+
+    private static int rank(String where) {
+        return switch (where) {
+            case "aboard" -> 0;
+            case "online" -> 1;
+            case "in a run" -> 2;
+            default -> 3;
+        };
     }
 
     /** Twice a second: seats for those walking to them, ready checks, fill, and the countdown. */
@@ -839,6 +918,14 @@ public final class Extraction {
             run.members.add(m.getUuid());
             Profile mp = AotRpg.PROFILES.get(m.getUuid());
             mp.inRun = true;
+            // Everyone you drop with goes to the top of your recent teammates.
+            for (ServerPlayerEntity o : squad) {
+                if (o == m) continue;
+                String id = o.getUuid().toString();
+                mp.recentMates.removeIf(r -> r.startsWith(id));
+                mp.recentMates.add(0, id + "|" + AotRpg.PROFILES.get(o.getUuid()).name);
+            }
+            while (mp.recentMates.size() > 12) mp.recentMates.remove(mp.recentMates.size() - 1);
             AotRpg.PROFILES.save(m.getUuid());
         }
         // The drop: burner, over the rail, pulling away as they go; then from the ground, the squad falling in.
@@ -1172,6 +1259,23 @@ public final class Extraction {
                 sendLobby(p);
             }
             case "bench" -> craft(p, arg);
+            case "invite", "friend" -> {
+                UUID id;
+                try {
+                    id = UUID.fromString(arg);
+                } catch (Exception e) {
+                    return;
+                }
+                if (action.equals("friend")) AotRpg.SOCIAL.action(p, "friend_add", id);
+                else {
+                    ServerPlayerEntity t = server.getPlayerManager().getPlayer(id);
+                    if (t == null) return;
+                    AotRpg.PARTIES.invite(p, t);
+                    Notify.toast(t, Text.literal(pr(p) + " wants you on their balloon").formatted(Formatting.GOLD),
+                        Text.literal("Accept the party invite to board"), 0xE0B96A, "minecraft:paper", null);
+                }
+                sendLobby(p);
+            }
             default -> { }
         }
     }

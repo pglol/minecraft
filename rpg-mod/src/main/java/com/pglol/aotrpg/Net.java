@@ -1820,6 +1820,9 @@ public final class Net {
     /** An island on the lobby's map picker. */
     public record LobbyIsland(String id, String name, int min, int max, int color) { }
 
+    /** Someone in the lobby's social tab: a friend or a recent teammate, and where they are ("aboard", "online", "offline"). */
+    public record LobbyFriend(java.util.UUID id, String name, boolean friend, boolean recent, String where) { }
+
     /** A seat in the squad panel. */
     public record LobbyMember(String name, int level, boolean ready, boolean you, boolean leader) { }
 
@@ -1828,7 +1831,8 @@ public final class Net {
      * countdown (ms left, -1 for none), Salvage and the stash (next row's cost, -1 at the cap).
      */
     public record LobbyView(java.util.List<LobbyIsland> islands, String island, boolean fill, boolean leader,
-                            java.util.List<LobbyMember> squad, long countdown, long salvage, int stashUsed, int stashCap, long rowCost) implements CustomPayload {
+                            java.util.List<LobbyMember> squad, long countdown, long salvage, int stashUsed, int stashCap, long rowCost,
+                            java.util.List<LobbyFriend> social) implements CustomPayload {
         public static final Id<LobbyView> ID = id("lobby_view");
         public static final PacketCodec<RegistryByteBuf, LobbyView> CODEC = PacketCodec.of((v, b) -> {
             b.writeVarInt(v.islands.size());
@@ -1841,6 +1845,10 @@ public final class Net {
                 b.writeString(m.name()); b.writeVarInt(m.level()); b.writeBoolean(m.ready()); b.writeBoolean(m.you()); b.writeBoolean(m.leader());
             }
             b.writeLong(v.countdown); b.writeVarLong(v.salvage); b.writeVarInt(v.stashUsed); b.writeVarInt(v.stashCap); b.writeLong(v.rowCost);
+            b.writeVarInt(v.social.size());
+            for (LobbyFriend f : v.social) {
+                b.writeUuid(f.id()); b.writeString(f.name()); b.writeBoolean(f.friend()); b.writeBoolean(f.recent()); b.writeString(f.where());
+            }
         }, b -> {
             int n = Math.min(b.readVarInt(), 16);
             java.util.List<LobbyIsland> is = new java.util.ArrayList<>();
@@ -1850,7 +1858,13 @@ public final class Net {
             int m = Math.min(b.readVarInt(), 8);
             java.util.List<LobbyMember> sq = new java.util.ArrayList<>();
             for (int i = 0; i < m; i++) sq.add(new LobbyMember(b.readString(), b.readVarInt(), b.readBoolean(), b.readBoolean(), b.readBoolean()));
-            return new LobbyView(is, island, fill, leader, sq, b.readLong(), b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readLong());
+            long cd = b.readLong(), sal = b.readVarLong();
+            int used = b.readVarInt(), cap = b.readVarInt();
+            long cost = b.readLong();
+            int f = Math.min(b.readVarInt(), 64);
+            java.util.List<LobbyFriend> so = new java.util.ArrayList<>();
+            for (int i = 0; i < f; i++) so.add(new LobbyFriend(b.readUuid(), b.readString(), b.readBoolean(), b.readBoolean(), b.readString()));
+            return new LobbyView(is, island, fill, leader, sq, cd, sal, used, cap, cost, so);
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }

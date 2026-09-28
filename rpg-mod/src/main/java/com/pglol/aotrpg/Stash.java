@@ -242,6 +242,22 @@ public final class Stash {
                 p.playSoundToPlayer(SoundEvents.ITEM_BUNDLE_INSERT, SoundCategory.PLAYERS, 0.8f, 1f);
             }
             case "expand" -> expand(p);
+            case "scrap_stash" -> {
+                if (slot < 0 || slot >= cells.size()) return;
+                Cell c = cells.get(slot);
+                ItemStack s = c.inv().getStack(c.slot());
+                if (!Gear.real(s)) return;
+                c.inv().setStack(c.slot(), ItemStack.EMPTY);
+                disassemble(p, s);
+            }
+            case "scrap_bag" -> {
+                if (slot < 0 || slot >= bag.size()) return;
+                ItemStack s = bag.getStack(slot);
+                if (!Gear.real(s)) return;
+                bag.setStack(slot, ItemStack.EMPTY);
+                bag.markDirty();
+                disassemble(p, s);
+            }
             default -> { return; }
         }
         dirty(cells);
@@ -249,6 +265,25 @@ public final class Stash {
         saveLocker(p, locker(p));
         AotRpg.SATCHEL.send(p, false);
         send(p, false);
+    }
+
+    /**
+     * Disassembling gear: it's broken down into Salvage and metal (iron, and ultrahard steel from
+     * Epic up), more for rarer and higher pieces. The metal goes in the satchel.
+     */
+    public static void disassemble(ServerPlayerEntity p, ItemStack s) {
+        int rar = Gear.rarityOf(s), lvl = Gear.requiredLevel(s);
+        long salvage = 2 + rar * 3L + lvl / 8 + (rar >= 5 ? 20 : 0);
+        int iron = 1 + rar, steel = rar >= 3 ? rar - 2 : 0;
+        earn(p, salvage);
+        AotRpg.PROFILES.save(p.getUuid());
+        AotRpg.SATCHEL.add(p, new ItemStack(net.minecraft.item.Items.IRON_INGOT, iron));
+        var st = net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of("dannys-aot", "ultrahard_steel_ingot"));
+        if (steel > 0 && st != net.minecraft.item.Items.AIR) AotRpg.SATCHEL.add(p, new ItemStack(st, steel));
+        p.playSoundToPlayer(SoundEvents.BLOCK_GRINDSTONE_USE, SoundCategory.PLAYERS, 0.8f, 1.1f);
+        Notify.toast(p, Text.literal("Disassembled").formatted(net.minecraft.util.Formatting.GOLD),
+            Text.literal("+" + salvage + " Salvage  \u00B7  " + iron + " iron" + (steel > 0 ? "  \u00B7  " + steel + " steel" : "")), 0xE0B96A,
+            "minecraft:grindstone", null);
     }
 
     /** Buys one more row of stash with Salvage. */

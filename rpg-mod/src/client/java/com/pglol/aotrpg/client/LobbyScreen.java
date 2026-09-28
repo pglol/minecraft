@@ -27,6 +27,8 @@ import java.util.Locale;
 public final class LobbyScreen extends Screen {
     private static Net.LobbyView view;
     private static long viewAt, suppressUntil;
+    private static int lastSeat = -1;
+    private static boolean socialTab;
     private final long opened = Util.getMeasuringTimeMs();
     private boolean hudWas;
 
@@ -50,11 +52,47 @@ public final class LobbyScreen extends Screen {
     public static void tick(MinecraftClient mc) {
         if (!aboard(mc)) {
             view = null;
+            lastSeat = -1;
             return;
+        }
+        // Just sat down: face the way the bench faces (into the basket).
+        var seat = mc.player.getVehicle();
+        if (seat == null) lastSeat = -1;
+        else if (seat.getId() != lastSeat) {
+            lastSeat = seat.getId();
+            float yaw = seat.getYaw();
+            mc.player.setYaw(yaw);
+            mc.player.setHeadYaw(yaw);
+            mc.player.setBodyYaw(yaw);
+            mc.player.prevYaw = yaw;
+            mc.player.setPitch(0);
         }
         if (view == null || mc.currentScreen != null || !mc.player.hasVehicle() || Autopilot.locked()) return;
         if (Util.getMeasuringTimeMs() < suppressUntil) return;
         mc.setScreen(new LobbyScreen());
+    }
+
+    /** On your feet aboard the balloon: the island, the squad and who's ready, in the corner. */
+    public static void hud(DrawContext c, net.minecraft.client.render.RenderTickCounter tick) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (view == null || !aboard(mc) || mc.currentScreen instanceof LobbyScreen || CutscenePlayer.active() || mc.options.hudHidden) return;
+        int w = c.getScaledWindowWidth(), x = w - 150, y = 40;
+        Net.LobbyIsland is = null;
+        for (Net.LobbyIsland i : view.islands()) if (i.id().equals(view.island())) is = i;
+        c.fill(x - 6, y - 6, w - 8, y + 30 + view.squad().size() * 12 + 14, 0xA0000000);
+        c.fill(x - 6, y - 6, x - 4, y + 30 + view.squad().size() * 12 + 14, is == null ? Ui.GOLD : is.color());
+        Ui.text(c, Text.literal("EXTRACTION"), x, y, 0.6f, 0xFFE03A3A, false);
+        if (is != null) Ui.text(c, Ui.heading(is.name()), x, y + 9, 0.9f, is.color(), false);
+        Ui.text(c, Text.literal(view.fill() ? "Squad Fill On" : "Squad Fill Off"), x, y + 20, 0.6f, Ui.CREAM, false);
+        int yy = y + 32;
+        for (Net.LobbyMember m : view.squad()) {
+            c.fill(x, yy + 2, x + 4, yy + 6, m.ready() ? 0xFF5BD35B : 0xFF55524A);
+            Ui.text(c, Text.literal(m.name()), x + 8, yy, 0.7f, m.you() ? Ui.GOLD : Ui.CREAM, false);
+            yy += 12;
+        }
+        long cd = view.countdown() < 0 ? -1 : Math.max(0, view.countdown() - (Util.getMeasuringTimeMs() - viewAt));
+        if (cd >= 0) Ui.text(c, Ui.heading("Deploying " + (int) Math.ceil(cd / 1000.0)), x, yy + 2, 0.85f, 0xFFE03A3A, false);
+        else Ui.text(c, Text.literal("Take a seat to ready up"), x, yy + 2, 0.6f, Ui.MUTED, false);
     }
 
     /** The lobby camera: in front of you on the bench, drifting a little. */
@@ -63,7 +101,8 @@ public final class LobbyScreen extends Screen {
         if (!(mc.currentScreen instanceof LobbyScreen) || mc.player == null || !mc.player.hasVehicle()) return null;
         float t = (Util.getMeasuringTimeMs() % 1_000_000L) / 1000f;
         Vec3d at = mc.player.getLerpedPos(tickDelta).add(0, 0.95, 0);
-        double yaw = Math.toRadians(mc.player.getBodyYaw());
+        var seat = mc.player.getVehicle();
+        double yaw = Math.toRadians(seat != null ? seat.getYaw() : mc.player.getBodyYaw());
         Vec3d fwd = new Vec3d(-Math.sin(yaw), 0, Math.cos(yaw)), side = new Vec3d(Math.cos(yaw), 0, Math.sin(yaw));
         Vec3d cam = at.add(fwd.multiply(3.3)).add(side.multiply(0.35 * Math.sin(t * 0.25))).add(0, 0.25 + 0.08 * Math.sin(t * 0.4), 0);
         Vec3d look = at.add(side.multiply(0.05 * Math.sin(t * 0.3)));
@@ -128,6 +167,31 @@ public final class LobbyScreen extends Screen {
         fill.selected(view.fill());
         fill.active = view.leader() && view.countdown() < 0;
         fill.textScale = 0.8f;
+        // The left panel: your loadout, or squad up (friends and recent teammates).
+        addDrawableChild(new AotButton(16, 64, 78, 16, Ui.heading("Loadout"), () -> {
+            socialTab = false;
+            clearAndInit();
+        })).selected(!socialTab);
+        addDrawableChild(new AotButton(98, 64, 78, 16, Ui.heading("Squad Up"), () -> {
+            socialTab = true;
+            clearAndInit();
+        })).selected(socialTab);
+        if (socialTab) {
+            int y = 88;
+            for (Net.LobbyFriend f : view.social()) {
+                if (y > height - 120) break;
+                if (!f.where().equals("aboard") && !f.where().equals("offline") && !f.where().equals("in a run")) {
+                    AotButton inv = addDrawableChild(new AotButton(126, y + 3, 50, 16, Text.literal("Invite"), () -> act("invite", f.id().toString())));
+                    inv.textScale = 0.75f;
+                    inv.accent = 0xFF5BD35B;
+                }
+                if (!f.friend()) {
+                    AotButton add = addDrawableChild(new AotButton(104, y + 3, 18, 16, Text.literal("+"), () -> act("friend", f.id().toString())));
+                    add.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Add friend")));
+                }
+                y += 24;
+            }
+        }
         // Loadout.
         addDrawableChild(new AotButton(16, height - 88, 160, 20, Ui.heading("Edit Loadout"), () -> act("stash", "")))
             .icon(new ItemStack(Items.ENDER_CHEST));
@@ -204,7 +268,8 @@ public final class LobbyScreen extends Screen {
         float frac = view.stashCap() == 0 ? 0 : view.stashUsed() / (float) view.stashCap();
         Ui.bar(c, width - 176, 44, 160, 4, frac, frac > 0.9f ? 0xFFE03A3A : 0xFF6FB6E0);
 
-        drawLoadout(c, t);
+        if (socialTab) drawSocial(c);
+        else drawLoadout(c, t);
         drawSquad(c, t);
 
         // The countdown, in the Ready button's place.
@@ -221,13 +286,32 @@ public final class LobbyScreen extends Screen {
         }
     }
 
+    /** Squad up: friends and recent teammates, where they are, invite or befriend. */
+    private void drawSocial(DrawContext c) {
+        int y = 88;
+        if (view.social().isEmpty()) Ui.text(c, Text.literal("No friends or teammates yet"), 16, y + 4, 0.75f, Ui.DIM, false);
+        for (Net.LobbyFriend f : view.social()) {
+            if (y > height - 120) break;
+            c.fill(16, y, 176, y + 22, 0xB0101010);
+            int dot = switch (f.where()) {
+                case "aboard" -> 0xFFE0B96A;
+                case "online" -> 0xFF5BD35B;
+                case "in a run" -> 0xFFE0823A;
+                default -> 0xFF55524A;
+            };
+            c.fill(20, y + 8, 25, y + 13, dot);
+            Ui.text(c, Text.literal(f.name()), 30, y + 4, 0.75f, f.where().equals("offline") ? Ui.DIM : Ui.CREAM, false);
+            String tag = f.where() + (f.friend() ? "" : f.recent() ? "  \u00B7  teammate" : "");
+            Ui.text(c, Text.literal(tag), 30, y + 13, 0.55f, dot, false);
+            y += 24;
+        }
+    }
+
     /** Your loadout: what you'll carry into the run, gear slots only. */
     private void drawLoadout(DrawContext c, long t) {
         if (client == null || client.player == null) return;
         var p = client.player;
-        int x = 16, y = 80;
-        Ui.text(c, Ui.heading("Loadout"), x, y, 1f, Ui.GOLD, false);
-        y += 16;
+        int x = 16, y = 88;
         String[] names = {"Head", "Chest", "Legs", "Feet"};
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         for (int i = 0; i < 4; i++) slot(c, x + i * 40, y, names[i], p.getEquippedStack(slots[i]), -1);
@@ -281,11 +365,11 @@ public final class LobbyScreen extends Screen {
                 Ui.text(c, Text.literal("Lv " + m.level()), x + 9, y + 16, 0.6f, Ui.MUTED, false);
                 String r = m.ready() ? "READY" : "...";
                 Ui.text(c, Text.literal(r), x + w - 8 - Ui.font().getWidth(r) * 0.75f, y + 9, 0.75f, m.ready() ? 0xFF5BD35B : Ui.DIM, false);
-            } else if (view.fill()) {
+            } else if (view.fill() && (meReady() || view.countdown() >= 0)) {
                 int dots = (int) ((t / 400) % 4);
                 Ui.text(c, Text.literal("Searching" + ".".repeat(dots)), x + 9, y + 9, 0.8f, 0xFF9AD0FF, false);
             } else {
-                Ui.text(c, Text.literal("Empty"), x + 9, y + 9, 0.8f, Ui.DIM, false);
+                Ui.text(c, Text.literal("Open"), x + 9, y + 9, 0.8f, Ui.DIM, false);
             }
             y += 30;
         }

@@ -158,6 +158,7 @@ public final class Parties {
         tell(party, who(p.getUuid()).append(Text.literal(" joined the party.").formatted(Formatting.GREEN)));
         sync(party);
         refreshQuests(party);
+        AotRpg.EXTRACT.joinedParty(p, party.leader);
     }
 
     public void decline(ServerPlayerEntity p) {

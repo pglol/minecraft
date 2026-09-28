@@ -312,6 +312,11 @@ public final class Satchel {
             }
             case "list" -> AotRpg.EXCHANGE.list(p, BAG + slot, arg);
             case "repair" -> Repair.one(p, s);
+            case "scrap" -> {
+                if (!Gear.real(s)) break;
+                bag.setStack(slot, ItemStack.EMPTY);
+                Stash.disassemble(p, s);
+            }
             default -> { }
         }
         bag.markDirty();

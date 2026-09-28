@@ -26,6 +26,8 @@ import java.util.TreeMap;
 public final class StashScreen extends Screen {
     private static final String[] SORTS = {"Quality", "Level", "Name", "Count"};
     private static int tab = -1, sort;
+    /** Disassemble mode: clicking gear breaks it down into Salvage and metal instead of moving it. */
+    private static boolean scrap;
     private static Map<Integer, ItemStack> stash = new TreeMap<>();
     private static Net.StashView view;
     private int scrollL, scrollR;
@@ -130,6 +132,13 @@ public final class StashScreen extends Screen {
         so.textScale = 0.75f;
         AotButton tidy = addDrawableChild(new AotButton(leftX() + panelW - 70, 56, 70, 16, Text.literal("Tidy"), () -> act("sort", 0)));
         tidy.textScale = 0.75f;
+        AotButton sc = addDrawableChild(new AotButton(rightX() + panelW - 110, 56, 110, 16, Text.literal(scrap ? "Disassembling" : "Disassemble"), () -> {
+            scrap = !scrap;
+            refresh();
+        }));
+        sc.textScale = 0.75f;
+        sc.selected(scrap);
+        sc.accent = Ui.RED;
         if (view != null && view.rowCost() >= 0) {
             AotButton ex = addDrawableChild(new AotButton(leftX() + panelW - 200, 56, 126, 16,
                 Text.literal("+9 slots · " + String.format(Locale.ROOT, "%,d", view.rowCost()) + " Salvage"), () -> act("expand", 0)));
@@ -170,6 +179,12 @@ public final class StashScreen extends Screen {
         if (super.mouseClicked(mx, my, button)) return true;
         int[] hit = at(mx, my);
         if (hit == null) return false;
+        if (scrap) {
+            ItemStack s = (hit[0] == 0 ? stash : ClientState.bag).get(hit[1]);
+            if (s == null || !Gear.isGear(s)) return true;
+            act(hit[0] == 0 ? "scrap_stash" : "scrap_bag", hit[1]);
+            return true;
+        }
         String a = hit[0] == 0 ? "take" : "put";
         if (hasShiftDown()) {
             // Everything showing on that side goes across.
@@ -250,7 +265,9 @@ public final class StashScreen extends Screen {
             Ui.text(c, Text.literal(n), x + CW - 4 - textRenderer.getWidth(n) * 0.7f, y + CW - 10, 0.7f, 0xFFEDE3C8, false);
         }
         m.pop();
-        if (hov) c.drawBorder(x - 1, y - 1, CW + 2, CW + 2, 0xFFE0B96A);
+        if (scrap && Gear.isGear(s)) c.fill(x + 1, y + 1, x + CW - 1, y + CW - 1, hov ? 0x70E03A3A : 0x30E03A3A);
+        else if (scrap) c.fill(x + 1, y + 1, x + CW - 1, y + CW - 1, 0x60000000);
+        if (hov) c.drawBorder(x - 1, y - 1, CW + 2, CW + 2, scrap ? 0xFFE03A3A : 0xFFE0B96A);
     }
 
     @Override
