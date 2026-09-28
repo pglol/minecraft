@@ -122,7 +122,7 @@ public final class Raids {
 
     /** Every 30 s: a Raid Commander stands at each town and camp near a player. */
     private void placeCommanders(ServerWorld w) {
-        for (ServerPlayerEntity p : w.getPlayers()) {
+        for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             for (Net.Area a : AotRpg.PLACES.areas()) {
                 if (!a.look().equals("town") && !a.look().equals("camp")) continue;
                 if (Math.hypot(a.x() - p.getX(), a.z() - p.getZ()) > 96) continue;

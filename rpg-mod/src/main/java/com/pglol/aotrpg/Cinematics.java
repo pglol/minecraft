@@ -152,7 +152,7 @@ public final class Cinematics {
     /** The players within r of a spot. */
     public static List<ServerPlayerEntity> near(ServerWorld w, Vec3d at, double r) {
         List<ServerPlayerEntity> out = new ArrayList<>();
-        for (ServerPlayerEntity p : w.getPlayers()) if (p.getPos().squaredDistanceTo(at) < r * r && !p.isSpectator()) out.add(p);
+        for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) if (p.getPos().squaredDistanceTo(at) < r * r && !p.isSpectator()) out.add(p);
         return out;
     }
 

@@ -159,7 +159,7 @@ public final class Downed {
             if (ticks % 20 == 0 && !pressing) w.spawnParticles(ParticleTypes.DAMAGE_INDICATOR, p.getX(), p.getY() + 0.4, p.getZ(), 1, 0.1, 0.1, 0.1, 0.01);
             // A comrade crouched close beside you brings you back.
             ServerPlayerEntity helper = null;
-            for (ServerPlayerEntity o : w.getPlayers()) {
+            for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) {
                 if (o == p || o.isSpectator() || isDowned(o) || !o.isSneaking() || o.squaredDistanceTo(p) > 2.8 * 2.8) continue;
                 helper = o;
                 break;

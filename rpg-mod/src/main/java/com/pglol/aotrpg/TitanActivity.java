@@ -102,7 +102,7 @@ public final class TitanActivity {
     private void titanFights(ServerWorld w) {
         List<EntityType<?>> kinds = TitanTypes.fastOnes();
         if (kinds.isEmpty()) return;
-        for (ServerPlayerEntity p : w.getPlayers()) {
+        for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             Entity v = p.getVehicle();
             if (v == null || v.getControllingPassenger() != p || !AotRpg.isTitan(v)) continue;
             Box box = p.getBoundingBox().expand(72);
@@ -115,7 +115,7 @@ public final class TitanActivity {
 
     private List<ServerPlayerEntity> outside(ServerWorld w) {
         List<ServerPlayerEntity> out = new ArrayList<>();
-        for (ServerPlayerEntity p : w.getPlayers()) {
+        for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             if (!p.isSpectator() && AotRpg.PROFILES.get(p.getUuid()).created && beyondWalls(p.getX(), p.getZ()) && !AotRpg.CROWD.afk(p)) out.add(p);
         }
         return out;
@@ -154,7 +154,7 @@ public final class TitanActivity {
             }
             if (h.titans.isEmpty()) return;
             horde = h;
-            for (ServerPlayerEntity o : w.getPlayers()) {
+            for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) {
                 if (o.squaredDistanceTo(x, o.getY(), z) > 600 * 600) continue;
                 Notify.toast(o, Text.literal("Titan horde sighted").formatted(Formatting.RED, Formatting.BOLD),
                     Text.literal(n + " titans gather to the " + direction(x - o.getX(), z - o.getZ()) + " (" + h.where + ") · marked on your map"),
@@ -166,7 +166,7 @@ public final class TitanActivity {
         Horde h = horde;
         // Riding up on the horde: the camera shows it off first.
         List<ServerPlayerEntity> arriving = new ArrayList<>();
-        for (ServerPlayerEntity o : w.getPlayers()) {
+        for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) {
             if (!o.isSpectator() && !h.seen.contains(o.getUuid()) && o.squaredDistanceTo(h.x, o.getY(), h.z) < 80 * 80) {
                 h.seen.add(o.getUuid());
                 arriving.add(o);
@@ -212,7 +212,7 @@ public final class TitanActivity {
 
     private void end(ServerWorld w) {
         horde = null;
-        for (ServerPlayerEntity o : w.getPlayers()) AotRpg.QUESTS.markers(o, true);
+        for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) AotRpg.QUESTS.markers(o, true);
     }
 
     // ------------------------------------------------------------------ abnormals
@@ -243,7 +243,7 @@ public final class TitanActivity {
             abHunters.clear();
             abSeen.clear();
             Net.Area area = AotRpg.PLACES.areaAt(x, z);
-            for (ServerPlayerEntity o : w.getPlayers()) {
+            for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) {
                 Notify.toast(o, Text.literal("Abnormal titan sighted").formatted(Formatting.DARK_PURPLE, Formatting.BOLD),
                     Text.literal((area == null ? "Beyond the walls" : area.name()) + " · 5 nape strikes · fine loot · on your map"),
                     0x9A5CC8, "minecraft:wither_skeleton_skull", "abnormal");
@@ -256,7 +256,7 @@ public final class TitanActivity {
             abX = (int) e.getX();
             abZ = (int) e.getZ();
             List<ServerPlayerEntity> arriving = new ArrayList<>();
-            for (ServerPlayerEntity o : w.getPlayers()) {
+            for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) {
                 if (!o.isSpectator() && !abSeen.contains(o.getUuid()) && o.squaredDistanceTo(e) < 70 * 70) {
                     abSeen.add(o.getUuid());
                     arriving.add(o);
@@ -267,7 +267,7 @@ public final class TitanActivity {
         if ((e == null || !e.isAlive()) && w.isChunkLoaded(abX >> 4, abZ >> 4) || now > abUntil) {
             if (e != null && e.isAlive()) e.discard();
             abnormal = null;
-            for (ServerPlayerEntity o : w.getPlayers()) AotRpg.QUESTS.markers(o, true);
+            for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) AotRpg.QUESTS.markers(o, true);
         }
     }
 
@@ -280,7 +280,7 @@ public final class TitanActivity {
         for (Net.Area a : AotRpg.PLACES.areas()) {
             if (!a.look().equals("cave") || now < caveReady.getOrDefault(a.id(), 0L)) continue;
             boolean near = false;
-            for (ServerPlayerEntity p : w.getPlayers()) {
+            for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
                 if (!p.isSpectator() && p.squaredDistanceTo(a.x(), a.y(), a.z()) < 80 * 80) near = true;
             }
             if (!near || !w.isChunkLoaded(a.x() >> 4, a.z() >> 4)) continue;
@@ -337,7 +337,7 @@ public final class TitanActivity {
         }
         if (dead.getUuid().equals(abnormal)) {
             ServerWorld w = (ServerWorld) dead.getWorld();
-            for (ServerPlayerEntity p : w.getPlayers()) {
+            for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
                 if (p != killer && p.squaredDistanceTo(dead) > 40 * 40) continue;
                 Profile pr = AotRpg.PROFILES.get(p.getUuid());
                 long marks = 300 + pr.level * 10L;

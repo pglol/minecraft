@@ -41,6 +41,7 @@ public final class ExtractionHud {
             case "exit" -> 0xFFE0463A;
             case "poi" -> 0xFFC77DFF;
             case "obj" -> 0xFFF2C14E;
+            case "mark", "mymark" -> 0xFF4FD8FF;
             default -> 0xFF5BD35B;
         };
     }

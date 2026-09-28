@@ -405,7 +405,7 @@ public final class Townsfolk {
 
     /** Two people standing close pass a few words; a lone one sometimes mutters to themselves. */
     private void chatter(ServerWorld w) {
-        for (ServerPlayerEntity p : w.getPlayers()) {
+        for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             if (rng.nextInt(3) != 0) continue;
             List<VillagerEntity> near = new ArrayList<>(w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(20), Townsfolk::folk));
             if (near.size() < 2) continue;
@@ -433,7 +433,7 @@ public final class Townsfolk {
 
     /** Now and then someone near a player calls out: a seller, a lost parent, a bit of news. */
     private void callOut(ServerWorld w) {
-        for (ServerPlayerEntity p : w.getPlayers()) {
+        for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             if (rng.nextInt(6) != 0) continue;
             List<VillagerEntity> near = w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(22), v -> folk(v) && !v.isBaby());
             if (near.isEmpty()) continue;

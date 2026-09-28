@@ -104,7 +104,7 @@ public final class Ferries {
         if (server == null) return;
         ServerWorld w = server.getOverworld();
         if (ticks % 40 == 0) {
-            for (ServerPlayerEntity p : w.getPlayers()) discover(p);
+            for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) discover(p);
         }
         if (ticks % 600 == 321) place(w);
     }
@@ -122,7 +122,7 @@ public final class Ferries {
 
     /** Every 30 s: a Ferryman stands at each station near a player. */
     private void place(ServerWorld w) {
-        for (ServerPlayerEntity p : w.getPlayers()) {
+        for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             for (Net.Area a : AotRpg.PLACES.areas()) {
                 if (!station(a) || Math.hypot(a.x() - p.getX(), a.z() - p.getZ()) > 96) continue;
                 if (!w.isChunkLoaded((a.x() - 3) >> 4, (a.z() - 3) >> 4)) continue;

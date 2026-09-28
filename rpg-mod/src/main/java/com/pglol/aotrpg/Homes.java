@@ -848,7 +848,7 @@ public final class Homes {
         if (p != null || changed) {
             var pkt = new net.minecraft.network.packet.s2c.play.WorldBorderInitializeS2CPacket(b);
             if (p != null) p.networkHandler.sendPacket(pkt);
-            else for (ServerPlayerEntity o : hw.getPlayers()) o.networkHandler.sendPacket(pkt);
+            else for (ServerPlayerEntity o : new java.util.ArrayList<>(hw.getPlayers())) o.networkHandler.sendPacket(pkt);
         }
     }
 

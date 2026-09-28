@@ -206,7 +206,7 @@ public final class Estate {
             for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) follow(p);
         }
         if (ticks % 40 == 21) {
-            for (ServerPlayerEntity p : w.getPlayers()) pets(p);
+            for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) pets(p);
             for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) if (p.getWorld() != w) pets(p);
             for (var e : AotRpg.HOMES.data.plots.entrySet()) {
                 Homes.PlotDeed d = e.getValue();

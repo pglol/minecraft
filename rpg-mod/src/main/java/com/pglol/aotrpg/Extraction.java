@@ -125,6 +125,8 @@ public final class Extraction {
         /** Each diver's tasks for this run, and the barrels they've opened. */
         final Map<UUID, List<Task>> tasks = new HashMap<>();
         final Map<UUID, Set<BlockPos>> opened = new HashMap<>();
+        /** Map marks: one per diver, seen by the whole squad. */
+        final Map<UUID, BlockPos> marks = new HashMap<>();
     }
 
     /** A run task: paid out only if you get out alive with it done. */
@@ -581,7 +583,7 @@ public final class Extraction {
         List<ServerPlayerEntity> out = new ArrayList<>();
         ServerWorld w = sky();
         if (w == null) return out;
-        for (ServerPlayerEntity o : w.getPlayers()) if (inLobby(o) && slotAt(o.getX()) == slot) out.add(o);
+        for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) if (inLobby(o) && slotAt(o.getX()) == slot) out.add(o);
         return out;
     }
 
@@ -627,7 +629,7 @@ public final class Extraction {
         ServerWorld w = sky();
         if (w == null) return;
         Map<Integer, List<ServerPlayerEntity>> bySlot = new HashMap<>();
-        for (ServerPlayerEntity p : w.getPlayers()) {
+        for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             if (!inLobby(p)) continue;
             int slot = slotAt(p.getX());
             bySlot.computeIfAbsent(slot, k -> new ArrayList<>()).add(p);
@@ -836,6 +838,47 @@ public final class Extraction {
             case "in a run" -> 2;
             default -> 3;
         };
+    }
+
+    /** A mark on the island map, for the squad: one each, placed or taken back. */
+    private void mark(ServerPlayerEntity p, String action, String arg) {
+        Run r = runOf(p.getUuid());
+        if (r == null) return;
+        if (action.equals("unmark")) {
+            r.marks.remove(p.getUuid());
+            return;
+        }
+        String[] xz = arg.split(",");
+        if (xz.length != 2) return;
+        int x, z;
+        try {
+            x = Integer.parseInt(xz[0].trim());
+            z = Integer.parseInt(xz[1].trim());
+        } catch (NumberFormatException e) {
+            return;
+        }
+        ServerWorld w = p.getServerWorld();
+        if (Island.of(w) == null) return;
+        int y = w.isChunkLoaded(x >> 4, z >> 4) ? w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) : (int) p.getY();
+        r.marks.put(p.getUuid(), new BlockPos(x, y, z));
+        String name = pr(p);
+        for (UUID id : r.members) {
+            ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+            if (m == null) continue;
+            m.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), SoundCategory.PLAYERS, 0.8f, 1.6f);
+            if (m != p) m.sendMessage(Text.literal(name + " marked a spot").formatted(Formatting.AQUA), true);
+        }
+    }
+
+    /** The squad's marks as light columns, for the squad only. */
+    private void markBeams(Run r, ServerPlayerEntity p) {
+        ServerWorld w = p.getServerWorld();
+        DustParticleEffect cyan = new DustParticleEffect(new Vector3f(0.3f, 0.85f, 1f), 1.6f);
+        for (BlockPos m : r.marks.values()) {
+            double d2 = p.squaredDistanceTo(Vec3d.ofBottomCenter(m));
+            if (d2 > 320 * 320) continue;
+            for (int y = 0; y < 30; y += d2 > 100 * 100 ? 6 : 3) w.spawnParticles(p, cyan, true, m.getX() + 0.5, m.getY() + y, m.getZ() + 0.5, 1, 0.05, 0.3, 0.05, 0);
+        }
     }
 
     /** Twice a second: seats for those walking to them, ready checks, fill, and the countdown. */
@@ -1173,6 +1216,7 @@ public final class Extraction {
                 if (ticks % 20 == 0) shore(r, p, iw);
                 if (ticks % 20 == 10) hotZones(r, p, iw);
                 if (ticks % 10 == 5) sendView(r, p, now);
+                if (ticks % 20 == 3 && !r.marks.isEmpty()) markBeams(r, p);
                 // Standing at an exit: eight seconds and you're out.
                 BlockPos at = null;
                 for (BlockPos e : r.exits) {
@@ -1219,7 +1263,7 @@ public final class Extraction {
             ServerWorld w = server.getWorld(island.world);
             if (w == null) continue;
             List<ServerPlayerEntity> divers = new ArrayList<>();
-            for (ServerPlayerEntity p : w.getPlayers()) {
+            for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
                 if (runOf(p.getUuid()) != null) divers.add(p);
                 // Anyone left on an island outside a run goes back aboard (never the dead, nor someone watching their fall).
                 else if (ticks % 100 == 0 && p.isAlive() && !p.isSpectator() && !p.isCreative() && !watching.containsKey(p.getUuid())) toLobby(p);
@@ -1323,6 +1367,11 @@ public final class Extraction {
             ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
             if (m == null || m == p || m.getWorld() != p.getWorld()) continue;
             pts.add(new Net.RunPoint("mate", AotRpg.PROFILES.get(id).name, m.getBlockX(), m.getBlockZ(), false));
+        }
+        for (var e : r.marks.entrySet()) {
+            boolean mine = e.getKey().equals(p.getUuid());
+            pts.add(new Net.RunPoint(mine ? "mymark" : "mark", mine ? "Your mark" : AotRpg.PROFILES.get(e.getKey()).name + "'s mark",
+                e.getValue().getX(), e.getValue().getZ(), false));
         }
         List<Net.RunTask> ts = new ArrayList<>();
         for (Task t : r.tasks.getOrDefault(p.getUuid(), List.of())) ts.add(new Net.RunTask(t.text, t.progress, t.goal));
@@ -1528,6 +1577,10 @@ public final class Extraction {
     // ------------------------------------------------------------------ lobby actions
 
     public void action(ServerPlayerEntity p, String action, String arg) {
+        if (action.equals("mark") || action.equals("unmark")) {
+            mark(p, action, arg);
+            return;
+        }
         if (!inLobby(p)) return;
         int slot = slotAt(p.getX());
         Lobby lb = lobby(slot);

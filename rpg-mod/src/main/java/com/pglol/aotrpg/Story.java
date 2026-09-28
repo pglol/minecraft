@@ -1671,7 +1671,7 @@ public final class Story {
             if (phased.containsKey(e.getId())) continue;
             // Someone outside the scene can see it or is fighting it: it stays in their world.
             boolean watched = false;
-            for (ServerPlayerEntity o : w.getPlayers()) {
+            for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) {
                 if (!mem.contains(o) && o.squaredDistanceTo(e) < 128 * 128) {
                     watched = true;
                     break;

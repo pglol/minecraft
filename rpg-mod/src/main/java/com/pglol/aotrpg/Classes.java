@@ -610,7 +610,7 @@ public final class Classes {
         sound(p, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.6f, 1.2f);
         Notify.toast(p, Text.literal(name).formatted(Formatting.BOLD).styled(st -> st.withColor(color)),
             Text.literal("Ultimate unleashed"), color, "minecraft:nether_star", "ult");
-        for (ServerPlayerEntity o : w.getPlayers()) {
+        for (ServerPlayerEntity o : new java.util.ArrayList<>(w.getPlayers())) {
             if (o != p && o.squaredDistanceTo(p) < 48 * 48) o.sendMessage(Text.literal(pr(p).name + ": " + name).styled(st -> st.withColor(color).withBold(true)), true);
         }
     }
