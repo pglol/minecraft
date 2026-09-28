@@ -79,6 +79,18 @@ public final class SheathRender {
 
             ms.push();
             ms.translate(pos.x - cam.x, pos.y - cam.y, pos.z - cam.z);
+            // Tumbling with the body through an ODM flip or dash (the same turn the model takes).
+            OdmMoves.Anim move = OdmMoves.anim(pl.getId());
+            if (move != null) {
+                float angle = OdmMoves.bodyAngle(move);
+                if (angle != 0) {
+                    double my = Math.toRadians(move.yaw());
+                    float mid = pl.getHeight() / 2f;
+                    ms.translate(0, mid, 0);
+                    ms.multiply(new org.joml.Quaternionf().rotationAxis((float) Math.toRadians(angle), (float) Math.cos(my), 0, (float) Math.sin(my)));
+                    ms.translate(0, -mid, 0);
+                }
+            }
             // Local frame: +z is the player's back, +x the viewer's right when seen from behind.
             ms.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180 - bodyYaw));
             ms.translate(0, crouch ? 1.02 : 1.2, 0);

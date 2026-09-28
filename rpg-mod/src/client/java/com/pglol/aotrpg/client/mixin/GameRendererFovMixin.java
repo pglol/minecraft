@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /** Remembers the world's field of view as drawn (setting, sprinting, speed and all), for blade particles. */
 @Mixin(GameRenderer.class)
 public abstract class GameRendererFovMixin {
-    @Inject(method = "getFov", at = @At("RETURN"), require = 0)
+    @Inject(method = "getFov", at = @At("RETURN"), cancellable = true, require = 0)
     private void aotrpg$fov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
         if (!changingFov) return;
         // A cutscene's lens (a dolly zoom, a wide plunge) for the world view.
