@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** During a cutscene the camera follows the shot, not the player. */
+/** During a cutscene the camera follows the shot, not the player; in the balloon lobby it frames you on your seat. */
 @Mixin(Camera.class)
 public abstract class CameraMixin {
     @Shadow private boolean thirdPerson;
@@ -22,6 +22,7 @@ public abstract class CameraMixin {
     @Inject(method = "update", at = @At("TAIL"))
     private void aotrpg$cutscene(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
         CutscenePlayer.Cam cam = CutscenePlayer.camera();
+        if (cam == null) cam = com.pglol.aotrpg.client.LobbyScreen.camera(tickDelta);
         if (cam == null) return;
         this.thirdPerson = true;
         setRotation(cam.yaw(), cam.pitch());

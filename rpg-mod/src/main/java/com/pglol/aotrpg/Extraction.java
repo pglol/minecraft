@@ -131,7 +131,7 @@ public final class Extraction {
         Map<String, List<Long>> leftover = new HashMap<>();
     }
 
-    private static final int BALLOON_VERSION = 1;
+    private static final int BALLOON_VERSION = 2;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private Data data = new Data();
     private Path file;
@@ -259,7 +259,8 @@ public final class Extraction {
     }
 
     // Offsets in a balloon (from its origin, the middle of the basket floor).
-    private static final BlockPos BOARD = new BlockPos(4, 1, 0), STASH = new BlockPos(-4, 1, 0), FUEL = new BlockPos(-4, 1, 2);
+    private static final BlockPos BOARD = new BlockPos(4, 1, 0), STASH = new BlockPos(-4, 1, 0), FUEL = new BlockPos(-4, 1, 2),
+        BENCH = new BlockPos(-4, 1, -2), ANVIL = new BlockPos(4, 1, -2), ENTRY = new BlockPos(0, 1, 1);
     private static final int BASKET = 5, ENVELOPE = 11, ENVELOPE_Y = 18;
 
     /** Builds a hot air balloon: a wicker basket with benches, ropes up to a striped envelope, the burner between. */
@@ -301,7 +302,9 @@ public final class Extraction {
             w.setBlockState(o.add(BOARD), Blocks.LECTERN.getDefaultState().with(net.minecraft.block.LecternBlock.FACING, Direction.WEST), f);
             w.setBlockState(o.add(STASH), Blocks.ENDER_CHEST.getDefaultState().with(net.minecraft.block.EnderChestBlock.FACING, Direction.EAST), f);
             if (Refueler.BLOCK != null) w.setBlockState(o.add(FUEL), Refueler.BLOCK.getDefaultState(), f);
-            w.setBlockState(o.add(-4, 1, -2), Blocks.BARREL.getDefaultState().with(net.minecraft.block.BarrelBlock.FACING, Direction.UP), f);
+            // The workbench for field kit, and the forge's anvil.
+            w.setBlockState(o.add(BENCH), Blocks.CRAFTING_TABLE.getDefaultState(), f);
+            w.setBlockState(o.add(ANVIL), Blocks.ANVIL.getDefaultState().with(net.minecraft.block.AnvilBlock.FACING, Direction.NORTH), f);
             w.setBlockState(o.add(4, 1, 2), Blocks.CARTOGRAPHY_TABLE.getDefaultState(), f);
             // Sandbags hanging off the rail.
             for (int[] s : new int[][] {{BASKET + 1, -2}, {BASKET + 1, 2}, {-BASKET - 1, -2}, {-BASKET - 1, 2}, {0, BASKET + 1}, {0, -BASKET - 1}}) {
@@ -367,6 +370,20 @@ public final class Extraction {
 
     /** Aboard the balloon (from the open world, or back from a run). */
     public void toLobby(ServerPlayerEntity p) {
+        toLobby(p, false);
+    }
+
+    /** Where each boarding player is being walked to (their seat), and when they sit regardless. */
+    private final Map<UUID, BlockPos> walkingTo = new HashMap<>();
+    private final Map<UUID, Integer> sitBy = new HashMap<>();
+    private int ticks;
+
+    /**
+     * Boarding: you arrive in the basket and the camera takes over (a different opening for a first
+     * boarding and a return from a run) while your character walks to a free seat on the benches and
+     * sits. The lobby opens once the camera hands back.
+     */
+    public void toLobby(ServerPlayerEntity p, boolean returning) {
         ServerWorld w = sky();
         if (w == null) return;
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
@@ -379,21 +396,57 @@ public final class Extraction {
         Homes.border(w, p);
         p.stopRiding();
         p.fallDistance = 0;
-        p.teleport(w, o.getX() + 0.5, o.getY() + 1, o.getZ() + 0.5, 0, 0);
+        BlockPos seat = freeSeat(slot, p);
+        BlockPos in = o.add(ENTRY);
+        float yaw = seat == null ? 0 : (float) Math.toDegrees(Math.atan2(-(seat.getX() - in.getX()), seat.getZ() - in.getZ()));
+        p.teleport(w, in.getX() + 0.5, in.getY(), in.getZ() + 0.5, yaw, 0);
         p.playSoundToPlayer(SoundEvents.ENTITY_ENDER_DRAGON_FLAP, SoundCategory.AMBIENT, 0.5f, 0.6f);
-        // Aboard: a seat on the benches, a sweep round the balloon, and the squad sees you climb in.
-        AotRpg.SCHEDULER.later(2, () -> {
-            if (p.isDisconnected() || !inLobby(p)) return;
-            sit(p);
-            List<ServerPlayerEntity> aboard = aboard(slot);
-            Cinematics.intro(List.of(p), new Vec3d(o.getX() + 0.5, o.getY() + 1.5, o.getZ() + 0.5), aboard, "ALOFT",
-                aboard.size() > 1 ? aboard.size() + " aboard" : "Waiting to drop", 0xE0B96A);
-            for (ServerPlayerEntity m : aboard) {
-                if (m == p) continue;
-                Notify.toast(m, Text.literal(pr.name + " climbs aboard").formatted(Formatting.GOLD), null, 0xE0B96A, "minecraft:ladder", null);
-                m.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_WEAK, SoundCategory.PLAYERS, 0.6f, 0.8f);
+        Lobby lb = lobby(slot);
+        lb.ready.remove(p.getUuid());
+        lb.countdownAt = 0;
+        if (seat == null) {
+            broadcast(slot);
+            return;
+        }
+        Direction face = w.getBlockState(seat).get(StairsBlock.FACING).getOpposite();
+        Vec3d facing = new Vec3d(face.getOffsetX(), 0, face.getOffsetZ());
+        List<Net.Shot> shots = Cinematics.boarding(Vec3d.ofBottomCenter(o.up()), Vec3d.ofBottomCenter(seat), facing, returning);
+        List<ServerPlayerEntity> aboard = aboard(slot);
+        String sub = returning ? "Back aboard" : aboard.size() > 1 ? aboard.size() + " aboard" : "Waiting to drop";
+        int t = Cinematics.play(List.of(p), shots, returning ? "HOME AIR" : "ALOFT", sub, 0xE0B96A);
+        walkingTo.put(p.getUuid(), seat);
+        sitBy.put(p.getUuid(), ticks + Math.max(20, t - 76));
+        // The walk starts in time to sit down under the last shot.
+        if (ServerPlayNetworking.canSend(p, Net.Autopilot.ID)) {
+            ServerPlayNetworking.send(p, new Net.Autopilot(seat.getX() + 0.5, seat.getY(), seat.getZ() + 0.5, Math.max(0, (t - 120) * 50)));
+        }
+        for (ServerPlayerEntity m : aboard) {
+            if (m == p) continue;
+            Notify.toast(m, Text.literal(pr.name + " climbs aboard").formatted(Formatting.GOLD), null, 0xE0B96A, "minecraft:ladder", null);
+            m.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_WEAK, SoundCategory.PLAYERS, 0.6f, 0.8f);
+        }
+        broadcast(slot);
+    }
+
+    /** A bench spot nobody is sitting on or walking to (nearest the entry). */
+    private BlockPos freeSeat(int slot, ServerPlayerEntity p) {
+        ServerWorld w = sky();
+        BlockPos o = origin(slot);
+        List<BlockPos> spots = new ArrayList<>();
+        for (int x : new int[] {0, -1, 1, -2, 2, -3, 3}) {
+            spots.add(o.add(x, 1, -BASKET + 1));
+            spots.add(o.add(x, 1, BASKET - 1));
+        }
+        for (BlockPos s : spots) {
+            if (!(w.getBlockState(s).getBlock() instanceof StairsBlock)) continue;
+            if (walkingTo.containsValue(s) && !s.equals(walkingTo.get(p.getUuid()))) continue;
+            boolean taken = false;
+            for (ArmorStandEntity a : w.getEntitiesByClass(ArmorStandEntity.class, new Box(s).expand(0.1), e -> e.getCommandTags().contains(SEAT))) {
+                if (a.hasPassengers() && a.getFirstPassenger() != p) taken = true;
             }
-        });
+            if (!taken) return s;
+        }
+        return null;
     }
 
     private List<ServerPlayerEntity> aboard(int slot) {
@@ -519,7 +572,10 @@ public final class Extraction {
         }
     }
 
-    /** The balloon's blocks: the board opens deployment, the ender chest the stash, a bench seats you. */
+    /**
+     * The balloon's blocks: a bench or the board seats you (and the lobby opens), the ender chest
+     * opens the stash, the workbench the field kit, the anvil the forge.
+     */
     public boolean use(ServerPlayerEntity p, BlockPos pos) {
         if (p.getWorld().getRegistryKey() != Homes.WORLD || !inLobby(pos)) {
             Run r = runOf(p.getUuid());
@@ -529,21 +585,196 @@ public final class Extraction {
             }
             return false;
         }
-        BlockPos rel = pos.subtract(origin(slotAt(pos.getX())));
-        if (rel.equals(BOARD)) {
-            send(p, true);
-            return true;
-        }
+        int slot = slotAt(pos.getX());
+        BlockPos rel = pos.subtract(origin(slot));
         if (rel.equals(STASH)) {
             Stash.show(p, 0);
             return true;
         }
+        if (rel.equals(BENCH)) {
+            bench(p, true);
+            return true;
+        }
+        if (rel.equals(ANVIL)) {
+            AotRpg.FORGE.open(p);
+            return true;
+        }
         if (rel.equals(FUEL)) return false;
-        if (p.getWorld().getBlockState(pos).getBlock() instanceof StairsBlock) {
+        BlockPos seat = p.getWorld().getBlockState(pos).getBlock() instanceof StairsBlock ? pos : rel.equals(BOARD) ? freeSeat(slot, p) : null;
+        if (seat != null) {
             p.stopRiding();
-            sitOn(p, pos);
+            sitOn(p, seat);
+            broadcast(slot);
         }
         return true;
+    }
+
+    // ------------------------------------------------------------------ the lobby
+
+    /** A balloon's lobby: the island picked, squad fill, who's ready, and the countdown once all are. */
+    static final class Lobby {
+        String island = Island.VERDANT.id;
+        boolean fill = true;
+        final Set<UUID> ready = new HashSet<>();
+        long countdownAt;
+    }
+
+    private static final long COUNTDOWN_MS = 10_000;
+    public static final int SQUAD = 3;
+    private final Map<Integer, Lobby> lobbies = new HashMap<>();
+
+    private Lobby lobby(int slot) {
+        return lobbies.computeIfAbsent(slot, k -> new Lobby());
+    }
+
+    /** Who runs a balloon: the squad leader or owner aboard, else whoever boarded first. */
+    private UUID leader(int slot) {
+        List<ServerPlayerEntity> on = aboard(slot);
+        for (var e : slots.entrySet()) {
+            if (e.getValue() != slot) continue;
+            for (ServerPlayerEntity m : on) if (m.getUuid().equals(e.getKey())) return m.getUuid();
+        }
+        return on.isEmpty() ? null : on.get(0).getUuid();
+    }
+
+    /** Sends the lobby to everyone aboard. */
+    private void broadcast(int slot) {
+        for (ServerPlayerEntity m : aboard(slot)) sendLobby(m);
+    }
+
+    public void sendLobby(ServerPlayerEntity p) {
+        if (!ServerPlayNetworking.canSend(p, Net.LobbyView.ID) || !inLobby(p)) return;
+        int slot = slotAt(p.getX());
+        Lobby lb = lobby(slot);
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        List<Net.LobbyIsland> is = new ArrayList<>();
+        for (Island i : Island.values()) if (server.getWorld(i.world) != null) is.add(new Net.LobbyIsland(i.id, i.title, i.min, i.max, i.color));
+        UUID lead = leader(slot);
+        List<Net.LobbyMember> squad = new ArrayList<>();
+        for (ServerPlayerEntity m : aboard(slot)) {
+            Profile mp = AotRpg.PROFILES.get(m.getUuid());
+            squad.add(new Net.LobbyMember(mp.name, mp.level, lb.ready.contains(m.getUuid()), m == p, m.getUuid().equals(lead)));
+        }
+        long cd = lb.countdownAt == 0 ? -1 : Math.max(0, lb.countdownAt - System.currentTimeMillis());
+        int[] use = Stash.usage(p);
+        ServerPlayNetworking.send(p, new Net.LobbyView(is, lb.island, lb.fill, p.getUuid().equals(lead), squad, cd, pr.salvage, use[0], use[1],
+            pr.stashRows >= Stash.MAX_ROWS ? -1 : Stash.rowCost(pr)));
+    }
+
+    /** Twice a second: seats for those walking to them, ready checks, fill, and the countdown. */
+    private void lobbyState() {
+        long now = System.currentTimeMillis();
+        for (var e : new ArrayList<>(walkingTo.entrySet())) {
+            ServerPlayerEntity p = server.getPlayerManager().getPlayer(e.getKey());
+            if (p == null || !inLobby(p)) {
+                walkingTo.remove(e.getKey());
+                sitBy.remove(e.getKey());
+                continue;
+            }
+            BlockPos s = e.getValue();
+            double dx = p.getX() - s.getX() - 0.5, dz = p.getZ() - s.getZ() - 0.5;
+            if (dx * dx + dz * dz < 1.3 || ticks >= sitBy.getOrDefault(e.getKey(), 0)) {
+                walkingTo.remove(e.getKey());
+                sitBy.remove(e.getKey());
+                sitOn(p, s);
+            }
+        }
+        for (var en : new ArrayList<>(lobbies.entrySet())) {
+            int slot = en.getKey();
+            Lobby lb = en.getValue();
+            List<ServerPlayerEntity> on = aboard(slot);
+            if (on.isEmpty()) {
+                lobbies.remove(slot);
+                continue;
+            }
+            lb.ready.removeIf(id -> on.stream().noneMatch(m -> m.getUuid().equals(id)));
+            boolean all = on.stream().allMatch(m -> lb.ready.contains(m.getUuid()) && m.hasVehicle());
+            if (!all) {
+                if (lb.countdownAt != 0) {
+                    lb.countdownAt = 0;
+                    broadcast(slot);
+                }
+                continue;
+            }
+            if (lb.countdownAt == 0) {
+                if (lb.fill && on.size() < SQUAD) fillFrom(slot, lb, on.size());
+                lb.countdownAt = now + COUNTDOWN_MS;
+                for (ServerPlayerEntity m : aboard(slot)) m.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), SoundCategory.MASTER, 0.8f, 1.2f);
+                broadcast(slot);
+            } else if (now >= lb.countdownAt) {
+                lb.countdownAt = 0;
+                lb.ready.clear();
+                deploy(slot);
+            } else {
+                long left = (lb.countdownAt - now + 999) / 1000;
+                if (left <= 3) for (ServerPlayerEntity m : on) m.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.MASTER, 0.8f, 1.5f);
+            }
+        }
+    }
+
+    /** Squad fill: other ready balloons with fill on, bound for the same island, come aboard this one. */
+    private void fillFrom(int slot, Lobby lb, int size) {
+        for (var en : new ArrayList<>(lobbies.entrySet())) {
+            if (en.getKey() == slot || size >= SQUAD) continue;
+            Lobby o = en.getValue();
+            List<ServerPlayerEntity> them = aboard(en.getKey());
+            if (!o.fill || !o.island.equals(lb.island) || them.isEmpty() || size + them.size() > SQUAD) continue;
+            if (!them.stream().allMatch(m -> o.ready.contains(m.getUuid()))) continue;
+            for (ServerPlayerEntity m : them) {
+                BlockPos seat = freeSeat(slot, m);
+                if (seat == null) continue;
+                m.stopRiding();
+                sitOn(m, seat);
+                lb.ready.add(m.getUuid());
+                Notify.toast(m, Text.literal("Squad found").formatted(Formatting.GOLD), null, 0xE0B96A, "minecraft:spyglass", null);
+                size++;
+            }
+            o.ready.clear();
+        }
+    }
+
+    // ------------------------------------------------------------------ the workbench
+
+    /** Field kit for the next run, paid in Marks (and Salvage for the rarer pieces). */
+    private record Kit(String id, String title, String item, int count, long marks, long salvage) { }
+
+    private static final List<Kit> KITS = List.of(
+        new Kit("gas", "Gas Canister", "dannys-aot:gas_canister", 1, 80, 0),
+        new Kit("blades", "Blade Components", "dannys-aot:blade_component", 8, 40, 0),
+        new Kit("ice", "Ice Burst Clusters", "dannys-aot:ice_burst_cluster", 16, 30, 0),
+        new Kit("spears", "Thunder Spears", "dannys-aot:thunder_spear", 2, 150, 10),
+        new Kit("rations", "Field Rations", "minecraft:bread", 4, 20, 0),
+        new Kit("refueler", "Gas Refueler", "aot_rpg:gas_refueler", 1, 0, 60));
+
+    private void bench(ServerPlayerEntity p, boolean open) {
+        if (!ServerPlayNetworking.canSend(p, Net.BenchView.ID)) return;
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        List<Net.BenchRecipe> list = new ArrayList<>();
+        for (Kit k : KITS) {
+            if (!net.minecraft.registry.Registries.ITEM.containsId(Identifier.of(k.item()))) continue;
+            boolean ok = pr.marks >= k.marks() && pr.salvage >= k.salvage() && (!k.id().equals("refueler") || pr.has(Skill.ENG_WORKSHOP));
+            list.add(new Net.BenchRecipe(k.id(), k.title(), k.item(), k.count(), k.marks(), k.salvage(), ok));
+        }
+        ServerPlayNetworking.send(p, new Net.BenchView(list, pr.marks, pr.salvage, open));
+    }
+
+    private void craft(ServerPlayerEntity p, String id) {
+        Kit k = null;
+        for (Kit x : KITS) if (x.id().equals(id)) k = x;
+        if (k == null) return;
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (k.id().equals("refueler") && !pr.has(Skill.ENG_WORKSHOP)) {
+            Notify.toast(p, Text.literal("Engineers only").formatted(Formatting.RED), null, 0xC0463A, "aot_rpg:gas_refueler", null);
+            return;
+        }
+        if (pr.salvage < k.salvage() || pr.marks < k.marks()) return;
+        if (k.marks() > 0 && !AotRpg.WALLET.spendMarks(p, k.marks())) return;
+        pr.salvage -= k.salvage();
+        AotRpg.PROFILES.save(p.getUuid());
+        var item = net.minecraft.registry.Registries.ITEM.get(Identifier.of(k.item()));
+        p.getInventory().offerOrDrop(new ItemStack(item, k.count()));
+        p.playSoundToPlayer(SoundEvents.BLOCK_SMITHING_TABLE_USE, SoundCategory.BLOCKS, 0.8f, 1.2f);
+        bench(p, false);
     }
 
     // ------------------------------------------------------------------ runs
@@ -557,27 +788,17 @@ public final class Extraction {
         return self != null && self.runOf(id) != null;
     }
 
-    public void deploy(ServerPlayerEntity p, String islandId) {
-        Profile pr = AotRpg.PROFILES.get(p.getUuid());
-        if (!DeathCare.EXTRACTION.equals(pr.mode) || !inLobby(p) || runOf(p.getUuid()) != null) return;
-        Parties.Party party = AotRpg.PARTIES.of(p.getUuid());
-        if (party != null && !p.getUuid().equals(party.leader)) {
-            Notify.toast(p, Text.literal("Your squad leader deploys").formatted(Formatting.GOLD), null, 0xE0B96A);
-            return;
-        }
-        Island island = Island.of(islandId);
+    /** The countdown ran out: everyone aboard jumps for the island picked. */
+    private void deploy(int slot) {
+        Lobby lb = lobby(slot);
+        Island island = Island.of(lb.island);
         ServerWorld iw = island == null ? null : server.getWorld(island.world);
-        if (iw == null) {
-            Notify.toast(p, Text.literal("That island isn't loaded").formatted(Formatting.RED), null, 0xC0463A);
-            return;
-        }
-        int slot = slotAt(p.getX());
         List<ServerPlayerEntity> squad = new ArrayList<>();
-        squad.add(p);
         for (ServerPlayerEntity m : aboard(slot)) {
-            if (m != p && DeathCare.EXTRACTION.equals(AotRpg.PROFILES.get(m.getUuid()).mode) && runOf(m.getUuid()) == null
-                && (party == null ? false : party.members.contains(m.getUuid()))) squad.add(m);
+            if (DeathCare.EXTRACTION.equals(AotRpg.PROFILES.get(m.getUuid()).mode) && runOf(m.getUuid()) == null) squad.add(m);
         }
+        if (iw == null || squad.isEmpty()) return;
+        ServerPlayerEntity p = squad.get(0);
         Random rnd = p.getRandom();
         BlockPos c = centre(island, iw);
         Run run = new Run();
@@ -614,25 +835,28 @@ public final class Extraction {
             mp.inRun = true;
             AotRpg.PROFILES.save(m.getUuid());
         }
-        // The jump: a sweep round the balloon with the island's name across it, then over the side.
+        // The drop: burner, over the rail, pulling away as they go; then from the ground, the squad falling in.
         BlockPos o = origin(slot);
-        int ticks = Cinematics.intro(squad, new Vec3d(o.getX() + 0.5, o.getY() + 1.5, o.getZ() + 0.5), squad, "DEPLOYING", island.title, island.color & 0xFFFFFF);
+        for (ServerPlayerEntity m : squad) m.playSoundToPlayer(SoundEvents.ITEM_FIRECHARGE_USE, SoundCategory.MASTER, 0.9f, 0.5f);
+        int ticks = Cinematics.play(squad, Cinematics.drop(Vec3d.ofBottomCenter(o)), "DROP", island.title, island.color & 0xFFFFFF);
         BlockPos at = drop;
-        AotRpg.SCHEDULER.later(ticks + 5, () -> {
+        AotRpg.SCHEDULER.later(ticks, () -> {
             int k = 0;
+            List<ServerPlayerEntity> landed = new ArrayList<>();
             for (ServerPlayerEntity m : squad) {
                 if (m.isDisconnected() || !run.members.contains(m.getUuid())) continue;
                 double ox = (k % 3 - 1) * 3, oz = (k / 3) * 3;
                 k++;
                 m.stopRiding();
-                // Sky-diving in, slowed near the canopy.
-                m.teleport(iw, at.getX() + 0.5 + ox, at.getY() + 90, at.getZ() + 0.5 + oz, m.getYaw(), 40);
+                m.teleport(iw, at.getX() + 0.5 + ox, at.getY() + 45, at.getZ() + 0.5 + oz, m.getYaw(), 50);
                 m.fallDistance = 0;
                 m.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOW_FALLING, 20 * 14, 0, false, false));
-                Titles.show(m, Text.literal(island.title.toUpperCase()).styled(s -> s.withColor(island.color & 0xFFFFFF).withBold(true)),
-                    Text.literal("Find the flares").formatted(Formatting.GOLD), 8, 60, 20);
                 m.playSoundToPlayer(SoundEvents.ITEM_ELYTRA_FLYING, SoundCategory.MASTER, 0.6f, 1f);
-                m.playSoundToPlayer(SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.MASTER, 0.4f, 1.4f);
+                landed.add(m);
+            }
+            if (!landed.isEmpty()) {
+                Vec3d ground = Vec3d.ofBottomCenter(at);
+                Cinematics.play(landed, Cinematics.landing(ground, ground.add(0, 44, 0)), island.title.toUpperCase(), "Find the flares", island.color & 0xFFFFFF);
             }
         });
     }
@@ -662,7 +886,9 @@ public final class Extraction {
     }
 
     public void tick(int ticks) {
+        this.ticks = ticks;
         lobbyTick(ticks);
+        if (ticks % 10 == 0) lobbyState();
         islandTick(ticks);
         if (runs.isEmpty()) return;
         long now = System.currentTimeMillis();
@@ -813,8 +1039,15 @@ public final class Extraction {
         long salvage = 25 + gear * 4L + r.island.level();
         Stash.earn(p, salvage);
         AotRpg.TASKS.count(p, "extractions", 1);
-        toLobby(p);
-        Reveal.show(p, "EXTRACTED", r.island.title + "  ·  +" + salvage + " Salvage", "aot_rpg:gas_refueler", gear >= 6 ? 4 : gear >= 3 ? 3 : 2);
+        // Lifted off the flare, then back aboard (the balloon's own return shot), then the reward.
+        int t = Cinematics.play(List.of(p), Cinematics.extract(p.getPos()), "EXTRACTED", r.island.title, 0x5BD35B);
+        p.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, t + 40, 4, false, false));
+        int g = gear;
+        AotRpg.SCHEDULER.later(t, () -> {
+            if (p.isDisconnected()) return;
+            toLobby(p, true);
+            Reveal.show(p, "EXTRACTED", r.island.title + "  ·  +" + salvage + " Salvage", "aot_rpg:gas_refueler", g >= 6 ? 4 : g >= 3 ? 3 : 2);
+        });
     }
 
     private void missing(Run r, ServerPlayerEntity p) {
@@ -876,16 +1109,52 @@ public final class Extraction {
             r.extracting.remove(p.getUuid());
         }
         fallen.remove(p.getUuid());
+        walkingTo.remove(p.getUuid());
+        sitBy.remove(p.getUuid());
         p.stopRiding();
     }
 
-    // ------------------------------------------------------------------ the deployment board
+    // ------------------------------------------------------------------ lobby actions
 
     public void action(ServerPlayerEntity p, String action, String arg) {
         if (!inLobby(p)) return;
+        int slot = slotAt(p.getX());
+        Lobby lb = lobby(slot);
+        boolean lead = p.getUuid().equals(leader(slot));
         switch (action) {
-            case "open" -> send(p, true);
-            case "deploy" -> deploy(p, arg);
+            case "open" -> sendLobby(p);
+            case "ready" -> {
+                if (!lb.ready.remove(p.getUuid())) {
+                    if (!p.hasVehicle()) {
+                        BlockPos seat = freeSeat(slot, p);
+                        if (seat != null) sitOn(p, seat);
+                    }
+                    lb.ready.add(p.getUuid());
+                    p.playSoundToPlayer(SoundEvents.ITEM_ARMOR_EQUIP_IRON.value(), SoundCategory.PLAYERS, 0.8f, 1.1f);
+                }
+                broadcast(slot);
+            }
+            case "island" -> {
+                if (lead && Island.of(arg) != null && lb.countdownAt == 0) {
+                    lb.island = arg;
+                    broadcast(slot);
+                }
+            }
+            case "fill" -> {
+                if (lead && lb.countdownAt == 0) {
+                    lb.fill = !lb.fill;
+                    broadcast(slot);
+                }
+            }
+            case "walk" -> {
+                lb.ready.remove(p.getUuid());
+                p.stopRiding();
+                broadcast(slot);
+            }
+            case "leave" -> {
+                lb.ready.remove(p.getUuid());
+                AotRpg.MODES.choose(p, DeathCare.STORY);
+            }
             case "stash" -> Stash.show(p, 0);
             case "stash_page" -> {
                 try {
@@ -894,25 +1163,10 @@ public final class Extraction {
             }
             case "expand" -> {
                 Stash.expand(p);
-                send(p, false);
+                sendLobby(p);
             }
+            case "bench" -> craft(p, arg);
             default -> { }
         }
-    }
-
-    public void send(ServerPlayerEntity p, boolean open) {
-        if (!ServerPlayNetworking.canSend(p, Net.ExtractionView.ID)) return;
-        Profile pr = AotRpg.PROFILES.get(p.getUuid());
-        List<Net.ExtractionZone> zs = new ArrayList<>();
-        for (Island i : Island.values()) {
-            if (server.getWorld(i.world) != null) zs.add(new Net.ExtractionZone(i.id, i.title, i.min, i.max, i.titans));
-        }
-        List<String> squad = new ArrayList<>();
-        Parties.Party party = AotRpg.PARTIES.of(p.getUuid());
-        boolean leader = party == null || p.getUuid().equals(party.leader);
-        for (ServerPlayerEntity m : aboard(slotAt(p.getX()))) squad.add(AotRpg.PROFILES.get(m.getUuid()).name);
-        int[] use = Stash.usage(p);
-        ServerPlayNetworking.send(p, new Net.ExtractionView(zs, squad, leader, pr.salvage, use[0], use[1],
-            pr.stashRows >= Stash.MAX_ROWS ? -1 : Stash.rowCost(pr), open));
     }
 }

@@ -178,7 +178,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.ForgeAction.ID, (payload, ctx) -> {
             ServerPlayerEntity p = ctx.player();
             // Only at your own home forge.
-            if (p.getWorld().getRegistryKey() != Homes.WORLD || !HOMES.canBuild(p, p.getBlockPos())) return;
+            if (p.getWorld().getRegistryKey() != Homes.WORLD || !HOMES.canBuild(p, p.getBlockPos()) && !Extraction.inLobby(p)) return;
             if (payload.action().equals("upgrade")) FORGE.upgrade(p, payload.slot(), payload.quality());
             else if (payload.action().equals("craft")) FORGE.craft(p, payload.recipe(), payload.quality());
         });

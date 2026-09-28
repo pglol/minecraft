@@ -24,7 +24,9 @@
     "MessageHandlerMixin",
     "HomeFogMixin",
     "ItemRendererTintMixin",
-    "BalloonIdleMixin"
+    "BalloonIdleMixin",
+    "InputLockMixin",
+    "LookLockMixin"
   ],
   "injectors": {
     "defaultRequire": 0

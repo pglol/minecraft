@@ -90,10 +90,13 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.RewardReveal.ID, (payload, ctx) -> RewardFx.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.DoorView.ID, (payload, ctx) -> ctx.client().setScreen(new DoorScreen(payload)));
         ClientPlayNetworking.registerGlobalReceiver(Net.HomeKey.ID, (payload, ctx) -> ctx.client().setScreen(new KeyScreen(payload)));
-        ClientPlayNetworking.registerGlobalReceiver(Net.ExtractionView.ID, (payload, ctx) -> {
-            if (payload.open()) ctx.client().setScreen(new ExtractionScreen(payload));
-            else ExtractionScreen.update(payload);
+        ClientPlayNetworking.registerGlobalReceiver(Net.LobbyView.ID, (payload, ctx) -> LobbyScreen.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.Autopilot.ID, (payload, ctx) -> Autopilot.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.BenchView.ID, (payload, ctx) -> {
+            if (payload.open()) ctx.client().setScreen(new WorkbenchScreen(payload));
+            else WorkbenchScreen.update(payload);
         });
+        ClientTickEvents.END_CLIENT_TICK.register(LobbyScreen::tick);
         ClientPlayNetworking.registerGlobalReceiver(Net.StashInfo.ID, (payload, ctx) -> StashPager.on(payload));
         StashPager.register();
         ClientTickEvents.END_CLIENT_TICK.register(DuelRing::tick);

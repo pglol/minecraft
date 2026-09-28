@@ -1816,29 +1816,70 @@ public final class Net {
     }
 
     /** Client -> server: open, or choose a mode by id. */
-    /** A zone on the Extraction deployment board. */
-    public record ExtractionZone(String id, String name, int min, int max, int titans) { }
+    /** An island on the lobby's map picker. */
+    public record LobbyIsland(String id, String name, int min, int max, int color) { }
 
-    /** The deployment board: zones, the squad in the hall, Salvage and the stash (next row's cost, -1 at the cap). */
-    public record ExtractionView(java.util.List<ExtractionZone> zones, java.util.List<String> squad, boolean leader, long salvage,
-                                 int stashUsed, int stashCap, long rowCost, boolean open) implements CustomPayload {
-        public static final Id<ExtractionView> ID = id("extraction_view");
-        public static final PacketCodec<RegistryByteBuf, ExtractionView> CODEC = PacketCodec.of((v, b) -> {
-            b.writeVarInt(v.zones.size());
-            for (ExtractionZone z : v.zones) {
-                b.writeString(z.id()); b.writeString(z.name()); b.writeVarInt(z.min()); b.writeVarInt(z.max()); b.writeVarInt(z.titans());
+    /** A seat in the squad panel. */
+    public record LobbyMember(String name, int level, boolean ready, boolean you, boolean leader) { }
+
+    /**
+     * The Extraction lobby: the islands, the one picked, squad fill, the squad and who's ready, the
+     * countdown (ms left, -1 for none), Salvage and the stash (next row's cost, -1 at the cap).
+     */
+    public record LobbyView(java.util.List<LobbyIsland> islands, String island, boolean fill, boolean leader,
+                            java.util.List<LobbyMember> squad, long countdown, long salvage, int stashUsed, int stashCap, long rowCost) implements CustomPayload {
+        public static final Id<LobbyView> ID = id("lobby_view");
+        public static final PacketCodec<RegistryByteBuf, LobbyView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.islands.size());
+            for (LobbyIsland i : v.islands) {
+                b.writeString(i.id()); b.writeString(i.name()); b.writeVarInt(i.min()); b.writeVarInt(i.max()); b.writeInt(i.color());
             }
+            b.writeString(v.island); b.writeBoolean(v.fill); b.writeBoolean(v.leader);
             b.writeVarInt(v.squad.size());
-            for (String s : v.squad) b.writeString(s);
-            b.writeBoolean(v.leader); b.writeVarLong(v.salvage); b.writeVarInt(v.stashUsed); b.writeVarInt(v.stashCap); b.writeLong(v.rowCost); b.writeBoolean(v.open);
+            for (LobbyMember m : v.squad) {
+                b.writeString(m.name()); b.writeVarInt(m.level()); b.writeBoolean(m.ready()); b.writeBoolean(m.you()); b.writeBoolean(m.leader());
+            }
+            b.writeLong(v.countdown); b.writeVarLong(v.salvage); b.writeVarInt(v.stashUsed); b.writeVarInt(v.stashCap); b.writeLong(v.rowCost);
         }, b -> {
-            int n = Math.min(b.readVarInt(), 256);
-            java.util.List<ExtractionZone> z = new java.util.ArrayList<>();
-            for (int i = 0; i < n; i++) z.add(new ExtractionZone(b.readString(), b.readString(), b.readVarInt(), b.readVarInt(), b.readVarInt()));
-            int m = Math.min(b.readVarInt(), 16);
-            java.util.List<String> sq = new java.util.ArrayList<>();
-            for (int i = 0; i < m; i++) sq.add(b.readString());
-            return new ExtractionView(z, sq, b.readBoolean(), b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readLong(), b.readBoolean());
+            int n = Math.min(b.readVarInt(), 16);
+            java.util.List<LobbyIsland> is = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) is.add(new LobbyIsland(b.readString(), b.readString(), b.readVarInt(), b.readVarInt(), b.readInt()));
+            String island = b.readString();
+            boolean fill = b.readBoolean(), leader = b.readBoolean();
+            int m = Math.min(b.readVarInt(), 8);
+            java.util.List<LobbyMember> sq = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) sq.add(new LobbyMember(b.readString(), b.readVarInt(), b.readBoolean(), b.readBoolean(), b.readBoolean()));
+            return new LobbyView(is, island, fill, leader, sq, b.readLong(), b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readLong());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: walk the player to a spot on their own (after a delay), controls held meanwhile. */
+    public record Autopilot(double x, double y, double z, int delayMs) implements CustomPayload {
+        public static final Id<Autopilot> ID = id("autopilot");
+        public static final PacketCodec<RegistryByteBuf, Autopilot> CODEC = PacketCodec.of((v, b) -> {
+            b.writeDouble(v.x); b.writeDouble(v.y); b.writeDouble(v.z); b.writeVarInt(v.delayMs);
+        }, b -> new Autopilot(b.readDouble(), b.readDouble(), b.readDouble(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** A workbench recipe: what it makes, its price in Marks and Salvage, and whether you can afford it. */
+    public record BenchRecipe(String id, String title, String icon, int count, long marks, long salvage, boolean ok) { }
+
+    public record BenchView(java.util.List<BenchRecipe> recipes, long marks, long salvage, boolean open) implements CustomPayload {
+        public static final Id<BenchView> ID = id("bench_view");
+        public static final PacketCodec<RegistryByteBuf, BenchView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.recipes.size());
+            for (BenchRecipe r : v.recipes) {
+                b.writeString(r.id()); b.writeString(r.title()); b.writeString(r.icon()); b.writeVarInt(r.count());
+                b.writeVarLong(r.marks()); b.writeVarLong(r.salvage()); b.writeBoolean(r.ok());
+            }
+            b.writeVarLong(v.marks); b.writeVarLong(v.salvage); b.writeBoolean(v.open);
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<BenchRecipe> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new BenchRecipe(b.readString(), b.readString(), b.readString(), b.readVarInt(), b.readVarLong(), b.readVarLong(), b.readBoolean()));
+            return new BenchView(l, b.readVarLong(), b.readVarLong(), b.readBoolean());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
@@ -1895,7 +1936,9 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(HomeView.ID, HomeView.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeAdminView.ID, HomeAdminView.CODEC);
         PayloadTypeRegistry.playC2S().register(HomeAction.ID, HomeAction.CODEC);
-        PayloadTypeRegistry.playS2C().register(ExtractionView.ID, ExtractionView.CODEC);
+        PayloadTypeRegistry.playS2C().register(LobbyView.ID, LobbyView.CODEC);
+        PayloadTypeRegistry.playS2C().register(Autopilot.ID, Autopilot.CODEC);
+        PayloadTypeRegistry.playS2C().register(BenchView.ID, BenchView.CODEC);
         PayloadTypeRegistry.playC2S().register(ExtractionAction.ID, ExtractionAction.CODEC);
         PayloadTypeRegistry.playS2C().register(StashInfo.ID, StashInfo.CODEC);
         PayloadTypeRegistry.playS2C().register(MarketView.ID, MarketView.CODEC);
