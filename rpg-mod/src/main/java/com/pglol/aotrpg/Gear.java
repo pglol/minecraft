@@ -413,7 +413,7 @@ public final class Gear {
             lore.add(Text.literal("\u2726 " + fi.title).formatted(fi.format, Formatting.BOLD).styled(st -> st.withItalic(false)));
             lore.add(Text.literal("  " + fi.effect).formatted(fi.format).styled(st -> st.withItalic(false)));
         }
-        if (weapon && rarity.ordinal() >= Rarity.EPIC.ordinal()) s.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+
         if (g.getBoolean("stolen")) {
             lore.add(Text.literal("\u2716 Stolen").formatted(Formatting.DARK_RED, Formatting.BOLD).styled(st -> st.withItalic(false)));
             lore.add(Text.literal("  Worn or carried openly, someone may report you").formatted(Formatting.RED).styled(st -> st.withItalic(false)));
@@ -431,8 +431,8 @@ public final class Gear {
             case RARE -> net.minecraft.util.Rarity.RARE;
             case EPIC, LEGENDARY, MYTHIC -> net.minecraft.util.Rarity.EPIC;
         });
-        // Rare and up shimmer in the inventory; dropped ones glow in their colour.
-        if (rarity.ordinal() >= 2) s.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+        // No enchanted shimmer on gear (rarity has its colours, elements their own look).
+        s.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, false);
         // Keep the name colour in step with the rarity.
         Text name = s.get(DataComponentTypes.CUSTOM_NAME);
         if (name != null) {
@@ -581,6 +581,7 @@ public final class Gear {
     /** Gear whose tooltip predates the current wording (e.g. "Blades wear 50% slower"). */
     private static boolean staleLore(ItemStack s) {
         if (!isGear(s)) return false;
+        if (Boolean.TRUE.equals(s.get(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE))) return true;
         var lore = s.get(DataComponentTypes.LORE);
         if (lore == null) return false;
         for (Text l : lore.lines()) {

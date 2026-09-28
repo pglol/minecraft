@@ -46,7 +46,7 @@ import java.util.UUID;
 
 /**
  * The combat loadout: every hotbar slot has a purpose.
- *   1 Melee   2 Ranged   3 Gas   4 Tool   | 5 Heal |   6 Mount   7 Signal   8 Free   9 Free
+ *   1 Melee   2 Ranged   3 Gas   4 Mount   | 5 Heal |   6 Tool   7 Signal   8 Free   9 Free
  * Items only go where they belong (nothing is equipped for you). ODM grips are a pair: the sheath
  * key puts both on your back, and draws them again into slot 1 and the off hand (the off-hand item
  * is kept aside and comes back when they are sheathed).
@@ -70,8 +70,8 @@ public final class Loadout {
         }
     }
 
-    public static final Kind[] SLOTS = {Kind.MELEE, Kind.RANGED, Kind.GAS, Kind.TOOL, Kind.HEAL,
-        Kind.MOUNT, Kind.SIGNAL, Kind.FREE, Kind.FREE};
+    public static final Kind[] SLOTS = {Kind.MELEE, Kind.RANGED, Kind.GAS, Kind.MOUNT, Kind.HEAL,
+        Kind.TOOL, Kind.SIGNAL, Kind.FREE, Kind.FREE};
     public static final int HEAL_SLOT = 4;
 
     private static final String NS = "dannys-aot";
@@ -193,6 +193,17 @@ public final class Loadout {
                 changed = true;
                 continue;
             }
+            // Two in each other's places (the slots were swapped round): trade them.
+            for (int j = 0; j < 9 && home < 0; j++) {
+                ItemStack o = inv.main.get(j);
+                if (j != i && SLOTS[j] != Kind.FREE && !o.isEmpty() && fits(SLOTS[j], s) && !allows(j, o) && fits(SLOTS[i], o)) {
+                    inv.main.set(j, s);
+                    inv.main.set(i, o);
+                    changed = true;
+                    home = j;
+                }
+            }
+            if (home >= 0) continue;
             int to = freeBackpack(inv, s);
             if (to < 0) continue;
             if (inv.main.get(to).isEmpty()) inv.main.set(to, s);
