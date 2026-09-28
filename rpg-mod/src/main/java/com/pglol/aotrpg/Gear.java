@@ -294,13 +294,26 @@ public final class Gear {
     }
 
     private static ItemStack finish(Random r, ItemStack s, Rarity rarity, int ilvl) {
+        return finish(r, s, rarity, ilvl, null);
+    }
+
+    /**
+     * The catalog: exactly this item at this rarity and level. Infusion null rolls as usual, "" is
+     * none, otherwise that element (weapons only).
+     */
+    public static ItemStack make(Random r, Item base, Rarity rarity, int ilvl, String infusion) {
+        return finish(r, new ItemStack(base), rarity, Math.max(1, ilvl), infusion);
+    }
+
+    private static ItemStack finish(Random r, ItemStack s, Rarity rarity, int ilvl, String infusion) {
         NbtCompound g = new NbtCompound();
         g.putString("rarity", rarity.name());
         g.putInt("ilvl", ilvl);
         g.putInt("up", 0);
         g.putLong("seed", r.nextLong());
         rollPerk(r, s, rarity, g);
-        Infusions.roll(r, s, rarity, g);
+        if (infusion == null) Infusions.roll(r, s, rarity, g);
+        else if (!infusion.isEmpty() && wornSlot(s) == null) g.putString("infusion", infusion);
         NbtCompound tag = new NbtCompound();
         tag.put("aot_gear", g);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
@@ -373,10 +386,12 @@ public final class Gear {
         }
         if (Loadout.isGrip(s) && !AotItems.isApgGun(s)) {
             double t = BladeCare.temper(s);
-            if (g.getBoolean("tempered")) {
-                lore.add(Text.literal("✦ Tempered Steel").formatted(Formatting.AQUA, Formatting.BOLD).styled(st -> st.withItalic(false)));
+            // The edge is graded by how much wear it shrugs off, not "X% slower".
+            if (t > 0) {
+                String grade = t >= 0.85 ? "Unbreaking" : t >= 0.75 ? "Flawless" : t >= 0.65 ? "Masterwork" : t >= 0.5 ? "Hardened" : t >= 0.35 ? "Keen" : "Honed";
+                lore.add(Text.literal("✦ " + grade + " Edge" + (g.getBoolean("tempered") ? " · Tempered Steel" : "")).formatted(Formatting.AQUA, Formatting.BOLD).styled(st -> st.withItalic(false)));
+                lore.add(Text.literal("  Shrugs off " + Math.round(t * 100) + "% of blade wear").formatted(Formatting.AQUA).styled(st -> st.withItalic(false)));
             }
-            if (t > 0) lore.add(Text.literal("  Blades wear " + Math.round(t * 100) + "% slower").formatted(Formatting.AQUA).styled(st -> st.withItalic(false)));
         }
         if (g.getDouble("secondwind") > 0) {
             lore.add(Text.literal("✦ Second Wind").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD).styled(st -> st.withItalic(false)));
@@ -462,7 +477,7 @@ public final class Gear {
         // part or a key that was handed out as gear becomes a real piece of clothing of the same rarity and level.
         for (int a : AotRpg.SATCHEL.addresses(p)) {
             ItemStack s = AotRpg.SATCHEL.at(p, a);
-            if (missingFall(s)) apply(s);
+            if (missingFall(s) || staleLore(s)) apply(s);
             if (isGear(s) && (bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath()) || trinket(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath()))) {
                 Rarity rar;
                 try {
@@ -554,6 +569,15 @@ public final class Gear {
         if (s.isEmpty()) return;
         p.sendMessage(Text.literal("Loot: ").formatted(Formatting.GRAY).append(s.getName().copy()), false);
         if (r.ordinal() >= 3) p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.6f, 1.4f);
+    }
+
+    /** Gear whose tooltip predates the current wording (e.g. "Blades wear 50% slower"). */
+    private static boolean staleLore(ItemStack s) {
+        if (!isGear(s)) return false;
+        var lore = s.get(DataComponentTypes.LORE);
+        if (lore == null) return false;
+        for (Text l : lore.lines()) if (l.getString().contains("Blades wear")) return true;
+        return false;
     }
 
     /** Boots that don't break a fall yet (rolled before boots all did). */

@@ -33,6 +33,8 @@ public final class StoreScreen extends Screen {
     public static void onOpened(Net.CrateOpened o) {
         List<String> loot = List.of();
         if (view != null) for (Net.StoreCrate c : view.crates()) if (c.id().equals(o.crateId())) loot = c.loot();
+        // A gifted crate opened from the inbox.
+        if (loot.isEmpty()) loot = InboxScreen.loot(o.crateId());
         CrateOpening.start(o, loot);
     }
 

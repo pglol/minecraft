@@ -65,7 +65,11 @@ public class AotPauseScreen extends Screen {
                 client.setScreen(new MarketScreen(true));
                 ClientPlayNetworking.send(new Net.MarketAction("exchange", "", 0, 0));
             }),
-            new Tile("Store", "minecraft:diamond", true, () -> client.setScreen(new StoreScreen(this)))});
+            new Tile("Store", "minecraft:diamond", true, () -> client.setScreen(new StoreScreen(this))),
+            new Tile(InboxScreen.waiting() > 0 ? "Inbox (" + InboxScreen.waiting() + ")" : "Inbox", "minecraft:chest", hasChar, () -> {
+                client.setScreen(new InboxScreen(this));
+                ClientPlayNetworking.send(new Net.InboxAction("open", ""));
+            })});
         locking = false;
         y = section(y, bh, "Home", new Tile[] {
             new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))),

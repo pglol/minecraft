@@ -82,6 +82,7 @@ public final class AotRpg implements ModInitializer {
     public static final Townsfolk FOLK = new Townsfolk();
     public static final CaveCarver CAVES = new CaveCarver();
     public static final Store STORE = new Store();
+    public static final Inbox INBOX = new Inbox();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -230,6 +231,8 @@ public final class AotRpg implements ModInitializer {
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.OdmJump.ID, (payload, ctx) -> ODM.boost(ctx.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(Net.CatalogGive.ID, (payload, ctx) -> Catalog.give(ctx.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(Net.InboxAction.ID, (payload, ctx) -> INBOX.action(ctx.player(), payload.action(), payload.id()));
         ServerPlayNetworking.registerGlobalReceiver(Net.StoreAction.ID, (payload, ctx) -> {
             if (payload.action().equals("open")) STORE.send(ctx.player(), true);
             else STORE.action(ctx.player(), payload.action(), payload.id());
@@ -523,6 +526,7 @@ public final class AotRpg implements ModInitializer {
             FACTIONS.open(server);
             WAR.open(server);
             DUELS.open(server);
+            INBOX.open(server);
             STATS.open(server);
             REGIMENTS.open(server);
             RAID_BOSSES.open(server);
@@ -554,6 +558,7 @@ public final class AotRpg implements ModInitializer {
             COSMETICS.sendAll(p);
             COSMETICS.broadcast(p);
             LOADOUT.sendAll(p);
+            SCHEDULER.later(100, () -> { if (!p.isDisconnected()) INBOX.joined(p); });
             HomeAdmin.joined(p);
             SCHEDULER.later(60, () -> {
                 if (!p.isDisconnected()) HomeAdmin.notify(p);
@@ -595,6 +600,7 @@ public final class AotRpg implements ModInitializer {
             DOWNED.forget(p);
             BLADES.forget(p.getUuid());
             LOADOUT.forget(p);
+            INBOX.forget(p.getUuid());
             WAVES.forget(p);
             RAID_BOSSES.forget(p);
             ESTATE.forget(p);

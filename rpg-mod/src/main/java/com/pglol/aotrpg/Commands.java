@@ -575,6 +575,14 @@ final class Commands {
                     Store.aotIcon(r >= 4 ? "@apg_gun" : "@blade"), r);
                 return 1;
             }))));
+        d.register(CommandManager.literal("catalog").requires(s -> s.hasPermissionLevel(2)).executes(c -> {
+            Catalog.open(c.getSource().getPlayerOrThrow());
+            return 1;
+        }));
+        d.register(CommandManager.literal("inbox").executes(c -> {
+            AotRpg.INBOX.send(c.getSource().getPlayerOrThrow(), true);
+            return 1;
+        }));
         d.register(CommandManager.literal("duel")
             .then(CommandManager.literal("accept").executes(c -> {
                 AotRpg.DUELS.accept(c.getSource().getPlayerOrThrow());

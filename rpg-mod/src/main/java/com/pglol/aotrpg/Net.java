@@ -1988,6 +1988,68 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    static void strs(RegistryByteBuf b, java.util.List<String> l) {
+        b.writeVarInt(l.size());
+        for (String x : l) b.writeString(x);
+    }
+
+    static java.util.List<String> strs(RegistryByteBuf b) {
+        int n = Math.min(b.readVarInt(), 4096);
+        java.util.List<String> l = new java.util.ArrayList<>(n);
+        for (int i = 0; i < n; i++) l.add(b.readString());
+        return l;
+    }
+
+    /**
+     * Server -> client (operators): the item catalog. Entries are "id" for items; crates "id|title";
+     * titles "id|text|color|rarity"; cosmetics "id|name"; players "uuid|name|near" (near 1/0).
+     */
+    public record CatalogView(java.util.List<String> weapons, java.util.List<String> armor, java.util.List<String> items,
+                              java.util.List<String> crates, java.util.List<String> titles, java.util.List<String> cosmetics,
+                              java.util.List<String> players) implements CustomPayload {
+        public static final Id<CatalogView> ID = Net.id("catalog_view");
+        public static final PacketCodec<RegistryByteBuf, CatalogView> CODEC = PacketCodec.of((v, b) -> {
+            strs(b, v.weapons); strs(b, v.armor); strs(b, v.items); strs(b, v.crates); strs(b, v.titles); strs(b, v.cosmetics); strs(b, v.players);
+        }, b -> new CatalogView(strs(b), strs(b), strs(b), strs(b), strs(b), strs(b), strs(b)));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /**
+     * Client -> server (operators): give from the catalog. kind weapon/armor/item/crate/title/cosmetic/marks/gold;
+     * infusion "" none, "random", or an element; inbox sends it as a gift (with tag) instead of straight in;
+     * rigged makes a crate a jackpot.
+     */
+    public record CatalogGive(String kind, String id, int rarity, String infusion, int level, int amount, String target,
+                              boolean inbox, boolean rigged, String tag) implements CustomPayload {
+        public static final Id<CatalogGive> ID = Net.id("catalog_give");
+        public static final PacketCodec<RegistryByteBuf, CatalogGive> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.kind); b.writeString(v.id); b.writeVarInt(v.rarity); b.writeString(v.infusion); b.writeVarInt(v.level);
+            b.writeVarInt(v.amount); b.writeString(v.target); b.writeBoolean(v.inbox); b.writeBoolean(v.rigged); b.writeString(v.tag);
+        }, b -> new CatalogGive(b.readString(), b.readString(), b.readVarInt(), b.readString(), b.readVarInt(), b.readVarInt(),
+            b.readString(), b.readBoolean(), b.readBoolean(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /**
+     * Server -> client: your inbox. Each gift "id|kind|title|icon|color|from|tag|rigged", and for crates
+     * their loot table lines (rarity|permille|icon|label) keyed "crateId" in loot as "crateId\u0001line".
+     */
+    public record InboxView(java.util.List<String> gifts, java.util.List<String> loot, boolean open) implements CustomPayload {
+        public static final Id<InboxView> ID = Net.id("inbox_view");
+        public static final PacketCodec<RegistryByteBuf, InboxView> CODEC = PacketCodec.of((v, b) -> {
+            strs(b, v.gifts); strs(b, v.loot); b.writeBoolean(v.open);
+        }, b -> new InboxView(strs(b), strs(b), b.readBoolean()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: open, claim (id), claim_all. */
+    public record InboxAction(String action, String id) implements CustomPayload {
+        public static final Id<InboxAction> ID = Net.id("inbox_action");
+        public static final PacketCodec<RegistryByteBuf, InboxAction> CODEC = PacketCodec.of((v, b) -> { b.writeString(v.action); b.writeString(v.id); },
+            b -> new InboxAction(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2046,6 +2108,10 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(DoorView.ID, DoorView.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeKey.ID, HomeKey.CODEC);
         PayloadTypeRegistry.playC2S().register(StoreAction.ID, StoreAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(CatalogView.ID, CatalogView.CODEC);
+        PayloadTypeRegistry.playC2S().register(CatalogGive.ID, CatalogGive.CODEC);
+        PayloadTypeRegistry.playS2C().register(InboxView.ID, InboxView.CODEC);
+        PayloadTypeRegistry.playC2S().register(InboxAction.ID, InboxAction.CODEC);
         PayloadTypeRegistry.playC2S().register(FishResult.ID, FishResult.CODEC);
         PayloadTypeRegistry.playS2C().register(FishBite.ID, FishBite.CODEC);
         PayloadTypeRegistry.playC2S().register(ToggleSheath.ID, ToggleSheath.CODEC);

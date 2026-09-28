@@ -57,6 +57,7 @@ public final class Store {
 
     private static final long[] TITLE_PRICE = {60, 120, 250, 450, 800, 2000};
     public static final String[] RARITY_NAMES = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"};
+    public static final int[] RARITY_COLORS = {0xEDE3C8, 0x5BD35B, 0x4A90FF, 0xB04AFF, 0xFFB020, 0xFF3A3A};
     private static final long COSMETIC_PRICE = 220;
 
     public static Title title(String id) {
@@ -161,9 +162,25 @@ public final class Store {
     }
 
     /** What a crate gives: a reward spec (see Rewards), rolled on the player's own luck. */
-    private String roll(ServerPlayerEntity p, String crate) {
+    private String roll(ServerPlayerEntity p, String crate, boolean rigged) {
         Random r = new Random(p.getRandom().nextLong());
         List<Loot> table = TABLES.getOrDefault(crate, TABLES.get("supply"));
+        if (rigged) {
+            // A jackpot crate: only the Legendary and Mythic lines, Mythic as likely as not.
+            List<Loot> top = new ArrayList<>();
+            for (Loot l : table) if (l.rarity() >= 4) top.add(new Loot(l.rarity() >= 5 ? 500 : 300, l.what(), l.rarity(), l.label(), l.icon()));
+            if (top.isEmpty()) top = List.of(gear(600, 4), gear(400, 5));
+            int sum = 0;
+            for (Loot l : top) sum += l.permille();
+            int y = r.nextInt(sum);
+            for (Loot l : top) {
+                if (y < l.permille()) {
+                    table = List.of(new Loot(1000, l.what(), l.rarity(), l.label(), l.icon()));
+                    break;
+                }
+                y -= l.permille();
+            }
+        }
         int x = r.nextInt(1000);
         Loot pick = table.get(0);
         for (Loot l : table) {
@@ -250,39 +267,7 @@ public final class Store {
                         Text.literal(c.title() + " costs " + price + (gold ? " Gold" : " Marks")), 0xC0463A);
                     return;
                 }
-                String got = roll(p, c.id());
-                // Already have everything of that kind: it comes as money instead.
-                if (got.endsWith(":")) got = gold ? "gold:" + price / 3 : "marks:" + price / 2;
-                String desc = Rewards.describe(got), icon = Rewards.icon(got);
-                List<String> lines = new ArrayList<>();
-                net.minecraft.item.ItemStack prize = null;
-                if (got.startsWith("gear:")) {
-                    // Gear is rolled here, so the reveal can show exactly what came out: name, stats, perks.
-                    Gear.Rarity rar;
-                    try {
-                        rar = Gear.Rarity.valueOf(got.substring(5).toUpperCase(java.util.Locale.ROOT));
-                    } catch (Exception e) {
-                        rar = Gear.Rarity.RARE;
-                    }
-                    net.minecraft.item.ItemStack s = Gear.roll(p.getRandom(), rar, Gear.dropLevel(p, AotRpg.PROFILES.get(p.getUuid()).level, 1));
-                    desc = s.getName().getString();
-                    icon = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString();
-                    var lore = s.get(net.minecraft.component.DataComponentTypes.LORE);
-                    if (lore != null) for (Text l : lore.lines()) if (!l.getString().isBlank() && lines.size() < 9) lines.add(l.getString());
-                    prize = s.copy();
-                    // Straight into your hands (or at your feet if they're full).
-                    p.getInventory().offerOrDrop(s);
-                } else {
-                    grant(p, got);
-                }
-                // Everyone around sees it open (and the whole server hears of a Legendary or Mythic).
-                CrateShow.play(p, c.title(), desc, icon, prize, rarityOf(got));
-                if (ServerPlayNetworking.canSend(p, Net.CrateOpened.ID)) {
-                    ServerPlayNetworking.send(p, new Net.CrateOpened(c.id(), c.title(), desc, icon, rarityOf(got), lines));
-                } else {
-                    Notify.toast(p, Text.literal(c.title() + ": " + Rewards.describe(got)).formatted(Formatting.GOLD),
-                        Text.literal("Opened for " + price + (gold ? " Gold" : " Marks")), 0xE0B96A, Rewards.icon(got), "crate");
-                }
+                openCrate(p, c, false, "Opened for " + price + (gold ? " Gold" : " Marks"), gold ? "gold:" + price / 3 : "marks:" + price / 2);
             }
             default -> { }
         }
@@ -290,8 +275,54 @@ public final class Store {
         send(p, false);
     }
 
+    /**
+     * Opens a crate for this player: rolls it (rigged: only its Legendary and Mythic lines), hands
+     * the prize over and plays the reveal. note is the reveal's small print, refund what they get
+     * if the roll finds nothing left for them.
+     */
+    public void openCrate(ServerPlayerEntity p, Crate c, boolean rigged, String note, String refund) {
+        String got = roll(p, c.id(), rigged);
+        // Already have everything of that kind: it comes as money instead.
+        if (got.endsWith(":")) got = refund;
+        String desc = Rewards.describe(got), icon = Rewards.icon(got);
+        List<String> lines = new ArrayList<>();
+        net.minecraft.item.ItemStack prize = null;
+        if (got.startsWith("gear:")) {
+            // Gear is rolled here, so the reveal can show exactly what came out: name, stats, perks.
+            Gear.Rarity rar;
+            try {
+                rar = Gear.Rarity.valueOf(got.substring(5).toUpperCase(java.util.Locale.ROOT));
+            } catch (Exception e) {
+                rar = Gear.Rarity.RARE;
+            }
+            net.minecraft.item.ItemStack s = Gear.roll(p.getRandom(), rar, Gear.dropLevel(p, AotRpg.PROFILES.get(p.getUuid()).level, 1));
+            desc = s.getName().getString();
+            icon = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString();
+            var lore = s.get(net.minecraft.component.DataComponentTypes.LORE);
+            if (lore != null) for (Text l : lore.lines()) if (!l.getString().isBlank() && lines.size() < 9) lines.add(l.getString());
+            prize = s.copy();
+            // Straight into your hands (or at your feet if they're full).
+            p.getInventory().offerOrDrop(s);
+        } else {
+            grant(p, got);
+        }
+        // Everyone around sees it open (and the whole server hears of a Legendary or Mythic).
+        CrateShow.play(p, c.title(), desc, icon, prize, rarityOf(got));
+        if (ServerPlayNetworking.canSend(p, Net.CrateOpened.ID)) {
+            ServerPlayNetworking.send(p, new Net.CrateOpened(c.id(), c.title(), desc, icon, rarityOf(got), lines));
+        } else {
+            Notify.toast(p, Text.literal(c.title() + ": " + Rewards.describe(got)).formatted(Formatting.GOLD),
+                Text.literal(note), 0xE0B96A, Rewards.icon(got), "crate");
+        }
+    }
+
+    public static Crate crate(String id) {
+        for (Crate k : CRATES) if (k.id().equals(id)) return k;
+        return null;
+    }
+
     /** "@path" -> Danny's item of that name (the item id), anything else as it is. */
-    static String aotIcon(String icon) {
+    public static String aotIcon(String icon) {
         if (!icon.startsWith("@")) return icon;
         var it = AotItems.exact(icon.substring(1));
         if (it == null) it = AotItems.exact("blade");
@@ -299,7 +330,7 @@ public final class Store {
     }
 
     /** How rare a roll was, 0 (common) to 4 (legendary), for the opening's colour and fanfare. */
-    static int rarityOf(String spec) {
+    public static int rarityOf(String spec) {
         String[] a = spec.split(":", 2);
         String v = a.length > 1 ? a[1] : "";
         return switch (a[0]) {
