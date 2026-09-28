@@ -255,6 +255,7 @@ public final class Store {
                 if (got.endsWith(":")) got = gold ? "gold:" + price / 3 : "marks:" + price / 2;
                 String desc = Rewards.describe(got), icon = Rewards.icon(got);
                 List<String> lines = new ArrayList<>();
+                net.minecraft.item.ItemStack prize = null;
                 if (got.startsWith("gear:")) {
                     // Gear is rolled here, so the reveal can show exactly what came out: name, stats, perks.
                     Gear.Rarity rar;
@@ -268,11 +269,14 @@ public final class Store {
                     icon = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString();
                     var lore = s.get(net.minecraft.component.DataComponentTypes.LORE);
                     if (lore != null) for (Text l : lore.lines()) if (!l.getString().isBlank() && lines.size() < 9) lines.add(l.getString());
+                    prize = s.copy();
                     // Straight into your hands (or at your feet if they're full).
                     p.getInventory().offerOrDrop(s);
                 } else {
                     grant(p, got);
                 }
+                // Everyone around sees it open (and the whole server hears of a Legendary or Mythic).
+                CrateShow.play(p, c.title(), desc, icon, prize, rarityOf(got));
                 if (ServerPlayNetworking.canSend(p, Net.CrateOpened.ID)) {
                     ServerPlayNetworking.send(p, new Net.CrateOpened(c.id(), c.title(), desc, icon, rarityOf(got), lines));
                 } else {

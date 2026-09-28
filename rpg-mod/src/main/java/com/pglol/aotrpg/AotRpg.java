@@ -644,6 +644,7 @@ public final class AotRpg implements ModInitializer {
             else if (!world.isClient && ESTATE.stray(entity)) entity.discard();
             else if (!world.isClient && STORY.stray(entity)) entity.discard();
             else if (!world.isClient && Extraction.stray(entity)) entity.discard();
+            else if (!world.isClient && CrateShow.stray(entity)) entity.discard();
         });
 
         ServerTickEvents.END_SERVER_TICK.register(this::tick);
