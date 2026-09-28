@@ -24,6 +24,8 @@ public final class InfusionFx {
     private InfusionFx() {}
 
     private static final Random R = Random.create();
+    /** The world's field of view as last drawn (see GameRendererFovMixin); 0 until known. */
+    public static volatile double worldFov;
 
     public static void tick(MinecraftClient mc) {
         RarityTint.reset();
@@ -51,7 +53,7 @@ public final class InfusionFx {
             // Mostly out along the steel, not the grip.
             double f = 0.2 + 0.8 * Math.sqrt(R.nextDouble());
             Vec3d at = line[0].lerp(line[1], f);
-            double j = own ? 0.015 : 0.03;
+            double j = own ? 0.01 : 0.02;
             spawn(mc, inf, mythic, at.add(R.nextGaussian() * j, R.nextGaussian() * j, R.nextGaussian() * j));
         }
     }
@@ -64,7 +66,10 @@ public final class InfusionFx {
         Vec3d fwd = Vec3d.fromPolar(cam.getPitch(), cam.getYaw());
         Vec3d rgt = new Vec3d(-MathHelper.cos(yaw), 0, -MathHelper.sin(yaw));
         Vec3d up = rgt.crossProduct(fwd).normalize();
-        double fov = Math.toRadians(mc.options.getFov().getValue());
+        // Hands are drawn with their own fixed 70 degrees; the world (and these particles) with the
+        // setting plus running and speed widening it. Screen spots below are where the blades show
+        // on screen, so place them with the world's field of view as it is right now.
+        double fov = Math.toRadians(worldFov > 1 ? worldFov : mc.options.getFov().getValue());
         double hh = Math.tan(fov / 2), hw = hh * mc.getWindow().getFramebufferWidth() / Math.max(1.0, mc.getWindow().getFramebufferHeight());
         double side = right ? 1 : -1, z = 1.0;
         // Screen spots (x -1..1, y -1..1): the grip low in the corner, the blade running up to the top edge.
@@ -79,8 +84,9 @@ public final class InfusionFx {
         Vec3d fwd = new Vec3d(-MathHelper.sin(by), 0, MathHelper.cos(by));
         Vec3d rgt = new Vec3d(-MathHelper.cos(by), 0, -MathHelper.sin(by));
         double side = right ? 1 : -1;
-        Vec3d hand = p.getPos().add(0, p.isInSneakingPose() ? 0.55 : 0.72, 0).add(rgt.multiply(side * 0.36)).add(fwd.multiply(0.12));
-        Vec3d dir = fwd.multiply(0.75).add(0, 0.5, 0).add(rgt.multiply(side * 0.3)).normalize();
+        // The hand hangs at the side; the blade runs forward and up from it, not out sideways.
+        Vec3d hand = p.getPos().add(0, p.isInSneakingPose() ? 0.55 : 0.7, 0).add(rgt.multiply(side * 0.3)).add(fwd.multiply(0.15));
+        Vec3d dir = fwd.multiply(0.6).add(0, 0.8, 0).add(rgt.multiply(side * -0.05)).normalize();
         return new Vec3d[] {hand, hand.add(dir.multiply(1.25))};
     }
 
