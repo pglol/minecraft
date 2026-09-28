@@ -48,7 +48,7 @@ public final class InfusionFx {
         int every = mythic ? 1 : legendary ? 2 : 3;
         if (t % every != 0) return;
         Vec3d[] line = own ? firstPerson(mc, right) : held(p, right);
-        int n = mythic ? 3 : 2;
+        int n = mythic ? 2 : 1;
         for (int i = 0; i < n; i++) {
             // Mostly out along the steel, not the grip.
             double f = 0.2 + 0.8 * Math.sqrt(R.nextDouble());
@@ -86,7 +86,7 @@ public final class InfusionFx {
         double side = right ? 1 : -1;
         // The hand hangs at the side; the blade runs forward and up from it, not out sideways.
         Vec3d hand = p.getPos().add(0, p.isInSneakingPose() ? 0.55 : 0.7, 0).add(rgt.multiply(side * 0.3)).add(fwd.multiply(0.15));
-        Vec3d dir = fwd.multiply(0.6).add(0, 0.8, 0).add(rgt.multiply(side * -0.05)).normalize();
+        Vec3d dir = fwd.multiply(0.8).add(0, 0.45, 0).add(rgt.multiply(side * -0.05)).normalize();
         return new Vec3d[] {hand, hand.add(dir.multiply(1.25))};
     }
 
@@ -98,10 +98,12 @@ public final class InfusionFx {
             case VOID -> R.nextInt(3) == 0 ? new DustParticleEffect(new Vector3f(0.05f, 0f, 0.1f), 0.7f) : ParticleTypes.REVERSE_PORTAL;
             case STORM -> ParticleTypes.ELECTRIC_SPARK;
             case VENOM -> new DustParticleEffect(new Vector3f(0.4f, 0.9f, 0.3f), 0.6f);
-            case RADIANT -> ParticleTypes.END_ROD;
+            // Soft gold motes that fade fast; End Rods linger and glow, so only the odd one as a glint.
+            case RADIANT -> R.nextInt(8) == 0 ? ParticleTypes.END_ROD : new DustParticleEffect(new Vector3f(1f, 0.93f, 0.62f), 0.45f);
             case BLOOD -> new DustParticleEffect(new Vector3f(0.65f, 0.02f, 0.05f), 0.7f);
         };
         if (inf == Infusion.BLOOD || inf == Infusion.VENOM) vy = -0.02;
+        if (fx == ParticleTypes.END_ROD) vy = 0;
         mc.world.addParticle(fx, at.x, at.y, at.z, R.nextGaussian() * 0.004, vy, R.nextGaussian() * 0.004);
         if (mythic && inf == Infusion.FROST && R.nextInt(2) == 0) mc.world.addParticle(ParticleTypes.WHITE_ASH, at.x, at.y, at.z, 0, 0, 0);
         if (mythic && inf == Infusion.VOID && R.nextInt(3) == 0) mc.world.addParticle(ParticleTypes.SQUID_INK, at.x, at.y, at.z, 0, 0.005, 0);
