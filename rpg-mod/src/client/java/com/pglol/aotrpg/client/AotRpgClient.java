@@ -310,6 +310,7 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.CrateOpened.ID, (payload, ctx) -> StoreScreen.onOpened(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.CatalogView.ID, (payload, ctx) -> CatalogScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.InboxView.ID, (payload, ctx) -> InboxScreen.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.DuelSetup.ID, (payload, ctx) -> ctx.client().setScreen(new DuelSetupScreen(payload)));
         ClientPlayNetworking.registerGlobalReceiver(Net.StoreView.ID, (payload, ctx) -> {
             StoreScreen.view = payload;
             if (ctx.client().currentScreen instanceof StoreScreen s) s.refresh();

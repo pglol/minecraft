@@ -2050,6 +2050,23 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: pick the rules for a duel against this player. */
+    public record DuelSetup(String target, String name) implements CustomPayload {
+        public static final Id<DuelSetup> ID = Net.id("duel_setup");
+        public static final PacketCodec<RegistryByteBuf, DuelSetup> CODEC = PacketCodec.of((v, b) -> { b.writeString(v.target); b.writeString(v.name); },
+            b -> new DuelSetup(b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: challenge with these rules (ring size index, ODM, abilities, food). */
+    public record DuelChallenge(String target, int ring, boolean odm, boolean abilities, boolean food) implements CustomPayload {
+        public static final Id<DuelChallenge> ID = Net.id("duel_challenge");
+        public static final PacketCodec<RegistryByteBuf, DuelChallenge> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.target); b.writeVarInt(v.ring); b.writeBoolean(v.odm); b.writeBoolean(v.abilities); b.writeBoolean(v.food);
+        }, b -> new DuelChallenge(b.readString(), b.readVarInt(), b.readBoolean(), b.readBoolean(), b.readBoolean()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2109,6 +2126,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(HomeKey.ID, HomeKey.CODEC);
         PayloadTypeRegistry.playC2S().register(StoreAction.ID, StoreAction.CODEC);
         PayloadTypeRegistry.playS2C().register(CatalogView.ID, CatalogView.CODEC);
+        PayloadTypeRegistry.playS2C().register(DuelSetup.ID, DuelSetup.CODEC);
+        PayloadTypeRegistry.playC2S().register(DuelChallenge.ID, DuelChallenge.CODEC);
         PayloadTypeRegistry.playC2S().register(CatalogGive.ID, CatalogGive.CODEC);
         PayloadTypeRegistry.playS2C().register(InboxView.ID, InboxView.CODEC);
         PayloadTypeRegistry.playC2S().register(InboxAction.ID, InboxAction.CODEC);

@@ -299,6 +299,7 @@ public final class Classes {
     public void use(ServerPlayerEntity p, int slot) {
         Profile pr = pr(p);
         if (!pr.created || slot < 0 || slot > 2 || p.isSpectator() || AotRpg.DOWNED.isDowned(p)) return;
+        if (AotRpg.DUELS.blocksAbilities(p)) return;
         PlayerClass c = pr.cls();
         Skill sk = skill(c, slot);
         if (sk == null) return;

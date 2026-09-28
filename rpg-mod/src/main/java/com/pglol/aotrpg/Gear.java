@@ -385,12 +385,15 @@ public final class Gear {
             lore.add(Text.literal(shown + " " + a.label()).formatted(Formatting.BLUE).styled(st -> st.withItalic(false)));
         }
         if (Loadout.isGrip(s) && !AotItems.isApgGun(s)) {
+            // Five grip qualities: stage 1 wears like any grip, each stage above lasts far longer.
+            int st = BladeCare.stage(s);
             double t = BladeCare.temper(s);
-            // The edge is graded by how much wear it shrugs off, not "X% slower".
+            lore.add(Text.literal("\u2726 " + BladeCare.STAGE_NAMES[st - 1] + " Grip  \u00b7  Quality " + st + "/5"
+                + (g.getBoolean("tempered") ? "  \u00b7  Tempered" : "")).formatted(Formatting.AQUA, Formatting.BOLD).styled(x -> x.withItalic(false)));
             if (t > 0) {
-                String grade = t >= 0.85 ? "Unbreaking" : t >= 0.75 ? "Flawless" : t >= 0.65 ? "Masterwork" : t >= 0.5 ? "Hardened" : t >= 0.35 ? "Keen" : "Honed";
-                lore.add(Text.literal("✦ " + grade + " Edge" + (g.getBoolean("tempered") ? " · Tempered Steel" : "")).formatted(Formatting.AQUA, Formatting.BOLD).styled(st -> st.withItalic(false)));
-                lore.add(Text.literal("  Shrugs off " + Math.round(t * 100) + "% of blade wear").formatted(Formatting.AQUA).styled(st -> st.withItalic(false)));
+                double k = Math.round(10 / (1 - t)) / 10.0;
+                String last = k == Math.rint(k) ? String.valueOf((int) k) : String.valueOf(k);
+                lore.add(Text.literal("  Blades last " + last + "x as long").formatted(Formatting.AQUA).styled(x -> x.withItalic(false)));
             }
         }
         if (g.getDouble("secondwind") > 0) {
@@ -576,7 +579,10 @@ public final class Gear {
         if (!isGear(s)) return false;
         var lore = s.get(DataComponentTypes.LORE);
         if (lore == null) return false;
-        for (Text l : lore.lines()) if (l.getString().contains("Blades wear")) return true;
+        for (Text l : lore.lines()) {
+            String x = l.getString();
+            if (x.contains("Blades wear") || x.contains(" Edge") || x.contains("Shrugs off")) return true;
+        }
         return false;
     }
 

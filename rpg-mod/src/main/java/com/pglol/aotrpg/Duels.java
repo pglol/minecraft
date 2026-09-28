@@ -26,18 +26,35 @@ import java.util.UUID;
  */
 public final class Duels {
     private static final long CHALLENGE_MS = 30_000, LIMIT_MS = 180_000;
-    private static final double RANGE = 40, RING = 16;
+    private static final double RANGE = 40;
+    /** Ring sizes: the old ring is the smallest. */
+    public static final int[] RINGS = {16, 28, 44, 64};
+    public static final String[] RING_NAMES = {"Small", "Medium", "Large", "Huge"};
+
+    /** What the challenger set: ring size (index), and whether ODM gear, abilities and food are allowed. */
+    public record Rules(int ring, boolean odm, boolean abilities, boolean food) {
+        static final Rules DEFAULT = new Rules(0, true, true, true);
+
+        String describe() {
+            return RING_NAMES[ring] + " ring · ODM " + (odm ? "on" : "off") + " · Abilities " + (abilities ? "on" : "off") + " · Food " + (food ? "on" : "off");
+        }
+    }
 
     private static final class Duel {
         UUID a, b;
         long startsAt, endsAt;
         boolean fighting;
         Vec3d center;
+        Rules rules = Rules.DEFAULT;
+        double ring() {
+            return RINGS[Math.max(0, Math.min(RINGS.length - 1, rules.ring()))];
+        }
     }
 
     /** Challenges: target -> (challenger, when). */
     private final Map<UUID, UUID> challengedBy = new HashMap<>();
     private final Map<UUID, Long> challengedAt = new HashMap<>();
+    private final Map<UUID, Rules> challengeRules = new HashMap<>();
     private final List<Duel> duels = new ArrayList<>();
     private MinecraftServer server;
 
@@ -58,7 +75,17 @@ public final class Duels {
         return d != null && (d.a.equals(y) || d.b.equals(y));
     }
 
+    /** /duel name: the challenger picks the rules first (on a client without the mod, the defaults). */
     public void challenge(ServerPlayerEntity p, ServerPlayerEntity t) {
+        if (p == t) return;
+        if (ServerPlayNetworking.canSend(p, Net.DuelSetup.ID)) {
+            ServerPlayNetworking.send(p, new Net.DuelSetup(t.getUuidAsString(), AotRpg.PROFILES.get(t.getUuid()).name));
+            return;
+        }
+        challenge(p, t, Rules.DEFAULT);
+    }
+
+    public void challenge(ServerPlayerEntity p, ServerPlayerEntity t, Rules rules) {
         if (p == t) return;
         if (of(p.getUuid()) != null || of(t.getUuid()) != null) {
             Notify.toast(p, Text.literal("Someone's already in a duel").formatted(Formatting.RED), null, 0xC0463A, null, null);
@@ -70,19 +97,22 @@ public final class Duels {
         }
         challengedBy.put(t.getUuid(), p.getUuid());
         challengedAt.put(t.getUuid(), System.currentTimeMillis());
+        challengeRules.put(t.getUuid(), rules);
         String name = AotRpg.PROFILES.get(p.getUuid()).name;
         Notify.toast(p, Text.literal("Challenge sent").formatted(Formatting.GOLD), Text.literal("To " + AotRpg.PROFILES.get(t.getUuid()).name), 0xE0B96A, "minecraft:iron_sword", "duel");
-        Notify.toast(t, Text.literal(name + " challenges you to a duel").formatted(Formatting.GOLD), Text.literal("/duel accept · 30 seconds to answer"), 0xE0B96A,
+        Notify.toast(t, Text.literal(name + " challenges you to a duel").formatted(Formatting.GOLD), Text.literal(rules.describe()), 0xE0B96A,
             "minecraft:iron_sword", "duel");
         t.sendMessage(Text.literal("[Accept duel]").formatted(Formatting.GOLD, Formatting.BOLD).styled(s -> s
             .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/duel accept"))
-            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Fight " + name)))), false);
+            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Fight " + name + "\n" + rules.describe())))).append(
+                Text.literal("  " + rules.describe()).formatted(Formatting.GRAY)), false);
         t.playSoundToPlayer(SoundEvents.ITEM_ARMOR_EQUIP_IRON.value(), SoundCategory.PLAYERS, 1f, 0.8f);
     }
 
     public void accept(ServerPlayerEntity t) {
         UUID from = challengedBy.remove(t.getUuid());
         Long at = challengedAt.remove(t.getUuid());
+        Rules rules = challengeRules.remove(t.getUuid());
         ServerPlayerEntity p = from == null ? null : server.getPlayerManager().getPlayer(from);
         if (p == null || at == null || System.currentTimeMillis() - at > CHALLENGE_MS) {
             Notify.toast(t, Text.literal("No challenge to accept").formatted(Formatting.GRAY), null, 0x8F8A7A, null, null);
@@ -96,7 +126,12 @@ public final class Duels {
         d.a = p.getUuid();
         d.b = t.getUuid();
         d.center = p.getPos().add(t.getPos()).multiply(0.5);
+        d.rules = rules == null ? Rules.DEFAULT : rules;
         ring(d, true);
+        if (!d.rules.odm()) {
+            stow(p);
+            stow(t);
+        }
         List<ServerPlayerEntity> viewers = Cinematics.near(p.getServerWorld(), d.center, 32);
         if (!viewers.contains(p)) viewers.add(0, p);
         if (!viewers.contains(t)) viewers.add(t);
@@ -146,7 +181,7 @@ public final class Duels {
 
     /** Shows (or takes down) the ring for the two fighters only. */
     private void ring(Duel d, boolean on) {
-        Net.DuelRing msg = new Net.DuelRing(d.center.x, d.center.y, d.center.z, on ? (float) RING : 0f);
+        Net.DuelRing msg = new Net.DuelRing(d.center.x, d.center.y, d.center.z, on ? (float) d.ring() : 0f);
         for (UUID id : List.of(d.a, d.b)) {
             ServerPlayerEntity p = server.getPlayerManager().getPlayer(id);
             if (p != null && ServerPlayNetworking.canSend(p, Net.DuelRing.ID)) ServerPlayNetworking.send(p, msg);
@@ -156,8 +191,9 @@ public final class Duels {
     /** Keeps a fighter inside the ring: anyone at the wall is thrown back in. */
     private void contain(Duel d, ServerPlayerEntity p) {
         double dx = p.getX() - d.center.x, dz = p.getZ() - d.center.z, dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist <= RING - 0.4) return;
-        double k = (RING - 0.8) / Math.max(0.01, dist);
+        double ring = d.ring();
+        if (dist <= ring - 0.4) return;
+        double k = (ring - 0.8) / Math.max(0.01, dist);
         p.stopRiding();
         p.networkHandler.requestTeleport(d.center.x + dx * k, p.getY(), d.center.z + dz * k, p.getYaw(), p.getPitch());
         p.setVelocity(-dx / dist * 0.6, 0.25, -dz / dist * 0.6);
@@ -172,7 +208,10 @@ public final class Duels {
         for (Duel d : duels) {
             for (UUID id : List.of(d.a, d.b)) {
                 ServerPlayerEntity p = server.getPlayerManager().getPlayer(id);
-                if (p != null) contain(d, p);
+                if (p == null) continue;
+                contain(d, p);
+                // No ODM: gear put back on mid-duel goes straight back in the satchel.
+                if (!d.rules.odm() && ticks % 10 == 0) stow(p);
             }
         }
         if (ticks % 10 != 0) return;
@@ -193,6 +232,10 @@ public final class Duels {
         if (!duels.remove(d)) return;
         ring(d, false);
         ServerPlayerEntity a = server.getPlayerManager().getPlayer(d.a), b = server.getPlayerManager().getPlayer(d.b);
+        if (!d.rules.odm()) {
+            if (a != null) unstow(a);
+            if (b != null) unstow(b);
+        }
         if (winner == null) {
             for (ServerPlayerEntity p : new ServerPlayerEntity[] {a, b}) {
                 if (p != null) Notify.toast(p, Text.literal("DRAW").formatted(Formatting.GRAY, Formatting.BOLD), Text.literal("Time's up"), 0x8F8A7A, "minecraft:clock", "duel");
@@ -216,6 +259,75 @@ public final class Duels {
                     if (ServerPlayNetworking.canSend(o, Net.SlashFx.ID)) ServerPlayNetworking.send(o, fx);
                 }
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ rules
+
+    private Rules rules(ServerPlayerEntity p) {
+        Duel d = of(p.getUuid());
+        return d == null ? null : d.rules;
+    }
+
+    /** Abilities off in this player's duel: say so. */
+    public boolean blocksAbilities(ServerPlayerEntity p) {
+        Rules r = rules(p);
+        if (r == null || r.abilities()) return false;
+        p.sendMessage(Text.literal("No abilities in this duel").formatted(Formatting.RED), true);
+        return true;
+    }
+
+    /** Food off in this player's duel: say so. */
+    public boolean blocksFood(ServerPlayerEntity p) {
+        Rules r = rules(p);
+        if (r == null || r.food()) return false;
+        p.sendMessage(Text.literal("No food or potions in this duel").formatted(Formatting.RED), true);
+        return true;
+    }
+
+    /** ODM off in this player's duel. */
+    public boolean blocksOdm(ServerPlayerEntity p) {
+        Rules r = rules(p);
+        return r != null && !r.odm();
+    }
+
+    private static boolean odmGear(net.minecraft.item.ItemStack s) {
+        return !s.isEmpty() && net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath().contains("odm_gear");
+    }
+
+    /** Players whose ODM gear was put away for a duel, and which slot it came off. */
+    private final Map<UUID, net.minecraft.entity.EquipmentSlot> stowed = new HashMap<>();
+
+    /** ODM gear off and into the satchel (kept safe there through a crash or a logout). */
+    private void stow(ServerPlayerEntity p) {
+        for (net.minecraft.entity.EquipmentSlot slot : net.minecraft.entity.EquipmentSlot.values()) {
+            if (slot.getType() != net.minecraft.entity.EquipmentSlot.Type.HUMANOID_ARMOR) continue;
+            net.minecraft.item.ItemStack s = p.getEquippedStack(slot);
+            if (!odmGear(s)) continue;
+            net.minecraft.item.ItemStack rest = AotRpg.SATCHEL.get(p.getUuid()).addStack(s.copy());
+            if (!rest.isEmpty()) {
+                // No room in the satchel: it stays on, and the rule can't hold.
+                p.sendMessage(Text.literal("Satchel full: your ODM gear stays on").formatted(Formatting.RED), true);
+                continue;
+            }
+            p.equipStack(slot, net.minecraft.item.ItemStack.EMPTY);
+            stowed.putIfAbsent(p.getUuid(), slot);
+            AotRpg.SATCHEL.save(p.getUuid());
+            p.sendMessage(Text.literal("ODM gear stowed in your satchel for this duel").formatted(Formatting.GOLD), true);
+        }
+    }
+
+    /** After the duel: the ODM gear goes back on, if it's still in the satchel and the slot is free. */
+    private void unstow(ServerPlayerEntity p) {
+        net.minecraft.entity.EquipmentSlot slot = stowed.remove(p.getUuid());
+        if (slot == null || !p.getEquippedStack(slot).isEmpty()) return;
+        var bag = AotRpg.SATCHEL.get(p.getUuid());
+        for (int i = 0; i < bag.size(); i++) {
+            if (!odmGear(bag.getStack(i))) continue;
+            p.equipStack(slot, bag.removeStack(i));
+            bag.markDirty();
+            AotRpg.SATCHEL.save(p.getUuid());
+            return;
         }
     }
 }

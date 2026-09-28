@@ -231,6 +231,7 @@ public final class OdmBoost {
     // ------------------------------------------------------------------ the boost
 
     public void boost(ServerPlayerEntity p, Net.OdmJump j) {
+        if (AotRpg.DUELS.blocksOdm(p)) return;
         St s = states.computeIfAbsent(p.getUuid(), k -> new St());
         long now = p.getServerWorld().getTime();
         // Not checking the ground here: right after take-off the server may still think you are on it.

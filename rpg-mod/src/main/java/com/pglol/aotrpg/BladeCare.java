@@ -23,9 +23,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Better blades last longer. Danny's grips keep their blade wear on the item; whenever a cut
- * wears it down, finer steel (rarer gear, and the Tempered Steel perk) has a chance to shrug the
- * wear off, so a Legendary blade lasts about three times as long as a plain one.
+ * Better grips last longer. Danny's grips keep their blade wear on the item; grips come in five
+ * quality stages (stage 1 wears as the mod made it; Rare is stage 2, up to Mythic at 5, and
+ * Tempered Steel adds one), and whenever a cut wears the blade down, a better grip shrugs that
+ * wear off: 2x the life at stage 2, then 3.3x, 6.7x and 20x.
  */
 public final class BladeCare {
     private record Seen(net.minecraft.item.Item item, NbtCompound gear, int value) { }
@@ -38,20 +39,28 @@ public final class BladeCare {
         return "this session: " + worn.getOrDefault(id, 0L) + " wear seen, " + refunded.getOrDefault(id, 0L) + " taken back by temper";
     }
 
+    /** Grip quality stages 1-5: how much blade wear each shrugs off (stage 1 is the mod's own). */
+    public static final double[] STAGE_TEMPER = {0, 0.5, 0.7, 0.85, 0.95};
+    public static final String[] STAGE_NAMES = {"Standard", "Reinforced", "Hardened", "Masterwork", "Unbreaking"};
+
+    /** A grip's quality stage, 1-5: set by rarity (Rare 2 ... Mythic 5), one higher with Tempered Steel. */
+    public static int stage(ItemStack s) {
+        if (!Gear.isGear(s)) return 1;
+        var g = Gear.data(s);
+        int st = switch (g.getString("rarity")) {
+            case "RARE" -> 2;
+            case "EPIC" -> 3;
+            case "LEGENDARY" -> 4;
+            case "MYTHIC" -> 5;
+            default -> 1;
+        };
+        if (g.getBoolean("tempered")) st++;
+        return Math.min(5, st);
+    }
+
     /** Chance each point of wear is shrugged off. */
     public static double temper(ItemStack s) {
-        if (!Gear.isGear(s)) return 0;
-        var g = Gear.data(s);
-        double t = switch (g.getString("rarity")) {
-            case "UNCOMMON" -> 0.2;
-            case "RARE" -> 0.35;
-            case "EPIC" -> 0.5;
-            case "LEGENDARY" -> 0.65;
-            case "MYTHIC" -> 0.75;
-            default -> 0;
-        };
-        if (g.getBoolean("tempered")) t += 0.25;
-        return Math.min(0.85, t);
+        return STAGE_TEMPER[stage(s) - 1];
     }
 
     /**

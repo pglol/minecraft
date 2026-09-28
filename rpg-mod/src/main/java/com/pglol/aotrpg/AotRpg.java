@@ -232,6 +232,24 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.Struggle.ID, (payload, ctx) -> GRAB.strike(ctx.player()));
         ServerPlayNetworking.registerGlobalReceiver(Net.OdmJump.ID, (payload, ctx) -> ODM.boost(ctx.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(Net.CatalogGive.ID, (payload, ctx) -> Catalog.give(ctx.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(Net.DuelChallenge.ID, (payload, ctx) -> {
+            ServerPlayerEntity t;
+            try {
+                t = ctx.server().getPlayerManager().getPlayer(java.util.UUID.fromString(payload.target()));
+            } catch (Exception e) {
+                t = null;
+            }
+            if (t != null) DUELS.challenge(ctx.player(), t, new Duels.Rules(Math.max(0, Math.min(Duels.RINGS.length - 1, payload.ring())),
+                payload.odm(), payload.abilities(), payload.food()));
+        });
+        // Duels without food: nothing to eat or drink.
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            var stack = player.getStackInHand(hand);
+            if (!world.isClient && player instanceof ServerPlayerEntity sp
+                && (stack.contains(net.minecraft.component.DataComponentTypes.FOOD) || stack.getItem() instanceof net.minecraft.item.PotionItem)
+                && DUELS.blocksFood(sp)) return net.minecraft.util.TypedActionResult.fail(stack);
+            return net.minecraft.util.TypedActionResult.pass(stack);
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.InboxAction.ID, (payload, ctx) -> INBOX.action(ctx.player(), payload.action(), payload.id()));
         ServerPlayNetworking.registerGlobalReceiver(Net.StoreAction.ID, (payload, ctx) -> {
             if (payload.action().equals("open")) STORE.send(ctx.player(), true);
