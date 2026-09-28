@@ -13,8 +13,9 @@ import java.util.function.Consumer;
 /**
  * Quick lifestyle minigames that decide the quality of the work (0..1):
  * STRIKE (forge, cooking): a marker sweeps the bar, press Space or click in the bright zone;
- * three strikes, each scored. REEL (fishing): hold Space or the mouse to lift your catch zone
- * and keep the fish inside it until the line is reeled in.
+ * three strikes, each scored. REEL (fishing): your catch zone follows the mouse (or A/D, the
+ * arrow keys); keep it over the fish while the line reels in. The fish glides from spot to spot,
+ * flashing before it darts, so it can always be followed.
  */
 public final class MinigameScreen extends Screen {
     public enum Kind { STRIKE, REEL }
@@ -32,8 +33,13 @@ public final class MinigameScreen extends Screen {
     private String lastGrade = "";
     private long lastAt;
     // REEL
-    private float fish = 0.5f, fishVel, bar = 0.3f, barVel, progress = 0.3f;
-    private boolean holding;
+    private static final float ZONE = 0.34f;
+    private float fish = 0.5f, fishTarget = 0.5f, bar = 0.5f - ZONE / 2, progress = 0.35f;
+    /** A dart coming: when it was warned (ms), where to, and which way. */
+    private long dartWarnAt;
+    private float dartTo = -1;
+    private boolean holding, keyLeft, keyRight;
+    private double mouseX = -1;
     private long lastTick = Util.getMeasuringTimeMs();
 
     private net.minecraft.sound.SoundEvent strikeSound;
@@ -98,7 +104,16 @@ public final class MinigameScreen extends Screen {
     public boolean keyPressed(int key, int scan, int mods) {
         if (key == GLFW.GLFW_KEY_SPACE) {
             if (kind == Kind.STRIKE) strike();
-            else holding = true;
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_A || key == GLFW.GLFW_KEY_LEFT) {
+            keyLeft = true;
+            mouseX = -1;
+            return true;
+        }
+        if (key == GLFW.GLFW_KEY_D || key == GLFW.GLFW_KEY_RIGHT) {
+            keyRight = true;
+            mouseX = -1;
             return true;
         }
         if (key == GLFW.GLFW_KEY_ESCAPE) {
@@ -110,15 +125,20 @@ public final class MinigameScreen extends Screen {
 
     @Override
     public boolean keyReleased(int key, int scan, int mods) {
-        if (key == GLFW.GLFW_KEY_SPACE) holding = false;
+        if (key == GLFW.GLFW_KEY_A || key == GLFW.GLFW_KEY_LEFT) keyLeft = false;
+        if (key == GLFW.GLFW_KEY_D || key == GLFW.GLFW_KEY_RIGHT) keyRight = false;
         return super.keyReleased(key, scan, mods);
     }
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (kind == Kind.STRIKE) strike();
-        else holding = true;
         return true;
+    }
+
+    @Override
+    public void mouseMoved(double mx, double my) {
+        mouseX = mx;
     }
 
     @Override
@@ -127,21 +147,39 @@ public final class MinigameScreen extends Screen {
         return true;
     }
 
-    private void tickReel() {
+    private void tickReel(int x, int w) {
         long now = Util.getMeasuringTimeMs();
         float dt = Math.min(0.05f, (now - lastTick) / 1000f);
         lastTick = now;
-        // The fish darts about; harder fish dart more.
-        if (Math.random() < dt * (1.5 + difficulty * 3)) fishVel = (float) ((Math.random() - 0.5) * (1.2 + difficulty * 1.6));
-        fish = Math.max(0.03f, Math.min(0.97f, fish + fishVel * dt));
-        if (fish <= 0.03f || fish >= 0.97f) fishVel = -fishVel;
-        barVel += (holding ? 2.6f : -2.2f) * dt;
-        barVel *= 0.92f;
-        bar = Math.max(0, Math.min(1 - 0.28f, bar + barVel * dt));
-        if (bar <= 0 || bar >= 1 - 0.28f) barVel = 0;
-        boolean inside = fish >= bar && fish <= bar + 0.28f;
-        progress += (inside ? 0.22f : -0.16f - difficulty * 0.08f) * dt;
-        if (progress >= 1) finish(0.5f + 0.5f * (1 - Math.min(1, (now - start) / 20000f)));
+        // Your zone: glides to the mouse (or moves with the keys).
+        if (keyLeft || keyRight) bar += (keyRight ? 1 : -1) * 1.1f * dt;
+        else if (mouseX >= 0) {
+            float want = (float) ((mouseX - x) / w) - ZONE / 2;
+            bar += (want - bar) * Math.min(1, dt * 12);
+        }
+        bar = Math.max(0, Math.min(1 - ZONE, bar));
+        // The fish: glides toward a spot, then picks another; now and then a dart, warned first.
+        float speed = 0.22f + difficulty * 0.22f;
+        if (dartTo >= 0) {
+            if (now - dartWarnAt > 650) {
+                fishTarget = dartTo;
+                dartTo = -1;
+                speed *= 2.2f;
+            }
+        } else if (Math.abs(fish - fishTarget) < 0.02f) {
+            if (Math.random() < 0.25 + difficulty * 0.35) {
+                dartTo = (float) (0.08 + Math.random() * 0.84);
+                dartWarnAt = now;
+            } else fishTarget = (float) Math.max(0.06, Math.min(0.94, fish + (Math.random() - 0.5) * 0.45));
+        }
+        float step = speed * dt * (Math.abs(fishTarget - fish) > 0.2f && dartTo < 0 && now - dartWarnAt < 1500 ? 2.2f : 1f);
+        fish += Math.max(-step, Math.min(step, fishTarget - fish));
+        boolean inside = fish >= bar && fish <= bar + ZONE;
+        // A moment's grace after the bite; then the line reels in on the fish, slips slowly off it.
+        boolean grace = now - start < 1200;
+        progress += (inside ? 0.26f : grace ? 0 : -0.09f - difficulty * 0.05f) * dt;
+        holding = inside;
+        if (progress >= 1) finish(0.5f + 0.5f * (1 - Math.min(1, (now - start) / 25000f)));
         else if (progress <= 0) finish(0);
     }
 
@@ -171,15 +209,32 @@ public final class MinigameScreen extends Screen {
                 Ui.text(c, Ui.heading(lastGrade), width / 2f, y + 34, 1f, lastGrade.equals("Miss") ? Ui.RED : Ui.GOLD, true);
             }
         } else {
-            tickReel();
-            int h = 14;
-            c.fill(x, y, x + w, y + h, 0xFF10202A);
-            int bx = x + Math.round(bar * w), bw = Math.round(0.28f * w);
-            c.fill(bx, y, bx + bw, y + h, holding ? 0xFF4FA05F : 0xFF3F7A4F);
+            tickReel(x, w);
+            long now = Util.getMeasuringTimeMs();
+            int h = 16;
+            // The water, with a slow shimmer.
+            c.fillGradient(x, y, x + w, y + h, 0xFF14303E, 0xFF0C1C26);
+            for (int i = 0; i < w; i += 12) {
+                int sh = (int) (40 + 30 * Math.sin(now * 0.003 + i * 0.3));
+                c.fill(x + i, y + 3, x + i + 5, y + 4, (sh << 24) | 0xA0D8FF);
+            }
+            // Your zone.
+            int bx = x + Math.round(bar * w), bw = Math.round(ZONE * w);
+            c.fill(bx, y, bx + bw, y + h, holding ? 0x904FC06F : 0x603F7A4F);
+            c.drawBorder(bx, y, bw, h, holding ? 0xFF7FE08F : 0xFF4F8A5F);
+            // The fish (flashing, with a ripple toward where it's about to dart).
             int fx = x + Math.round(fish * w);
-            c.fill(fx - 3, y + 2, fx + 3, y + h - 2, 0xFFE8C070);
+            boolean warn = dartTo >= 0;
+            if (warn) {
+                int tx = x + Math.round(dartTo * w);
+                int dir = tx > fx ? 1 : -1;
+                for (int k = 1; k <= 3; k++) c.fill(fx + dir * (6 + k * 5), y + 6, fx + dir * (8 + k * 5), y + 10, 0xB0FFE0A0);
+            }
+            int fc = warn && (now / 120) % 2 == 0 ? 0xFFFFFFFF : 0xFFE8C070;
+            c.fill(fx - 4, y + 4, fx + 4, y + h - 4, fc);
+            c.fill(fx + (fishTarget >= fish ? -7 : 4), y + 6, fx + (fishTarget >= fish ? -4 : 7), y + h - 6, fc);
             c.drawBorder(x - 1, y - 1, w + 2, h + 2, Ui.TRIM);
-            Ui.bar(c, x, y + 22, w, 6, progress, 0xFF5AA0E0);
+            Ui.bar(c, x, y + 24, w, 6, progress, holding ? 0xFF5BD35B : 0xFF5AA0E0);
         }
     }
 }

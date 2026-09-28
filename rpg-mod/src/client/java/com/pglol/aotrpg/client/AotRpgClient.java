@@ -219,7 +219,7 @@ public final class AotRpgClient implements ClientModInitializer {
             else if (payload.open()) ctx.client().setScreen(new HomeAdminScreen());
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.FishBite.ID, (payload, ctx) -> ctx.client().setScreen(
-            new MinigameScreen(MinigameScreen.Kind.REEL, "Reel it in", "Hold Space or the mouse to keep the fish in your zone", payload.difficulty(),
+            new MinigameScreen(MinigameScreen.Kind.REEL, "Reel it in", "Move the mouse to keep your line on the fish", payload.difficulty(),
                 q -> ClientPlayNetworking.send(new Net.FishResult(q)))));
         ClientPlayNetworking.registerGlobalReceiver(Net.TasksView.ID, (payload, ctx) -> {
             ClientState.tasks = payload;
