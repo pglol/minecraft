@@ -27,7 +27,8 @@
     "BalloonIdleMixin",
     "InputLockMixin",
     "LookLockMixin",
-    "PlayerListMixin"
+    "PlayerListMixin",
+    "BalloonUseMixin"
   ],
   "injectors": {
     "defaultRequire": 0
