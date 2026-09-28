@@ -314,11 +314,17 @@ public final class Townsfolk {
         return true;
     }
 
-    private static void face(VillagerEntity v, double x, double z) {
+    static void face(VillagerEntity v, double x, double z) {
         float yaw = (float) Math.toDegrees(Math.atan2(-(x - v.getX()), z - v.getZ()));
         v.setYaw(yaw);
         v.setHeadYaw(yaw);
         v.setBodyYaw(yaw);
+    }
+
+    /** Holds someone where they stand for a while (talking to a player). */
+    public void hold(VillagerEntity v, int ticks) {
+        Walk k = walks.get(v.getUuid());
+        if (k != null) k.pause = Math.max(k.pause, ticks);
     }
 
     /** Stops walking someone (they're home, or asleep). */

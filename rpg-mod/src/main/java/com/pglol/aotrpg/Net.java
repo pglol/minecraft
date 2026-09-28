@@ -2098,6 +2098,23 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: someone talking to you: who, their line, and what you can say back (none: it's over). */
+    public record Talk(int entity, String name, String sub, String line, java.util.List<String> options) implements CustomPayload {
+        public static final Id<Talk> ID = Net.id("talk");
+        public static final PacketCodec<RegistryByteBuf, Talk> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.entity); b.writeString(v.name); b.writeString(v.sub); b.writeString(v.line); strs(b, v.options);
+        }, b -> new Talk(b.readVarInt(), b.readString(), b.readString(), b.readString(), strs(b)));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: what you said (one of the offered options). */
+    public record TalkChoice(int entity, String option) implements CustomPayload {
+        public static final Id<TalkChoice> ID = Net.id("talk_choice");
+        public static final PacketCodec<RegistryByteBuf, TalkChoice> CODEC = PacketCodec.of((v, b) -> { b.writeVarInt(v.entity); b.writeString(v.option); },
+            b -> new TalkChoice(b.readVarInt(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2159,6 +2176,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(CatalogView.ID, CatalogView.CODEC);
         PayloadTypeRegistry.playS2C().register(DuelSetup.ID, DuelSetup.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeList.ID, HomeList.CODEC);
+        PayloadTypeRegistry.playS2C().register(Talk.ID, Talk.CODEC);
+        PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);
         PayloadTypeRegistry.playS2C().register(AlertsView.ID, AlertsView.CODEC);
         PayloadTypeRegistry.playS2C().register(Dream.ID, Dream.CODEC);
         PayloadTypeRegistry.playC2S().register(DreamDone.ID, DreamDone.CODEC);

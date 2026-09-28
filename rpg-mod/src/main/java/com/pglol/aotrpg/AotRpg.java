@@ -87,6 +87,7 @@ public final class AotRpg implements ModInitializer {
     public static final Dreams DREAMS = new Dreams();
     public static final TownRepair TOWN_REPAIR = new TownRepair();
     public static final Residents RESIDENTS = new Residents();
+    public static final Dialogue DIALOGUE = new Dialogue();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -517,7 +518,7 @@ public final class AotRpg implements ModInitializer {
                 return ActionResult.SUCCESS;
             }
             if (HORSES.useHorse(sp, entity)) return ActionResult.SUCCESS;
-            if (FOLK.talk(sp, entity)) return ActionResult.SUCCESS;
+            if (DIALOGUE.talk(sp, entity) || FOLK.talk(sp, entity)) return ActionResult.SUCCESS;
             return ActionResult.PASS;
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
@@ -680,6 +681,7 @@ public final class AotRpg implements ModInitializer {
         Infusions.register();
         DREAMS.register();
         ServerPlayNetworking.registerGlobalReceiver(Net.DreamDone.ID, (payload, ctx) -> DREAMS.done(ctx.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(Net.TalkChoice.ID, (payload, ctx) -> DIALOGUE.choose(ctx.player(), payload.entity(), payload.option()));
 
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) ->
             !CREATION.chat(sender, message.getContent().getString()));
