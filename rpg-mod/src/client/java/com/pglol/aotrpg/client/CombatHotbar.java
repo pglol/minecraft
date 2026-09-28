@@ -13,7 +13,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
 /**
- * The combat hotbar, split down the middle: the combat wing (Melee, Ranged, Sidearm, Tool) on the
+ * The combat hotbar, split down the middle: the combat wing (Melee, Ranged, Gas, Tool) on the
  * left and the support wing (Mount, Signal, two free slots) on the right, both pointing in at the
  * Heal slot in the centre. The ODM sheath / off hand sits at the outer left end.
  */

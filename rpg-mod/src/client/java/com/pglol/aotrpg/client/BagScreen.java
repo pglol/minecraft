@@ -202,7 +202,11 @@ public final class BagScreen extends Screen {
             // Where it can go: pick the place (what is there now comes back to the satchel).
             java.util.List<Integer> places = new java.util.ArrayList<>();
             for (int t : new int[] {103, 102, 101, 100, Satchel.OFF, 0, 1, 2, 3, 4, 5, 6, 7, 8}) {
-                if (client.player != null && Satchel.fitsPlace(client.player, s, t)) places.add(t);
+                if (client.player == null || !Satchel.fitsPlace(client.player, s, t)) continue;
+                // Weapons go in their own places: never offered the Free slots.
+                boolean weapon = Loadout.isMelee(s) || Loadout.isRanged(s) || Loadout.isGrip(s);
+                if (weapon && t >= 0 && t < 9 && Loadout.SLOTS[t] == Loadout.Kind.FREE) continue;
+                places.add(t);
             }
             int es = 30, per = Math.max(1, (bw + 4) / (es + 4));
             int lines = (Math.min(places.size(), per * 2) + per - 1) / per;

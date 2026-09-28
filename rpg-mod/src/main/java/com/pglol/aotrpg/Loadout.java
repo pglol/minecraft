@@ -46,7 +46,7 @@ import java.util.UUID;
 
 /**
  * The combat loadout: every hotbar slot has a purpose.
- *   1 Melee   2 Ranged   3 Sidearm   4 Tool   | 5 Heal |   6 Mount   7 Signal   8 Free   9 Free
+ *   1 Melee   2 Ranged   3 Gas   4 Tool   | 5 Heal |   6 Mount   7 Signal   8 Free   9 Free
  * Items only go where they belong (nothing is equipped for you). ODM grips are a pair: the sheath
  * key puts both on your back, and draws them again into slot 1 and the off hand (the off-hand item
  * is kept aside and comes back when they are sheathed).
@@ -55,7 +55,7 @@ public final class Loadout {
     public enum Kind {
         MELEE("Melee", "ODM grips, blades, swords, axes"),
         RANGED("Ranged", "APG gun, bows, crossbows, muskets"),
-        SIDEARM("Sidearm", "A second ranged weapon (not ammo like thunder spears)"),
+        GAS("Gas", "Gas canisters: your ODM gear's refills, always to hand"),
         TOOL("Tool", "Gas canisters, pickaxes, fishing rods, shears"),
         HEAL("Heal", "Food, meals and potions. [H] uses it instantly"),
         MOUNT("Mount", "Saddle, lead, horse armor, horse treats"),
@@ -70,7 +70,7 @@ public final class Loadout {
         }
     }
 
-    public static final Kind[] SLOTS = {Kind.MELEE, Kind.RANGED, Kind.SIDEARM, Kind.TOOL, Kind.HEAL,
+    public static final Kind[] SLOTS = {Kind.MELEE, Kind.RANGED, Kind.GAS, Kind.TOOL, Kind.HEAL,
         Kind.MOUNT, Kind.SIGNAL, Kind.FREE, Kind.FREE};
     public static final int HEAL_SLOT = 4;
 
@@ -130,9 +130,9 @@ public final class Loadout {
         return switch (k) {
             case MELEE -> isMelee(s);
             case RANGED -> isRanged(s) && !isMelee(s) && !isAmmo(s);
-            // The sidearm sits with the ranged pair: a second gun, never a blade and never ammo.
-            case SIDEARM -> isRanged(s) && !isMelee(s) && !isAmmo(s);
-            case TOOL -> AotItems.isGas(s) || i instanceof MiningToolItem || i instanceof ShearsItem || i instanceof FishingRodItem
+            // A slot of its own for gas: it matters too much to share with the tools.
+            case GAS -> AotItems.isGas(s);
+            case TOOL -> i instanceof MiningToolItem || i instanceof ShearsItem || i instanceof FishingRodItem
                 || i instanceof FlintAndSteelItem || i instanceof BrushItem || i instanceof BucketItem;
             case HEAL -> isHeal(s);
             case MOUNT -> i instanceof SaddleItem || i instanceof LeadItem || i instanceof AnimalArmorItem || i instanceof OnAStickItem
@@ -182,6 +182,17 @@ public final class Loadout {
         for (int i = 0; i < 9; i++) {
             ItemStack s = inv.main.get(i);
             if (s.isEmpty() || allows(i, s)) continue;
+            // Its own place first, if that's free (gas moving from Tool to the Gas slot, say).
+            int home = -1;
+            for (int j = 0; j < 9 && home < 0; j++) {
+                if (j != i && SLOTS[j] != Kind.FREE && inv.main.get(j).isEmpty() && fits(SLOTS[j], s)) home = j;
+            }
+            if (home >= 0) {
+                inv.main.set(home, s);
+                inv.main.set(i, ItemStack.EMPTY);
+                changed = true;
+                continue;
+            }
             int to = freeBackpack(inv, s);
             if (to < 0) continue;
             if (inv.main.get(to).isEmpty()) inv.main.set(to, s);

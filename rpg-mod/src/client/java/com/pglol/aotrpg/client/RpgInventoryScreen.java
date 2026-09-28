@@ -36,7 +36,7 @@ public class RpgInventoryScreen extends InventoryScreen {
         FRAMES[0] = new int[] {172, 38};         // Melee
         FRAMES[OFFHAND] = new int[] {192, 38};   // Off hand / twin grip
         FRAMES[1] = new int[] {256, 38};         // Ranged
-        FRAMES[2] = new int[] {276, 38};         // Sidearm
+        FRAMES[2] = new int[] {276, 38};         // Gas
         FRAMES[3] = new int[] {198, 68};         // Tool
         FRAMES[4] = new int[] {224, 68};         // Heal (centre)
         FRAMES[5] = new int[] {250, 68};         // Mount

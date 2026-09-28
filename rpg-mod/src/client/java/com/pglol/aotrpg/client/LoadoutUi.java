@@ -16,7 +16,7 @@ public final class LoadoutUi {
         return switch (k) {
             case MELEE -> 0xFFC0463A;
             case RANGED -> 0xFFD98A3A;
-            case SIDEARM -> 0xFFB8606A;
+            case GAS -> 0xFF7FC8E0;
             case TOOL -> 0xFFA88A5A;
             case HEAL -> 0xFF5BD35B;
             case MOUNT -> 0xFF9A7650;
@@ -35,7 +35,7 @@ public final class LoadoutUi {
     /** The faint picture in an empty slot showing what goes there. */
     public static ItemStack ghost(Loadout.Kind k) {
         if (ghosts == null) {
-            ghosts = new ItemStack[] {aot("blade", Items.IRON_SWORD), aot("apg_gun", Items.BOW), new ItemStack(Items.SHIELD),
+            ghosts = new ItemStack[] {aot("blade", Items.IRON_SWORD), aot("apg_gun", Items.BOW), aot("gas_canister", Items.GLASS_BOTTLE),
                 new ItemStack(Items.IRON_PICKAXE), new ItemStack(Items.BREAD), new ItemStack(Items.SADDLE), aot("flare_gun", Items.TORCH),
                 ItemStack.EMPTY};
         }

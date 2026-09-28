@@ -44,7 +44,7 @@ public final class PlaceTile extends PressableWidget {
             default -> switch (Loadout.SLOTS[t]) {
                 case MELEE -> "MELEE";
                 case RANGED -> "RANGED";
-                case SIDEARM -> "SIDE";
+                case GAS -> "GAS";
                 case TOOL -> "TOOL";
                 case HEAL -> "HEAL";
                 case MOUNT -> "MOUNT";
