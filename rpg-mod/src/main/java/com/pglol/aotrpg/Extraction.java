@@ -1804,7 +1804,7 @@ public final class Extraction {
             q.deadline = System.currentTimeMillis() + 45_000;
             rejoining.put(id, q);
             p.changeGameMode(net.minecraft.world.GameMode.SPECTATOR);
-            long left = Math.max(0, (r.endAt - System.currentTimeMillis()) / 60_000);
+            long left = Math.max(0, (r.endsAt - System.currentTimeMillis()) / 60_000);
             if (ServerPlayNetworking.canSend(p, Net.Rejoin.ID)) {
                 ServerPlayNetworking.send(p, new Net.Rejoin("run", r.island.title, "Your squad's run is still going · about " + left + " min left", 45));
             } else {
