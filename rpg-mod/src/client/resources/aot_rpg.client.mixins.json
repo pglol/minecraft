@@ -28,7 +28,8 @@
     "InputLockMixin",
     "LookLockMixin",
     "PlayerListMixin",
-    "BalloonUseMixin"
+    "BalloonUseMixin",
+    "CloakArmorMixin"
   ],
   "injectors": {
     "defaultRequire": 0
