@@ -65,9 +65,30 @@ public final class EffectFx {
         if (fall < 0.01f) fall = 0;
     }
 
-    /** The view shaking on a long drop (after the hurt tilt). */
+    /** The ground shaking (a landing, an abnormal): strength and when it ends. */
+    private static float quake;
+    private static long quakeUntil, quakeFrom;
+
+    public static void quake(float strength, int ticks) {
+        long now = net.minecraft.util.Util.getMeasuringTimeMs();
+        quake = Math.max(quake, strength);
+        quakeFrom = now;
+        quakeUntil = now + ticks * 50L;
+    }
+
+    /** The view shaking on a long drop (after the hurt tilt), and when the ground shakes. */
     public static void shake(MatrixStack ms, float tickDelta) {
         MinecraftClient mc = MinecraftClient.getInstance();
+        long now = net.minecraft.util.Util.getMeasuringTimeMs();
+        if (quake > 0 && now < quakeUntil && mc.player != null) {
+            float left = (quakeUntil - now) / (float) Math.max(1, quakeUntil - quakeFrom);
+            float q = quake * left;
+            float t = (mc.player.age + tickDelta);
+            ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((float) Math.sin(t * 3.1) * 2.2f * q));
+            ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees((float) Math.sin(t * 4.3 + 2) * 1.6f * q));
+        } else if (now >= quakeUntil) {
+            quake = 0;
+        }
         if (fall <= 0 || mc.player == null || !mc.options.getPerspective().isFirstPerson()) return;
         float t = (mc.player.age + tickDelta);
         ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((float) Math.sin(t * 1.7) * 1.2f * fall));

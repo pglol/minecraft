@@ -1410,16 +1410,45 @@ public final class Extraction {
 
     static final String ABNORMAL = "aot_abnormal";
 
-    /** Tells everyone in a match something big is happening, with which way and how far. */
-    private static void announce(List<ServerPlayerEntity> divers, String title, BlockPos at, int color, String icon,
-                                 net.minecraft.sound.SoundEvent sound, float pitch) {
+    /**
+     * Something big is happening: everyone in the match gets it across their screen with which way
+     * and how far, and everyone else online hears about it.
+     */
+    private void announce(List<ServerPlayerEntity> divers, String title, BlockPos at, int color, String icon,
+                          net.minecraft.sound.SoundEvent sound, float pitch, Island island) {
+        String[] dirs = {"South", "Southwest", "West", "Northwest", "North", "Northeast", "East", "Southeast"};
         for (ServerPlayerEntity p : divers) {
             double dx = at.getX() - p.getX(), dz = at.getZ() - p.getZ();
-            String[] dirs = {"S", "SW", "W", "NW", "N", "NE", "E", "SE"};
             String dir = dirs[Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(-dx, dz)) / 45.0), 8)];
-            Notify.toast(p, Text.literal(title).formatted(Formatting.BOLD), Text.literal(dir + "  ·  " + (int) Math.sqrt(dx * dx + dz * dz) + "m"),
-                color, icon, null);
+            String sub = dir + "  ·  " + (int) Math.sqrt(dx * dx + dz * dz) + "m";
+            if (ServerPlayNetworking.canSend(p, Net.EventBanner.ID)) ServerPlayNetworking.send(p, new Net.EventBanner(title, sub, color, icon));
+            else Notify.toast(p, Text.literal(title).formatted(Formatting.BOLD), Text.literal(sub), color, icon, null);
             p.playSoundToPlayer(sound, SoundCategory.MASTER, 1f, pitch);
+        }
+        for (ServerPlayerEntity o : server.getPlayerManager().getPlayerList()) {
+            if (divers.contains(o)) continue;
+            Notify.toast(o, Text.literal(title).formatted(Formatting.BOLD), Text.literal("On " + island.title), color, icon, null);
+        }
+    }
+
+    /** The ground shakes for everyone within r. */
+    private static void quake(ServerWorld w, BlockPos at, double r, float strength, int ticks) {
+        for (ServerPlayerEntity p : w.getPlayers()) {
+            double d = Math.sqrt(p.squaredDistanceTo(at.toCenterPos()));
+            if (d > r || !ServerPlayNetworking.canSend(p, Net.Quake.ID)) continue;
+            ServerPlayNetworking.send(p, new Net.Quake((float) (strength * (1 - d / r * 0.7)), ticks));
+        }
+    }
+
+    /** Red flares fired into the sky over a spot. */
+    private static void flares(ServerWorld w, BlockPos at, int n, int rgb) {
+        for (int i = 0; i < n; i++) {
+            ItemStack rocket = new ItemStack(Items.FIREWORK_ROCKET);
+            rocket.set(net.minecraft.component.DataComponentTypes.FIREWORKS, new net.minecraft.component.type.FireworksComponent(2 + i % 2,
+                List.of(new net.minecraft.component.type.FireworkExplosionComponent(net.minecraft.component.type.FireworkExplosionComponent.Type.LARGE_BALL,
+                    it.unimi.dsi.fastutil.ints.IntList.of(rgb), it.unimi.dsi.fastutil.ints.IntList.of(0xFFD040), true, true))));
+            var fw = new net.minecraft.entity.projectile.FireworkRocketEntity(w, at.getX() + 0.5 + i * 2 - n, at.getY() + 1, at.getZ() + 0.5, rocket);
+            w.spawnEntity(fw);
         }
     }
 
@@ -1445,7 +1474,7 @@ public final class Extraction {
             ses.dropAt = ground;
             ses.dropOpened = false;
             Troops.lure(ses.id, ground);
-            announce(divers, "SUPPLY DROP", ground, 0xE0463A, "minecraft:barrel", SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.6f);
+            announce(divers, "SUPPLY DROP", ground, 0xE0463A, "minecraft:barrel", SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.6f, ses.island);
             for (ServerPlayerEntity p : divers) p.playSoundToPlayer(SoundEvents.BLOCK_BELL_USE, SoundCategory.MASTER, 0.8f, 0.7f);
         } else if (roll < 7) {
             // A Marleyan landing: a squad put down near someone, horn blaring.
@@ -1453,8 +1482,19 @@ public final class Extraction {
             double a = r.nextDouble() * Math.PI * 2, d = 55 + r.nextInt(40);
             BlockPos at = land(w, (int) (p.getX() + Math.cos(a) * d), (int) (p.getZ() + Math.sin(a) * d), r, 15);
             if (at == null || Troops.count(ses.id) > 14) return;
-            Troops.squad(w, at, 4 + r.nextInt(2), ses.island.level() + 2, ses.id, c, ISLAND, r);
-            announce(divers, "MARLEYAN LANDING", at, 0xC0463A, "minecraft:crossbow", SoundEvents.EVENT_RAID_HORN.value(), 1f);
+            // The entrance: flares go up, the horn sounds, and a few seconds later they're there.
+            flares(w, at, 3, 0xE02020);
+            announce(divers, "MARLEYAN LANDING", at, 0xC0463A, "minecraft:crossbow", SoundEvents.EVENT_RAID_HORN.value(), 1f, ses.island);
+            BlockPos land = at;
+            String sid = ses.id;
+            int lvl = ses.island.level() + 2;
+            AotRpg.SCHEDULER.later(70, () -> {
+                if (!sessions.contains(ses)) return;
+                w.spawnParticles(ParticleTypes.CLOUD, land.getX() + 0.5, land.getY() + 0.5, land.getZ() + 0.5, 60, 3, 0.3, 3, 0.1);
+                w.playSound(null, land, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 1.5f, 0.7f);
+                Troops.squad(w, land, 4 + w.random.nextInt(2), lvl, sid, ses.centre, ISLAND, w.random);
+                quake(w, land, 40, 0.4f, 14);
+            });
         } else {
             // An abnormal: one titan bigger, faster and meaner than the rest, carrying a hoard.
             List<EntityType<?>> kinds = TitanTypes.ordinary();
@@ -1480,7 +1520,8 @@ public final class Extraction {
             t.addCommandTag(ABNORMAL);
             t.setCustomName(Text.literal("Abnormal").formatted(Formatting.DARK_RED, Formatting.BOLD));
             w.spawnEntity(t);
-            announce(divers, "ABNORMAL SIGHTED", at, 0x9A1A1A, "minecraft:wither_skeleton_skull", SoundEvents.ENTITY_RAVAGER_ROAR, 0.5f);
+            announce(divers, "ABNORMAL SIGHTED", at, 0x9A1A1A, "minecraft:wither_skeleton_skull", SoundEvents.ENTITY_RAVAGER_ROAR, 0.5f, ses.island);
+            quake(w, at, 160, 0.8f, 40);
         }
     }
 
@@ -1543,6 +1584,7 @@ public final class Extraction {
         w.playSound(null, at, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 1.4f, 0.6f);
         w.spawnParticles(ParticleTypes.EXPLOSION, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, 3, 1, 0.2, 1, 0);
         w.spawnParticles(ParticleTypes.CLOUD, at.getX() + 0.5, at.getY() + 0.2, at.getZ() + 0.5, 40, 2, 0.1, 2, 0.08);
+        quake(w, at, 50, 0.5f, 12);
         // A recovery team is on its way for it.
         if (w.random.nextFloat() < 0.7f && Troops.count(ses.id) < 14) {
             double a = w.random.nextDouble() * Math.PI * 2;

@@ -27,7 +27,7 @@ public final class RpgHud {
     public static boolean active() {
         MinecraftClient mc = MinecraftClient.getInstance();
         return ClientState.profile != null && mc.player != null && mc.interactionManager != null
-            && mc.interactionManager.hasStatusBars();
+            && mc.interactionManager.hasStatusBars() && !com.pglol.aotrpg.client.story.CutscenePlayer.active();
     }
 
     public static void render(DrawContext c, RenderTickCounter tick) {

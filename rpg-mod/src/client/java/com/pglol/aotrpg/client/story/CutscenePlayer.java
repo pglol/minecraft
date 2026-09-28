@@ -36,6 +36,21 @@ public final class CutscenePlayer {
     private static float total;
     private static String title = "", sub = "";
     private static int color;
+    /** What the current shot is looking at (to keep the camera out of walls). */
+    private static Vec3d lastLook;
+
+    /** Keeps the camera out of the terrain: pulled in toward what it's looking at if a wall is in the way. */
+    private static Vec3d clear(Vec3d pos) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null || lastLook == null || mc.player == null) return pos;
+        var hit = mc.world.raycast(new net.minecraft.world.RaycastContext(lastLook, pos, net.minecraft.world.RaycastContext.ShapeType.VISUAL,
+            net.minecraft.world.RaycastContext.FluidHandling.NONE, mc.player));
+        if (hit.getType() == net.minecraft.util.hit.HitResult.Type.MISS) return pos;
+        Vec3d back = pos.subtract(lastLook);
+        if (back.lengthSquared() < 1e-4) return pos;
+        return hit.getPos().subtract(back.normalize().multiply(0.35));
+    }
+
     /** The lens and tilt right now (0 when not overriding). */
     private static float curFov, curRoll;
 
@@ -104,6 +119,7 @@ public final class CutscenePlayer {
             pos = new Vec3d(MathHelper.lerp(k, s.fx(), s.tx()), MathHelper.lerp(k, s.fy(), s.ty()), MathHelper.lerp(k, s.fz(), s.tz()));
         }
         Vec3d look = new Vec3d(MathHelper.lerp(k, s.lx(), s.mx()), MathHelper.lerp(k, s.ly(), s.my()), MathHelper.lerp(k, s.lz(), s.mz()));
+        lastLook = look;
         Vec3d d = look.subtract(pos);
         double h = Math.sqrt(d.x * d.x + d.z * d.z);
         float yaw = (float) (MathHelper.atan2(d.z, d.x) * MathHelper.DEGREES_PER_RADIAN) - 90f;
@@ -166,6 +182,8 @@ public final class CutscenePlayer {
             }
         }
         if (p == null) return null;
+        // Out of the walls (not in the last glide home, which ends in your own eyes).
+        if (t < total) p = new Pose(clear(p.pos()), p.yaw(), p.pitch(), p.fov(), p.roll());
         curFov = p.fov();
         curRoll = p.roll();
         return new Cam(p.pos().x, p.pos().y, p.pos().z, p.yaw(), p.pitch());
@@ -226,6 +244,13 @@ public final class CutscenePlayer {
             }
             return;
         }
+        c.getMatrices().push();
+        c.getMatrices().translate(0, 0, 900);
+        drawBars(c, w, h);
+        c.getMatrices().pop();
+    }
+
+    private static void drawBars(DrawContext c, int w, int h) {
         float t = elapsed(), len = length();
         float barK = (float) (smooth(t / 0.5f) * smooth((len - t) / 0.5f));
         int bar = (int) (h * 0.075f * barK);

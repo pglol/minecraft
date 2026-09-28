@@ -1460,6 +1460,23 @@ public final class Net {
     }
 
     /** Client -> server: buy / enter / visit / upgrade / sell / manage / offers / acceptoffer / admin_*. */
+    /** Server -> client: a big event across the screen (a supply drop, a landing, an abnormal). */
+    public record EventBanner(String title, String sub, int color, String icon) implements CustomPayload {
+        public static final Id<EventBanner> ID = id("event_banner");
+        public static final PacketCodec<RegistryByteBuf, EventBanner> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.title); b.writeString(v.sub); b.writeInt(v.color); b.writeString(v.icon);
+        }, b -> new EventBanner(b.readString(), b.readString(), b.readInt(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Server -> client: the ground shakes (strength 0-1, for this many ticks). */
+    public record Quake(float strength, int ticks) implements CustomPayload {
+        public static final Id<Quake> ID = id("quake");
+        public static final PacketCodec<RegistryByteBuf, Quake> CODEC = PacketCodec.of((v, b) -> { b.writeFloat(v.strength); b.writeVarInt(v.ticks); },
+            b -> new Quake(b.readFloat(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the floors of the home you're in, each with its size, furnishing price and current package ("" none). */
     public record DecorView(int home, java.util.List<String> names, java.util.List<Integer> ys, java.util.List<Integer> areas,
                             java.util.List<Long> prices, java.util.List<String> current, boolean open) implements CustomPayload {
@@ -2348,6 +2365,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(VendorBuy.ID, VendorBuy.CODEC);
         PayloadTypeRegistry.playC2S().register(VendorSell.ID, VendorSell.CODEC);
         PayloadTypeRegistry.playS2C().register(DecorView.ID, DecorView.CODEC);
+        PayloadTypeRegistry.playS2C().register(EventBanner.ID, EventBanner.CODEC);
+        PayloadTypeRegistry.playS2C().register(Quake.ID, Quake.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);
         PayloadTypeRegistry.playS2C().register(AlertsView.ID, AlertsView.CODEC);
         PayloadTypeRegistry.playS2C().register(Dream.ID, Dream.CODEC);

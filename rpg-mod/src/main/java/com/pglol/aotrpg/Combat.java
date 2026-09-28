@@ -22,6 +22,8 @@ public final class Combat {
         if (amount <= 0 || entity.getWorld().isClient) return amount;
         double mult = 1;
         if (source.getAttacker() instanceof ServerPlayerEntity attacker && attacker != entity) {
+            // A troop reeling from a parry takes a punishing hit.
+            if (Troops.stunned(entity)) mult *= 1.6;
             // Gear power counts only when the character is high enough level for the weapon.
             if (Gear.canUse(attacker, attacker.getMainHandStack())) mult *= 1 + Gear.power(attacker.getMainHandStack());
             mult *= AotRpg.ABILITIES.outgoing(attacker, entity, source);

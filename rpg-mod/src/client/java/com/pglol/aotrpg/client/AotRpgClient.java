@@ -115,6 +115,8 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(LobbyScreen::hud);
         ClientPlayNetworking.registerGlobalReceiver(Net.LootView.ID, (payload, ctx) -> LootScreen.update(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.DecorView.ID, (payload, ctx) -> DecorScreen.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.EventBanner.ID, (payload, ctx) -> EventBanner.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.Quake.ID, (payload, ctx) -> EffectFx.quake(payload.strength(), payload.ticks()));
         ClientPlayNetworking.registerGlobalReceiver(Net.StashView.ID, (payload, ctx) -> {
             if (payload.open()) ctx.client().setScreen(new StashScreen(payload));
             else StashScreen.update(payload);
@@ -297,7 +299,6 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         HudRenderCallback.EVENT.register(com.pglol.aotrpg.client.story.StoryClient::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.Cutscene.ID, (payload, ctx) -> com.pglol.aotrpg.client.story.CutscenePlayer.play(payload));
-        HudRenderCallback.EVENT.register(com.pglol.aotrpg.client.story.CutscenePlayer::render);
         ClientTickEvents.END_CLIENT_TICK.register(com.pglol.aotrpg.client.story.CutscenePlayer::tick);
         ClientTickEvents.END_CLIENT_TICK.register(com.pglol.aotrpg.client.story.StoryClient::tick);
         ClientPlayNetworking.registerGlobalReceiver(Net.Watchers.ID, (payload, ctx) -> WitnessFx.onView(payload));
@@ -414,6 +415,9 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(HitFx::render);
         HudRenderCallback.EVENT.register(Property::renderHud);
         HudRenderCallback.EVENT.register(CombatUi::renderHud);
+        // Last of all: the cutscene's bars cover every HUD piece, and the big event banners sit on top.
+        HudRenderCallback.EVENT.register(com.pglol.aotrpg.client.story.CutscenePlayer::render);
+        HudRenderCallback.EVENT.register(EventBanner::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (characterKey.wasPressed()) {
