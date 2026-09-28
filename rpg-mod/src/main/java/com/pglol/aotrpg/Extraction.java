@@ -1200,6 +1200,8 @@ public final class Extraction {
     public void tick(int ticks) {
         this.ticks = ticks;
         pregen(ticks);
+        if (ticks % 10 == 5) specTick();
+        if (ticks % 200 == 7) finishedBy.keySet().removeIf(r -> !runs.contains(r) && runs.stream().noneMatch(o -> o.session == r.session));
         if (ticks % 10 == 0) {
             for (Session ses : sessions.values()) {
                 ServerWorld sw = server.getWorld(ses.island.world);
@@ -1520,6 +1522,165 @@ public final class Extraction {
         return r != null && RunObjectives.useEntity(r.session, p, e);
     }
 
+    // ------------------------------------------------------------------ falling and watching
+
+    /** A fallen diver watching the match: their match, their squad, who they're watching, their game mode before. */
+    private static final class Spec {
+        Session session;
+        Run squad;
+        UUID watching;
+        net.minecraft.world.GameMode before;
+    }
+
+    private final Map<UUID, Spec> specs = new HashMap<>();
+    /** A squad wiped out: whose squad finished them (their spectators watch that squad next). */
+    private final Map<Run, Run> finishedBy = new HashMap<>();
+
+    /**
+     * A killing blow on a run: no death screen and no respawn. The gear drops where they fell and
+     * they're straight into watching their squad. False: the death is handled here.
+     */
+    public boolean allowDeath(ServerPlayerEntity p, net.minecraft.entity.damage.DamageSource source) {
+        Run r = runOf(p.getUuid());
+        if (r == null || p.isSpectator()) return true;
+        p.setHealth(p.getMaxHealth());
+        Run killers = source.getAttacker() instanceof ServerPlayerEntity k ? runOf(k.getUuid()) : null;
+        UUID id = p.getUuid();
+        // Done a tick later: this may be the end of a bleed-out, in the middle of the downed list.
+        AotRpg.SCHEDULER.later(1, () -> {
+            ServerPlayerEntity pl = server.getPlayerManager().getPlayer(id);
+            if (pl != null && runOf(id) == r) fall(pl, r, killers);
+        });
+        return false;
+    }
+
+    private void fall(ServerPlayerEntity p, Run r, Run killers) {
+        AotRpg.DOWNED.release(p);
+        p.setInvulnerable(false);
+        // Everything carried drops where they fell (the satchel is always safe).
+        AotRpg.LOADOUT.unsheathAll(p);
+        p.getInventory().dropAll();
+        p.setHealth(p.getMaxHealth());
+        p.extinguish();
+        p.clearStatusEffects();
+        p.fallDistance = 0;
+        clearView(p);
+        r.members.remove(p.getUuid());
+        r.extracting.remove(p.getUuid());
+        if (r.members.isEmpty() && killers != null && killers != r) finishedBy.put(r, killers);
+        Spec sp = new Spec();
+        sp.session = r.session;
+        sp.squad = r;
+        sp.before = p.interactionManager.getGameMode();
+        specs.put(p.getUuid(), sp);
+        p.changeGameMode(net.minecraft.world.GameMode.SPECTATOR);
+        p.getServerWorld().playSound(null, p.getBlockPos(), SoundEvents.ENTITY_PLAYER_DEATH, SoundCategory.PLAYERS, 1f, 0.8f);
+        Titles.show(p, Text.literal("KILLED IN ACTION").formatted(Formatting.DARK_RED, Formatting.BOLD),
+            Text.literal("Your gear lies where you fell").formatted(Formatting.RED), 5, 50, 15);
+        for (UUID m : r.members) {
+            ServerPlayerEntity mate = server.getPlayerManager().getPlayer(m);
+            if (mate != null) Notify.toast(mate, Text.literal(AotRpg.PROFILES.get(p.getUuid()).name + " has fallen").formatted(Formatting.RED),
+                Text.literal("They're watching you now"), 0xC0463A, "minecraft:skeleton_skull", null);
+        }
+        retarget(p, sp, 1);
+    }
+
+    /** Who this spectator can watch, in order: their squad, then whoever wiped it out, then anyone left. */
+    private List<ServerPlayerEntity> watchable(ServerPlayerEntity p, Spec sp) {
+        List<ServerPlayerEntity> out = new ArrayList<>();
+        Run follow = sp.squad;
+        java.util.Set<Run> tried = new HashSet<>();
+        while (follow != null && tried.add(follow)) {
+            for (UUID m : follow.members) {
+                ServerPlayerEntity t = server.getPlayerManager().getPlayer(m);
+                if (t != null && t.isAlive() && !t.isSpectator() && t.getWorld() == p.getWorld()) out.add(t);
+            }
+            if (!out.isEmpty()) return out;
+            follow = finishedBy.get(follow);
+        }
+        for (Run o : runs) {
+            if (o.session != sp.session) continue;
+            for (UUID m : o.members) {
+                ServerPlayerEntity t = server.getPlayerManager().getPlayer(m);
+                if (t != null && t.isAlive() && !t.isSpectator() && t.getWorld() == p.getWorld()) out.add(t);
+            }
+        }
+        return out;
+    }
+
+    /** Onto the next (dir 1) or previous (-1) player to watch; nobody left and the match is over. */
+    private void retarget(ServerPlayerEntity p, Spec sp, int dir) {
+        List<ServerPlayerEntity> can = watchable(p, sp);
+        if (can.isEmpty()) {
+            matchOver(sp.session);
+            return;
+        }
+        int at = -1;
+        for (int i = 0; i < can.size(); i++) if (can.get(i).getUuid().equals(sp.watching)) at = i;
+        ServerPlayerEntity t = can.get(Math.floorMod(at + dir, can.size()));
+        sp.watching = t.getUuid();
+        p.setCameraEntity(t);
+        sendSpec(p, t, sp);
+    }
+
+    private void sendSpec(ServerPlayerEntity p, ServerPlayerEntity t, Spec sp) {
+        if (!ServerPlayNetworking.canSend(p, Net.SpecView.ID)) return;
+        boolean mine = t != null && sp.squad.members.contains(t.getUuid());
+        String who = t == null ? "" : AotRpg.PROFILES.get(t.getUuid()).name;
+        ServerPlayNetworking.send(p, new Net.SpecView(t != null, who, mine ? "Your squad" : "The squad that got you"));
+    }
+
+    /** Everyone in the match has fallen (or got out): the watchers go back aboard. */
+    private void matchOver(Session s) {
+        for (var e : new ArrayList<>(specs.entrySet())) {
+            if (e.getValue().session != s) continue;
+            ServerPlayerEntity p = server.getPlayerManager().getPlayer(e.getKey());
+            if (p != null) {
+                stopWatching(p);
+                Titles.show(p, Text.literal("MATCH OVER").formatted(Formatting.GOLD, Formatting.BOLD), Text.literal("Nobody's left out there"), 5, 50, 15);
+            } else specs.remove(e.getKey());
+        }
+    }
+
+    /** Back aboard the balloon, in their own game mode again. */
+    private void stopWatching(ServerPlayerEntity p) {
+        Spec sp = specs.remove(p.getUuid());
+        if (sp == null) return;
+        p.setCameraEntity(p);
+        p.changeGameMode(sp.before == null || sp.before == net.minecraft.world.GameMode.SPECTATOR ? net.minecraft.world.GameMode.SURVIVAL : sp.before);
+        if (ServerPlayNetworking.canSend(p, Net.SpecView.ID)) ServerPlayNetworking.send(p, new Net.SpecView(false, "", ""));
+        toLobby(p, true);
+    }
+
+    public static boolean watching(UUID id) {
+        return self != null && self.specs.containsKey(id);
+    }
+
+    /** Twice a second: keep each watcher on someone still out there. */
+    private void specTick() {
+        for (var e : new ArrayList<>(specs.entrySet())) {
+            ServerPlayerEntity p = server.getPlayerManager().getPlayer(e.getKey());
+            Spec sp = e.getValue();
+            if (p == null) continue;
+            ServerPlayerEntity t = sp.watching == null ? null : server.getPlayerManager().getPlayer(sp.watching);
+            boolean ok = t != null && t.isAlive() && !t.isSpectator() && t.getWorld() == p.getWorld() && runOf(t.getUuid()) != null;
+            if (!ok) retarget(p, sp, 1);
+            else if (p.getCameraEntity() != t) p.setCameraEntity(t);
+        }
+    }
+
+    /** A watcher's controls: next, previous, or back to the balloon. */
+    public void specAction(ServerPlayerEntity p, String action) {
+        Spec sp = specs.get(p.getUuid());
+        if (sp == null) return;
+        switch (action) {
+            case "spec_next" -> retarget(p, sp, 1);
+            case "spec_prev" -> retarget(p, sp, -1);
+            case "spec_leave" -> stopWatching(p);
+            default -> { }
+        }
+    }
+
     /** Died out there: the gear stays where they fell, and they wake in the balloon. */
     /** Fallen divers: where they fell (world and spot), waiting for their respawn. */
     private final Map<UUID, Object[]> fallen = new HashMap<>();
@@ -1601,6 +1762,12 @@ public final class Extraction {
     public void joined(ServerPlayerEntity p) {
         if (!p.isAlive()) return;
         UUID id = p.getUuid();
+        // Was watching the match when they left (or the server went down): back aboard, themselves again.
+        if (specs.containsKey(id)) {
+            stopWatching(p);
+            return;
+        }
+        if (p.isSpectator() && Island.of(p.getWorld()) != null && !p.hasPermissionLevel(2)) p.changeGameMode(net.minecraft.world.GameMode.SURVIVAL);
         Profile pr = AotRpg.PROFILES.get(id);
         if (missedOffline.remove(id)) {
             p.getInventory().clear();
@@ -1657,6 +1824,10 @@ public final class Extraction {
     // ------------------------------------------------------------------ lobby actions
 
     public void action(ServerPlayerEntity p, String action, String arg) {
+        if (action.startsWith("spec_")) {
+            specAction(p, action);
+            return;
+        }
         if (action.equals("mark") || action.equals("unmark")) {
             mark(p, action, arg);
             return;

@@ -2145,6 +2145,15 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: watching the match after falling (who), or not any more. */
+    public record SpecView(boolean active, String watching, String whose) implements CustomPayload {
+        public static final Id<SpecView> ID = Net.id("spec_view");
+        public static final PacketCodec<RegistryByteBuf, SpecView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeBoolean(v.active); b.writeString(v.watching); b.writeString(v.whose);
+        }, b -> new SpecView(b.readBoolean(), b.readString(), b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2207,6 +2216,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(DuelSetup.ID, DuelSetup.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeList.ID, HomeList.CODEC);
         PayloadTypeRegistry.playS2C().register(Talk.ID, Talk.CODEC);
+        PayloadTypeRegistry.playS2C().register(SpecView.ID, SpecView.CODEC);
         PayloadTypeRegistry.playS2C().register(VendorView.ID, VendorView.CODEC);
         PayloadTypeRegistry.playC2S().register(VendorBuy.ID, VendorBuy.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);

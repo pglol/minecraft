@@ -121,6 +121,8 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(InfusionFx::tick);
         ClientTickEvents.END_CLIENT_TICK.register(EffectFx::tick);
         ClientTickEvents.END_CLIENT_TICK.register(MotionGuard::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(SpecHud::tick);
+        HudRenderCallback.EVENT.register(SpecHud::render);
         HudRenderCallback.EVENT.register(EffectFx::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.DuelRing.ID, (payload, ctx) -> DuelRing.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.BagView.ID, (payload, ctx) -> {
@@ -219,6 +221,7 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.HomeList.ID, (payload, ctx) -> HomesScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.Talk.ID, (payload, ctx) -> TalkScreen.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.SpecView.ID, (payload, ctx) -> SpecHud.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.VendorView.ID, (payload, ctx) -> VendorScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.Dream.ID, (payload, ctx) -> ctx.client().setScreen(new SheepScreen(payload.seed())));
         ClientPlayNetworking.registerGlobalReceiver(Net.AlertsView.ID, (payload, ctx) -> {

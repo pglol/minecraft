@@ -79,7 +79,7 @@ public final class QuickHeal {
     }
 
     public void use(ServerPlayerEntity p) {
-        if (AotRpg.DUELS.blocksFood(p)) return;
+        if (AotRpg.DUELS.blocksFood(p) || AotRpg.DOWNED.isDowned(p)) return;
         long now = p.getServerWorld().getTime();
         Long r = ready.get(p.getUuid());
         if (r != null && now < r) {

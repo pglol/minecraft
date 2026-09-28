@@ -250,6 +250,16 @@ public final class AotRpg implements ModInitializer {
             if (t != null) DUELS.challenge(ctx.player(), t, new Duels.Rules(Math.max(0, Math.min(Duels.RINGS.length - 1, payload.ring())),
                 payload.odm(), payload.abilities(), payload.food()));
         });
+        // Downed: no fighting back and no patching yourself up (a squadmate has to).
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) ->
+            !world.isClient && player instanceof ServerPlayerEntity sp && DOWNED.isDowned(sp) ? ActionResult.FAIL : ActionResult.PASS);
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
+            !(source.getAttacker() instanceof ServerPlayerEntity atk) || !DOWNED.isDowned(atk));
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            var stack = player.getStackInHand(hand);
+            if (!world.isClient && player instanceof ServerPlayerEntity sp && DOWNED.isDowned(sp)) return net.minecraft.util.TypedActionResult.fail(stack);
+            return net.minecraft.util.TypedActionResult.pass(stack);
+        });
         // Duels without food: nothing to eat or drink.
         UseItemCallback.EVENT.register((player, world, hand) -> {
             var stack = player.getStackInHand(hand);
@@ -297,7 +307,7 @@ public final class AotRpg implements ModInitializer {
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
             !(entity instanceof net.minecraft.entity.passive.AbstractHorseEntity h) || !HORSES.spare(h));
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
-            !(entity instanceof ServerPlayerEntity sp) || DUELS.allowDeath(sp) && DOWNED.allowDeath(sp, source, amount));
+            !(entity instanceof ServerPlayerEntity sp) || DUELS.allowDeath(sp) && DOWNED.allowDeath(sp, source, amount) && EXTRACT.allowDeath(sp, source));
         // A scene's titans and actors only touch the players in that scene (and vice versa).
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             net.minecraft.entity.Entity att = source.getAttacker();
