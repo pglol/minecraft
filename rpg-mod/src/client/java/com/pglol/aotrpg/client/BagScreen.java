@@ -35,6 +35,8 @@ public final class BagScreen extends Screen {
     private static int tab, sort;
     private int selected = -1, scroll;
     private static int scrapAsk = -1;
+    /** The equip places of the selected item that get a comparison: [tile, target]. */
+    private final List<Object[]> compares = new ArrayList<>();
     /** How many of the selected stack Drop lets go of (reset when the selection changes). */
     private static int dropAmt = 1, dropFor = -1;
     private int gx, gy, cols, rows, cw, ch, detailX, detailW;
@@ -127,12 +129,13 @@ public final class BagScreen extends Screen {
 
     @Override
     protected void init() {
+        compares.clear();
         detailW = Math.min(170, width / 3);
         detailX = width - detailW - 14;
         gx = 14;
         gy = 70;
-        cw = 32;
-        ch = 32;
+        cw = 40;
+        ch = 40;
         cols = Math.max(3, (detailX - 10 - gx) / (cw + 5));
         rows = Math.max(1, (height - 66 - gy) / (ch + 5));
         // What you wear and carry: click to put it back in the satchel.
@@ -199,8 +202,14 @@ public final class BagScreen extends Screen {
                     () -> placed(t), () -> act("equip", slot, t)));
                 tile.highlight = true;
                 tile.active = !GearUi.locked(s);
-                tile.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Equip to " + placeName(t)
-                    + (cur.isEmpty() ? "" : "\n(swaps with " + cur.getName().getString() + ")"))));
+                // Hovering compares it with what's there (see render); every place shows up- or downgrade.
+                if (Gear.isGear(s) || Gear.isGear(cur)) {
+                    tile.badge = GearCompare.verdict(s, cur);
+                    compares.add(new Object[] {tile, t});
+                } else {
+                    tile.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Equip to " + placeName(t)
+                        + (cur.isEmpty() ? "" : "\n(swaps with " + cur.getName().getString() + ")"))));
+                }
             }
             equipRow = places.isEmpty() ? -1 : py;
             if (!Satchel.isStory(s)) {
@@ -305,6 +314,19 @@ public final class BagScreen extends Screen {
     // ------------------------------------------------------------------ drawing
 
     @Override
+    public void render(DrawContext c, int mouseX, int mouseY, float delta) {
+        super.render(c, mouseX, mouseY, delta);
+        // Hovering an equip place: the selected piece against what's there now.
+        ItemStack s = selected >= 0 ? ClientState.bag.getOrDefault(selected, ItemStack.EMPTY) : ItemStack.EMPTY;
+        if (s.isEmpty()) return;
+        for (Object[] e : compares) {
+            PlaceTile tile = (PlaceTile) e[0];
+            int t = (int) e[1];
+            if (tile.isHovered()) GearCompare.render(c, s, placed(t), placeName(t), mouseX, mouseY, width, height);
+        }
+    }
+
+    @Override
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
         Ui.planks(c, width, height);
         // A leather strap across the top with the title and how full the satchel is.
@@ -364,8 +386,8 @@ public final class BagScreen extends Screen {
         c.fill(x + 3, y + ch - 3, x + cw - 3, y + ch - 2, tone);
         var m = c.getMatrices();
         m.push();
-        m.translate(x + (cw - 24) / 2f, y + (ch - 24) / 2f - 1, 0);
-        m.scale(1.5f, 1.5f, 1);
+        m.translate(x + (cw - 32) / 2f, y + (ch - 32) / 2f - 1, 0);
+        m.scale(2f, 2f, 1);
         c.drawItem(s, 0, 0);
         m.pop();
         m.push();

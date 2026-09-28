@@ -22,6 +22,8 @@ public final class PlaceTile extends PressableWidget {
     private final int color;
     private final ItemStack ghost;
     public boolean highlight;
+    /** Up- or downgrade against what's here (1 better, -1 worse, 0 even), or null for none. */
+    public Integer badge;
 
     public PlaceTile(int x, int y, int size, int target, Supplier<ItemStack> stack, Runnable action) {
         super(x, y, size, size, Text.empty());
@@ -97,6 +99,13 @@ public final class PlaceTile extends PressableWidget {
         }
         m.pop();
         if (!active) c.fill(x, y, x + s, y + s, 0x90000000);
+        if (badge != null) {
+            m.push();
+            m.translate(0, 0, 300);
+            String b = badge > 0 ? "▲" : badge < 0 ? "▼" : "≈";
+            Ui.text(c, Text.literal(b), x + s - 7, y + 1, 0.8f, badge > 0 ? 0xFF5BD35B : badge < 0 ? 0xFFE0463A : Ui.CREAM, false);
+            m.pop();
+        }
         Ui.text(c, Text.literal(label), x + s / 2f, y + s + 3, 0.55f, hov ? Ui.GOLD : (col & 0x00FFFFFF) | 0xE0000000, true);
     }
 
