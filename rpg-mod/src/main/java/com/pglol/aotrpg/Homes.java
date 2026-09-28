@@ -114,6 +114,8 @@ public final class Homes {
         public boolean streetWall;
         /** The chests and barrels counted into the stash (packed positions), null until counted. */
         public List<Long> stash;
+        /** Counted with the tight bounds (the house itself and the cellar room, nothing of the street). */
+        public boolean stashV2;
     }
 
     /** An exclusive plot: one owner, the house is built on the plot in the real world. */
@@ -1235,15 +1237,16 @@ public final class Homes {
         if (hw == null) return;
         int[] h = AotRpg.PLACES.homes.get(d.home);
         int n = d.instance;
-        BlockPos a = map(h, n, h[0] - 1, h[4], h[1] - 1), b = map(h, n, h[2] + 1, h[5] + 3, h[3] + 1);
+        BlockPos a = map(h, n, h[0], h[4], h[1]), b = map(h, n, h[2], h[5] + 3, h[3]);
         int cx = (a.getX() + b.getX()) / 2, cz = (a.getZ() + b.getZ()) / 2;
         java.util.LinkedHashSet<Long> found = new java.util.LinkedHashSet<>();
         if (d.stash != null) found.addAll(d.stash);
         // The house, then the cellar under it.
         scanContainers(hw, a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ(), found);
         if (d.upgrades.contains(Upgrade.CELLAR.name())) {
+            // Inside the cellar room's walls only (the street copy reaches below ground around it).
             int fy = HomeCellar.floor(FLOOR);
-            scanContainers(hw, cx - HomeCellar.HX - 1, fy, cz - HomeCellar.HZ - 1, cx + HomeCellar.HX + 1, FLOOR - 1, cz + HomeCellar.HZ + 1, found);
+            scanContainers(hw, cx - HomeCellar.HX, fy + 1, cz - HomeCellar.HZ, cx + HomeCellar.HX, fy + 4, cz + HomeCellar.HZ, found);
         }
         d.stash = new ArrayList<>(found);
         save();
@@ -1266,7 +1269,11 @@ public final class Homes {
         List<BlockPos> out = new ArrayList<>();
         for (Deed d : deeds(p)) {
             migrate(d.instance);
-            if (d.stash == null) countStash(d);
+            if (d.stash == null || !d.stashV2) {
+                d.stash = null;
+                d.stashV2 = true;
+                countStash(d);
+            }
             if (d.stash != null) for (long l : d.stash) out.add(BlockPos.fromLong(l));
         }
         return out;
