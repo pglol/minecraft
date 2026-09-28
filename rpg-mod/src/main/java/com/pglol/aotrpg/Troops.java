@@ -112,6 +112,16 @@ public final class Troops {
         return troops.containsKey(e.getUuid());
     }
 
+    /** Thrown off balance (a perfect parry): stock still for this many ticks, and open to punishment. */
+    public static void stagger(Entity e, int ticks) {
+        Troop t = troops.get(e.getUuid());
+        if (t == null) return;
+        t.stun = Math.max(t.stun, ticks);
+        t.swing = 0;
+        t.windup = 0;
+        t.burst = 0;
+    }
+
     /** Staggered after a parried swing: open to a punishing hit. */
     public static boolean stunned(Entity e) {
         Troop t = troops.get(e.getUuid());
@@ -308,9 +318,11 @@ public final class Troops {
 
         double dist = Math.sqrt(v.squaredDistanceTo(target));
         boolean titan = AotRpg.isTitan(target);
-        // Up close with a person: blades out.
-        if (!titan && dist < 5.5) blade(v, t);
-        else if (dist > 8) gun(v, t);
+        // Up close with a person on the ground: blades out. They can't follow you into the air
+        // (no gear of their own), so the moment you pull away or take off, it's back to the gun.
+        boolean airborne = target instanceof ServerPlayerEntity sp2 && (!sp2.isOnGround() && sp2.getVelocity().lengthSquared() > 0.09);
+        if (!titan && dist < 5 && !airborne) blade(v, t);
+        else if (dist > 6 || airborne || titan) gun(v, t);
         if (t.blade) {
             melee(w, v, t, target, dist, sq);
             return;
@@ -429,15 +441,7 @@ public final class Troops {
                 t.cool = 14;
                 return;
             }
-            if (target instanceof ServerPlayerEntity p && AotRpg.GUARD_FIGHT.guarding(p)
-                && p.getRotationVec(1f).multiply(1, 0, 1).normalize().dotProduct(v.getPos().subtract(p.getPos()).multiply(1, 0, 1).normalize()) > 0.26) {
-                // Parried: thrown off balance, wide open.
-                t.stun = 40;
-                w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.PLAYERS, 0.8f, 1.8f);
-                w.spawnParticles(ParticleTypes.FLASH, v.getX(), v.getY() + 1.3, v.getZ(), 1, 0, 0, 0, 0);
-                p.sendMessage(Text.literal("PARRIED").formatted(Formatting.AQUA, Formatting.BOLD), true);
-                return;
-            }
+            // (A guard raised in time turns it: a well-timed one throws them off balance, see Guard.)
             target.damage(w.getDamageSources().mobAttack(v), 5 + sq.level * 0.1f + (t.officer ? 2 : 0));
             target.addVelocity(look.x * 0.5, 0.2, look.z * 0.5);
             target.velocityModified = true;

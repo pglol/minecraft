@@ -24,6 +24,11 @@ public final class Combat {
         if (source.getAttacker() instanceof ServerPlayerEntity attacker && attacker != entity) {
             // A troop reeling from a parry takes a punishing hit.
             if (Troops.stunned(entity)) mult *= 1.6;
+            // The riposte after a perfect parry.
+            if (melee(source) && AotRpg.GUARD_FIGHT.takeCounter(attacker)) {
+                mult *= 1.5;
+                attacker.playSoundToPlayer(net.minecraft.sound.SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, net.minecraft.sound.SoundCategory.PLAYERS, 1f, 0.8f);
+            }
             // Gear power counts only when the character is high enough level for the weapon.
             if (Gear.canUse(attacker, attacker.getMainHandStack())) mult *= 1 + Gear.power(attacker.getMainHandStack());
             mult *= AotRpg.ABILITIES.outgoing(attacker, entity, source);

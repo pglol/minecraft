@@ -58,6 +58,17 @@ public final class Guard {
         swings.put(p.getUuid(), new Swing(target.getId(), System.currentTimeMillis()));
     }
 
+    /** How soon after raising the guard a hit counts as a perfect parry. */
+    private static final long PARRY_MS = 260;
+    /** After a perfect parry: until when your next hit lands harder. */
+    private final Map<UUID, Long> counterUntil = new java.util.HashMap<>();
+
+    /** The riposte after a perfect parry: true (once) if this hit is it. */
+    public boolean takeCounter(ServerPlayerEntity p) {
+        Long until = counterUntil.remove(p.getUuid());
+        return until != null && System.currentTimeMillis() < until;
+    }
+
     public boolean guarding(ServerPlayerEntity p) {
         return guarding.containsKey(p.getUuid());
     }
@@ -174,6 +185,36 @@ public final class Guard {
             // Block: a guarding fighter facing the hit.
             if (!(entity instanceof ServerPlayerEntity def) || !guarding(def) || !inFront(def, src)) return true;
             boolean titan = AotRpg.isTitan(src);
+            // A perfect parry: the guard came up just as the hit arrived. Nothing gets through, it
+            // costs nothing, the attacker is thrown off balance, and your next cut lands harder.
+            Long raised = guarding.get(def.getUuid());
+            if (raised != null && now - raised <= PARRY_MS) {
+                Vec3d at0 = def.getEyePos().add(def.getRotationVec(1f).multiply(0.7)).subtract(0, 0.3, 0);
+                fx(w, FX_CLASH, at0, def);
+                w.spawnParticles(net.minecraft.particle.ParticleTypes.FLASH, at0.x, at0.y, at0.z, 1, 0, 0, 0, 0);
+                w.spawnParticles(net.minecraft.particle.ParticleTypes.ELECTRIC_SPARK, at0.x, at0.y, at0.z, 18, 0.2, 0.2, 0.2, 0.4);
+                w.playSound(null, def.getX(), def.getY() + 1, def.getZ(), net.minecraft.sound.SoundEvents.BLOCK_ANVIL_LAND,
+                    net.minecraft.sound.SoundCategory.PLAYERS, 0.9f, 2f);
+                w.playSound(null, def.getX(), def.getY() + 1, def.getZ(), net.minecraft.sound.SoundEvents.ITEM_TRIDENT_HIT,
+                    net.minecraft.sound.SoundCategory.PLAYERS, 1f, 1.4f);
+                AotRpg.STAMINA.spend(def, -15);
+                counterUntil.put(def.getUuid(), now + 1500);
+                def.sendMessage(Text.literal("PERFECT PARRY").formatted(Formatting.GOLD, Formatting.BOLD), true);
+                if (titan) {
+                    // Nothing stops a titan: you turn the blow and are thrown clear of it.
+                    push(def, src, 1.1);
+                } else if (src instanceof ServerPlayerEntity att) {
+                    push(att, def, 1.1);
+                    att.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 2, false, false, false));
+                    att.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 30, 1, false, false, false));
+                    att.sendMessage(Text.literal("Parried!").formatted(Formatting.RED, Formatting.BOLD), true);
+                } else if (Troops.is(src)) {
+                    Troops.stagger(src, 50);
+                } else {
+                    push(src, def, 0.9);
+                }
+                return false;
+            }
             Profile dp = AotRpg.PROFILES.get(def.getUuid());
             float cost = (amount * (titan ? 3f : 5f) + 4) * (dp.has(Skill.BULWARK) ? 0.65f : 1f) * (dp.has(Skill.TNK_STALWART) ? 0.75f : 1f);
             Vec3d at = def.getEyePos().add(def.getRotationVec(1f).multiply(0.7)).subtract(0, 0.4, 0);
