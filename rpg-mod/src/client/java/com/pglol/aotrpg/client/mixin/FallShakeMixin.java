@@ -14,5 +14,6 @@ public abstract class FallShakeMixin {
     @Inject(method = "tiltViewWhenHurt", at = @At("TAIL"), require = 0)
     private void aotrpg$shake(MatrixStack matrices, float tickDelta, CallbackInfo ci) {
         EffectFx.shake(matrices, tickDelta);
+        com.pglol.aotrpg.client.story.CutscenePlayer.roll(matrices);
     }
 }

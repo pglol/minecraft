@@ -238,13 +238,28 @@ public final class Net {
     }
 
     /** One camera shot: glide from -> to while looking from look -> lookTo, over seconds. */
+    /**
+     * One camera move: from f to t, looking from l to m. fov0/fov1 the lens across it (0 = the
+     * player's own), roll0/roll1 the tilt in degrees, path 0 a straight glide or 1 an orbit round
+     * the look point, ease 0 smooth, 1 a speed ramp (quick, slow in the middle, quick), 2 a whoosh
+     * (fast start, long settle).
+     */
     public record Shot(double fx, double fy, double fz, double tx, double ty, double tz, double lx, double ly, double lz,
-                       double mx, double my, double mz, float seconds) { }
+                       double mx, double my, double mz, float seconds, float fov0, float fov1, float roll0, float roll1, int path, int ease) {
+        public Shot(double fx, double fy, double fz, double tx, double ty, double tz, double lx, double ly, double lz,
+                    double mx, double my, double mz, float seconds) {
+            this(fx, fy, fz, tx, ty, tz, lx, ly, lz, mx, my, mz, seconds, 0, 0, 0, 0, 0, 0);
+        }
+    }
 
     /** Server -> client: play a cutscene (fade: open from black). */
-    public record Cutscene(java.util.List<Shot> shots, boolean fade, String title, String sub, int color) implements CustomPayload {
+    /** blendOut: the camera glides back into the player's eyes at the end (else a quick dip to black, for a cut elsewhere). */
+    public record Cutscene(java.util.List<Shot> shots, boolean fade, String title, String sub, int color, boolean blendOut) implements CustomPayload {
         public Cutscene(java.util.List<Shot> shots, boolean fade) {
-            this(shots, fade, "", "", 0);
+            this(shots, fade, "", "", 0, true);
+        }
+        public Cutscene(java.util.List<Shot> shots, boolean fade, String title, String sub, int color) {
+            this(shots, fade, title, sub, color, true);
         }
         public static final Id<Cutscene> ID = Net.id("cutscene");
         public static final PacketCodec<RegistryByteBuf, Cutscene> CODEC = PacketCodec.of((v, b) -> {
@@ -255,17 +270,21 @@ public final class Net {
                 b.writeDouble(s.lx()); b.writeDouble(s.ly()); b.writeDouble(s.lz());
                 b.writeDouble(s.mx()); b.writeDouble(s.my()); b.writeDouble(s.mz());
                 b.writeFloat(s.seconds());
+                b.writeFloat(s.fov0()); b.writeFloat(s.fov1()); b.writeFloat(s.roll0()); b.writeFloat(s.roll1());
+                b.writeByte(s.path()); b.writeByte(s.ease());
             }
             b.writeBoolean(v.fade);
             b.writeString(v.title);
             b.writeString(v.sub);
             b.writeInt(v.color);
+            b.writeBoolean(v.blendOut);
         }, b -> {
             int n = Math.min(b.readVarInt(), 64);
             java.util.List<Shot> l = new java.util.ArrayList<>();
             for (int i = 0; i < n; i++) l.add(new Shot(b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(),
-                b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readFloat()));
-            return new Cutscene(l, b.readBoolean(), b.readString(), b.readString(), b.readInt());
+                b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readDouble(), b.readFloat(),
+                b.readFloat(), b.readFloat(), b.readFloat(), b.readFloat(), b.readByte(), b.readByte()));
+            return new Cutscene(l, b.readBoolean(), b.readString(), b.readString(), b.readInt(), b.readBoolean());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }

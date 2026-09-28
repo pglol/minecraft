@@ -13,6 +13,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class GameRendererFovMixin {
     @Inject(method = "getFov", at = @At("RETURN"), require = 0)
     private void aotrpg$fov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
-        if (changingFov) InfusionFx.worldFov = cir.getReturnValue();
+        if (!changingFov) return;
+        // A cutscene's lens (a dolly zoom, a wide plunge) for the world view.
+        float cut = com.pglol.aotrpg.client.story.CutscenePlayer.fov();
+        if (cut > 0) cir.setReturnValue((double) cut);
+        InfusionFx.worldFov = cir.getReturnValue();
     }
 }

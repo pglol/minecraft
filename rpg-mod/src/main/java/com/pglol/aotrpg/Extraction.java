@@ -583,18 +583,9 @@ public final class Extraction {
             broadcast(slot);
             return;
         }
-        Direction face = w.getBlockState(seat).get(StairsBlock.FACING).getOpposite();
-        Vec3d facing = new Vec3d(face.getOffsetX(), 0, face.getOffsetZ());
-        List<Net.Shot> shots = Cinematics.boarding(Vec3d.ofBottomCenter(o.up()), Vec3d.ofBottomCenter(seat), facing, returning);
+        // Straight onto the bench: no cutscene, you're simply aboard.
         List<ServerPlayerEntity> aboard = aboard(slot);
-        String sub = returning ? "Back aboard" : aboard.size() > 1 ? aboard.size() + " aboard" : "Waiting to drop";
-        int t = Cinematics.play(List.of(p), shots, returning ? "HOME AIR" : "ALOFT", sub, 0xE0B96A);
-        walkingTo.put(p.getUuid(), seat);
-        sitBy.put(p.getUuid(), ticks + Math.max(20, t - 76));
-        // The walk starts in time to sit down under the last shot.
-        if (ServerPlayNetworking.canSend(p, Net.Autopilot.ID)) {
-            ServerPlayNetworking.send(p, new Net.Autopilot(seat.getX() + 0.5, seat.getY(), seat.getZ() + 0.5, Math.max(0, (t - 120) * 50)));
-        }
+        sitOn(p, seat);
         for (ServerPlayerEntity m : aboard) {
             if (m == p) continue;
             Notify.toast(m, Text.literal(pr.name + " climbs aboard").formatted(Formatting.GOLD), null, 0xE0B96A, "minecraft:ladder", null);
@@ -1215,7 +1206,7 @@ public final class Extraction {
         // The drop: burner, over the rail, pulling away as they go; then from the ground, the squad falling in.
         BlockPos o = origin(slot);
         for (ServerPlayerEntity m : squad) m.playSoundToPlayer(SoundEvents.ITEM_FIRECHARGE_USE, SoundCategory.MASTER, 0.9f, 0.5f);
-        int ticks = Cinematics.play(squad, Cinematics.drop(Vec3d.ofBottomCenter(o)), "DROP", island.title, island.color & 0xFFFFFF);
+        int ticks = Cinematics.cut(squad, Cinematics.drop(Vec3d.ofBottomCenter(o)), "", "", island.color & 0xFFFFFF);
         BlockPos at = drop;
         AotRpg.SCHEDULER.later(ticks, () -> {
             int k = 0;
@@ -1231,11 +1222,11 @@ public final class Extraction {
                 m.playSoundToPlayer(SoundEvents.ITEM_ELYTRA_FLYING, SoundCategory.MASTER, 0.6f, 1f);
                 landed.add(m);
             }
-            if (!landed.isEmpty()) {
-                Vec3d ground = Vec3d.ofBottomCenter(at);
-                long in = (System.currentTimeMillis() - run.session.startedAt) / 60_000;
-                Cinematics.play(landed, Cinematics.landing(ground, ground.add(0, 44, 0)), island.title.toUpperCase(),
-                    in < 1 ? "Find the flares" : "Match in progress  \u00B7  " + in + " min in", island.color & 0xFFFFFF);
+            // Where you are, said once and small, as you fall.
+            long in = (System.currentTimeMillis() - run.session.startedAt) / 60_000;
+            for (ServerPlayerEntity m : landed) {
+                Notify.toast(m, Text.literal(island.title).formatted(Formatting.BOLD), Text.literal(in < 1 ? "Find the flares" : in + " min in"),
+                    island.color & 0xFFFFFF, "minecraft:compass", null);
             }
         });
     }
@@ -1613,7 +1604,7 @@ public final class Extraction {
         Stash.earn(p, salvage);
         AotRpg.TASKS.count(p, "extractions", 1);
         // Lifted off the flare, then back aboard (the balloon's own return shot), then the reward.
-        int t = Cinematics.play(List.of(p), Cinematics.extract(p.getPos()), "EXTRACTED", r.island.title, 0x5BD35B);
+        int t = Cinematics.cut(List.of(p), Cinematics.extract(p.getPos()), "", "", 0x5BD35B);
         p.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, t + 40, 4, false, false));
         int g = gear;
         AotRpg.SCHEDULER.later(t, () -> {
@@ -1900,11 +1891,7 @@ public final class Extraction {
             watching.put(id, pl.interactionManager.getGameMode());
             pl.changeGameMode(net.minecraft.world.GameMode.SPECTATOR);
             pl.teleport(w, spot.x, spot.y + 3, spot.z, pl.getYaw(), 60);
-            double a = Math.random() * Math.PI * 2;
-            List<Net.Shot> shots = new ArrayList<>();
-            Vec3d from = spot.add(Math.cos(a) * 4, 3, Math.sin(a) * 4), to = spot.add(Math.cos(a + 0.8) * 22, 34, Math.sin(a + 0.8) * 22);
-            shots.add(new Net.Shot(from.x, from.y, from.z, to.x, to.y, to.z, spot.x, spot.y + 0.5, spot.z, spot.x, spot.y, spot.z, 6.5f));
-            int t = Cinematics.play(List.of(pl), shots, "KILLED IN ACTION", "Your gear lies where you fell", 0xA02020);
+            int t = Cinematics.cut(List.of(pl), Cinematics.fallen(spot), "Killed in action", "", 0xA02020);
             pl.playSoundToPlayer(SoundEvents.BLOCK_BELL_RESONATE, SoundCategory.AMBIENT, 0.6f, 0.5f);
             AotRpg.SCHEDULER.later(t, () -> {
                 ServerPlayerEntity back = server.getPlayerManager().getPlayer(id);
