@@ -114,6 +114,9 @@ public final class Homes {
         public boolean streetWall;
         /** The cellar swept of street sand and gravel that had poured in from the copied street above. */
         public boolean cellarSwept;
+        /** Furnishing packages by floor (the floor's level -> package id), and what each put down. */
+        public Map<String, String> decor;
+        public Map<String, List<Long>> decorPlaced;
         /** The chests and barrels counted into the stash (packed positions), null until counted. */
         public List<Long> stash;
         /** Counted with the tight bounds (the house itself and the cellar room, nothing of the street). */
@@ -807,6 +810,97 @@ public final class Homes {
         return null;
     }
 
+    // ------------------------------------------------------------------ furnishing packages
+
+    /** Inside the walls of a home's copy: {x0, z0, x1, z1, floorY, roofY}. */
+    private int[] inside(int[] h, int n) {
+        BlockPos a = map(h, n, h[0] + 1, h[4], h[1] + 1), b = map(h, n, h[2] - 1, h[5], h[3] - 1);
+        return new int[] {Math.min(a.getX(), b.getX()), Math.min(a.getZ(), b.getZ()), Math.max(a.getX(), b.getX()), Math.max(a.getZ(), b.getZ()), a.getY(), b.getY()};
+    }
+
+    private static String floorName(int i, int n) {
+        String[] names = {"Ground floor", "Second floor", "Third floor", "Fourth floor", "Fifth floor"};
+        if (i > 0 && i == n - 1 && n > 2) return "Top floor";
+        return i < names.length ? names[i] : "Floor " + (i + 1);
+    }
+
+    /** The furnishing packages screen for the home you're standing in: each floor, what's on it, what it costs. */
+    void sendDecor(ServerPlayerEntity p, boolean open) {
+        Deed d = deedHere(p);
+        ServerWorld hw = homeWorld();
+        if (d == null || hw == null) {
+            Notify.toast(p, Text.literal("Stand inside your home").formatted(Formatting.RED), Text.literal("Floors are furnished from within"), 0xC0463A, "minecraft:oak_door", null);
+            return;
+        }
+        int[] in = inside(AotRpg.PLACES.homes.get(d.home), d.instance);
+        List<HomeDecor.Floor> fl = HomeDecor.floors(hw, in[0], in[1], in[2], in[3], in[4], in[5]);
+        List<String> names = new ArrayList<>(), current = new ArrayList<>();
+        List<Integer> ys = new ArrayList<>(), areas = new ArrayList<>();
+        List<Long> prices = new ArrayList<>();
+        for (int i = 0; i < fl.size(); i++) {
+            names.add(floorName(i, fl.size()));
+            ys.add(fl.get(i).y());
+            areas.add(fl.get(i).area());
+            prices.add(HomeDecor.price(fl.get(i).area()));
+            current.add(d.decor == null ? "" : d.decor.getOrDefault(String.valueOf(fl.get(i).y()), ""));
+        }
+        if (ServerPlayNetworking.canSend(p, Net.DecorView.ID)) ServerPlayNetworking.send(p, new Net.DecorView(d.home, names, ys, areas, prices, current, open));
+    }
+
+    /** Furnishes (or clears, with "none") one floor: "floorY:package". */
+    void applyDecor(ServerPlayerEntity p, String arg) {
+        Deed d = deedHere(p);
+        ServerWorld hw = homeWorld();
+        if (d == null || hw == null) return;
+        String[] a = arg.split(":");
+        if (a.length != 2) return;
+        int y;
+        try {
+            y = Integer.parseInt(a[0]);
+        } catch (NumberFormatException e) {
+            return;
+        }
+        HomeDecor.Package pkg = a[1].equals("none") ? null : HomeDecor.find(a[1]);
+        if (pkg == null && !a[1].equals("none")) return;
+        int[] h = AotRpg.PLACES.homes.get(d.home);
+        int[] in = inside(h, d.instance);
+        HomeDecor.Floor floor = null;
+        for (HomeDecor.Floor f : HomeDecor.floors(hw, in[0], in[1], in[2], in[3], in[4], in[5])) if (f.y() == y) floor = f;
+        if (floor == null) return;
+        if (d.decor == null) d.decor = new HashMap<>();
+        if (d.decorPlaced == null) d.decorPlaced = new HashMap<>();
+        String key = String.valueOf(y);
+        if (pkg != null && pkg.id().equals(d.decor.get(key))) return;
+        if (pkg != null && !AotRpg.WALLET.spendMarks(p, HomeDecor.price(floor.area()))) {
+            Notify.toast(p, Text.literal("Not enough Marks").formatted(Formatting.RED),
+                Text.literal("That's " + String.format("%,d", HomeDecor.price(floor.area())) + " Marks"), 0xC0463A, null, null);
+            return;
+        }
+        String tag = "aot_decor:" + d.instance + ":" + y;
+        net.minecraft.util.math.Box house = new net.minecraft.util.math.Box(in[0] - 1, y, in[1] - 1, in[2] + 2, y + 5, in[3] + 2);
+        WorldCare.quiet(true);
+        try {
+            HomeDecor.clear(hw, d.decorPlaced.getOrDefault(key, List.of()), tag, house);
+            d.decorPlaced.remove(key);
+            d.decor.remove(key);
+            if (pkg != null) {
+                List<BlockPos> keep = new ArrayList<>();
+                if (d.upgrades.contains(Upgrade.CELLAR.name())) keep.add(new BlockPos(d.hatchX, y + 1, d.hatchZ));
+                d.decorPlaced.put(key, HomeDecor.furnish(hw, pkg, floor, in[0], in[1], in[2], in[3], tag, keep));
+                d.decor.put(key, pkg.id());
+            }
+        } finally {
+            WorldCare.quiet(false);
+        }
+        save();
+        if (pkg != null) {
+            p.playSoundToPlayer(SoundEvents.BLOCK_WOOD_PLACE, SoundCategory.BLOCKS, 1f, 0.8f);
+            p.playSoundToPlayer(SoundEvents.ENTITY_VILLAGER_WORK_CARTOGRAPHER, SoundCategory.BLOCKS, 0.6f, 1f);
+            Reveal.show(p, "FURNISHED", pkg.name(), pkg.icon(), 2);
+        }
+        sendDecor(p, false);
+    }
+
     /** The house deed of the home you are standing in, if it is yours. */
     public Deed deedHere(ServerPlayerEntity p) {
         if (p.getWorld().getRegistryKey() != WORLD) return null;
@@ -1097,6 +1191,8 @@ public final class Homes {
                 handOver(p, grant(stem(p), AotRpg.PROFILES.get(p.getUuid()).name, home));
             }
             case "buy" -> buy(p, home);
+            case "decor" -> sendDecor(p, true);
+            case "decor_apply" -> applyDecor(p, arg);
             case "door" -> sendDoor(p, home);
             case "deed" -> send(p, home, true);
             case "knock" -> knock(p, home, arg);

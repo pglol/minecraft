@@ -1460,6 +1460,32 @@ public final class Net {
     }
 
     /** Client -> server: buy / enter / visit / upgrade / sell / manage / offers / acceptoffer / admin_*. */
+    /** Server -> client: the floors of the home you're in, each with its size, furnishing price and current package ("" none). */
+    public record DecorView(int home, java.util.List<String> names, java.util.List<Integer> ys, java.util.List<Integer> areas,
+                            java.util.List<Long> prices, java.util.List<String> current, boolean open) implements CustomPayload {
+        public static final Id<DecorView> ID = id("decor_view");
+        public static final PacketCodec<RegistryByteBuf, DecorView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.home);
+            b.writeVarInt(v.names.size());
+            for (int i = 0; i < v.names.size(); i++) {
+                b.writeString(v.names.get(i)); b.writeVarInt(v.ys.get(i)); b.writeVarInt(v.areas.get(i));
+                b.writeVarLong(v.prices.get(i)); b.writeString(v.current.get(i));
+            }
+            b.writeBoolean(v.open);
+        }, b -> {
+            int home = b.readVarInt();
+            int n = Math.min(b.readVarInt(), 16);
+            java.util.List<String> names = new java.util.ArrayList<>(), cur = new java.util.ArrayList<>();
+            java.util.List<Integer> ys = new java.util.ArrayList<>(), areas = new java.util.ArrayList<>();
+            java.util.List<Long> prices = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                names.add(b.readString()); ys.add(b.readVarInt()); areas.add(b.readVarInt()); prices.add(b.readVarLong()); cur.add(b.readString());
+            }
+            return new DecorView(home, names, ys, areas, prices, cur, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record HomeAction(String action, int home, String arg) implements CustomPayload {
         public static final Id<HomeAction> ID = id("home_action");
         public static final PacketCodec<RegistryByteBuf, HomeAction> CODEC = PacketCodec.of((v, b) -> {
@@ -2321,6 +2347,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(VendorView.ID, VendorView.CODEC);
         PayloadTypeRegistry.playC2S().register(VendorBuy.ID, VendorBuy.CODEC);
         PayloadTypeRegistry.playC2S().register(VendorSell.ID, VendorSell.CODEC);
+        PayloadTypeRegistry.playS2C().register(DecorView.ID, DecorView.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);
         PayloadTypeRegistry.playS2C().register(AlertsView.ID, AlertsView.CODEC);
         PayloadTypeRegistry.playS2C().register(Dream.ID, Dream.CODEC);

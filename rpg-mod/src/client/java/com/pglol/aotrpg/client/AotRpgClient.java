@@ -114,6 +114,7 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         HudRenderCallback.EVENT.register(LobbyScreen::hud);
         ClientPlayNetworking.registerGlobalReceiver(Net.LootView.ID, (payload, ctx) -> LootScreen.update(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.DecorView.ID, (payload, ctx) -> DecorScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.StashView.ID, (payload, ctx) -> {
             if (payload.open()) ctx.client().setScreen(new StashScreen(payload));
             else StashScreen.update(payload);

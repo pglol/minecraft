@@ -68,6 +68,9 @@ public final class FurnitureScreen extends Screen {
             scroll = 0;
             clearAndInit();
         })).selected(crate);
+        // Whole floors at once: themed packages along the walls.
+        addDrawableChild(new AotButton(left + 228, top - 22, 130, 20, Ui.heading("Furnish floors"),
+            () -> ClientPlayNetworking.send(new Net.HomeAction("decor", 0, ""))));
         Net.FurnitureView v = ClientState.furniture;
         if (v == null) return;
         if (!crate) {
