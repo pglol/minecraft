@@ -144,6 +144,7 @@ public final class AotRpg implements ModInitializer {
         });
         ServerPlayNetworking.registerGlobalReceiver(Net.ExtractionAction.ID, (payload, ctx) -> EXTRACT.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.StashAction.ID, (payload, ctx) -> Stash.action(ctx.player(), payload.action(), payload.slot()));
+        ServerPlayNetworking.registerGlobalReceiver(Net.LootAction.ID, (payload, ctx) -> LootBox.action(ctx.player(), payload.action(), payload.slot()));
         ServerPlayNetworking.registerGlobalReceiver(Net.MarketAction.ID, (payload, ctx) -> {
             ServerPlayerEntity p = ctx.player();
             if (!PROFILES.get(p.getUuid()).created) return;
@@ -188,7 +189,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Net.ForgeAction.ID, (payload, ctx) -> {
             ServerPlayerEntity p = ctx.player();
             // Only at your own home forge.
-            if (p.getWorld().getRegistryKey() != Homes.WORLD || !HOMES.canBuild(p, p.getBlockPos()) && !Extraction.inLobby(p)) return;
+            if (!Extraction.inLobby(p) && (p.getWorld().getRegistryKey() != Homes.WORLD || !HOMES.canBuild(p, p.getBlockPos()))) return;
             if (payload.action().equals("upgrade")) FORGE.upgrade(p, payload.slot(), payload.quality());
             else if (payload.action().equals("craft")) FORGE.craft(p, payload.recipe(), payload.quality());
         });
@@ -783,6 +784,7 @@ public final class AotRpg implements ModInitializer {
         DUELS.tick(ticks);
         if (ticks % 60 == 15) PlayerRoster.broadcast(server);
         EXTRACT.tick(ticks);
+        LootBox.tick(server);
         LOOT.tick(ticks);
         TITAN_LEVELS.tick(server, ticks);
         RAID_BOSSES.tick(ticks);

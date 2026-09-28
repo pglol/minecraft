@@ -1974,6 +1974,48 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /**
+     * A container being searched on a run: what's been found so far (slot -> stack), which slots
+     * still hold something unseen, the one being searched now and how long that takes. Close
+     * shuts the screen.
+     */
+    public record LootView(long pos, String title, int size, java.util.List<BagEntry> items, java.util.List<Integer> hidden,
+                           int searching, int searchMs, boolean open, boolean close) implements CustomPayload {
+        public static final Id<LootView> ID = id("loot_view");
+        public static final PacketCodec<RegistryByteBuf, LootView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeLong(v.pos); b.writeString(v.title); b.writeVarInt(v.size);
+            b.writeVarInt(v.items.size());
+            for (BagEntry e : v.items) {
+                b.writeVarInt(e.slot());
+                ItemStack.OPTIONAL_PACKET_CODEC.encode(b, e.stack());
+            }
+            b.writeVarInt(v.hidden.size());
+            for (int h : v.hidden) b.writeVarInt(h);
+            b.writeVarInt(v.searching); b.writeVarInt(v.searchMs); b.writeBoolean(v.open); b.writeBoolean(v.close);
+        }, b -> {
+            long pos = b.readLong();
+            String title = b.readString();
+            int size = b.readVarInt();
+            int n = Math.min(b.readVarInt(), 256);
+            java.util.List<BagEntry> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new BagEntry(b.readVarInt(), ItemStack.OPTIONAL_PACKET_CODEC.decode(b)));
+            int hn = Math.min(b.readVarInt(), 256);
+            java.util.List<Integer> h = new java.util.ArrayList<>();
+            for (int i = 0; i < hn; i++) h.add(b.readVarInt());
+            return new LootView(pos, title, size, l, h, b.readVarInt(), b.readVarInt(), b.readBoolean(), b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Loot screen clicks: take (container slot), put (player inventory slot), take_all, close. */
+    public record LootAction(String action, int slot) implements CustomPayload {
+        public static final Id<LootAction> ID = id("loot_action");
+        public static final PacketCodec<RegistryByteBuf, LootAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeVarInt(v.slot);
+        }, b -> new LootAction(b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record StashAction(String action, int slot) implements CustomPayload {
         public static final Id<StashAction> ID = id("stash_action");
         public static final PacketCodec<RegistryByteBuf, StashAction> CODEC = PacketCodec.of((v, b) -> {
@@ -2200,6 +2242,8 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(ExtractionAction.ID, ExtractionAction.CODEC);
         PayloadTypeRegistry.playS2C().register(StashView.ID, StashView.CODEC);
         PayloadTypeRegistry.playC2S().register(StashAction.ID, StashAction.CODEC);
+        PayloadTypeRegistry.playS2C().register(LootView.ID, LootView.CODEC);
+        PayloadTypeRegistry.playC2S().register(LootAction.ID, LootAction.CODEC);
         PayloadTypeRegistry.playS2C().register(MarketView.ID, MarketView.CODEC);
         PayloadTypeRegistry.playS2C().register(ExchangeView.ID, ExchangeView.CODEC);
         PayloadTypeRegistry.playC2S().register(MarketAction.ID, MarketAction.CODEC);

@@ -161,6 +161,10 @@ public final class WorldCare {
             if (p instanceof ServerPlayerEntity sp && sp.interactionManager.getGameMode() == GameMode.CREATIVE && sp.hasPermissionLevel(2)) return true;
             return p instanceof ServerPlayerEntity sp && AotRpg.HOMES.canBuild(sp, pos);
         }
+        // The balloons are nobody's to take apart.
+        if (p.getWorld().getRegistryKey() == Extraction.SKY) {
+            return p instanceof ServerPlayerEntity sp && sp.interactionManager.getGameMode() == GameMode.CREATIVE && sp.hasPermissionLevel(2);
+        }
         if (!config.protect || p.getWorld().getRegistryKey() != World.OVERWORLD) return true;
         if (p instanceof ServerPlayerEntity sp && sp.interactionManager.getGameMode() == GameMode.CREATIVE && sp.hasPermissionLevel(2)) return true;
         return inBuildZone(pos.getX(), pos.getZ()) || (p instanceof ServerPlayerEntity sp && AotRpg.HOMES.ownsPlotAt(sp, pos));
