@@ -307,7 +307,7 @@ public final class AotRpg implements ModInitializer {
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
             !(entity instanceof net.minecraft.entity.passive.AbstractHorseEntity h) || !HORSES.spare(h));
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
-            !(entity instanceof ServerPlayerEntity sp) || DUELS.allowDeath(sp) && DOWNED.allowDeath(sp, source, amount) && EXTRACT.allowDeath(sp, source));
+            !(entity instanceof ServerPlayerEntity sp) || DUELS.allowDeath(sp) && DOWNED.allowDeath(sp, source, amount) && EXTRACT.allowDeath(sp, source) && TeamWatch.allowDeath(sp));
         // A scene's titans and actors only touch the players in that scene (and vice versa).
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             net.minecraft.entity.Entity att = source.getAttacker();
@@ -598,6 +598,7 @@ public final class AotRpg implements ModInitializer {
             LOADOUT.sendAll(p);
             SCHEDULER.later(100, () -> { if (!p.isDisconnected()) INBOX.joined(p); });
             SCHEDULER.later(120, () -> { if (!p.isDisconnected()) BOUNTIES.joined(p); });
+            SCHEDULER.later(40, () -> { if (!p.isDisconnected()) RAID_BOSSES.joined(p); });
             HomeAdmin.joined(p);
             SCHEDULER.later(60, () -> {
                 if (!p.isDisconnected()) HomeAdmin.notify(p);
@@ -642,6 +643,7 @@ public final class AotRpg implements ModInitializer {
             INBOX.forget(p.getUuid());
             ALERTS.forget(p.getUuid());
             BOUNTIES.left(p);
+            TeamWatch.left(p);
             WAVES.forget(p);
             RAID_BOSSES.forget(p);
             ESTATE.forget(p);
@@ -740,6 +742,7 @@ public final class AotRpg implements ModInitializer {
         RESIDENTS.tick(server.getOverworld(), ticks);
         VENDORS.tick(server.getOverworld(), ticks);
         BOUNTIES.tick(ticks);
+        TeamWatch.tick(server, ticks);
         ESCORTS.tick(server, ticks);
         CAVES.tick(server.getOverworld());
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {

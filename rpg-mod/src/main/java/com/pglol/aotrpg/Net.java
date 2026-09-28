@@ -2154,6 +2154,15 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: you dropped out of a match still going: rejoin it or leave it (seconds to decide). */
+    public record Rejoin(String kind, String title, String detail, int seconds) implements CustomPayload {
+        public static final Id<Rejoin> ID = Net.id("rejoin");
+        public static final PacketCodec<RegistryByteBuf, Rejoin> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.kind); b.writeString(v.title); b.writeString(v.detail); b.writeVarInt(v.seconds);
+        }, b -> new Rejoin(b.readString(), b.readString(), b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2217,6 +2226,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(HomeList.ID, HomeList.CODEC);
         PayloadTypeRegistry.playS2C().register(Talk.ID, Talk.CODEC);
         PayloadTypeRegistry.playS2C().register(SpecView.ID, SpecView.CODEC);
+        PayloadTypeRegistry.playS2C().register(Rejoin.ID, Rejoin.CODEC);
         PayloadTypeRegistry.playS2C().register(VendorView.ID, VendorView.CODEC);
         PayloadTypeRegistry.playC2S().register(VendorBuy.ID, VendorBuy.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);

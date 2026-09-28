@@ -62,6 +62,8 @@ public final class Raids {
         final Map<UUID, Vec3d> back = new HashMap<>();
         final List<UUID> mobs = new ArrayList<>();
         UUID bossId;
+        /** Raiders who fell (watching the rest): they still share in a win. */
+        final java.util.Set<UUID> fallen = new java.util.HashSet<>();
         /** The boss driver: ticks until its next swipe and its next stomp. */
         int swipeIn = 40, stompIn = 200;
         int wave;
@@ -507,7 +509,7 @@ public final class Raids {
         for (var e : r.back.entrySet()) {
             ServerPlayerEntity m = server.getPlayerManager().getPlayer(e.getKey());
             if (m == null) continue;
-            boolean fought = r.players.contains(e.getKey());
+            boolean fought = r.players.contains(e.getKey()) || r.fallen.contains(e.getKey());
             if (won && fought) reward(m, r);
             else if (!won) Notify.toast(m, Text.literal("Raid failed").formatted(Formatting.RED),
                 Text.literal(r.boss.name() + " got away"), 0xC0463A, null, "raid");
@@ -540,8 +542,72 @@ public final class Raids {
         Reveal.show(m, "RAID CLEARED", r.boss.name() + " · +" + marks + " Marks · " + rar.title + " gear in your satchel", "minecraft:nether_star", rar.ordinal());
     }
 
+    /** A raider's fall: who they'll watch (the rest of the raid while it lasts) and where they go after. */
+    public record Fall(java.util.function.Supplier<List<ServerPlayerEntity>> team, Vec3d back) { }
+
+    public Fall fall(ServerPlayerEntity p) {
+        Raid r = raidOf(p.getUuid());
+        if (r == null || r.over) return null;
+        r.players.remove(p.getUuid());
+        r.fallen.add(p.getUuid());
+        r.bar.removePlayer(p);
+        Vec3d back = r.back.getOrDefault(p.getUuid(), p.getPos());
+        return new Fall(() -> {
+            List<ServerPlayerEntity> out = new ArrayList<>();
+            if (r.over) return out;
+            for (UUID id : r.players) {
+                ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+                if (m != null) out.add(m);
+            }
+            return out;
+        }, back);
+    }
+
+    /** The last raider standing fell: they go down as usual (the raid is lost). */
+    public void unfall(ServerPlayerEntity p) {
+        for (Raid r : raids) if (r.fallen.remove(p.getUuid())) r.players.add(p.getUuid());
+    }
+
+    /** Raiders who dropped out mid-raid: the raid they were in (they're asked to rejoin when they're back). */
+    private final Map<UUID, Raid> dropped = new HashMap<>();
+
+    public void joined(ServerPlayerEntity p) {
+        Raid r = dropped.get(p.getUuid());
+        if (r == null) return;
+        if (r.over) {
+            dropped.remove(p.getUuid());
+            return;
+        }
+        long left = Math.max(0, (r.endAt - System.currentTimeMillis()) / 60_000);
+        if (net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(p, Net.Rejoin.ID)) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p, new Net.Rejoin("raid", r.boss.name() + " raid",
+                "Your party is still fighting · about " + left + " min left", 45));
+        }
+    }
+
+    public void rejoin(ServerPlayerEntity p, boolean yes) {
+        Raid r = dropped.remove(p.getUuid());
+        if (r == null) return;
+        if (!yes) {
+            Leavers.record(p);
+            return;
+        }
+        if (r.over) {
+            Notify.toast(p, Text.literal("The raid is over").formatted(Formatting.GRAY), null, 0x8F8A7A, null, null);
+            return;
+        }
+        ServerWorld w = server.getOverworld();
+        r.back.putIfAbsent(p.getUuid(), p.getPos());
+        p.teleport(w, r.center.x, r.center.y + 1, r.center.z, p.getYaw(), p.getPitch());
+        if (!r.players.contains(p.getUuid())) r.players.add(p.getUuid());
+        r.fallen.remove(p.getUuid());
+        r.bar.addPlayer(p);
+        Notify.toast(p, Text.literal("Back in the raid").formatted(Formatting.GOLD, Formatting.BOLD), Text.literal(r.boss.name()), 0xE0B96A, null, "raid");
+    }
+
     public void forget(ServerPlayerEntity p) {
         Raid r = raidOf(p.getUuid());
+        if (r != null) dropped.put(p.getUuid(), r);
         if (r != null) {
             r.players.remove(p.getUuid());
             r.bar.removePlayer(p);

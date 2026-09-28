@@ -59,6 +59,11 @@ public final class TitanActivity {
     private final Map<String, Long> caveReady = new HashMap<>();
     private MinecraftServer server;
 
+    /** The horde going on right now (x, z), or null. */
+    public double[] hordeAt() {
+        return horde != null && System.currentTimeMillis() < horde.until ? new double[] {horde.x, horde.z} : null;
+    }
+
     /** Is this player near a horde or hunting the abnormal right now? */
     public boolean inEvent(net.minecraft.server.network.ServerPlayerEntity p) {
         if (horde != null && System.currentTimeMillis() < horde.until) {

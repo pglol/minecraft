@@ -91,6 +91,8 @@ public final class Profile {
     /** Wanted: time left on the hunt for you (ms, frozen while offline), how long it started at, and why. */
     public long huntLeft, huntTotal;
     public String huntWhy = "";
+    /** When this player left a match early (raids and runs), for the leaver warnings. */
+    public java.util.List<Long> leaves = new java.util.ArrayList<>();
     /** The character's own story (missions, choices, people, deeds), and whether it's on the new story. */
     public Story.State story = new Story.State();
     public boolean storyV2, storyV3;

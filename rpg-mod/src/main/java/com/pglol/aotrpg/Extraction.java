@@ -1201,6 +1201,15 @@ public final class Extraction {
         this.ticks = ticks;
         pregen(ticks);
         if (ticks % 10 == 5) specTick();
+        if (ticks % 20 == 11 && !rejoining.isEmpty()) {
+            long now = System.currentTimeMillis();
+            for (var e : new ArrayList<>(rejoining.entrySet())) {
+                if (now < e.getValue().deadline) continue;
+                ServerPlayerEntity p = server.getPlayerManager().getPlayer(e.getKey());
+                if (p != null) rejoin(p, true);
+                else rejoining.remove(e.getKey());
+            }
+        }
         if (ticks % 200 == 7) finishedBy.keySet().removeIf(r -> !runs.contains(r) && runs.stream().noneMatch(o -> o.session == r.session));
         if (ticks % 10 == 0) {
             for (Session ses : sessions.values()) {
@@ -1672,7 +1681,10 @@ public final class Extraction {
     /** A watcher's controls: next, previous, or back to the balloon. */
     public void specAction(ServerPlayerEntity p, String action) {
         Spec sp = specs.get(p.getUuid());
-        if (sp == null) return;
+        if (sp == null) {
+            TeamWatch.action(p, action);
+            return;
+        }
         switch (action) {
             case "spec_next" -> retarget(p, sp, 1);
             case "spec_prev" -> retarget(p, sp, -1);
@@ -1770,6 +1782,7 @@ public final class Extraction {
         if (p.isSpectator() && Island.of(p.getWorld()) != null && !p.hasPermissionLevel(2)) p.changeGameMode(net.minecraft.world.GameMode.SURVIVAL);
         Profile pr = AotRpg.PROFILES.get(id);
         if (missedOffline.remove(id)) {
+            Leavers.record(p);
             p.getInventory().clear();
             toLobby(p, true);
             Titles.show(p, Text.literal("MISSING IN ACTION").formatted(Formatting.DARK_RED, Formatting.BOLD),
@@ -1784,6 +1797,69 @@ public final class Extraction {
                 toLobby(p, true);
                 return;
             }
+            // Asked first: back into the match, or leave it. Safe (and out of the way) while they choose.
+            Rejoining q = new Rejoining();
+            q.run = r;
+            q.before = p.interactionManager.getGameMode();
+            q.deadline = System.currentTimeMillis() + 45_000;
+            rejoining.put(id, q);
+            p.changeGameMode(net.minecraft.world.GameMode.SPECTATOR);
+            long left = Math.max(0, (r.endAt - System.currentTimeMillis()) / 60_000);
+            if (ServerPlayNetworking.canSend(p, Net.Rejoin.ID)) {
+                ServerPlayNetworking.send(p, new Net.Rejoin("run", r.island.title, "Your squad's run is still going · about " + left + " min left", 45));
+            } else {
+                rejoin(p, true);
+            }
+            return;
+        }
+        if (pr.inRun || Island.of(p.getWorld()) != null) {
+            toLobby(p, true);
+            return;
+        }
+        if (DeathCare.EXTRACTION.equals(pr.mode)) toLobby(p);
+        else if (inLobby(p)) toOpenWorld(p);
+    }
+
+    private static final class Rejoining {
+        Run run;
+        net.minecraft.world.GameMode before;
+        long deadline;
+    }
+
+    /** Divers back from a dropped connection, deciding whether to rejoin. */
+    private final Map<UUID, Rejoining> rejoining = new HashMap<>();
+
+    /** Their answer (or the clock running out, which rejoins them). */
+    public boolean rejoin(ServerPlayerEntity p, boolean yes) {
+        UUID id = p.getUuid();
+        Rejoining q = rejoining.remove(id);
+        if (q == null) return false;
+        p.changeGameMode(q.before == null || q.before == net.minecraft.world.GameMode.SPECTATOR ? net.minecraft.world.GameMode.SURVIVAL : q.before);
+        Run r = q.run;
+        if (!runs.contains(r) || !r.members.contains(id)) {
+            toLobby(p, true);
+            return true;
+        }
+        if (!yes) {
+            // Walking out on the squad: MIA, everything carried is lost.
+            r.members.remove(id);
+            r.extracting.remove(id);
+            clearView(p);
+            p.getInventory().clear();
+            toLobby(p, true);
+            Leavers.record(p);
+            for (UUID m : r.members) {
+                ServerPlayerEntity mate = server.getPlayerManager().getPlayer(m);
+                if (mate != null) Notify.toast(mate, Text.literal(AotRpg.PROFILES.get(id).name + " left the run").formatted(Formatting.GRAY), null, 0x8F8A7A, null, null);
+            }
+            return true;
+        }
+        ServerWorld iw = server.getWorld(r.island.world);
+        if (iw == null) {
+            toLobby(p, true);
+            return true;
+        }
+        {
             if (p.getWorld() != iw) {
                 // Left in the middle of the drop: they land now.
                 BlockPos c = centre(r.island, iw);
@@ -1796,20 +1872,17 @@ public final class Extraction {
             }
             Notify.toast(p, Text.literal("Back in the run").formatted(Formatting.GOLD, Formatting.BOLD), Text.literal(r.island.title), r.island.color, "minecraft:compass", null);
             sendView(r, p, System.currentTimeMillis());
-            return;
         }
-        if (pr.inRun || Island.of(p.getWorld()) != null) {
-            toLobby(p, true);
-            return;
-        }
-        if (DeathCare.EXTRACTION.equals(pr.mode)) toLobby(p);
-        else if (inLobby(p)) toOpenWorld(p);
+        return true;
     }
 
     /** Logging out: a diver stays in their run (the clock keeps going), everything else lets go. */
     public void forget(ServerPlayerEntity p) {
         Run r = runOf(p.getUuid());
         if (r != null) r.extracting.remove(p.getUuid());
+        // Dropped again while deciding: themselves again (they'll be asked next time).
+        Rejoining q = rejoining.remove(p.getUuid());
+        if (q != null) p.changeGameMode(q.before == null || q.before == net.minecraft.world.GameMode.SPECTATOR ? net.minecraft.world.GameMode.SURVIVAL : q.before);
         // Logging out while watching the fall: their own game mode back, aboard next time.
         net.minecraft.world.GameMode mode = watching.remove(p.getUuid());
         if (mode != null) {
@@ -1826,6 +1899,10 @@ public final class Extraction {
     public void action(ServerPlayerEntity p, String action, String arg) {
         if (action.startsWith("spec_")) {
             specAction(p, action);
+            return;
+        }
+        if (action.equals("rejoin_yes") || action.equals("rejoin_no")) {
+            if (!rejoin(p, action.equals("rejoin_yes"))) AotRpg.RAID_BOSSES.rejoin(p, action.equals("rejoin_yes"));
             return;
         }
         if (action.equals("mark") || action.equals("unmark")) {
