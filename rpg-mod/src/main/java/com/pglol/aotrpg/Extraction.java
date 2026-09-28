@@ -117,10 +117,26 @@ public final class Extraction {
         Island island;
         final LinkedHashSet<UUID> members = new LinkedHashSet<>();
         long endsAt;
-        final List<BlockPos> exits = new ArrayList<>();
-        final List<BlockPos> barrels = new ArrayList<>();
+        /** The island's match this squad joined (its exits and barrels, shared with every squad in it). */
+        Session session;
+        List<BlockPos> exits = new ArrayList<>();
+        List<BlockPos> barrels = new ArrayList<>();
         final Map<UUID, Integer> extracting = new HashMap<>();
     }
+
+    /**
+     * A match on an island: it starts with the first squad to drop and runs as long as anyone is
+     * out there. Squads that drop later join it in progress: the same flares, the same barrels
+     * (some already picked through), and whoever else is still out on the island.
+     */
+    static final class Session {
+        Island island;
+        long startedAt;
+        final List<BlockPos> exits = new ArrayList<>();
+        final List<BlockPos> barrels = new ArrayList<>();
+    }
+
+    private final Map<Island, Session> sessions = new HashMap<>();
 
     static final class Data {
         int balloonVersion;
@@ -146,6 +162,7 @@ public final class Extraction {
         self = this;
         runs.clear();
         slots.clear();
+        sessions.clear();
         file = server.getSavePath(WorldSavePath.ROOT).resolve("aot_rpg").resolve("extraction.json");
         try {
             if (Files.exists(file)) data = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8), Data.class);
@@ -901,17 +918,29 @@ public final class Extraction {
         BlockPos drop = land(iw, c.getX() + (int) (Math.cos(base) * 260), c.getZ() + (int) (Math.sin(base) * 260), rnd, 60);
         if (drop == null) drop = land(iw, c.getX(), c.getZ(), rnd, 120);
         if (drop == null) drop = new BlockPos(c.getX(), iw.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, c.getX(), c.getZ()), c.getZ());
-        // The exits, round the far side of the island from the drop.
-        for (int i = 0; i < 3; i++) {
-            double a = base + Math.PI + (i - 1) * 1.0 + (rnd.nextDouble() - 0.5) * 0.4;
-            double d = 230 + rnd.nextInt(170);
-            BlockPos e = land(iw, c.getX() + (int) (Math.cos(a) * d), c.getZ() + (int) (Math.sin(a) * d), rnd, 40);
-            if (e != null) run.exits.add(e);
+        // Join the match on this island, or start one.
+        Session ses = sessions.get(island);
+        boolean fresh = ses == null;
+        if (fresh) {
+            ses = new Session();
+            ses.island = island;
+            ses.startedAt = System.currentTimeMillis();
+            sessions.put(island, ses);
+            // The exits, spread round the island.
+            for (int i = 0; i < 3; i++) {
+                double a = base + Math.PI + (i - 1) * 1.6 + (rnd.nextDouble() - 0.5) * 0.4;
+                double d = 230 + rnd.nextInt(170);
+                BlockPos e = land(iw, c.getX() + (int) (Math.cos(a) * d), c.getZ() + (int) (Math.sin(a) * d), rnd, 40);
+                if (e != null) ses.exits.add(e);
+            }
+            if (ses.exits.isEmpty()) ses.exits.add(drop);
         }
-        if (run.exits.isEmpty()) run.exits.add(drop);
-        // Supply barrels through the jungle (or the crags, or the snow).
+        run.session = ses;
+        run.exits = ses.exits;
+        run.barrels = ses.barrels;
+        // Supply barrels through the jungle (or the crags, or the snow); a few fresh ones when joining late.
         List<Long> left = data.leftover.computeIfAbsent(island.id, k -> new ArrayList<>());
-        for (int i = 0; i < BARRELS; i++) {
+        for (int i = 0; i < (fresh ? BARRELS : 4); i++) {
             double a = rnd.nextDouble() * Math.PI * 2, d = 20 + rnd.nextInt(420);
             BlockPos bp = land(iw, c.getX() + (int) (Math.cos(a) * d), c.getZ() + (int) (Math.sin(a) * d), rnd, 20);
             if (bp == null || !iw.getBlockState(bp).isReplaceable() && !iw.getBlockState(bp).isAir()) continue;
@@ -957,7 +986,9 @@ public final class Extraction {
             }
             if (!landed.isEmpty()) {
                 Vec3d ground = Vec3d.ofBottomCenter(at);
-                Cinematics.play(landed, Cinematics.landing(ground, ground.add(0, 44, 0)), island.title.toUpperCase(), "Find the flares", island.color & 0xFFFFFF);
+                long in = (System.currentTimeMillis() - run.session.startedAt) / 60_000;
+                Cinematics.play(landed, Cinematics.landing(ground, ground.add(0, 44, 0)), island.title.toUpperCase(),
+                    in < 1 ? "Find the flares" : "Match in progress  \u00B7  " + in + " min in", island.color & 0xFFFFFF);
             }
         });
     }
@@ -1164,6 +1195,9 @@ public final class Extraction {
 
     private void end(Run r) {
         runs.remove(r);
+        // The match goes on while any squad is still out there.
+        for (Run o : runs) if (o.session == r.session) return;
+        sessions.remove(r.island);
         ServerWorld w = server.getWorld(r.island.world);
         List<Long> left = data.leftover.getOrDefault(r.island.id, new ArrayList<>());
         for (BlockPos bp : r.barrels) {
@@ -1267,6 +1301,7 @@ public final class Extraction {
                 sendLobby(p);
             }
             case "bench" -> craft(p, arg);
+            case "bag" -> AotRpg.SATCHEL.send(p, false);
             case "invite", "friend" -> {
                 UUID id;
                 try {

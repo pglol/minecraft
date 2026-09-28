@@ -30,7 +30,10 @@ public final class LobbyScreen extends Screen {
     private static int lastSeat = -1;
     private static boolean socialTab;
     private final long opened = Util.getMeasuringTimeMs();
-    private boolean hudWas;
+    private boolean bagAsked;
+    /** The loadout slot whose picker is open (-1 none). */
+    private static int picker = -1;
+    private static final String[] SLOT_NAMES = {"Head", "Chest", "Legs", "Feet", "Weapon", "ODM", "Gas", "Blades", "Spears", "Food"};
 
     public LobbyScreen() {
         super(Text.literal("Lobby"));
@@ -122,6 +125,28 @@ public final class LobbyScreen extends Screen {
         return false;
     }
 
+    @Override
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (super.mouseClicked(mx, my, button)) return true;
+        if (!socialTab && view != null) {
+            for (int k = 0; k < 10; k++) {
+                int[] at = slotPos(k);
+                if (mx >= at[0] && mx < at[0] + 36 && my >= at[1] && my < at[1] + 36) {
+                    picker = picker == k ? -1 : k;
+                    if (client != null && client.player != null) client.player.playSound(net.minecraft.sound.SoundEvents.ITEM_ARMOR_EQUIP_LEATHER.value(), 0.5f, 1.2f);
+                    clearAndInit();
+                    return true;
+                }
+            }
+        }
+        if (picker >= 0) {
+            picker = -1;
+            clearAndInit();
+            return true;
+        }
+        return false;
+    }
+
     /** Escape opens the game menu (the lobby returns after). */
     @Override
     public void close() {
@@ -130,7 +155,7 @@ public final class LobbyScreen extends Screen {
 
     @Override
     public void removed() {
-        if (client != null) client.options.hudHidden = hudWas;
+        HudHide.show("lobby");
     }
 
     private Net.LobbyIsland island() {
@@ -152,9 +177,10 @@ public final class LobbyScreen extends Screen {
 
     @Override
     protected void init() {
-        if (client != null) {
-            hudWas = client.options.hudHidden;
-            client.options.hudHidden = true;
+        HudHide.hide("lobby");
+        if (!bagAsked) {
+            bagAsked = true;
+            act("bag", "");
         }
         if (view == null) return;
         // The island picker (the leader's call).
@@ -192,6 +218,7 @@ public final class LobbyScreen extends Screen {
                 y += 24;
             }
         }
+        pickerButtons();
         // Loadout.
         addDrawableChild(new AotButton(16, height - 88, 160, 20, Ui.heading("Edit Loadout"), () -> act("stash", "")))
             .icon(new ItemStack(Items.ENDER_CHEST));
@@ -307,37 +334,127 @@ public final class LobbyScreen extends Screen {
         }
     }
 
-    /** Your loadout: what you'll carry into the run, gear slots only. */
+    /** Where loadout slot k sits on screen. */
+    private static int[] slotPos(int k) {
+        if (k < 4) return new int[] {16 + k * 40, 88};
+        if (k < 8) return new int[] {16 + (k - 4) * 40, 134};
+        return new int[] {16 + (k - 8) * 40, 180};
+    }
+
+    /** Does this stack go in loadout slot k? */
+    private boolean fits(int k, ItemStack s) {
+        if (s.isEmpty() || client == null || client.player == null) return false;
+        String path = Registries.ITEM.getId(s.getItem()).getPath();
+        return switch (k) {
+            case 0 -> client.player.getPreferredEquipmentSlot(s) == EquipmentSlot.HEAD;
+            case 1 -> client.player.getPreferredEquipmentSlot(s) == EquipmentSlot.CHEST;
+            case 2 -> client.player.getPreferredEquipmentSlot(s) == EquipmentSlot.LEGS;
+            case 3 -> client.player.getPreferredEquipmentSlot(s) == EquipmentSlot.FEET;
+            case 4 -> !path.contains("odm") && !path.contains("gas") && !path.contains("component") && !path.contains("thunder_spear")
+                && (path.contains("grip") || path.contains("blade") || path.contains("apg") || com.pglol.aotrpg.Loadout.isMelee(s)
+                    || com.pglol.aotrpg.Loadout.isRanged(s));
+            case 5 -> path.contains("odm");
+            case 6 -> path.contains("gas_canister");
+            case 7 -> path.contains("blade_component");
+            case 8 -> path.contains("thunder_spear");
+            default -> s.getComponents().contains(net.minecraft.component.DataComponentTypes.FOOD);
+        };
+    }
+
+    private static final EquipmentSlot[] ARMOR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+
+    /** What's in loadout slot k now: the stack, how many of it you carry, and its inventory index (-1 worn). */
+    private Object[] current(int k) {
+        var p = client.player;
+        if (k < 4) return new Object[] {p.getEquippedStack(ARMOR[k]), 1, -1};
+        var inv = p.getInventory();
+        ItemStack first = ItemStack.EMPTY;
+        int count = 0, index = -1;
+        for (int i = 0; i < inv.main.size(); i++) {
+            ItemStack s = inv.main.get(i);
+            if (!fits(k, s)) continue;
+            if (first.isEmpty()) {
+                first = s;
+                index = i;
+            }
+            count += s.getCount();
+        }
+        return new Object[] {first, count, index};
+    }
+
+    /** Your loadout: what you'll carry into the run, gear slots only. Click one to swap or take it off. */
     private void drawLoadout(DrawContext c, long t) {
         if (client == null || client.player == null) return;
-        var p = client.player;
-        int x = 16, y = 88;
-        String[] names = {"Head", "Chest", "Legs", "Feet"};
-        EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-        for (int i = 0; i < 4; i++) slot(c, x + i * 40, y, names[i], p.getEquippedStack(slots[i]), -1);
-        y += 46;
-        var inv = p.getInventory();
-        ItemStack grip = ItemStack.EMPTY, odm = ItemStack.EMPTY;
-        int gas = 0, blades = 0, spears = 0, food = 0;
-        ItemStack gasS = ItemStack.EMPTY, bladeS = ItemStack.EMPTY, spearS = ItemStack.EMPTY, foodS = ItemStack.EMPTY;
-        for (int i = 0; i < inv.size(); i++) {
-            ItemStack s = inv.getStack(i);
-            if (s.isEmpty()) continue;
-            String path = Registries.ITEM.getId(s.getItem()).getPath();
-            if (path.contains("gas_canister")) { gas += s.getCount(); gasS = s; }
-            else if (path.contains("blade_component")) { blades += s.getCount(); bladeS = s; }
-            else if (path.contains("thunder_spear")) { spears += s.getCount(); spearS = s; }
-            else if (path.contains("odm") && odm.isEmpty()) odm = s;
-            else if ((path.contains("grip") || path.contains("blade") || path.contains("apg")) && grip.isEmpty()) grip = s;
-            else if (s.getComponents().contains(net.minecraft.component.DataComponentTypes.FOOD)) { food += s.getCount(); foodS = s; }
+        for (int k = 0; k < 10; k++) {
+            int[] at = slotPos(k);
+            Object[] cur = current(k);
+            slot(c, at[0], at[1], SLOT_NAMES[k], (ItemStack) cur[0], k >= 6 ? (int) cur[1] : -1);
+            if (k == picker) c.drawBorder(at[0] - 1, at[1] - 1, 38, 38, 0xFFF2C14E);
         }
-        slot(c, x, y, "Weapon", grip, -1);
-        slot(c, x + 40, y, "ODM", odm, -1);
-        slot(c, x + 80, y, "Gas", gasS, gas);
-        slot(c, x + 120, y, "Blades", bladeS, blades);
-        y += 46;
-        slot(c, x, y, "Spears", spearS, spears);
-        slot(c, x + 40, y, "Food", foodS, food);
+        if (picker >= 0) {
+            // The picker: a small card beside the loadout.
+            int[] at = slotPos(picker);
+            int px = 184, py = Math.min(at[1], height - 150), rows = pickerItems().size();
+            int ph = 30 + Math.max(1, Math.min(8, rows)) * 20 + 24;
+            c.fill(px, py, px + 180, py + ph, 0xF0100C0A);
+            c.drawBorder(px, py, 180, ph, 0xFF7A6139);
+            c.fill(px, py, px + 180, py + 2, 0xFFF2C14E);
+            Ui.text(c, Ui.heading(SLOT_NAMES[picker]), px + 8, py + 8, 0.85f, Ui.GOLD, false);
+            if (rows == 0) Ui.text(c, Text.literal("Nothing in your satchel fits"), px + 8, py + 30, 0.7f, Ui.DIM, false);
+        }
+    }
+
+    /** Satchel slots holding something for the open picker's slot. */
+    private java.util.List<Integer> pickerItems() {
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        if (picker < 0) return out;
+        for (var e : ClientState.bag.entrySet()) if (fits(picker, e.getValue())) out.add(e.getKey());
+        out.sort((a, b) -> BagScreen.quality(ClientState.bag.get(b)) - BagScreen.quality(ClientState.bag.get(a)));
+        return out;
+    }
+
+    /** Called when the satchel changes: the picker's list follows. */
+    public void refreshBag() {
+        clearAndInit();
+    }
+
+    private void pickerButtons() {
+        if (picker < 0 || socialTab || client == null || client.player == null) return;
+        int[] at = slotPos(picker);
+        int px = 184, py = Math.min(at[1], height - 150);
+        int y = py + 24;
+        int k = picker;
+        for (int slot : pickerItems()) {
+            if (y > py + 24 + 7 * 20) break;
+            ItemStack s = ClientState.bag.get(slot);
+            String name = s.getName().getString();
+            if (name.length() > 22) name = name.substring(0, 21) + "\u2026";
+            AotButton b = addDrawableChild(new AotButton(px + 6, y, 168, 18,
+                Text.literal(name + (s.getCount() > 1 ? " x" + s.getCount() : "")), () -> {
+                    ClientPlayNetworking.send(new Net.BagAction("equip", slot, k < 4 ? 103 - k : -1));
+                    picker = -1;
+                }));
+            b.icon(s);
+            b.textScale = 0.7f;
+            b.accent = Ui.rarityTone(BagScreen.quality(s));
+            y += 20;
+        }
+        Object[] cur = current(k);
+        ItemStack now = (ItemStack) cur[0];
+        int index = (int) cur[2];
+        int ph = 30 + Math.max(1, Math.min(8, pickerItems().size())) * 20 + 24;
+        AotButton off = addDrawableChild(new AotButton(px + 6, py + ph - 22, 80, 16, Text.literal("Take off"), () -> {
+            ClientPlayNetworking.send(new Net.BagAction("store", -1, k < 4 ? 103 - k : index));
+            picker = -1;
+        }));
+        off.textScale = 0.7f;
+        off.accent = Ui.RED;
+        off.active = !now.isEmpty() && (k < 4 || index >= 0 && index < 9);
+        AotButton close = addDrawableChild(new AotButton(px + 94, py + ph - 22, 80, 16, Text.literal("Close"), () -> {
+            picker = -1;
+            clearAndInit();
+        }));
+        close.textScale = 0.7f;
     }
 
     private void slot(DrawContext c, int x, int y, String label, ItemStack s, int count) {

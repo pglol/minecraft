@@ -43,9 +43,8 @@ public final class CutscenePlayer {
         total = 0;
         for (Net.Shot s : shots) total += s.seconds();
         startedAt = Util.getMeasuringTimeMs();
-        if (!active) hudWas = mc.options.hudHidden;
         active = !shots.isEmpty();
-        if (active) mc.options.hudHidden = true;
+        if (active) com.pglol.aotrpg.client.HudHide.hide("cutscene");
     }
 
     private static float elapsed() {
@@ -82,7 +81,7 @@ public final class CutscenePlayer {
         if (!active) return;
         if (mc.player == null || elapsed() > total) {
             active = false;
-            mc.options.hudHidden = hudWas;
+            com.pglol.aotrpg.client.HudHide.show("cutscene");
             return;
         }
         mc.options.forwardKey.setPressed(false);

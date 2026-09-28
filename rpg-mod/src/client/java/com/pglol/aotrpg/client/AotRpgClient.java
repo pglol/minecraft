@@ -111,6 +111,7 @@ public final class AotRpgClient implements ClientModInitializer {
             ClientState.bagSize = payload.size();
             if (ctx.client().currentScreen instanceof BagScreen s) s.refresh();
             else if (ctx.client().currentScreen instanceof StashScreen st) st.refresh();
+            else if (ctx.client().currentScreen instanceof LobbyScreen ls) ls.refreshBag();
             else if (payload.open()) ctx.client().setScreen(new BagScreen());
         });
         ClientPlayNetworking.registerGlobalReceiver(Net.EstateView.ID, (payload, ctx) -> {
