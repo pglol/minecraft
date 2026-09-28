@@ -516,6 +516,8 @@ public final class Extraction {
     public void toLobby(ServerPlayerEntity p, boolean returning) {
         ServerWorld w = sky();
         if (w == null) return;
+        // Nobody arrives aboard still bleeding on the ground.
+        AotRpg.DOWNED.release(p);
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         if (p.getWorld().getRegistryKey() == World.OVERWORLD && !pr.inRun) pr.openWorldPos = new double[] {p.getX(), p.getY(), p.getZ(), p.getYaw()};
         pr.inRun = false;
@@ -556,6 +558,23 @@ public final class Extraction {
             m.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_WEAK, SoundCategory.PLAYERS, 0.6f, 0.8f);
         }
         broadcast(slot);
+    }
+
+    /**
+     * Up off the bench, onto the floor right in front of it, placed there by the server so the
+     * client and the server agree where you are (a plain dismount could leave them apart, and then
+     * every click fails the reach check).
+     */
+    private void stand(ServerPlayerEntity p) {
+        Entity seat = p.getVehicle();
+        p.stopRiding();
+        if (seat == null) return;
+        BlockPos s = seat.getBlockPos();
+        BlockState st = p.getWorld().getBlockState(s);
+        Direction face = st.getBlock() instanceof StairsBlock ? st.get(StairsBlock.FACING).getOpposite() : Direction.SOUTH;
+        BlockPos to = s.offset(face);
+        p.networkHandler.requestTeleport(to.getX() + 0.5, to.getY(), to.getZ() + 0.5, face.asRotation(), 0);
+        p.fallDistance = 0;
     }
 
     /** A bench spot nobody is sitting on or walking to (nearest the entry). */
@@ -737,8 +756,7 @@ public final class Extraction {
         }
         if (rel.equals(FUEL)) return false;
         BlockPos seat = p.getWorld().getBlockState(pos).getBlock() instanceof StairsBlock ? pos : rel.equals(BOARD) ? freeSeat(slot, p) : null;
-        if (seat != null) {
-            p.stopRiding();
+        if (seat != null && p.getVehicle() == null) {
             sitOn(p, seat);
             broadcast(slot);
         }
@@ -1674,8 +1692,15 @@ public final class Extraction {
             }
             case "walk" -> {
                 lb.ready.remove(p.getUuid());
-                p.stopRiding();
+                stand(p);
                 broadcast(slot);
+            }
+            case "station" -> {
+                // A station clicked (sent straight from the client, so it works whatever the reach check thinks).
+                try {
+                    BlockPos pos = BlockPos.fromLong(Long.parseLong(arg));
+                    if (inLobby(pos) && p.squaredDistanceTo(Vec3d.ofCenter(pos)) < 10 * 10) use(p, pos);
+                } catch (NumberFormatException ignored) { }
             }
             case "leave" -> {
                 lb.ready.remove(p.getUuid());

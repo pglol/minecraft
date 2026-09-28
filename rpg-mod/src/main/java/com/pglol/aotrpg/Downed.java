@@ -120,8 +120,22 @@ public final class Downed {
     }
 
     /** Every tick: bleeding, crawling, the revive, and the view of it for everyone near. */
+    /** Someone was down last tick: once nobody is, the clients get told (or the red screen stays). */
+    private boolean wasAny;
+
     public void tick(int ticks) {
-        if (server == null || downed.isEmpty()) return;
+        if (server == null) return;
+        if (downed.isEmpty()) {
+            if (wasAny) {
+                wasAny = false;
+                Net.DownedView msg = new Net.DownedView(List.of());
+                for (ServerPlayerEntity o : server.getPlayerManager().getPlayerList()) {
+                    if (ServerPlayNetworking.canSend(o, Net.DownedView.ID)) ServerPlayNetworking.send(o, msg);
+                }
+            }
+            return;
+        }
+        wasAny = true;
         List<Net.DownedEntry> view = new ArrayList<>();
         for (var it = downed.entrySet().iterator(); it.hasNext(); ) {
             var e = it.next();
@@ -290,6 +304,17 @@ public final class Downed {
             n++;
         }
         return n;
+    }
+
+    /** Taken out of the fight (back aboard the balloon, say): quietly on their feet, no longer down. */
+    public void release(ServerPlayerEntity p) {
+        if (downed.remove(p.getUuid()) == null) return;
+        p.setInvulnerable(false);
+        untargetable(p, false);
+        p.setPose(EntityPose.STANDING);
+        p.clearStatusEffects();
+        p.setHealth(Math.max(p.getHealth(), p.getMaxHealth() * 0.5f));
+        sendClear(p);
     }
 
     /** Leaving while downed counts as bleeding out (no dodging death by logging off). */

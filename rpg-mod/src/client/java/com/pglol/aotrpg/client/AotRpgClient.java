@@ -97,6 +97,21 @@ public final class AotRpgClient implements ClientModInitializer {
             else WorkbenchScreen.update(payload);
         });
         ClientTickEvents.END_CLIENT_TICK.register(LobbyScreen::tick);
+        // Aboard the balloon the stations are asked for straight from here: whatever the reach
+        // check or a drawn ODM grip would make of the click, the stash, bench and forge open.
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (!world.isClient || hand != net.minecraft.util.Hand.MAIN_HAND || player.getX() > -399_744
+                || !world.getRegistryKey().getValue().toString().equals("aot_rpg:homes")) return net.minecraft.util.ActionResult.PASS;
+            var st = world.getBlockState(hit.getBlockPos());
+            boolean station = st.isOf(net.minecraft.block.Blocks.ENDER_CHEST) || st.isOf(net.minecraft.block.Blocks.CRAFTING_TABLE)
+                || st.isIn(net.minecraft.registry.tag.BlockTags.ANVIL) || st.isOf(net.minecraft.block.Blocks.BLAST_FURNACE)
+                || st.isOf(net.minecraft.block.Blocks.GRINDSTONE) || st.isOf(net.minecraft.block.Blocks.LECTERN)
+                || st.getBlock() instanceof net.minecraft.block.StairsBlock;
+            if (!station) return net.minecraft.util.ActionResult.PASS;
+            ClientPlayNetworking.send(new Net.ExtractionAction("station", String.valueOf(hit.getBlockPos().asLong())));
+            player.swingHand(hand);
+            return net.minecraft.util.ActionResult.FAIL;
+        });
         HudRenderCallback.EVENT.register(LobbyScreen::hud);
         ClientPlayNetworking.registerGlobalReceiver(Net.StashView.ID, (payload, ctx) -> {
             if (payload.open()) ctx.client().setScreen(new StashScreen(payload));
