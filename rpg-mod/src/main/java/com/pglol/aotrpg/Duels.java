@@ -141,9 +141,9 @@ public final class Duels {
         if (!viewers.contains(p)) viewers.add(0, p);
         if (!viewers.contains(t)) viewers.add(t);
         Profile ap = AotRpg.PROFILES.get(p.getUuid()), bp = AotRpg.PROFILES.get(t.getUuid());
-        String rules = RINGS[d.rules.ring()] + "m ring" + (d.rules.odm() ? "" : "  ·  no gear") + (d.rules.abilities() ? "" : "  ·  no abilities")
+        String ruleLine = RINGS[d.rules.ring()] + "m ring" + (d.rules.odm() ? "" : "  ·  no gear") + (d.rules.abilities() ? "" : "  ·  no abilities")
             + (d.rules.food() ? "" : "  ·  no food");
-        Net.DuelIntro intro = new Net.DuelIntro(p.getUuid(), ap.name, ap.level, ap.role, t.getUuid(), bp.name, bp.level, bp.role, rules);
+        Net.DuelIntro intro = new Net.DuelIntro(p.getUuid(), ap.name, ap.level, ap.role, t.getUuid(), bp.name, bp.level, bp.role, ruleLine);
         for (ServerPlayerEntity v : viewers) if (ServerPlayNetworking.canSend(v, Net.DuelIntro.ID)) ServerPlayNetworking.send(v, intro);
         // Held in place for the face-off.
         for (ServerPlayerEntity x : List.of(p, t)) {
