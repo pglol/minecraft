@@ -1423,10 +1423,15 @@ public final class Extraction {
         }
     }
 
-    /** Titans that wander onto an island by any other way (natural spawns) aren't kept. */
+    /**
+     * Titans that wander onto an island by any other way (natural spawns) aren't kept. Only whole
+     * titans: their eye, nape and hand hitboxes are titan entities of their own, spawned untagged
+     * by the titan itself, and removing them left island titans impossible to cut.
+     */
     public static boolean stray(Entity e) {
         if (e.getWorld().isClient || Island.of(e.getWorld()) == null) return false;
-        return AotRpg.isTitan(e) && !e.getCommandTags().contains(TITAN);
+        if (!(e instanceof net.minecraft.entity.mob.MobEntity) || !TitanLevels.root(e) || e.getVehicle() != null) return false;
+        return !e.getCommandTags().contains(TITAN);
     }
 
     /** The flares: tall columns of light over each exit, seen only by the squad. */
