@@ -49,9 +49,26 @@ public final class TownRepair {
     /** Fills the holes in one house's outer walls. Returns how many blocks were put back. */
     static int repair(ServerWorld w, int[] h) {
         int x0 = h[0], z0 = h[1], x1 = h[2], z1 = h[3], base = h[4];
-        // The wall top: as high as the corner posts still stand.
+        // The wall top: as high as the tallest corner post still stands (any one may be knocked out)...
         int top = base;
-        while (top < h[5] && !w.getBlockState(new BlockPos(x0, top + 1, z0)).isAir()) top++;
+        for (int[] c : new int[][] {{x0, z0}, {x1, z0}, {x0, z1}, {x1, z1}}) {
+            int t = base;
+            while (t < h[5] && !w.getBlockState(new BlockPos(c[0], t + 1, c[1])).isAir()) t++;
+            top = Math.max(top, t);
+        }
+        // ...or, with every corner gone, as high as most of what's left of the walls.
+        if (top - base < 3) {
+            List<Integer> hs = new ArrayList<>();
+            for (int x = x0; x <= x1; x += Math.max(1, (x1 - x0) / 4)) {
+                for (int zz : new int[] {z0, z1}) {
+                    int t = base;
+                    while (t < h[5] && !w.getBlockState(new BlockPos(x, t + 1, zz)).isAir()) t++;
+                    hs.add(t);
+                }
+            }
+            hs.sort(null);
+            top = hs.isEmpty() ? base : hs.get(hs.size() * 3 / 4);
+        }
         if (top - base < 3) return 0;
         // The doorway: the wall block next to the doorstep, two high.
         int dx = Math.max(x0, Math.min(x1, h[6])), dz = Math.max(z0, Math.min(z1, h[7]));

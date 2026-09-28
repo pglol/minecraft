@@ -112,6 +112,8 @@ public final class Homes {
         public long lastDay, lastRaid;
         /** The street closed in by a ring of town houses (no edge of the world out of the windows). */
         public boolean streetWall;
+        /** The cellar swept of street sand and gravel that had poured in from the copied street above. */
+        public boolean cellarSwept;
         /** The chests and barrels counted into the stash (packed positions), null until counted. */
         public List<Long> stash;
         /** Counted with the tight bounds (the house itself and the cellar room, nothing of the street). */
@@ -548,7 +550,9 @@ public final class Homes {
                     for (int y = h[4] - 4; y <= h[5] + 10; y++) {
                         BlockState st = ow.getBlockState(new BlockPos(x, y, z));
                         if (st.isAir()) continue;
-                        hw.setBlockState(map(h, n, x, y, z), st, flags);
+                        BlockPos dst = map(h, n, x, y, z);
+                        if (cellarSpace(h, d, dst)) continue;
+                        hw.setBlockState(dst, underground(st, dst), flags);
                     }
                 }
             }
@@ -648,7 +652,9 @@ public final class Homes {
                     for (int y = h[4] - 4; y <= h[5] + 10; y++) {
                         BlockState st = ow.getBlockState(new BlockPos(x, y, z));
                         if (st.isAir()) continue;
-                        hw.setBlockState(map(h, n, x, y, z), st, flags);
+                        BlockPos dst = map(h, n, x, y, z);
+                        if (cellarSpace(h, d, dst)) continue;
+                        hw.setBlockState(dst, underground(st, dst), flags);
                     }
                 }
             }
@@ -657,6 +663,83 @@ public final class Homes {
         }
         d.backdrop2 = true;
         save();
+    }
+
+    /** Inside the cellar's walls, floor and ceiling (for a home that has one). */
+    private boolean cellarSpace(int[] h, Deed d, BlockPos at) {
+        if (!d.upgrades.contains(Upgrade.CELLAR.name())) return false;
+        BlockPos a = map(h, d.instance, h[0], h[4], h[1]), b = map(h, d.instance, h[2], h[4], h[3]);
+        int cx = (a.getX() + b.getX()) / 2, cz = (a.getZ() + b.getZ()) / 2, fy = HomeCellar.floor(FLOOR);
+        return Math.abs(at.getX() - cx) <= HomeCellar.HX + 1 && Math.abs(at.getZ() - cz) <= HomeCellar.HZ + 1
+            && at.getY() >= fy - 1 && at.getY() <= fy + 5;
+    }
+
+    /** Street ground copied below the floor never pours: sand and gravel set solid (a cellar may be under it). */
+    private static BlockState underground(BlockState st, BlockPos at) {
+        if (at.getY() >= FLOOR || !(st.getBlock() instanceof net.minecraft.block.FallingBlock)) return st;
+        if (st.isOf(Blocks.RED_SAND)) return Blocks.RED_SANDSTONE.getDefaultState();
+        if (st.isOf(Blocks.SAND) || st.isOf(Blocks.SUSPICIOUS_SAND)) return Blocks.SANDSTONE.getDefaultState();
+        return Blocks.PACKED_MUD.getDefaultState();
+    }
+
+    /**
+     * Clears what poured into a cellar from the street copied above it: loose sand, gravel and
+     * powder on the floor, and street ground copied straight into the room. The lanterns and
+     * sconces come back where they're missing; the bays and anything built are left as they are.
+     */
+    void sweepCellar(int[] h, Deed d) {
+        ServerWorld hw = homeWorld(), ow = server.getOverworld();
+        if (hw == null || !d.upgrades.contains(Upgrade.CELLAR.name())) return;
+        int n = d.instance;
+        BlockPos a = map(h, n, h[0], h[4], h[1]), b = map(h, n, h[2], h[4], h[3]);
+        int cx = (a.getX() + b.getX()) / 2, cz = (a.getZ() + b.getZ()) / 2, fy = HomeCellar.floor(FLOOR);
+        // map() in reverse: where a home-world block was copied from in town.
+        BlockPos o = map(h, n, 0, 0, 0);
+        int flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE, cleared = 0;
+        WorldCare.quiet(true);
+        try {
+            BlockPos.Mutable m = new BlockPos.Mutable();
+            for (int x = cx - HomeCellar.HX; x <= cx + HomeCellar.HX; x++) {
+                for (int z = cz - HomeCellar.HZ; z <= cz + HomeCellar.HZ; z++) {
+                    if (x == d.hatchX && z == d.hatchZ) continue;
+                    for (int y = fy + 1; y <= fy + 4; y++) {
+                        m.set(x, y, z);
+                        BlockState st = hw.getBlockState(m);
+                        if (st.isAir()) continue;
+                        boolean loose = st.getBlock() instanceof net.minecraft.block.FallingBlock;
+                        BlockState src = ow.getBlockState(new BlockPos(x - o.getX(), y - o.getY(), z - o.getZ()));
+                        boolean copied = !src.isAir() && st.equals(src) && st.isFullCube(hw, m) && hw.getBlockEntity(m) == null;
+                        if (!loose && !copied) continue;
+                        hw.setBlockState(m, Blocks.AIR.getDefaultState(), flags);
+                        cleared++;
+                    }
+                }
+            }
+            // The lanterns down the aisle and the sconces on the pillars, if they went.
+            for (int x = cx - HomeCellar.HX + 2; x <= cx + HomeCellar.HX - 2; x += 4) {
+                BlockPos lp = new BlockPos(x, fy + 4, cz);
+                if (hw.getBlockState(lp).isAir()) hw.setBlockState(lp, Blocks.LANTERN.getDefaultState().with(net.minecraft.state.property.Properties.HANGING, true), flags);
+            }
+            for (int x = cx - HomeCellar.HX; x <= cx + HomeCellar.HX; x++) {
+                if (Math.floorMod(x - cx, 7) != 3) continue;
+                BlockPos n1 = new BlockPos(x, fy + 3, cz - HomeCellar.HZ), s1 = new BlockPos(x, fy + 3, cz + HomeCellar.HZ);
+                if (hw.getBlockState(n1).isAir()) hw.setBlockState(n1, Blocks.WALL_TORCH.getDefaultState().with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, net.minecraft.util.math.Direction.SOUTH), flags);
+                if (hw.getBlockState(s1).isAir()) hw.setBlockState(s1, Blocks.WALL_TORCH.getDefaultState().with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, net.minecraft.util.math.Direction.NORTH), flags);
+            }
+            // Loose street ground left over the cellar's ceiling is set solid so nothing else pours in.
+            for (int x = cx - HomeCellar.HX - 1; x <= cx + HomeCellar.HX + 1; x++) {
+                for (int z = cz - HomeCellar.HZ - 1; z <= cz + HomeCellar.HZ + 1; z++) {
+                    for (int y = fy + 6; y < FLOOR; y++) {
+                        m.set(x, y, z);
+                        BlockState st = hw.getBlockState(m);
+                        if (st.getBlock() instanceof net.minecraft.block.FallingBlock) hw.setBlockState(m, underground(st, m), flags);
+                    }
+                }
+            }
+        } finally {
+            WorldCare.quiet(false);
+        }
+        if (cleared > 0) AotRpg.LOG.info("[homes] Swept {} blocks out of the cellar of home instance {}", cleared, n);
     }
 
     /** Buying a yard upgrade for a walled-in home: take the wall and street away, lay the yard back. */
@@ -760,6 +843,11 @@ public final class Homes {
         if (!d.enclosed && !d.yard) enclose(h, d);
         else if (d.enclosed && !d.backdrop2) widenBackdrop(h, d);
         if (d.enclosed && !d.yard && !d.streetWall) streetWall(h, d);
+        if (!d.cellarSwept) {
+            d.cellarSwept = true;
+            sweepCellar(h, d);
+            save();
+        }
         if (p.getWorld().getRegistryKey() != WORLD) {
             // Come back out on the doorstep, outside (never inside the town copy, or you'd walk straight back in).
             int ccx = (h[0] + h[2]) / 2, ccz = (h[1] + h[3]) / 2;

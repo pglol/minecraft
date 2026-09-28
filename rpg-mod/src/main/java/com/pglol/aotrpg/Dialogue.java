@@ -209,10 +209,32 @@ public final class Dialogue {
     private String town(ServerPlayerEntity p, Residents.Family f) {
         Net.Area a = AotRpg.PLACES.nearest(p.getX(), p.getZ(), 400, "town", "village", "city", "capital", "safe");
         String name = a == null ? "this place" : a.name();
+        // Half the time, point the way to one of this town's traders (the real stall, the real way).
+        Net.Area t = AotRpg.VENDORS.townAt(p.getX(), p.getZ());
+        if (t != null && rng.nextBoolean()) {
+            Vendors.Kind k = Vendors.Kind.values()[rng.nextInt(Vendors.Kind.values().length)];
+            String d = Vendors.directions(t, k, p.getX(), p.getZ());
+            if (d != null) {
+                String[] w = d.split("\\|");
+                String where = "stall's " + w[2] + " paces " + w[1] + " of here";
+                return switch (k) {
+                    case PROVISIONER -> pick("Best bread in " + name + "? " + w[0] + " the Provisioner. Their " + where + ".",
+                        "Hungry? " + w[0] + " sells the good stuff. Their " + where + ". Don't let them sell you yesterday's loaf.");
+                    case BLADESMITH -> pick("Need blades? " + w[0] + " the Bladesmith. Their " + where + ".",
+                        w[0] + " keeps the Garrison's blades sharp and yours too, for a price. Their " + where + ".");
+                    case ARMORER -> pick(w[0] + " the Armorer fits half the Scouts in " + name + ". Their " + where + ".",
+                        "Coat's seen better days. " + w[0] + " could fix you up. Their " + where + ".");
+                    case TOOLMAKER -> pick("Tools? " + w[0] + " the Toolmaker. Their " + where + ".",
+                        w[0] + " makes a pickaxe that'll outlive you. Their " + where + ".");
+                    case STRANGER -> pick("There's " + w[0] + " in the back streets, " + w[2] + " paces " + w[1] + ". Sells things no honest soldier could afford. I never told you.",
+                        "Keep it quiet: " + w[0] + " deals in the back streets, " + w[1] + " of here. Wear what they sell where the Military Police can see and you'll regret it.");
+                };
+            }
+        }
         return pick(name + "? It's home. Crowded, loud, and the Walls are close enough to touch.",
             "You want to know about " + name + "? The market's the heart of it. Everything worth having passes through there.",
             name + " was quieter before the refugees came. I don't blame them. Where else would they go?",
-            "Best bread in the district, worst drains. That's " + name + ".",
+            "Good bread, worse drains. That's " + name + " for you.",
             "The Garrison keeps an eye on " + name + ", mostly from the bottom of a bottle.",
             "Merchants come through " + name + " all the time. They pay well for protection on the roads, I hear.");
     }

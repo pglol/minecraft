@@ -107,6 +107,27 @@ public final class Vendors {
         }
     }
 
+    /**
+     * How a local points you to a trader: their name, which way their stall is from (x, z) and
+     * roughly how far. Null when this town has no stall of that kind yet.
+     */
+    public static String directions(Net.Area t, Kind k, double x, double z) {
+        Stalls.Spot sp = Stalls.get("vendor:" + t.id() + ":" + k.name());
+        if (sp == null) return null;
+        double dx = sp.x() + 0.5 - x, dz = sp.z() + 0.5 - z;
+        int paces = (int) Math.round(Math.sqrt(dx * dx + dz * dz) / 5.0) * 5;
+        String[] dirs = {"south", "southwest", "west", "northwest", "north", "northeast", "east", "southeast"};
+        String dir = dirs[Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(-dx, dz)) / 45.0), 8)];
+        String who = k == Kind.STRANGER ? "a hooded fellow" : NAMES[Math.floorMod((t.id() + k.name()).hashCode(), NAMES.length)];
+        return who + "|" + dir + "|" + Math.max(5, paces);
+    }
+
+    /** The town (with traders) this spot is in, or null. */
+    public Net.Area townAt(double x, double z) {
+        for (Net.Area a : towns()) if ((x - a.x()) * (x - a.x()) + (z - a.z()) * (z - a.z()) < 110 * 110) return a;
+        return null;
+    }
+
     private static UUID id(Net.Area t, Kind k) {
         return UUID.nameUUIDFromBytes(("aot_vendor:" + t.id() + ":" + k.name()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
