@@ -58,9 +58,10 @@ public final class EffectFx {
         double side = Math.sqrt(v.x * v.x + v.z * v.z);
         boolean dropping = !mc.player.isOnGround() && !mc.player.isTouchingWater() && !mc.player.getAbilities().flying
             && !mc.player.isFallFlying() && !mc.player.hasStatusEffect(StatusEffects.SLOW_FALLING)
-            && v.y < -0.7 && -v.y > side * 1.2 && mc.player.fallDistance > 5;
-        float target = dropping ? MathHelper.clamp((float) (-v.y - 0.7) / 1.8f + 0.25f, 0, 1) : 0;
-        fall += (target - fall) * (target > fall ? 0.15f : 0.3f);
+            && v.y < -0.42 && -v.y > side * 1.1 && mc.player.fallDistance > 2.2f;
+        float target = dropping ? MathHelper.clamp((float) (-v.y - 0.42) / 1.5f + 0.35f, 0, 1) : 0;
+        // Kicks in quickly as the drop starts, eases off when you land.
+        fall += (target - fall) * (target > fall ? 0.45f : 0.3f);
         if (fall < 0.01f) fall = 0;
     }
 
