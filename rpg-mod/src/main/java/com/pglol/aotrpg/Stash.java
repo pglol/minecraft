@@ -181,23 +181,7 @@ public final class Stash {
                 if (slot < 0 || slot >= bag.size()) return;
                 ItemStack s = bag.getStack(slot);
                 if (s.isEmpty() || Satchel.isStory(s)) return;
-                ItemStack rest = s.copy();
-                for (Cell c : cells) {
-                    ItemStack t = c.inv().getStack(c.slot());
-                    if (!t.isEmpty() && ItemStack.areItemsAndComponentsEqual(t, rest) && t.getCount() < t.getMaxCount()) {
-                        int n = Math.min(rest.getCount(), t.getMaxCount() - t.getCount());
-                        t.increment(n);
-                        rest.decrement(n);
-                        if (rest.isEmpty()) break;
-                    }
-                }
-                for (Cell c : cells) {
-                    if (rest.isEmpty()) break;
-                    if (c.inv().getStack(c.slot()).isEmpty()) {
-                        c.inv().setStack(c.slot(), rest);
-                        rest = ItemStack.EMPTY;
-                    }
-                }
+                ItemStack rest = deposit(cells, s.copy());
                 if (rest.getCount() == s.getCount()) {
                     Notify.toast(p, Text.literal("Your stash is full").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, "minecraft:barrel", null);
                     return;
@@ -218,6 +202,38 @@ public final class Stash {
                 }
                 c.inv().setStack(c.slot(), rest);
                 bag.markDirty();
+            }
+            // Stash slot -> worn or on the loadout bar (what was there goes back in its place).
+            // Things with no place there (materials, supplies) go in the satchel instead.
+            case "equip" -> {
+                if (slot < 0 || slot >= cells.size()) return;
+                Cell c = cells.get(slot);
+                ItemStack s = c.inv().getStack(c.slot());
+                if (s.isEmpty()) return;
+                if (wearable(p, s)) AotRpg.SATCHEL.equip(p, c.inv(), c.slot(), s);
+                else {
+                    ItemStack rest = bag.addStack(s.copy());
+                    if (rest.getCount() == s.getCount()) {
+                        Notify.toast(p, Text.literal("Your satchel is full").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, "minecraft:bundle", null);
+                        return;
+                    }
+                    c.inv().setStack(c.slot(), rest);
+                    bag.markDirty();
+                }
+            }
+            // A worn or loadout place (0-8, 40 off hand, 100-103 armor) -> stash.
+            case "unequip" -> {
+                if (slot != Satchel.OFF && (slot < 0 || slot >= 9) && Satchel.armorSlot(slot) == null) return;
+                int sh = Loadout.sheathFor(p, slot, ItemStack.EMPTY);
+                ItemStack s = sh >= 0 ? Loadout.sheathStack(p, sh) : Satchel.placed(p, slot);
+                if (s.isEmpty() || Satchel.isStory(s)) return;
+                ItemStack rest = deposit(cells, s.copy());
+                if (rest.getCount() == s.getCount()) {
+                    Notify.toast(p, Text.literal("Your stash is full").formatted(net.minecraft.util.Formatting.RED), null, 0xC0463A, "minecraft:barrel", null);
+                    return;
+                }
+                if (sh >= 0) Loadout.setSheath(p, sh, rest);
+                else Satchel.place(p, slot, rest);
             }
             // Tidies the stash: like with like stacked together, best first.
             case "sort" -> {
@@ -265,6 +281,97 @@ public final class Stash {
         saveLocker(p, locker(p));
         AotRpg.SATCHEL.send(p, false);
         send(p, false);
+    }
+
+    /** Has a place on you: armor, a grip, or something a named loadout slot is made for. */
+    private static boolean wearable(ServerPlayerEntity p, ItemStack s) {
+        if (Loadout.isGrip(s)) return true;
+        if (p.getPreferredEquipmentSlot(s).getType() == net.minecraft.entity.EquipmentSlot.Type.HUMANOID_ARMOR) return true;
+        for (Loadout.Kind k : Loadout.SLOTS) if (k != Loadout.Kind.FREE && Loadout.fits(k, s)) return true;
+        return Gear.isGear(s);
+    }
+
+    /** Into the stash: stacked onto what's there, then the first free slots. Returns what didn't fit. */
+    private static ItemStack deposit(List<Cell> cells, ItemStack rest) {
+        for (Cell c : cells) {
+            if (rest.isEmpty()) break;
+            ItemStack t = c.inv().getStack(c.slot());
+            if (!t.isEmpty() && ItemStack.areItemsAndComponentsEqual(t, rest) && t.getCount() < t.getMaxCount()) {
+                int n = Math.min(rest.getCount(), t.getMaxCount() - t.getCount());
+                t.increment(n);
+                rest.decrement(n);
+            }
+        }
+        for (Cell c : cells) {
+            if (rest.isEmpty()) break;
+            if (c.inv().getStack(c.slot()).isEmpty()) {
+                c.inv().setStack(c.slot(), rest);
+                rest = ItemStack.EMPTY;
+            }
+        }
+        return rest;
+    }
+
+    /** One item into this player's stash (the satchel if the stash is full). */
+    public static void store(ServerPlayerEntity p, ItemStack s) {
+        List<Cell> cells = layout(p, null);
+        ItemStack rest = deposit(cells, s);
+        dirty(cells);
+        saveLocker(p, locker(p));
+        if (!rest.isEmpty()) AotRpg.SATCHEL.add(p, rest);
+        if (open.contains(p.getUuid())) send(p, false);
+    }
+
+    /**
+     * Empty pockets: everything carried, worn, sheathed or in the satchel goes into the stash (the
+     * balloon's rule: you board with nothing and kit out from storage). What the stash can't hold
+     * stays where it was.
+     */
+    public static void bankAll(ServerPlayerEntity p) {
+        List<Cell> cells = layout(p, null);
+        if (cells.isEmpty()) return;
+        int moved = 0, left = 0;
+        var inv = p.getInventory();
+        for (var list : List.of(inv.main, inv.armor, inv.offHand)) {
+            for (int i = 0; i < list.size(); i++) {
+                ItemStack s = list.get(i);
+                if (s.isEmpty() || Satchel.isStory(s)) continue;
+                ItemStack rest = deposit(cells, s.copy());
+                if (rest.getCount() != s.getCount()) moved++;
+                if (!rest.isEmpty()) left++;
+                list.set(i, rest);
+            }
+        }
+        inv.markDirty();
+        int[] sh = {0, 0};
+        Loadout.bankSheath(p, s -> {
+            ItemStack rest = deposit(cells, s);
+            sh[0]++;
+            if (!rest.isEmpty()) sh[1]++;
+            return rest;
+        });
+        moved += sh[0] - sh[1];
+        left += sh[1];
+        SimpleInventory bag = AotRpg.SATCHEL.get(p.getUuid());
+        for (int i = 0; i < bag.size(); i++) {
+            ItemStack s = bag.getStack(i);
+            if (s.isEmpty() || Satchel.isStory(s)) continue;
+            ItemStack rest = deposit(cells, s.copy());
+            if (rest.getCount() != s.getCount()) moved++;
+            if (!rest.isEmpty()) left++;
+            bag.setStack(i, rest);
+        }
+        bag.markDirty();
+        dirty(cells);
+        AotRpg.SATCHEL.save(p.getUuid());
+        saveLocker(p, locker(p));
+        AotRpg.SATCHEL.send(p, false);
+        if (left > 0) {
+            Notify.toast(p, Text.literal("Stash full").formatted(net.minecraft.util.Formatting.RED),
+                Text.literal(left + " kept on you"), 0xC0463A, "minecraft:barrel", null);
+        } else if (moved > 0) {
+            p.playSoundToPlayer(SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.BLOCKS, 0.7f, 1f);
+        }
     }
 
     /**

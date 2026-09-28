@@ -516,8 +516,10 @@ public final class Extraction {
     public void toLobby(ServerPlayerEntity p, boolean returning) {
         ServerWorld w = sky();
         if (w == null) return;
-        // Nobody arrives aboard still bleeding on the ground.
+        // Nobody arrives aboard still bleeding on the ground, nor with anything in their pockets:
+        // it all goes to the stash, and the loadout is picked from there.
         AotRpg.DOWNED.release(p);
+        Stash.bankAll(p);
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         if (p.getWorld().getRegistryKey() == World.OVERWORLD && !pr.inRun) pr.openWorldPos = new double[] {p.getX(), p.getY(), p.getZ(), p.getYaw()};
         pr.inRun = false;
@@ -1010,7 +1012,7 @@ public final class Extraction {
         pr.salvage -= k.salvage();
         AotRpg.PROFILES.save(p.getUuid());
         var item = net.minecraft.registry.Registries.ITEM.get(Identifier.of(k.item()));
-        p.getInventory().offerOrDrop(new ItemStack(item, k.count()));
+        Stash.store(p, new ItemStack(item, k.count()));
         p.playSoundToPlayer(SoundEvents.BLOCK_SMITHING_TABLE_USE, SoundCategory.BLOCKS, 0.8f, 1.2f);
         bench(p, false);
     }

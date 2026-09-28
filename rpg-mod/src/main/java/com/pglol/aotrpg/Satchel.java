@@ -353,13 +353,13 @@ public final class Satchel {
         return target >= 0 && target < 9 && Loadout.fits(Loadout.SLOTS[target], s);
     }
 
-    private static ItemStack placed(ServerPlayerEntity p, int target) {
+    static ItemStack placed(ServerPlayerEntity p, int target) {
         if (target >= ARMOR) return armorSlot(target) == null ? ItemStack.EMPTY : p.getEquippedStack(armorSlot(target));
         if (target == OFF) return p.getOffHandStack();
         return target >= 0 && target < 9 ? p.getInventory().main.get(target) : ItemStack.EMPTY;
     }
 
-    private static void place(ServerPlayerEntity p, int target, ItemStack s) {
+    static void place(ServerPlayerEntity p, int target, ItemStack s) {
         if (target >= ARMOR) p.equipStack(armorSlot(target), s);
         else if (target == OFF) p.setStackInHand(net.minecraft.util.Hand.OFF_HAND, s);
         else p.getInventory().main.set(target, s);
@@ -367,7 +367,7 @@ public final class Satchel {
     }
 
     /** Puts a satchel item in the place the player chose; what was there comes back to the satchel. */
-    private void equipTo(ServerPlayerEntity p, SimpleInventory bag, int slot, ItemStack s, int target) {
+    void equipTo(ServerPlayerEntity p, net.minecraft.inventory.Inventory bag, int slot, ItemStack s, int target) {
         if (target != OFF && (target < 0 || target >= 9) && armorSlot(target) == null) return;
         if (Gear.isGear(s) && !Gear.canUse(p, s)) {
             Notify.toast(p, Text.literal("Locked").formatted(net.minecraft.util.Formatting.RED),
@@ -423,7 +423,7 @@ public final class Satchel {
     }
 
     /** Armor to its slot; anything else to the loadout slot made for it (what was there comes back). */
-    private void equip(ServerPlayerEntity p, SimpleInventory bag, int slot, ItemStack s) {
+    void equip(ServerPlayerEntity p, net.minecraft.inventory.Inventory bag, int slot, ItemStack s) {
         if (Gear.isGear(s) && !Gear.canUse(p, s)) {
             Notify.toast(p, Text.literal("Locked").formatted(net.minecraft.util.Formatting.RED),
                 Text.literal("Needs level " + Gear.requiredLevel(s)), 0xC0463A, null, null);

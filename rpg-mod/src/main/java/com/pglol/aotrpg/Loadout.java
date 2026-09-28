@@ -251,6 +251,25 @@ public final class Loadout {
         return -1;
     }
 
+    /** Empties the sheath (both grips, and an off-hand item set aside while they're drawn) into sink; what it can't take stays. */
+    public static void bankSheath(ServerPlayerEntity p, java.util.function.UnaryOperator<ItemStack> sink) {
+        SimpleInventory g = gear(p);
+        boolean changed = false;
+        for (int i : new int[] {SHEATH_A, STASH, SHEATH_B}) {
+            ItemStack s = g.getStack(i);
+            if (s.isEmpty()) continue;
+            ItemStack rest = sink.apply(s.copy());
+            if (rest.getCount() != s.getCount()) {
+                g.setStack(i, rest);
+                changed = true;
+            }
+        }
+        if (changed) {
+            g.markDirty();
+            AotRpg.LOADOUT.broadcast(p, true);
+        }
+    }
+
     public static ItemStack sheathStack(ServerPlayerEntity p, int i) {
         return gear(p).getStack(i);
     }

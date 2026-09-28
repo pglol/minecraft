@@ -31,36 +31,14 @@ public final class RarityTint {
     }
 
     /**
-     * Infused blades drawn in a hand (first or third person) or on a back: points picked from the
-     * sword's own drawn geometry, so its element comes off the blade wherever it actually is
-     * mid-swing, blocking or sheathed. Null when nothing is being sampled.
+     * An infused blade's surface as it is drawn (hand, back or ground), so its element can be drawn
+     * right on it afterwards (see BladeMotes).
      */
-    private static Sampler sampler;
-
-    public static final class Sampler {
-        public final ItemStack stack;
-        /** The right-hand item in first person (else the left). */
-        public final boolean right;
-        public final float[][] picks = new float[6][3];
-        public int seen;
-        private final java.util.Random r = new java.util.Random();
-
-        Sampler(ItemStack stack, boolean right) {
-            this.stack = stack;
-            this.right = right;
-        }
-
-        /** Reservoir sampling: every drawn vertex has the same chance of being one of the picks. */
-        void offer(float x, float y, float z) {
-            int i = seen++;
-            int slot = i < picks.length ? i : r.nextInt(i + 1);
-            if (slot < picks.length) {
-                picks[slot][0] = x;
-                picks[slot][1] = y;
-                picks[slot][2] = z;
-            }
-        }
-    }
+    private static final float[] verts = new float[3 * 4096];
+    private static int vn;
+    private static boolean recording, recView;
+    private static ItemStack recStack;
+    private static VertexConsumerProvider recBase;
 
     public static VertexConsumerProvider enter(ItemStack s, net.minecraft.client.render.model.json.ModelTransformationMode mode, VertexConsumerProvider base) {
         ItemStack owner = s;
@@ -73,8 +51,14 @@ public final class RarityTint {
         }
         if (drawing.isEmpty()) {
             outerMode = mode;
-            if (mode != null && mode.isFirstPerson() && owner != null && com.pglol.aotrpg.Infusions.of(owner) != null) {
-                sampler = new Sampler(owner, mode == net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_RIGHT_HAND);
+            recording = mode != null && mode != net.minecraft.client.render.model.json.ModelTransformationMode.GUI
+                && mode != net.minecraft.client.render.model.json.ModelTransformationMode.FIXED
+                && owner != null && !owner.isEmpty() && com.pglol.aotrpg.Infusions.of(owner) != null && GearUi.rarity(owner) >= 2;
+            if (recording) {
+                vn = 0;
+                recStack = owner;
+                recView = mode.isFirstPerson();
+                recBase = base;
             }
         }
         drawing.push(owner == null ? ItemStack.EMPTY : owner);
@@ -89,7 +73,7 @@ public final class RarityTint {
     /** Between frames nothing is being drawn: a draw that never finished can't colour anything else. */
     public static void reset() {
         drawing.clear();
-        sampler = null;
+        recording = false;
     }
 
     public static void exit() {
@@ -100,10 +84,12 @@ public final class RarityTint {
             lastGripAt = System.nanoTime();
             lastMode = outerMode;
         }
-        if (sampler != null) {
-            Sampler done = sampler;
-            sampler = null;
-            if (done.seen > 0) InfusionFx.emit(done);
+        if (recording) {
+            recording = false;
+            var inf = com.pglol.aotrpg.Infusions.of(recStack);
+            if (inf != null) BladeMotes.draw(inf, GearUi.rarity(recStack), verts, vn - vn % 12, recView, recBase);
+            recStack = null;
+            recBase = null;
         }
     }
 
@@ -142,11 +128,12 @@ public final class RarityTint {
         private final float k, ripple, t;
         /** 0 tint, 1 void (dark violet), 2 pearl light, 3 blacked out. */
         private final int mode;
-        private final boolean glow;
+        private final boolean glow, nested;
         private float at;
 
         Tinted(VertexConsumer inner, int tint, float k, float ripple, float t, int mode, boolean glow) {
             this.inner = inner;
+            this.nested = inner instanceof Tinted;
             this.tint = tint;
             this.k = k;
             this.ripple = ripple;
@@ -158,7 +145,12 @@ public final class RarityTint {
         @Override
         public VertexConsumer vertex(float x, float y, float z) {
             at = x * 3.1f + y * 4.7f + z * 2.3f;
-            if (sampler != null) sampler.offer(x, y, z);
+            // (A tint wrapped around another records nothing: the inner one already has it.)
+            if (recording && !nested && vn + 3 <= verts.length) {
+                verts[vn++] = x;
+                verts[vn++] = y;
+                verts[vn++] = z;
+            }
             inner.vertex(x, y, z);
             return this;
         }

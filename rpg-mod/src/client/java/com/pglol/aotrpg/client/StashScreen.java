@@ -20,8 +20,9 @@ import java.util.TreeMap;
 
 /**
  * The stash, side by side with the satchel, in the satchel's own style: the same categories
- * across the top (plus All), a search box and a sort. Click a card to send it across; shift-click
- * sends everything showing on that side. Tidy stacks and orders the stash.
+ * across the top (plus All), a search box and a sort. Click a stash card to wear or equip it (the
+ * loadout strip along the bottom shows what you'll carry; click a place there to send it back),
+ * right-click to put it in the satchel; shift-click sends everything showing on that side.
  */
 public final class StashScreen extends Screen {
     private static final String[] SORTS = {"Quality", "Level", "Name", "Count"};
@@ -33,6 +34,9 @@ public final class StashScreen extends Screen {
     private int scrollL, scrollR;
     private int top, panelW, cols, rows;
     private static final int CW = 30, GAP = 4;
+    /** The loadout strip along the bottom: armor, off hand, then the nine loadout slots. */
+    private static final int LS = 22, LOAD_H = 40;
+    private static final int[] PLACES = {103, 102, 101, 100, 40, 0, 1, 2, 3, 4, 5, 6, 7, 8};
     private TextFieldWidget search;
     private String query = "";
 
@@ -103,7 +107,7 @@ public final class StashScreen extends Screen {
         top = 78;
         panelW = (width - 14 * 2 - 24) / 2;
         cols = Math.max(3, (panelW - 8) / (CW + GAP));
-        rows = Math.max(1, (height - top - 34) / (CW + GAP));
+        rows = Math.max(1, (height - top - 34 - LOAD_H) / (CW + GAP));
         // Category tabs: All, then the satchel's own.
         int n = BagScreen.TABS.length + 1, tw = Math.min(110, (width - 28) / n);
         for (int i = -1; i < BagScreen.TABS.length; i++) {
@@ -174,9 +178,53 @@ public final class StashScreen extends Screen {
         return null;
     }
 
+    private int loadY() { return height - LOAD_H + 8; }
+
+    private int placeX(int i) {
+        int total = PLACES.length * (LS + 3) + 2 * 8;
+        int x0 = width / 2 - total / 2;
+        // A gap after the armor and after the off hand.
+        return x0 + i * (LS + 3) + (i >= 4 ? 8 : 0) + (i >= 5 ? 8 : 0);
+    }
+
+    /** Which worn / loadout place is under the mouse, or -1. */
+    private int placeAt(double mx, double my) {
+        int y = loadY();
+        if (my < y || my >= y + LS) return -1;
+        for (int i = 0; i < PLACES.length; i++) if (mx >= placeX(i) && mx < placeX(i) + LS) return PLACES[i];
+        return -1;
+    }
+
+    /** What's in a place as this client sees it (the sheathed grip when the hand is empty). */
+    private ItemStack placed(int place) {
+        var pl = client == null ? null : client.player;
+        if (pl == null) return ItemStack.EMPTY;
+        ItemStack s = switch (place) {
+            case 100 -> pl.getInventory().armor.get(0);
+            case 101 -> pl.getInventory().armor.get(1);
+            case 102 -> pl.getInventory().armor.get(2);
+            case 103 -> pl.getInventory().armor.get(3);
+            case 40 -> pl.getOffHandStack();
+            default -> pl.getInventory().main.get(place);
+        };
+        if (s.isEmpty() && (place == 0 || place == 40)) {
+            Net.SheathState st = ClientState.sheaths.get(pl.getUuid());
+            if (st != null) s = place == 0 ? st.a() : st.b();
+        }
+        return s;
+    }
+
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (super.mouseClicked(mx, my, button)) return true;
+        int place = placeAt(mx, my);
+        if (place >= 0) {
+            if (!placed(place).isEmpty()) {
+                act("unequip", place);
+                if (client != null && client.player != null) client.player.playSound(net.minecraft.sound.SoundEvents.ITEM_ARMOR_EQUIP_LEATHER.value(), 0.5f, 0.9f);
+            }
+            return true;
+        }
         int[] hit = at(mx, my);
         if (hit == null) return false;
         if (scrap) {
@@ -185,8 +233,10 @@ public final class StashScreen extends Screen {
             act(hit[0] == 0 ? "scrap_stash" : "scrap_bag", hit[1]);
             return true;
         }
-        String a = hit[0] == 0 ? "take" : "put";
+        // A stash item: click to wear or equip it, right-click to put it in the satchel.
+        String a = hit[0] == 0 ? (button == 1 ? "take" : "equip") : "put";
         if (hasShiftDown()) {
+            if (hit[0] == 0) a = "take";
             // Everything showing on that side goes across.
             for (int k : shown(hit[0] == 0 ? stash : ClientState.bag)) act(a, k);
         } else act(a, hit[1]);
@@ -220,6 +270,31 @@ public final class StashScreen extends Screen {
         Ui.text(c, Text.literal("⇄"), mx, top + bh / 2f - 6, 1.4f, Ui.TRIM, true);
         drawSide(c, 0, mouseX, mouseY);
         drawSide(c, 1, mouseX, mouseY);
+        drawLoadout(c, mouseX, mouseY);
+    }
+
+    /** What you'll carry: armor, off hand and the loadout bar, straight from the stash. */
+    private void drawLoadout(DrawContext c, int mouseX, int mouseY) {
+        int y = loadY();
+        int x0 = placeX(0) - 8, x1 = placeX(PLACES.length - 1) + LS + 8;
+        c.fill(x0, y - 6, x1, y + LS + 5, 0xC80B0F0C);
+        c.fill(x0, y - 7, x1, y - 6, Ui.TRIM);
+        Ui.text(c, Ui.heading("LOADOUT"), x0 - 6 - textRenderer.getWidth("LOADOUT") * 0.75f, y + LS / 2f - 3, 0.75f, Ui.GOLD, false);
+        for (int i = 0; i < PLACES.length; i++) {
+            int place = PLACES[i], x = placeX(i);
+            boolean hov = mouseX >= x && mouseX < x + LS && mouseY >= y && mouseY < y + LS;
+            int col = place < 9 ? LoadoutUi.color(com.pglol.aotrpg.Loadout.SLOTS[place]) : place == 40 ? 0xFF8F8A7A : Ui.TRIM;
+            c.fill(x, y, x + LS, y + LS, 0xE0121612);
+            c.drawBorder(x, y, LS, LS, (hov ? 0xFF : 0x90) << 24 | (col & 0xFFFFFF));
+            ItemStack s = placed(place);
+            if (!s.isEmpty()) {
+                GearUi.backing(c, s, x + 3, y + 3);
+                c.drawItem(s, x + 3, y + 3);
+                c.drawItemInSlot(textRenderer, s, x + 3, y + 3);
+            } else if (place < 9) {
+                LoadoutUi.drawGhost(c, LoadoutUi.ghost(com.pglol.aotrpg.Loadout.SLOTS[place]), x + 3, y + 3);
+            }
+        }
     }
 
     private void drawSide(DrawContext c, int side, int mouseX, int mouseY) {
@@ -278,5 +353,7 @@ public final class StashScreen extends Screen {
             ItemStack s = (hit[0] == 0 ? stash : ClientState.bag).get(hit[1]);
             if (s != null) c.drawItemTooltip(textRenderer, s, mouseX, mouseY);
         }
+        int place = placeAt(mouseX, mouseY);
+        if (place >= 0 && !placed(place).isEmpty()) c.drawItemTooltip(textRenderer, placed(place), mouseX, mouseY);
     }
 }
