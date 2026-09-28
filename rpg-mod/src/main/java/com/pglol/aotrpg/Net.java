@@ -1469,6 +1469,19 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: a duel's face-off: the two fighters side by side, VS, and the count to the fight. */
+    public record DuelIntro(java.util.UUID a, String aName, int aLevel, String aRole, java.util.UUID b, String bName, int bLevel, String bRole,
+                            String rules) implements CustomPayload {
+        public static final Id<DuelIntro> ID = id("duel_intro");
+        public static final PacketCodec<RegistryByteBuf, DuelIntro> CODEC = PacketCodec.of((v, b) -> {
+            b.writeUuid(v.a); b.writeString(v.aName); b.writeVarInt(v.aLevel); b.writeString(v.aRole);
+            b.writeUuid(v.b); b.writeString(v.bName); b.writeVarInt(v.bLevel); b.writeString(v.bRole);
+            b.writeString(v.rules);
+        }, b -> new DuelIntro(b.readUuid(), b.readString(), b.readVarInt(), b.readString(), b.readUuid(), b.readString(), b.readVarInt(), b.readString(),
+            b.readString()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: the ground shakes (strength 0-1, for this many ticks). */
     public record Quake(float strength, int ticks) implements CustomPayload {
         public static final Id<Quake> ID = id("quake");
@@ -2367,6 +2380,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(DecorView.ID, DecorView.CODEC);
         PayloadTypeRegistry.playS2C().register(EventBanner.ID, EventBanner.CODEC);
         PayloadTypeRegistry.playS2C().register(Quake.ID, Quake.CODEC);
+        PayloadTypeRegistry.playS2C().register(DuelIntro.ID, DuelIntro.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);
         PayloadTypeRegistry.playS2C().register(AlertsView.ID, AlertsView.CODEC);
         PayloadTypeRegistry.playS2C().register(Dream.ID, Dream.CODEC);

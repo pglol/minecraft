@@ -117,6 +117,7 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.DecorView.ID, (payload, ctx) -> DecorScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.EventBanner.ID, (payload, ctx) -> EventBanner.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.Quake.ID, (payload, ctx) -> EffectFx.quake(payload.strength(), payload.ticks()));
+        ClientPlayNetworking.registerGlobalReceiver(Net.DuelIntro.ID, (payload, ctx) -> DuelIntro.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.StashView.ID, (payload, ctx) -> {
             if (payload.open()) ctx.client().setScreen(new StashScreen(payload));
             else StashScreen.update(payload);
@@ -418,6 +419,7 @@ public final class AotRpgClient implements ClientModInitializer {
         // Last of all: the cutscene's bars cover every HUD piece, and the big event banners sit on top.
         HudRenderCallback.EVENT.register(com.pglol.aotrpg.client.story.CutscenePlayer::render);
         HudRenderCallback.EVENT.register(EventBanner::render);
+        HudRenderCallback.EVENT.register(DuelIntro::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (characterKey.wasPressed()) {

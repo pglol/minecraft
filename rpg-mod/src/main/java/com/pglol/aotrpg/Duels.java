@@ -136,23 +136,31 @@ public final class Duels {
             stow(p);
             stow(t);
         }
+        // The face-off: both fighters side by side, VS, then the count (drawn on the screen; the bells here).
         List<ServerPlayerEntity> viewers = Cinematics.near(p.getServerWorld(), d.center, 32);
         if (!viewers.contains(p)) viewers.add(0, p);
         if (!viewers.contains(t)) viewers.add(t);
-        String an = AotRpg.PROFILES.get(p.getUuid()).name, bn = AotRpg.PROFILES.get(t.getUuid()).name;
-        int ticks = Cinematics.intro(viewers, d.center, List.of(p, t), "DUEL", an + "   vs   " + bn, 0xE0B96A);
+        Profile ap = AotRpg.PROFILES.get(p.getUuid()), bp = AotRpg.PROFILES.get(t.getUuid());
+        String rules = RINGS[d.rules.ring()] + "m ring" + (d.rules.odm() ? "" : "  ·  no gear") + (d.rules.abilities() ? "" : "  ·  no abilities")
+            + (d.rules.food() ? "" : "  ·  no food");
+        Net.DuelIntro intro = new Net.DuelIntro(p.getUuid(), ap.name, ap.level, ap.role, t.getUuid(), bp.name, bp.level, bp.role, rules);
+        for (ServerPlayerEntity v : viewers) if (ServerPlayNetworking.canSend(v, Net.DuelIntro.ID)) ServerPlayNetworking.send(v, intro);
+        // Held in place for the face-off.
+        for (ServerPlayerEntity x : List.of(p, t)) {
+            x.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOWNESS, 110, 9, false, false, false));
+            x.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 110, 4, false, false, false));
+        }
+        int ticks = 40;
         long now = System.currentTimeMillis();
         d.startsAt = now + ticks * 50L + 3_000;
         d.endsAt = d.startsAt + LIMIT_MS;
         duels.add(d);
-        // Three, two, one...
         for (int i = 3; i >= 1; i--) {
-            int n = i;
-            AotRpg.SCHEDULER.later(ticks + (3 - i) * 20, () -> count(d, Text.literal(String.valueOf(n)).formatted(Formatting.GOLD, Formatting.BOLD), 1f));
+            AotRpg.SCHEDULER.later(ticks + (3 - i) * 20, () -> count(d, null, 1f));
         }
         AotRpg.SCHEDULER.later(ticks + 60, () -> {
             d.fighting = true;
-            count(d, Text.literal("FIGHT!").formatted(Formatting.RED, Formatting.BOLD), 1.6f);
+            count(d, null, 1.6f);
         });
     }
 
@@ -161,7 +169,7 @@ public final class Duels {
         for (UUID id : List.of(d.a, d.b)) {
             ServerPlayerEntity p = server.getPlayerManager().getPlayer(id);
             if (p == null) continue;
-            Titles.show(p, t, Text.empty(), 0, 16, 4);
+            if (t != null) Titles.show(p, t, Text.empty(), 0, 16, 4);
             p.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), SoundCategory.MASTER, 1f, pitch);
         }
     }
