@@ -46,7 +46,7 @@ import java.util.UUID;
 
 /**
  * The combat loadout: every hotbar slot has a purpose.
- *   1 Melee   2 Ranged   3 Gas   4 Mount   | 5 Heal |   6 Tool   7 Signal   8 Free   9 Free
+ *   1 Melee   2 Ranged   3 Free   4 Free   | 5 Heal |   6 Tool   7 Signal   8 Mount   9 Gas
  * Items only go where they belong (nothing is equipped for you). ODM grips are a pair: the sheath
  * key puts both on your back, and draws them again into slot 1 and the off hand (the off-hand item
  * is kept aside and comes back when they are sheathed).
@@ -70,8 +70,8 @@ public final class Loadout {
         }
     }
 
-    public static final Kind[] SLOTS = {Kind.MELEE, Kind.RANGED, Kind.GAS, Kind.MOUNT, Kind.HEAL,
-        Kind.TOOL, Kind.SIGNAL, Kind.FREE, Kind.FREE};
+    public static final Kind[] SLOTS = {Kind.MELEE, Kind.RANGED, Kind.FREE, Kind.FREE, Kind.HEAL,
+        Kind.TOOL, Kind.SIGNAL, Kind.MOUNT, Kind.GAS};
     public static final int HEAL_SLOT = 4;
 
     private static final String NS = "dannys-aot";

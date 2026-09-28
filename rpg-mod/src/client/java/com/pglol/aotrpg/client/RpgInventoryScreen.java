@@ -36,13 +36,13 @@ public class RpgInventoryScreen extends InventoryScreen {
         FRAMES[0] = new int[] {172, 38};         // Melee
         FRAMES[OFFHAND] = new int[] {192, 38};   // Off hand / twin grip
         FRAMES[1] = new int[] {256, 38};         // Ranged
-        FRAMES[2] = new int[] {276, 38};         // Gas
-        FRAMES[3] = new int[] {198, 68};         // Mount
+        FRAMES[2] = new int[] {276, 38};         // Free
+        FRAMES[3] = new int[] {198, 68};         // Free
         FRAMES[4] = new int[] {224, 68};         // Heal (centre)
         FRAMES[5] = new int[] {250, 68};         // Tool
         FRAMES[6] = new int[] {198, 94};         // Signal
-        FRAMES[7] = new int[] {224, 94};         // Free
-        FRAMES[8] = new int[] {250, 94};         // Free
+        FRAMES[7] = new int[] {224, 94};         // Mount
+        FRAMES[8] = new int[] {250, 94};         // Gas
     }
 
     /** Vanilla positions of every slot, to put back when the screen closes. */
