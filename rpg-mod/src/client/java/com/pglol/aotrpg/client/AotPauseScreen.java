@@ -23,6 +23,7 @@ public class AotPauseScreen extends Screen {
     @Override
     protected void init() {
         headers.clear();
+        alertButtons.clear();
         headerNames.clear();
         if (ClientState.profile != null) ClientPlayNetworking.send(new Net.FactionAction("view", ""));
         boolean mods = FabricLoader.getInstance().isModLoaded("modmenu");
@@ -45,7 +46,7 @@ public class AotPauseScreen extends Screen {
         y += bh + 6;
 
         y = section(y, bh, "Character", new Tile[] {
-            new Tile("Character [K]", "minecraft:writable_book", hasChar, () -> client.setScreen(new CharacterScreen(0))),
+            new Tile("Character [K]", "minecraft:writable_book", hasChar, () -> client.setScreen(new CharacterScreen(0)), "character"),
             new Tile("Satchel [B]", "minecraft:bundle", hasChar, () -> ClientPlayNetworking.send(new Net.OpenSatchel())),
             new Tile("Characters", "minecraft:armor_stand", open, () -> ClientPlayNetworking.send(new Net.CharacterAction("list", 0))),
             new Tile("Game Mode", "minecraft:compass", hasChar && open, () -> ClientPlayNetworking.send(new Net.ModeAction("open")))});
@@ -53,8 +54,8 @@ public class AotPauseScreen extends Screen {
         y = section(y, bh, "Adventure", new Tile[] {
             new Tile("Journal [J]", "minecraft:book", hasChar, () -> client.setScreen(new JournalScreen())),
             new Tile("World Map [M]", "minecraft:filled_map", true, () -> client.setScreen(new WorldMapScreen())),
-            new Tile("Tasks & Titles", "minecraft:target", hasChar, () -> ClientPlayNetworking.send(new Net.TaskAction("open", ""))),
-            new Tile("Battle Pass", "minecraft:nether_star", hasChar, () -> ClientPlayNetworking.send(new Net.PassAction("open", 0))),
+            new Tile("Tasks & Titles", "minecraft:target", hasChar, () -> ClientPlayNetworking.send(new Net.TaskAction("open", "")), "tasks"),
+            new Tile("Battle Pass", "minecraft:nether_star", hasChar, () -> ClientPlayNetworking.send(new Net.PassAction("open", 0)), "pass"),
             new Tile("Events", "minecraft:firework_rocket", hasChar, () -> ClientPlayNetworking.send(new Net.EventAction("open", ""))),
             new Tile("Server & Ranks", "minecraft:gold_ingot", true, () -> client.setScreen(new StatsScreen(this, 1)))});
         y = section(y, bh, "Community", new Tile[] {
@@ -69,7 +70,7 @@ public class AotPauseScreen extends Screen {
             new Tile(InboxScreen.waiting() > 0 ? "Inbox (" + InboxScreen.waiting() + ")" : "Inbox", "minecraft:chest", hasChar, () -> {
                 client.setScreen(new InboxScreen(this));
                 ClientPlayNetworking.send(new Net.InboxAction("open", ""));
-            })});
+            }, "inbox")});
         locking = false;
         y = section(y, bh, "Home", new Tile[] {
             new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("list", -1, ""))),
@@ -94,7 +95,18 @@ public class AotPauseScreen extends Screen {
         leave.accent = Ui.RED;
     }
 
-    private record Tile(String label, String icon, boolean active, Runnable action) { }
+    private record Tile(String label, String icon, boolean active, Runnable action, String alert) {
+        Tile(String label, String icon, boolean active, Runnable action) {
+            this(label, icon, active, action, null);
+        }
+    }
+
+    /** Tile buttons by alert key, so a new alert can light them without a rebuild. */
+    private final java.util.Map<AotButton, String> alertButtons = new java.util.HashMap<>();
+
+    public void refreshAlerts() {
+        for (var e : alertButtons.entrySet()) e.getKey().alert = ClientState.alerts.contains(e.getValue());
+    }
 
     /** While true, the tiles being laid out are locked (greyed out). */
     private boolean locking;
@@ -113,6 +125,10 @@ public class AotPauseScreen extends Screen {
             AotButton b = add(tx, ty, TW, bh, Text.literal(t.label()), t.action());
             if (bh >= 18) b.icon(new net.minecraft.item.ItemStack(net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(t.icon()))));
             b.active = t.active() && !locking;
+            if (t.alert() != null) {
+                alertButtons.put(b, t.alert());
+                b.alert = b.active && ClientState.alerts.contains(t.alert());
+            }
             if (locking) b.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal("Opens once you've lived your first memory and come back to the present.")));
         }
         return y + ((tiles.length + 2) / 3) * (bh + GAP);

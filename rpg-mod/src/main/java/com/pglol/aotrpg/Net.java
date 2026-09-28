@@ -2075,6 +2075,13 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: pause menu tiles with something waiting ("inbox", "pass", "tasks", "character"). */
+    public record AlertsView(java.util.List<String> keys) implements CustomPayload {
+        public static final Id<AlertsView> ID = Net.id("alerts");
+        public static final PacketCodec<RegistryByteBuf, AlertsView> CODEC = PacketCodec.of((v, b) -> strs(b, v.keys), b -> new AlertsView(strs(b)));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2136,6 +2143,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(CatalogView.ID, CatalogView.CODEC);
         PayloadTypeRegistry.playS2C().register(DuelSetup.ID, DuelSetup.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeList.ID, HomeList.CODEC);
+        PayloadTypeRegistry.playS2C().register(AlertsView.ID, AlertsView.CODEC);
         PayloadTypeRegistry.playC2S().register(DuelChallenge.ID, DuelChallenge.CODEC);
         PayloadTypeRegistry.playC2S().register(CatalogGive.ID, CatalogGive.CODEC);
         PayloadTypeRegistry.playS2C().register(InboxView.ID, InboxView.CODEC);

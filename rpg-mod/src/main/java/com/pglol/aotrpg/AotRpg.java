@@ -83,6 +83,7 @@ public final class AotRpg implements ModInitializer {
     public static final CaveCarver CAVES = new CaveCarver();
     public static final Store STORE = new Store();
     public static final Inbox INBOX = new Inbox();
+    public static final Alerts ALERTS = new Alerts();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -619,6 +620,7 @@ public final class AotRpg implements ModInitializer {
             BLADES.forget(p.getUuid());
             LOADOUT.forget(p);
             INBOX.forget(p.getUuid());
+            ALERTS.forget(p.getUuid());
             WAVES.forget(p);
             RAID_BOSSES.forget(p);
             ESTATE.forget(p);
@@ -710,6 +712,7 @@ public final class AotRpg implements ModInitializer {
         CAVES.tick(server.getOverworld());
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
+            ALERTS.tick(p, ticks);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
             STORY.tick(p, PROFILES.get(p.getUuid()), ticks);
             QUESTS.tick(p, PROFILES.get(p.getUuid()), ticks);

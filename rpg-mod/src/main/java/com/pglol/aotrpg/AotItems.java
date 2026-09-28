@@ -27,7 +27,8 @@ public final class AotItems {
     public static volatile String namespace;
     private static final List<Identifier> ITEMS = new ArrayList<>();
 
-    public static void scan(MinecraftServer server) {
+    /** The AoT mod's namespace, found from the titan entities it registers (works on the client too). */
+    private static String detect() {
         Map<String, Integer> votes = new HashMap<>();
         for (EntityType<?> t : Registries.ENTITY_TYPE) {
             Identifier id = Registries.ENTITY_TYPE.getId(t);
@@ -35,7 +36,21 @@ public final class AotItems {
                 votes.merge(id.getNamespace(), 1, Integer::sum);
             }
         }
-        namespace = votes.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
+        return votes.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
+    }
+
+    /**
+     * The namespace, detecting it the first time it's asked for. The server scans at start; a
+     * client connected to a server never runs that scan, and without this every AoT item looked
+     * foreign there (ammo sorted into materials, flares into gear).
+     */
+    static String ns() {
+        if (namespace == null) namespace = detect();
+        return namespace;
+    }
+
+    public static void scan(MinecraftServer server) {
+        namespace = detect();
         ITEMS.clear();
         if (namespace != null) {
             for (Identifier id : Registries.ITEM.getIds()) if (id.getNamespace().equals(namespace)) ITEMS.add(id);
@@ -105,13 +120,13 @@ public final class AotItems {
 
     /** The AoT mod's item with exactly this path (e.g. "uniform"), or null. */
     public static Item exact(String path) {
-        if (namespace == null) return null;
+        if (ns() == null) return null;
         Identifier id = Identifier.of(namespace, path);
         return Registries.ITEM.containsId(id) ? Registries.ITEM.get(id) : null;
     }
 
     public static boolean isAot(ItemStack s) {
-        return namespace != null && !s.isEmpty() && Registries.ITEM.getId(s.getItem()).getNamespace().equals(namespace);
+        return ns() != null && !s.isEmpty() && Registries.ITEM.getId(s.getItem()).getNamespace().equals(namespace);
     }
 
     private static String path(ItemStack s) {

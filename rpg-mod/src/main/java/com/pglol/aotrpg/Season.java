@@ -172,6 +172,18 @@ public final class Season {
         send(p, action.equals("open"));
     }
 
+    /** Any reached tier with a reward not yet claimed (for the pause menu's alert). */
+    public boolean pending(ServerPlayerEntity p) {
+        ProfileStore.Account a = account(p);
+        if (a == null) return false;
+        for (int t = 0; t < tier(a) && t < data.tiers.size(); t++) {
+            Tier tr = data.tiers.get(t);
+            if (!a.passFree.contains(t) && !tr.free.isEmpty()) return true;
+            if (a.passPremium && !a.passPrem.contains(t) && !tr.premium.isEmpty()) return true;
+        }
+        return false;
+    }
+
     private void claim(ServerPlayerEntity p, ProfileStore.Account a, int t, boolean loud) {
         if (t < 0 || t >= tier(a)) return;
         Tier tr = data.tiers.get(t);

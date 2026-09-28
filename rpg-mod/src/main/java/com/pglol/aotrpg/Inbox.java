@@ -166,6 +166,10 @@ public final class Inbox {
         boxes.remove(id);
     }
 
+    public boolean pending(UUID id) {
+        return !box(id).isEmpty();
+    }
+
     // ------------------------------------------------------------------ claiming
 
     public void action(ServerPlayerEntity p, String action, String id) {

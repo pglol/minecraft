@@ -84,16 +84,28 @@ public final class BagScreen extends Screen {
     public static int category(ItemStack s) {
         Item i = s.getItem();
         if (Satchel.isStory(s)) return 6;
+        // Ammo first of all: thunder spears, spare blades, flares and clusters, whatever else they are.
+        if (Loadout.isAmmo(s) || aotAmmo(s)) return 2;
         var pl = net.minecraft.client.MinecraftClient.getInstance().player;
         if (s.getItem() instanceof ArmorItem
             || (pl != null && pl.getPreferredEquipmentSlot(s).getType() == net.minecraft.entity.EquipmentSlot.Type.HUMANOID_ARMOR)) return 1;
         // Ammo first: thunder spears, blades, cartridges and arrows are never "weapons".
-        if (Loadout.isAmmo(s)) return 2;
+        if (Loadout.isAmmo(s) || aotAmmo(s)) return 2;
         if (Loadout.isMelee(s) || Loadout.isRanged(s) || i instanceof net.minecraft.item.ShieldItem) return 0;
         if (AotItems.isSupply(s) || AotItems.isGas(s) || i == Items.ARROW || i == Items.SPECTRAL_ARROW) return 2;
         if (s.contains(DataComponentTypes.FOOD) || i instanceof PotionItem || Loadout.isHeal(s)) return 3;
         if (Loadout.fits(Loadout.Kind.MOUNT, s) || Loadout.fits(Loadout.Kind.TOOL, s) || Loadout.fits(Loadout.Kind.SIGNAL, s)) return 5;
         return 4;
+    }
+
+    /** AoT refills by name: spare blades, flare cartridges, Ice Burst clusters, spears, cartridges. */
+    private static boolean aotAmmo(ItemStack s) {
+        var id = net.minecraft.registry.Registries.ITEM.getId(s.getItem());
+        if (!id.getNamespace().equals("dannys-aot") && !AotItems.isAot(s)) return false;
+        String p = id.getPath();
+        if (p.equals("blade") || p.equals("flare_gun") || p.contains("apg_gun") || p.contains("grip")) return false;
+        return p.contains("blade") || p.contains("flare") || p.contains("cluster") || p.contains("ice_burst")
+            || p.contains("cartridge") || p.contains("thunder_spear");
     }
 
     static int quality(ItemStack s) {

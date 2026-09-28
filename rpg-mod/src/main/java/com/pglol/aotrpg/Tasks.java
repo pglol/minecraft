@@ -211,6 +211,19 @@ public final class Tasks {
         send(p, action.equals("open"));
     }
 
+    /** A finished task whose reward hasn't been claimed (for the pause menu's alert). */
+    public boolean pending(ServerPlayerEntity p) {
+        Profile pr = AotRpg.PROFILES.get(p.getUuid());
+        if (!pr.created) return false;
+        for (Period per : Period.values()) {
+            for (Task t : board(per)) {
+                String id = per.name() + ":" + t.id();
+                if (!pr.taskClaimed.contains(id) && pr.taskProgress.getOrDefault(id, 0L) >= t.goal()) return true;
+            }
+        }
+        return false;
+    }
+
     private void claim(ServerPlayerEntity p, Profile pr, String id) {
         if (pr.taskClaimed.contains(id)) return;
         int colon = id.indexOf(':');

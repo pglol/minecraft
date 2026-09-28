@@ -38,6 +38,8 @@ public final class ClientState {
     public static java.util.Map<String, String> worn = new java.util.HashMap<>();
     public static boolean cosmeticsAll;
     public static long marks, gold;
+    /** Pause menu tiles with something waiting (see Alerts on the server). */
+    public static java.util.Set<String> alerts = new java.util.HashSet<>();
     public static Net.CharacterList characters;
     public static Net.MarketView market;
     public static java.util.List<Net.ExchangeEntry> exchange = java.util.List.of();
