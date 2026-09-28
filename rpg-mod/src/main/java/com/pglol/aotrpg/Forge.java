@@ -84,39 +84,46 @@ public final class Forge {
         send(p, true);
     }
 
+    /** Tempering goes no higher than this: three levels past your own. */
+    public static int cap(ServerPlayerEntity p) {
+        return AotRpg.PROFILES.get(p.getUuid()).level + 3;
+    }
+
+    /** What the next temper costs, in Marks: more for higher levels and rarer gear. */
+    public static long temperCost(ItemStack s) {
+        int target = Gear.requiredLevel(s) + 1;
+        return Math.round((25 + 6.0 * target) * (1 + 0.35 * Gear.rarityOf(s)) / 5.0) * 5;
+    }
+
+    /**
+     * Tempering: the piece rises a level (its stats with it), never past your level + 3, so the gear
+     * you love keeps pace with you. Three hammer blows; land all of them in the heart of the heat
+     * and it rises two. It never fails.
+     */
     public void upgrade(ServerPlayerEntity p, int slot, double quality) {
         ItemStack s = AotRpg.SATCHEL.at(p, slot);
-        if (!Gear.isGear(s) || Gear.data(s).getInt("up") >= 10) return;
-        // Upgrades lift gear at most 3 levels above your own (item level + upgrades).
-        int cap = AotRpg.PROFILES.get(p.getUuid()).level + 3;
-        if (Gear.data(s).getInt("ilvl") + Gear.data(s).getInt("up") + 1 > cap) {
-            Notify.toast(p, Text.literal("Beyond your skill").formatted(Formatting.RED),
-                Text.literal("You can upgrade gear up to level " + cap + " (your level + 3)"), 0xC0463A, "minecraft:anvil", null);
+        if (!Gear.real(s)) return;
+        int lvl = Gear.requiredLevel(s), cap = cap(p);
+        if (lvl >= cap) {
+            Notify.toast(p, Text.literal("As strong as you are").formatted(Formatting.GOLD),
+                Text.literal("Level up to temper it further"), 0xE0B96A, "minecraft:anvil", null);
             return;
         }
-        long[] c = cost(s);
-        Item iron = Items.IRON_INGOT, steel = item("dannys-aot:ultrahard_steel_ingot");
-        if (count(p, iron) < c[1] || (c[2] > 0 && count(p, steel) < c[2])) {
-            p.sendMessage(Text.literal("Not enough metal.").formatted(Formatting.RED), true);
+        long c = temperCost(s);
+        if (!AotRpg.WALLET.spendMarks(p, c)) {
+            Notify.toast(p, Text.literal("Not enough Marks").formatted(Formatting.RED), null, 0xC0463A, "minecraft:anvil", null);
             return;
         }
-        if (!AotRpg.WALLET.spendMarks(p, c[0])) {
-            p.sendMessage(Text.literal("You need " + c[0] + " Marks.").formatted(Formatting.RED), true);
-            return;
-        }
-        take(p, iron, (int) c[1]);
-        if (c[2] > 0) take(p, steel, (int) c[2]);
-        Profile pr = AotRpg.PROFILES.get(p.getUuid());
         quality = Math.max(0, Math.min(1, quality));
-        double ch = chance(s, Lifestyle.level(pr, Lifestyle.SMITHING), quality);
-        if (p.getRandom().nextDouble() < ch) {
-            int lvl = Gear.upgrade(s);
-            p.sendMessage(Text.literal("Upgraded to +" + lvl + "!").formatted(Formatting.GOLD, Formatting.BOLD), true);
-            p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.8f, 1.2f);
-        } else {
-            p.sendMessage(Text.literal("The metal cracked. The gear is unharmed, the materials are spent.").formatted(Formatting.RED), true);
-            p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_ANVIL_DESTROY, SoundCategory.BLOCKS, 0.6f, 1.1f);
-        }
+        boolean perfect = quality >= 0.85;
+        int to = Math.min(cap, lvl + (perfect ? 2 : 1));
+        Gear.setLevel(s, to);
+        AotRpg.SATCHEL.get(p.getUuid()).markDirty();
+        p.getInventory().markDirty();
+        p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.8f, perfect ? 1.4f : 1.1f);
+        if (perfect) p.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.6f);
+        Notify.toast(p, Text.literal((perfect ? "PERFECT  ·  " : "") + "Lv " + lvl + " → " + to).formatted(perfect ? Formatting.GOLD : Formatting.YELLOW, Formatting.BOLD),
+            s.getName().copy(), perfect ? 0xF2C14E : 0xE0B96A, net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString(), null);
         Lifestyle.add(p, Lifestyle.SMITHING, 8 + Math.round(quality * 12));
         AotRpg.TASKS.count(p, Tasks.FORGE, 1);
         send(p, false);
@@ -171,12 +178,14 @@ public final class Forge {
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         int smith = Lifestyle.level(pr, Lifestyle.SMITHING);
         List<Net.ForgeGear> gear = new ArrayList<>();
+        int cap = cap(p);
         for (int i : AotRpg.SATCHEL.addresses(p)) {
             ItemStack s = AotRpg.SATCHEL.at(p, i);
-            if (!Gear.isGear(s)) continue;
-            long[] c = cost(s);
-            gear.add(new Net.ForgeGear(i, Gear.data(s).getInt("up"), c[0], (int) c[1], (int) c[2], (float) chance(s, smith, 0)));
+            if (!Gear.real(s)) continue;
+            gear.add(new Net.ForgeGear(i, Gear.requiredLevel(s), cap, temperCost(s), Gear.rarityOf(s)));
         }
+        // Best first: the rarest, then the highest.
+        gear.sort((a, b) -> a.rarity() != b.rarity() ? b.rarity() - a.rarity() : b.level() - a.level());
         List<Net.ForgeRecipe> recipes = new ArrayList<>();
         for (Recipe r : RECIPES) {
             StringBuilder m = new StringBuilder();

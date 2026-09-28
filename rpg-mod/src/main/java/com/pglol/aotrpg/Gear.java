@@ -413,6 +413,14 @@ public final class Gear {
     public void enforceLevels(ServerPlayerEntity p) {
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         if (!pr.created || p.isCreative()) return;
+        // Anything that isn't a weapon or wearable loses gear stats it picked up by mistake.
+        for (int a : AotRpg.SATCHEL.addresses(p)) {
+            ItemStack s = AotRpg.SATCHEL.at(p, a);
+            if (isGear(s) && !real(s) && !aotWeapon(s) && wornSlot(s) == null) {
+                String path = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath();
+                if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note")) strip(s);
+            }
+        }
         for (net.minecraft.entity.EquipmentSlot slot : new net.minecraft.entity.EquipmentSlot[] {net.minecraft.entity.EquipmentSlot.HEAD,
             net.minecraft.entity.EquipmentSlot.CHEST, net.minecraft.entity.EquipmentSlot.LEGS, net.minecraft.entity.EquipmentSlot.FEET}) {
             ItemStack s = p.getEquippedStack(slot);
@@ -471,6 +479,46 @@ public final class Gear {
         if (s.isEmpty()) return;
         p.sendMessage(Text.literal("Loot: ").formatted(Formatting.GRAY).append(s.getName().copy()), false);
         if (r.ordinal() >= 3) p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.6f, 1.4f);
+    }
+
+    /** Real gear: a weapon or something worn. Keys, tokens and notes that caught gear stats once are not. */
+    public static boolean real(ItemStack s) {
+        if (!isGear(s)) return false;
+        String path = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath();
+        if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note")) return false;
+        return wornSlot(s) != null || aotWeapon(s) || s.getItem() instanceof net.minecraft.item.SwordItem
+            || s.getItem() instanceof net.minecraft.item.AxeItem || s.getItem() instanceof net.minecraft.item.RangedWeaponItem;
+    }
+
+    /** Takes gear stats off something that should never have had them (back to the plain item). */
+    public static void strip(ItemStack s) {
+        s.remove(DataComponentTypes.CUSTOM_NAME);
+        s.remove(DataComponentTypes.LORE);
+        s.remove(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        NbtComponent c = s.get(DataComponentTypes.CUSTOM_DATA);
+        if (c == null) return;
+        NbtCompound tag = c.copyNbt();
+        tag.remove("aot_gear");
+        if (tag.isEmpty()) s.remove(DataComponentTypes.CUSTOM_DATA);
+        else s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
+    }
+
+    /** Forge tempering: sets the item level (its stats follow). */
+    public static void setLevel(ItemStack s, int ilvl) {
+        NbtCompound tag = s.get(DataComponentTypes.CUSTOM_DATA).copyNbt();
+        NbtCompound g = tag.getCompound("aot_gear");
+        g.putInt("ilvl", ilvl);
+        tag.put("aot_gear", g);
+        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
+        apply(s);
+    }
+
+    public static int rarityOf(ItemStack s) {
+        try {
+            return Rarity.valueOf(data(s).getString("rarity")).ordinal();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     /** Forge: one upgrade step. Returns the new level, or -1 if it cannot go higher. */

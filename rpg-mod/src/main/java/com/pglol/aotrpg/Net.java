@@ -1449,7 +1449,8 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    public record ForgeGear(int slot, int up, long marks, int iron, int steel, float chance) { }
+    /** Gear at the forge: its item level, how high it may be tempered (your level + 3), the next temper's cost, its rarity. */
+    public record ForgeGear(int slot, int level, int cap, long marks, int rarity) { }
 
     public record ForgeRecipe(String id, String title, String materials, long marks, boolean ready) { }
 
@@ -1459,14 +1460,14 @@ public final class Net {
         public static final Id<ForgeView> ID = id("forge");
         public static final PacketCodec<RegistryByteBuf, ForgeView> CODEC = PacketCodec.of((v, b) -> {
             b.writeVarInt(v.gear.size());
-            for (ForgeGear g : v.gear) { b.writeVarInt(g.slot()); b.writeVarInt(g.up()); b.writeVarLong(g.marks()); b.writeVarInt(g.iron()); b.writeVarInt(g.steel()); b.writeFloat(g.chance()); }
+            for (ForgeGear g : v.gear) { b.writeVarInt(g.slot()); b.writeVarInt(g.level()); b.writeVarInt(g.cap()); b.writeVarLong(g.marks()); b.writeVarInt(g.rarity()); }
             b.writeVarInt(v.recipes.size());
             for (ForgeRecipe r : v.recipes) { b.writeString(r.id()); b.writeString(r.title()); b.writeString(r.materials()); b.writeVarLong(r.marks()); b.writeBoolean(r.ready()); }
             b.writeVarInt(v.smithing); b.writeVarInt(v.iron); b.writeVarInt(v.steel); b.writeBoolean(v.open);
         }, b -> {
             int n = Math.min(b.readVarInt(), 64);
             java.util.List<ForgeGear> g = new java.util.ArrayList<>();
-            for (int i = 0; i < n; i++) g.add(new ForgeGear(b.readVarInt(), b.readVarInt(), b.readVarLong(), b.readVarInt(), b.readVarInt(), b.readFloat()));
+            for (int i = 0; i < n; i++) g.add(new ForgeGear(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarLong(), b.readVarInt()));
             int m = Math.min(b.readVarInt(), 64);
             java.util.List<ForgeRecipe> r = new java.util.ArrayList<>();
             for (int i = 0; i < m; i++) r.add(new ForgeRecipe(b.readString(), b.readString(), b.readString(), b.readVarLong(), b.readBoolean()));
