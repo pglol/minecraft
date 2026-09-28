@@ -54,6 +54,8 @@ public final class Residents {
 
     private final Map<Integer, Family> families = new HashMap<>();
     private final Map<Integer, List<BlockPos>> beds = new HashMap<>();
+    /** Residents already put somewhere inside for the night (or the day): left there, not moved again. */
+    private final java.util.Set<UUID> settled = new java.util.HashSet<>();
     private final Random rng = new Random();
 
     /** The family in town house i, or null if it stands empty (the same answer every time). */
@@ -193,6 +195,7 @@ public final class Residents {
                 for (ServerPlayerEntity p : players) if (p.squaredDistanceTo(v) < 110 * 110) close = true;
                 if (!close) {
                     if (v.isSleeping()) v.wakeUp();
+                    settled.remove(v.getUuid());
                     v.discard();
                 }
             }
@@ -207,14 +210,19 @@ public final class Residents {
             case 0 -> {
                 // Night: in bed. Out in the street still: on the way home, or slipped in unseen.
                 if (!home) {
+                    settled.remove(v.getUuid());
                     if (unseen(v, players, 20)) toBed(w, v, house, m);
                     else AotRpg.FOLK.sendHome(v, door(h));
-                } else if (!v.isSleeping()) toBed(w, v, house, m);
+                } else if (!v.isSleeping() && !settled.contains(v.getUuid())) toBed(w, v, house, m);
             }
             case 1, 2 -> {
                 // Morning and day: up, and out of the door (the old and the smallest mostly stay in).
-                if (v.isSleeping()) v.wakeUp();
+                if (v.isSleeping()) {
+                    v.wakeUp();
+                    settled.remove(v.getUuid());
+                }
                 if (home && goesOut(m, w) && unseen(v, players, 6)) {
+                    settled.remove(v.getUuid());
                     BlockPos d = door(h);
                     v.refreshPositionAndAngles(d.getX() + 0.5, d.getY(), d.getZ() + 0.5, v.getYaw(), 0);
                     AotRpg.FOLK.adopt(v);
@@ -265,14 +273,19 @@ public final class Residents {
             return;
         }
         BlockPos bed = bs.get(m.index() % bs.size());
-        v.refreshPositionAndAngles(bed.getX() + 0.5, bed.getY() + 0.6, bed.getZ() + 0.5, 0, 0);
-        if (!v.isSleeping()) v.sleep(bed);
+        settled.add(v.getUuid());
+        if (!v.isSleeping()) {
+            v.setVelocity(net.minecraft.util.math.Vec3d.ZERO);
+            v.sleep(bed);
+        }
     }
 
-    /** Standing about inside: on the ground floor, somewhere clear. */
+    /** Standing about inside: on the ground floor, somewhere clear (once: then left be). */
     private void indoors(ServerWorld w, VillagerEntity v, int house) {
         AotRpg.FOLK.release(v);
         if (v.isSleeping()) v.wakeUp();
+        settled.add(v.getUuid());
+        v.setVelocity(net.minecraft.util.math.Vec3d.ZERO);
         int[] h = AotRpg.PLACES.homes.get(house);
         for (int t = 0; t < 20; t++) {
             int x = h[0] + 1 + rng.nextInt(Math.max(1, h[2] - h[0] - 1)), z = h[1] + 1 + rng.nextInt(Math.max(1, h[3] - h[1] - 1));

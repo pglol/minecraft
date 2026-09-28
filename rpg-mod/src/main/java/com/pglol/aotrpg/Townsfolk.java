@@ -491,7 +491,7 @@ public final class Townsfolk {
     private void chatter(ServerWorld w) {
         for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             if (rng.nextInt(3) != 0) continue;
-            List<VillagerEntity> near = new ArrayList<>(w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(20), Townsfolk::folk));
+            List<VillagerEntity> near = new ArrayList<>(w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(20), v -> folk(v) && !v.isSleeping()));
             if (near.size() < 2) continue;
             java.util.Collections.shuffle(near, rng);
             for (VillagerEntity a : near) {
@@ -519,7 +519,7 @@ public final class Townsfolk {
     private void callOut(ServerWorld w) {
         for (ServerPlayerEntity p : new java.util.ArrayList<>(w.getPlayers())) {
             if (rng.nextInt(6) != 0) continue;
-            List<VillagerEntity> near = w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(22), v -> folk(v) && !v.isBaby());
+            List<VillagerEntity> near = w.getEntitiesByClass(VillagerEntity.class, p.getBoundingBox().expand(22), v -> folk(v) && !v.isBaby() && !v.isSleeping());
             if (near.isEmpty()) continue;
             VillagerEntity v = near.get(rng.nextInt(near.size()));
             say(w, v, CALLS[rng.nextInt(CALLS.length)], 0);
