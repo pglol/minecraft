@@ -471,6 +471,12 @@ public final class AotRpg implements ModInitializer {
             return ActionResult.PASS;
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (!world.isClient && hand == net.minecraft.util.Hand.MAIN_HAND && player instanceof ServerPlayerEntity sp && EXTRACT.useEntity(sp, entity)) {
+                return ActionResult.SUCCESS;
+            }
+            return ActionResult.PASS;
+        });
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (world.isClient || hand != net.minecraft.util.Hand.MAIN_HAND || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
             if (STORY.interact(sp, entity)) return ActionResult.SUCCESS;
             if (Raids.commander(entity)) {
@@ -710,6 +716,7 @@ public final class AotRpg implements ModInitializer {
         CROWD.tick(server, ticks);
         WAR.tick(ticks);
         DUELS.tick(ticks);
+        if (ticks % 60 == 15) PlayerRoster.broadcast(server);
         EXTRACT.tick(ticks);
         LOOT.tick(ticks);
         TITAN_LEVELS.tick(server, ticks);
@@ -742,6 +749,7 @@ public final class AotRpg implements ModInitializer {
         ServerPlayerEntity killer = attacker instanceof ServerPlayerEntity atk ? atk : TITAN_LEVELS.lastStriker(dead);
         WAVES.onKill(killer, dead);
         ACTIVITY.onKill(killer, dead);
+        EXTRACT.onTitanKill(killer, dead);
         if (killer == null) return;
         long xp = Math.max(15, Math.round(10 + dead.getMaxHealth() / 4));
         if (PROFILES.get(killer.getUuid()).has(Skill.TITAN_SLAYER)) xp = Math.round(xp * 1.25);

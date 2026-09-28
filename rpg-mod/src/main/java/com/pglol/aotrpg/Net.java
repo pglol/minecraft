@@ -1817,6 +1817,54 @@ public final class Net {
     }
 
     /** Client -> server: open, or choose a mode by id. */
+    /** A spot on the island map: a flare ("exit"), a hot zone ("poi", done once looted), a squadmate ("mate"). */
+    public record RunPoint(String kind, String name, int x, int z, boolean done) { }
+
+    /** A run task: what to do, how far along, the goal. */
+    public record RunTask(String text, int progress, int goal) { }
+
+    /** Out on an island: its name and colour, its middle and size, time left, how long the match has run, what's on the map, your tasks. Empty island: no run. */
+    public record RunView(String island, String name, int color, int cx, int cz, int radius, int secondsLeft, int matchMinutes,
+                          java.util.List<RunPoint> points, java.util.List<RunTask> tasks) implements CustomPayload {
+        public static final Id<RunView> ID = id("run_view");
+        public static final PacketCodec<RegistryByteBuf, RunView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.island); b.writeString(v.name); b.writeInt(v.color); b.writeVarInt(v.cx); b.writeVarInt(v.cz); b.writeVarInt(v.radius);
+            b.writeVarInt(v.secondsLeft); b.writeVarInt(v.matchMinutes);
+            b.writeVarInt(v.points.size());
+            for (RunPoint pt : v.points) { b.writeString(pt.kind()); b.writeString(pt.name()); b.writeVarInt(pt.x()); b.writeVarInt(pt.z()); b.writeBoolean(pt.done()); }
+            b.writeVarInt(v.tasks.size());
+            for (RunTask t : v.tasks) { b.writeString(t.text()); b.writeVarInt(t.progress()); b.writeVarInt(t.goal()); }
+        }, b -> {
+            String island = b.readString(), name = b.readString();
+            int color = b.readInt(), cx = b.readVarInt(), cz = b.readVarInt(), r = b.readVarInt(), left = b.readVarInt(), mins = b.readVarInt();
+            int n = Math.min(b.readVarInt(), 64);
+            java.util.List<RunPoint> pts = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) pts.add(new RunPoint(b.readString(), b.readString(), b.readVarInt(), b.readVarInt(), b.readBoolean()));
+            int m = Math.min(b.readVarInt(), 8);
+            java.util.List<RunTask> ts = new java.util.ArrayList<>();
+            for (int i = 0; i < m; i++) ts.add(new RunTask(b.readString(), b.readVarInt(), b.readVarInt()));
+            return new RunView(island, name, color, cx, cz, r, left, mins, pts, ts);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** A player in the player list: character name, level, where they are, and their name colour. */
+    public record RosterEntry(java.util.UUID id, String name, int level, String where, int color) { }
+
+    public record Roster(java.util.List<RosterEntry> players) implements CustomPayload {
+        public static final Id<Roster> ID = id("roster");
+        public static final PacketCodec<RegistryByteBuf, Roster> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.players.size());
+            for (RosterEntry e : v.players) { b.writeUuid(e.id()); b.writeString(e.name()); b.writeVarInt(e.level()); b.writeString(e.where()); b.writeInt(e.color()); }
+        }, b -> {
+            int n = Math.min(b.readVarInt(), 500);
+            java.util.List<RosterEntry> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readString(), b.readInt()));
+            return new Roster(l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** An island on the lobby's map picker. */
     public record LobbyIsland(String id, String name, int min, int max, int color) { }
 
@@ -1970,6 +2018,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(HomeAdminView.ID, HomeAdminView.CODEC);
         PayloadTypeRegistry.playC2S().register(HomeAction.ID, HomeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(LobbyView.ID, LobbyView.CODEC);
+        PayloadTypeRegistry.playS2C().register(RunView.ID, RunView.CODEC);
+        PayloadTypeRegistry.playS2C().register(Roster.ID, Roster.CODEC);
         PayloadTypeRegistry.playS2C().register(Autopilot.ID, Autopilot.CODEC);
         PayloadTypeRegistry.playS2C().register(BenchView.ID, BenchView.CODEC);
         PayloadTypeRegistry.playC2S().register(ExtractionAction.ID, ExtractionAction.CODEC);

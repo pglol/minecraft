@@ -363,6 +363,9 @@ public final class AotRpgClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(TopBar::render);
         HudRenderCallback.EVENT.register(EffectCards::render);
         HudRenderCallback.EVENT.register(Minimap::render);
+        HudRenderCallback.EVENT.register(ExtractionHud::render);
+        ClientPlayNetworking.registerGlobalReceiver(Net.RunView.ID, (payload, ctx) -> ExtractionHud.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.Roster.ID, (payload, ctx) -> PlayerList.on(payload));
         HudRenderCallback.EVENT.register(PartyHud::render);
         HudRenderCallback.EVENT.register(TitanState::renderHud);
         HudRenderCallback.EVENT.register(HitFx::render);
@@ -376,7 +379,7 @@ public final class AotRpgClient implements ClientModInitializer {
             // M opens the world map, Ctrl+M hides or shows the minimap.
             while (mapKey.wasPressed()) {
                 if (net.minecraft.client.gui.screen.Screen.hasControlDown()) ClientState.minimap = !ClientState.minimap;
-                else if (client.currentScreen == null) client.setScreen(new WorldMapScreen());
+                else if (client.currentScreen == null) client.setScreen(ExtractionHud.active() ? new IslandMapScreen() : new WorldMapScreen());
             }
             while (journalKey.wasPressed()) {
                 if (client.currentScreen == null && ClientState.profile != null) client.setScreen(new JournalScreen());

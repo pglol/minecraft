@@ -202,6 +202,8 @@ public final class Minimap {
 
     public static void render(DrawContext c, RenderTickCounter tick) {
         MinecraftClient mc = MinecraftClient.getInstance();
+        // Out on an island the run's own radar takes this corner.
+        if (ExtractionHud.active()) return;
         ClientPlayerEntity pl = mc.player;
         bottom = 4;
         if (pl == null || texture == null || !ready || !ClientState.minimap || mc.currentScreen != null || mc.options.hudHidden || mc.getDebugHud().shouldShowDebugHud()) return;

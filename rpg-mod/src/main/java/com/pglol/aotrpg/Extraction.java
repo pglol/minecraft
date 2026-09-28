@@ -66,7 +66,7 @@ public final class Extraction {
     static final BlockPos LOBBY = new BlockPos(-400_000, 170, 0);
     private static final int SLOT = 512;
     private static final long RUN_MS = 20 * 60_000L;
-    private static final int EXTRACT_TICKS = 160, EXIT_RADIUS = 4, BARRELS = 12, ISLAND = 600;
+    private static final int EXTRACT_TICKS = 160, EXIT_RADIUS = 4, BARRELS = 12, ISLAND = 480;
     private static final String SEAT = "aot_seat", TITAN = "aot_ex";
 
     /** The islands. */
@@ -122,7 +122,36 @@ public final class Extraction {
         List<BlockPos> exits = new ArrayList<>();
         List<BlockPos> barrels = new ArrayList<>();
         final Map<UUID, Integer> extracting = new HashMap<>();
+        /** Each diver's tasks for this run, and the barrels they've opened. */
+        final Map<UUID, List<Task>> tasks = new HashMap<>();
+        final Map<UUID, Set<BlockPos>> opened = new HashMap<>();
     }
+
+    /** A run task: paid out only if you get out alive with it done. */
+    static final class Task {
+        final String id, text;
+        final int goal;
+        int progress;
+
+        Task(String id, String text, int goal) {
+            this.id = id;
+            this.text = text;
+            this.goal = goal;
+        }
+    }
+
+    /** Hot zones: richer caches, more titans, and a name on the map. */
+    static final class Poi {
+        String name;
+        BlockPos at;
+        final List<BlockPos> caches = new ArrayList<>();
+        boolean woke, done;
+    }
+
+    private static final String[][] POI_NAMES = {
+        {"Overgrown Supply Depot", "Titan Nest", "Sunken Chapel", "Vine-Choked Watchtower"},
+        {"Collapsed Mine", "Scout Outpost Ruins", "Titan Nest", "Burnt Waystation"},
+        {"Frozen Garrison", "Ice Cave", "Titan Nest", "Buried Supply Sled"}};
 
     /**
      * A match on an island: it starts with the first squad to drop and runs as long as anyone is
@@ -134,6 +163,8 @@ public final class Extraction {
         long startedAt;
         final List<BlockPos> exits = new ArrayList<>();
         final List<BlockPos> barrels = new ArrayList<>();
+        final List<Poi> pois = new ArrayList<>();
+        final List<RunObjectives.Objective> objectives = new ArrayList<>();
     }
 
     private final Map<Island, Session> sessions = new HashMap<>();
@@ -145,6 +176,42 @@ public final class Extraction {
         Map<String, int[]> centres = new HashMap<>();
         /** Barrels placed by runs, per island (cleared if a restart cut a run short). */
         Map<String, List<Long>> leftover = new HashMap<>();
+        /** How far each island's terrain has been generated ahead of time (chunks walked). */
+        Map<String, Integer> pregen = new HashMap<>();
+    }
+
+    /** Loads a chunk briefly so it generates off the main thread (then saves and unloads). */
+    private static final net.minecraft.server.world.ChunkTicketType<net.minecraft.util.math.ChunkPos> PREGEN =
+        net.minecraft.server.world.ChunkTicketType.create("aot_pregen", java.util.Comparator.comparingLong(net.minecraft.util.math.ChunkPos::toLong), 60);
+
+    /**
+     * The islands are generated ahead of time, a chunk a tick, in the background: jungle terrain
+     * is heavy to make, and making it while someone lands in it is what made runs lag. Pauses
+     * whenever the server is busy.
+     */
+    private void pregen(int ticks) {
+        if (server.getAverageTickTime() > 35) return;
+        int r = ISLAND / 16 + 3, side = r * 2 + 1;
+        for (Island i : Island.values()) {
+            ServerWorld w = server.getWorld(i.world);
+            if (w == null) continue;
+            int idx = data.pregen.getOrDefault(i.id, 0);
+            if (idx >= side * side) continue;
+            BlockPos c = centre(i, w);
+            int cx = c.getX() >> 4, cz = c.getZ() >> 4;
+            // Skip the corners outside the island's circle, then ask for one chunk.
+            while (idx < side * side) {
+                int dx = idx % side - r, dz = idx / side - r;
+                idx++;
+                if (dx * dx + dz * dz > r * r) continue;
+                var pos = new net.minecraft.util.math.ChunkPos(cx + dx, cz + dz);
+                w.getChunkManager().addTicket(PREGEN, pos, 0, pos);
+                break;
+            }
+            data.pregen.put(i.id, idx);
+            if (ticks % 400 == 0) save();
+            return;
+        }
     }
 
     private static final int BALLOON_VERSION = 4;
@@ -173,6 +240,7 @@ public final class Extraction {
         if (data.built == null) data.built = new HashSet<>();
         if (data.centres == null) data.centres = new HashMap<>();
         if (data.leftover == null) data.leftover = new HashMap<>();
+        if (data.pregen == null) data.pregen = new HashMap<>();
         if (data.balloonVersion != BALLOON_VERSION) data.built.clear();
         data.balloonVersion = BALLOON_VERSION;
         for (Island i : Island.values()) {
@@ -180,8 +248,9 @@ public final class Extraction {
             if (w == null) continue;
             for (long l : data.leftover.getOrDefault(i.id, List.of())) {
                 BlockPos bp = BlockPos.fromLong(l);
-                if (w.getBlockState(bp).isOf(Blocks.BARREL)) {
-                    if (w.getBlockEntity(bp) instanceof BarrelBlockEntity b) b.clear();
+                var st = w.getBlockState(bp);
+                if (st.isOf(Blocks.BARREL) || st.isOf(Blocks.LODESTONE) || st.isOf(Blocks.CAMPFIRE) || st.isOf(Blocks.CHEST) || st.isOf(Blocks.TARGET)) {
+                    if (w.getBlockEntity(bp) instanceof net.minecraft.inventory.Inventory b) b.clear();
                     w.setBlockState(bp, Blocks.AIR.getDefaultState());
                 }
             }
@@ -242,7 +311,7 @@ public final class Extraction {
     }
 
     /** Solid, dry ground near x, z (tries a few spots around it), or null. */
-    private static BlockPos land(ServerWorld w, int x, int z, Random r, int spread) {
+    static BlockPos land(ServerWorld w, int x, int z, Random r, int spread) {
         for (int t = 0; t < 12; t++) {
             int px = x + (t == 0 ? 0 : r.nextInt(spread * 2 + 1) - spread), pz = z + (t == 0 ? 0 : r.nextInt(spread * 2 + 1) - spread);
             w.getChunk(px >> 4, pz >> 4);
@@ -555,6 +624,15 @@ public final class Extraction {
         seat.refreshPositionAndAngles(s.getX() + 0.5, s.getY() + 0.45, s.getZ() + 0.5, face.asRotation(), 0);
         w.spawnEntity(seat);
         p.startRiding(seat, true);
+        // Tell the client again once it surely knows the seat (right after a dimension change the
+        // seat can arrive after the ride, and a client that thinks it's standing can't use anything).
+        for (int d : new int[] {3, 20}) {
+            AotRpg.SCHEDULER.later(d, () -> {
+                if (!p.isDisconnected() && p.getVehicle() == seat) {
+                    p.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.EntityPassengersSetS2CPacket(seat));
+                }
+            });
+        }
         p.setYaw(face.asRotation());
         p.setHeadYaw(face.asRotation());
         return true;
@@ -646,7 +724,12 @@ public final class Extraction {
         }
         if (p.getWorld().getRegistryKey() != Homes.WORLD || !inLobby(pos)) {
             Run r = runOf(p.getUuid());
+            if (r != null && RunObjectives.use(this, r.session, p, pos)) return true;
             if (r != null && r.barrels.contains(pos) && p.getServerWorld().getBlockEntity(pos) instanceof BarrelBlockEntity b) {
+                if (r.opened.computeIfAbsent(p.getUuid(), k -> new HashSet<>()).add(pos.toImmutable())) {
+                    bump(r, p.getUuid(), "barrels", 1);
+                    for (Poi poi : r.session.pois) if (poi.caches.contains(pos)) bump(r, p.getUuid(), "cache", 1);
+                }
                 p.openHandledScreen(b);
                 return true;
             }
@@ -934,6 +1017,31 @@ public final class Extraction {
                 if (e != null) ses.exits.add(e);
             }
             if (ses.exits.isEmpty()) ses.exits.add(drop);
+            // Two hot zones: three rich caches each, and titans that wake when someone comes near.
+            List<String> names = new ArrayList<>(List.of(POI_NAMES[island.ordinal()]));
+            for (int i = 0; i < 2; i++) {
+                double a = base + i * Math.PI + (rnd.nextDouble() - 0.5);
+                double d = 110 + rnd.nextInt(170);
+                BlockPos at = land(iw, c.getX() + (int) (Math.cos(a) * d), c.getZ() + (int) (Math.sin(a) * d), rnd, 30);
+                if (at == null) continue;
+                Poi poi = new Poi();
+                poi.name = names.remove(rnd.nextInt(names.size()));
+                poi.at = at;
+                for (int k = 0; k < 3; k++) {
+                    BlockPos bp = land(iw, at.getX() + rnd.nextInt(13) - 6, at.getZ() + rnd.nextInt(13) - 6, rnd, 4);
+                    if (bp == null || !iw.getBlockState(bp).isReplaceable() && !iw.getBlockState(bp).isAir()) continue;
+                    iw.setBlockState(bp, Blocks.BARREL.getDefaultState().with(net.minecraft.block.BarrelBlock.FACING, Direction.UP));
+                    if (iw.getBlockEntity(bp) instanceof BarrelBlockEntity b) {
+                        fill(b, island.level() + 3, rnd);
+                        fill(b, island.level() + 3, rnd);
+                    }
+                    poi.caches.add(bp);
+                    ses.barrels.add(bp);
+                    data.leftover.computeIfAbsent(island.id, k2 -> new ArrayList<>()).add(bp.asLong());
+                }
+                ses.pois.add(poi);
+            }
+            RunObjectives.create(this, iw, ses, c, rnd);
         }
         run.session = ses;
         run.exits = ses.exits;
@@ -953,6 +1061,7 @@ public final class Extraction {
         runs.add(run);
         for (ServerPlayerEntity m : squad) {
             run.members.add(m.getUuid());
+            run.tasks.put(m.getUuid(), rollTasks(rnd));
             Profile mp = AotRpg.PROFILES.get(m.getUuid());
             mp.inRun = true;
             // Everyone you drop with goes to the top of your recent teammates.
@@ -993,8 +1102,34 @@ public final class Extraction {
         });
     }
 
+    /** Two tasks for a run, picked from the pool. */
+    private static List<Task> rollTasks(Random r) {
+        List<Task> pool = new ArrayList<>(List.of(
+            new Task("barrels", "Search 3 supply barrels", 3),
+            new Task("titans", "Slay 2 titans", 2),
+            new Task("cache", "Loot a hot zone cache", 1),
+            new Task("gear", "Get out with 4 pieces of gear", 4)));
+        List<Task> out = new ArrayList<>();
+        for (int i = 0; i < 2 && !pool.isEmpty(); i++) out.add(pool.remove(r.nextInt(pool.size())));
+        return out;
+    }
+
+    private static void bump(Run r, UUID id, String task, int by) {
+        for (Task t : r.tasks.getOrDefault(id, List.of())) {
+            if (!t.id.equals(task) || t.progress >= t.goal) continue;
+            t.progress = Math.min(t.goal, t.progress + by);
+        }
+    }
+
+    /** A titan fell to someone out on a run. */
+    public void onTitanKill(ServerPlayerEntity killer, Entity dead) {
+        for (Session ses : sessions.values()) RunObjectives.titanDied(this, ses, dead);
+        Run r = killer == null ? null : runOf(killer.getUuid());
+        if (r != null) bump(r, killer.getUuid(), "titans", 1);
+    }
+
     /** A supply barrel: gear for the island's level, gas, blades, and now and then a refueler. */
-    private static void fill(BarrelBlockEntity b, int level, Random r) {
+    static void fill(BarrelBlockEntity b, int level, Random r) {
         List<ItemStack> loot = new ArrayList<>();
         int gear = 1 + r.nextInt(3);
         for (int i = 0; i < gear; i++) {
@@ -1019,6 +1154,22 @@ public final class Extraction {
 
     public void tick(int ticks) {
         this.ticks = ticks;
+        pregen(ticks);
+        if (ticks % 10 == 0) {
+            for (Session ses : sessions.values()) {
+                ServerWorld sw = server.getWorld(ses.island.world);
+                if (sw == null) continue;
+                List<ServerPlayerEntity> divers = new ArrayList<>();
+                for (Run r : runs) {
+                    if (r.session != ses) continue;
+                    for (UUID id : r.members) {
+                        ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+                        if (m != null && m.getWorld() == sw && m.isAlive()) divers.add(m);
+                    }
+                }
+                RunObjectives.tick(this, sw, ses, divers, ticks);
+            }
+        }
         lobbyTick(ticks);
         if (ticks % 10 == 0) lobbyState();
         islandTick(ticks);
@@ -1036,6 +1187,8 @@ public final class Extraction {
                 if (p.getWorld() != iw) continue;
                 if (ticks % 10 == 0) flares(r, p, ticks);
                 if (ticks % 20 == 0) shore(r, p, iw);
+                if (ticks % 20 == 10) hotZones(r, p, iw);
+                if (ticks % 10 == 5) sendView(r, p, now);
                 // Standing at an exit: eight seconds and you're out.
                 BlockPos at = null;
                 for (BlockPos e : r.exits) {
@@ -1095,7 +1248,7 @@ public final class Extraction {
                     t.discard();
                     continue;
                 }
-                w.spawnParticles(island.aura(), t.getX(), t.getY() + t.getHeight() * 0.6, t.getZ(), 6,
+                if (ticks % 60 == 0) w.spawnParticles(island.aura(), t.getX(), t.getY() + t.getHeight() * 0.6, t.getZ(), 4,
                     t.getWidth() * 0.4, t.getHeight() * 0.3, t.getWidth() * 0.4, 0);
             }
             if (divers.isEmpty() || ticks % 200 != 0) continue;
@@ -1120,6 +1273,86 @@ public final class Extraction {
         }
     }
 
+    /** Titans guarding a hot zone, woken when someone comes near. */
+    private void wake(ServerWorld w, Poi poi, int n) {
+        spawnTitans(w, poi.at, n, 20, null);
+    }
+
+    /** n titans around a spot (within spread), tagged for an objective if given. Returns how many came. */
+    static int spawnTitans(ServerWorld w, BlockPos around, int n, int spread, String tag) {
+        List<EntityType<?>> kinds = TitanTypes.ordinary();
+        if (kinds.isEmpty()) return 0;
+        int made = 0;
+        for (int i = 0; i < n; i++) {
+            BlockPos at = land(w, around.getX() + w.getRandom().nextInt(spread * 2 + 1) - spread,
+                around.getZ() + w.getRandom().nextInt(spread * 2 + 1) - spread, w.getRandom(), 10);
+            if (at == null) continue;
+            Entity t = kinds.get(w.getRandom().nextInt(kinds.size())).create(w);
+            if (t == null) continue;
+            t.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, w.getRandom().nextFloat() * 360, 0);
+            if (t instanceof net.minecraft.entity.mob.MobEntity mob) {
+                mob.initialize(w, w.getLocalDifficulty(at), net.minecraft.entity.SpawnReason.EVENT, null);
+                mob.setPersistent();
+            }
+            t.addCommandTag(TITAN);
+            t.addCommandTag("aot_titan");
+            if (tag != null) t.addCommandTag(tag);
+            if (w.spawnEntity(t)) made++;
+        }
+        return made;
+    }
+
+    /** Remembers a block a run placed, so a restart that cuts the run short still clears it. */
+    void track(Island island, BlockPos bp) {
+        data.leftover.computeIfAbsent(island.id, k -> new ArrayList<>()).add(bp.asLong());
+    }
+
+    /** Hot zones: titans wake when a diver comes within 60 blocks; a zone is done once its caches are empty. */
+    private void hotZones(Run r, ServerPlayerEntity p, ServerWorld w) {
+        for (Poi poi : r.session.pois) {
+            if (!poi.woke && p.squaredDistanceTo(Vec3d.ofCenter(poi.at)) < 60 * 60) {
+                poi.woke = true;
+                wake(w, poi, 3);
+                Notify.toast(p, Text.literal(poi.name).formatted(Formatting.RED, Formatting.BOLD), Text.literal("Titans stir"), 0xE03A3A,
+                    "minecraft:skeleton_skull", null);
+                p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_ROAR, SoundCategory.HOSTILE, 0.5f, 0.6f);
+            }
+            if (!poi.done) {
+                boolean empty = true;
+                for (BlockPos bp : poi.caches) if (w.getBlockEntity(bp) instanceof BarrelBlockEntity b && !b.isEmpty()) empty = false;
+                poi.done = empty;
+            }
+        }
+    }
+
+    /** The run as the diver's HUD and island map show it. */
+    private void sendView(Run r, ServerPlayerEntity p, long now) {
+        if (!ServerPlayNetworking.canSend(p, Net.RunView.ID)) return;
+        ServerWorld w = p.getServerWorld();
+        BlockPos c = centre(r.island, w);
+        List<Net.RunPoint> pts = new ArrayList<>();
+        for (BlockPos e : r.exits) pts.add(new Net.RunPoint("exit", "Flare", e.getX(), e.getZ(), false));
+        for (Poi poi : r.session.pois) pts.add(new Net.RunPoint("poi", poi.name, poi.at.getX(), poi.at.getZ(), poi.done));
+        for (RunObjectives.Objective o : r.session.objectives) pts.add(new Net.RunPoint("obj", o.name, o.at.getX(), o.at.getZ(), o.done));
+        for (UUID id : r.members) {
+            ServerPlayerEntity m = server.getPlayerManager().getPlayer(id);
+            if (m == null || m == p || m.getWorld() != p.getWorld()) continue;
+            pts.add(new Net.RunPoint("mate", AotRpg.PROFILES.get(id).name, m.getBlockX(), m.getBlockZ(), false));
+        }
+        List<Net.RunTask> ts = new ArrayList<>();
+        for (Task t : r.tasks.getOrDefault(p.getUuid(), List.of())) ts.add(new Net.RunTask(t.text, t.progress, t.goal));
+        ts.addAll(RunObjectives.lines(r.session, p));
+        int left = (int) Math.max(0, (r.endsAt - now) / 1000);
+        int mins = (int) ((now - r.session.startedAt) / 60_000);
+        ServerPlayNetworking.send(p, new Net.RunView(r.island.id, r.island.title, r.island.color, c.getX(), c.getZ(), ISLAND, left, mins, pts, ts));
+    }
+
+    private static void clearView(ServerPlayerEntity p) {
+        if (ServerPlayNetworking.canSend(p, Net.RunView.ID)) {
+            ServerPlayNetworking.send(p, new Net.RunView("", "", 0, 0, 0, 0, 0, 0, List.of(), List.of()));
+        }
+    }
+
     /** Titans that wander onto an island by any other way (natural spawns) aren't kept. */
     public static boolean stray(Entity e) {
         if (e.getWorld().isClient || Island.of(e.getWorld()) == null) return false;
@@ -1132,12 +1365,16 @@ public final class Extraction {
         DustParticleEffect red = new DustParticleEffect(new Vector3f(1f, 0.25f, 0.15f), 2.2f);
         for (BlockPos e : r.exits) {
             double x = e.getX() + 0.5, z = e.getZ() + 0.5;
-            if (p.squaredDistanceTo(x, e.getY(), z) > 512 * 512) continue;
-            for (int y = 0; y < 60; y += 3) w.spawnParticles(p, red, true, x, e.getY() + y + (ticks % 20) / 10.0, z, 1, 0.15, 0.3, 0.15, 0);
-            w.spawnParticles(p, ParticleTypes.FLAME, true, x, e.getY() + 0.3, z, 4, 0.4, 0.1, 0.4, 0.01);
-            for (int i = 0; i < 16; i++) {
-                double a = i * Math.PI / 8 + ticks * 0.05;
-                w.spawnParticles(p, ParticleTypes.END_ROD, true, x + Math.cos(a) * EXIT_RADIUS, e.getY() + 0.2, z + Math.sin(a) * EXIT_RADIUS, 1, 0, 0, 0, 0);
+            double d2 = p.squaredDistanceTo(x, e.getY(), z);
+            if (d2 > 360 * 360) continue;
+            // A light column (fewer, bigger puffs further off), the ring only up close.
+            int step = d2 > 120 * 120 ? 8 : 5;
+            for (int y = 0; y < 60; y += step) w.spawnParticles(p, red, true, x, e.getY() + y + (ticks % 20) / 10.0, z, 1, 0.15, 0.3, 0.15, 0);
+            if (d2 > 48 * 48) continue;
+            w.spawnParticles(p, ParticleTypes.FLAME, false, x, e.getY() + 0.3, z, 2, 0.4, 0.1, 0.4, 0.01);
+            for (int i = 0; i < 12; i++) {
+                double a = i * Math.PI / 6 + ticks * 0.05;
+                w.spawnParticles(p, ParticleTypes.END_ROD, false, x + Math.cos(a) * EXIT_RADIUS, e.getY() + 0.2, z + Math.sin(a) * EXIT_RADIUS, 1, 0, 0, 0, 0);
             }
         }
     }
@@ -1168,7 +1405,13 @@ public final class Extraction {
         int gear = 0;
         var inv = p.getInventory();
         for (int i = 0; i < inv.size(); i++) if (Gear.isGear(inv.getStack(i))) gear++;
-        long salvage = 25 + gear * 4L + r.island.level();
+        bump(r, p.getUuid(), "gear", gear);
+        RunObjectives.extracted(this, r.session, p);
+        int doneTasks = 0;
+        for (Task tk : r.tasks.getOrDefault(p.getUuid(), List.of())) if (tk.progress >= tk.goal) doneTasks++;
+        long salvage = 25 + gear * 4L + r.island.level() + doneTasks * 15L;
+        if (doneTasks > 0) AotRpg.WALLET.addMarks(p, 150L * doneTasks, "run tasks");
+        clearView(p);
         Stash.earn(p, salvage);
         AotRpg.TASKS.count(p, "extractions", 1);
         // Lifted off the flare, then back aboard (the balloon's own return shot), then the reward.
@@ -1183,6 +1426,7 @@ public final class Extraction {
     }
 
     private void missing(Run r, ServerPlayerEntity p) {
+        clearView(p);
         r.members.remove(p.getUuid());
         r.extracting.remove(p.getUuid());
         // Everything carried is lost; the satchel is always safe.
@@ -1199,6 +1443,7 @@ public final class Extraction {
         for (Run o : runs) if (o.session == r.session) return;
         sessions.remove(r.island);
         ServerWorld w = server.getWorld(r.island.world);
+        if (w != null) RunObjectives.clear(w, r.session);
         List<Long> left = data.leftover.getOrDefault(r.island.id, new ArrayList<>());
         for (BlockPos bp : r.barrels) {
             if (w != null && w.getBlockState(bp).isOf(Blocks.BARREL)) {
@@ -1210,12 +1455,19 @@ public final class Extraction {
         save();
     }
 
+    /** Someone on a run used an entity (an escort, say). True when handled. */
+    public boolean useEntity(ServerPlayerEntity p, Entity e) {
+        Run r = runOf(p.getUuid());
+        return r != null && RunObjectives.useEntity(r.session, p, e);
+    }
+
     /** Died out there: the gear stays where they fell, and they wake in the balloon. */
     private final Set<UUID> fallen = new HashSet<>();
 
     public void onDeath(ServerPlayerEntity p) {
         Run r = runOf(p.getUuid());
         if (r == null) return;
+        clearView(p);
         r.members.remove(p.getUuid());
         r.extracting.remove(p.getUuid());
         fallen.add(p.getUuid());

@@ -50,7 +50,7 @@ public final class AreaBanner {
 
     public static void render(DrawContext c, RenderTickCounter tick) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (area == null || mc.options.hudHidden) return;
+        if (area == null || mc.options.hudHidden || ExtractionHud.active()) return;
         long age = Util.getMeasuringTimeMs() - shownAt;
         if (age > IN + STAY + OUT) return;
         float a = age < IN ? age / (float) IN : age > IN + STAY ? 1 - (age - IN - STAY) / (float) OUT : 1;

@@ -26,7 +26,8 @@
     "ItemRendererTintMixin",
     "BalloonIdleMixin",
     "InputLockMixin",
-    "LookLockMixin"
+    "LookLockMixin",
+    "PlayerListMixin"
   ],
   "injectors": {
     "defaultRequire": 0
