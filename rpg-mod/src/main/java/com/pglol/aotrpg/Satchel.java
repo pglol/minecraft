@@ -307,8 +307,13 @@ public final class Satchel {
             }
             case "drop" -> {
                 if (isStory(s)) break;
-                bag.setStack(slot, ItemStack.EMPTY);
-                p.dropItem(s, false, true);
+                // arg: how many (0 or more than there are = the whole stack).
+                if (arg > 0 && arg < s.getCount()) {
+                    p.dropItem(s.split((int) arg), false, true);
+                } else {
+                    bag.setStack(slot, ItemStack.EMPTY);
+                    p.dropItem(s, false, true);
+                }
             }
             case "list" -> AotRpg.EXCHANGE.list(p, BAG + slot, arg);
             case "repair" -> Repair.one(p, s);

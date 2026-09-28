@@ -35,6 +35,8 @@ public final class BagScreen extends Screen {
     private static int tab, sort;
     private int selected = -1, scroll;
     private static int scrapAsk = -1;
+    /** How many of the selected stack Drop lets go of (reset when the selection changes). */
+    private static int dropAmt = 1, dropFor = -1;
     private int gx, gy, cols, rows, cw, ch, detailX, detailW;
     private TextFieldWidget price;
     private int equipRow = -1;
@@ -199,8 +201,33 @@ public final class BagScreen extends Screen {
             }
             equipRow = places.isEmpty() ? -1 : py;
             if (!Satchel.isStory(s)) {
-                AotButton drop = addDrawableChild(new AotButton(bx, by, 44, 18, Text.literal("Drop"), () -> act("drop", slot, 0)));
-                drop.accent = Ui.RED;
+                if (s.getCount() > 1) {
+                    // Pick how many: - / + (Shift for 10), All, then Drop.
+                    if (dropFor != slot) {
+                        dropFor = slot;
+                        dropAmt = 1;
+                    }
+                    dropAmt = Math.max(1, Math.min(dropAmt, s.getCount()));
+                    int max = s.getCount();
+                    addDrawableChild(new AotButton(bx, by, 16, 18, Text.literal("-"), () -> {
+                        dropAmt = Math.max(1, dropAmt - (hasShiftDown() ? 10 : 1));
+                        clearAndInit();
+                    }));
+                    AotButton drop = addDrawableChild(new AotButton(bx + 18, by, 62, 18, Text.literal("Drop " + dropAmt), () -> act("drop", slot, dropAmt)));
+                    drop.accent = Ui.RED;
+                    addDrawableChild(new AotButton(bx + 82, by, 16, 18, Text.literal("+"), () -> {
+                        dropAmt = Math.min(max, dropAmt + (hasShiftDown() ? 10 : 1));
+                        clearAndInit();
+                    }));
+                    AotButton all = addDrawableChild(new AotButton(bx + 100, by, 30, 18, Text.literal("All"), () -> {
+                        dropAmt = max;
+                        clearAndInit();
+                    }));
+                    all.selected(dropAmt == max);
+                } else {
+                    AotButton drop = addDrawableChild(new AotButton(bx, by, 44, 18, Text.literal("Drop"), () -> act("drop", slot, 0)));
+                    drop.accent = Ui.RED;
+                }
             }
             if (Gear.isGear(s)) {
                 // Two clicks: the first asks, the second breaks it down. (Beside Drop, clear of the price field.)
