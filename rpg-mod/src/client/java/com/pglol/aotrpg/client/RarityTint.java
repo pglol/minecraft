@@ -27,8 +27,49 @@ public final class RarityTint {
     private static final java.util.ArrayDeque<ItemStack> drawing = new java.util.ArrayDeque<>();
 
     public static VertexConsumerProvider enter(ItemStack s, VertexConsumerProvider base) {
+        return enter(s, null, base);
+    }
+
+    /**
+     * Infused blades drawn in a hand (first or third person) or on a back: points picked from the
+     * sword's own drawn geometry, so its element comes off the blade wherever it actually is
+     * mid-swing, blocking or sheathed. Null when nothing is being sampled.
+     */
+    private static Sampler sampler;
+
+    public static final class Sampler {
+        public final ItemStack stack;
+        public final boolean firstPerson;
+        public final float[][] picks = new float[6][3];
+        public int seen;
+        private final java.util.Random r = new java.util.Random();
+
+        Sampler(ItemStack stack, boolean firstPerson) {
+            this.stack = stack;
+            this.firstPerson = firstPerson;
+        }
+
+        /** Reservoir sampling: every drawn vertex has the same chance of being one of the picks. */
+        void offer(float x, float y, float z) {
+            int i = seen++;
+            int slot = i < picks.length ? i : r.nextInt(i + 1);
+            if (slot < picks.length) {
+                picks[slot][0] = x;
+                picks[slot][1] = y;
+                picks[slot][2] = z;
+            }
+        }
+    }
+
+    public static VertexConsumerProvider enter(ItemStack s, net.minecraft.client.render.model.json.ModelTransformationMode mode, VertexConsumerProvider base) {
         ItemStack owner = s;
         if (!drawing.isEmpty() && (s == null || s.isEmpty() || !com.pglol.aotrpg.Gear.isGear(s))) owner = drawing.peek();
+        if (drawing.isEmpty() && mode != null && owner != null && com.pglol.aotrpg.Infusions.of(owner) != null
+            && (mode.isFirstPerson() || mode == net.minecraft.client.render.model.json.ModelTransformationMode.THIRD_PERSON_LEFT_HAND
+                || mode == net.minecraft.client.render.model.json.ModelTransformationMode.THIRD_PERSON_RIGHT_HAND
+                || mode == net.minecraft.client.render.model.json.ModelTransformationMode.NONE)) {
+            sampler = new Sampler(owner, mode.isFirstPerson());
+        }
         drawing.push(owner == null ? ItemStack.EMPTY : owner);
         return wrap(owner, base);
     }
@@ -36,10 +77,16 @@ public final class RarityTint {
     /** Between frames nothing is being drawn: a draw that never finished can't colour anything else. */
     public static void reset() {
         drawing.clear();
+        sampler = null;
     }
 
     public static void exit() {
         if (!drawing.isEmpty()) drawing.pop();
+        if (drawing.isEmpty() && sampler != null) {
+            Sampler done = sampler;
+            sampler = null;
+            if (done.seen > 0) InfusionFx.emit(done);
+        }
     }
 
     public static VertexConsumerProvider wrap(ItemStack s, VertexConsumerProvider base) {
@@ -81,6 +128,7 @@ public final class RarityTint {
         @Override
         public VertexConsumer vertex(float x, float y, float z) {
             at = x * 3.1f + y * 4.7f + z * 2.3f;
+            if (sampler != null) sampler.offer(x, y, z);
             inner.vertex(x, y, z);
             return this;
         }

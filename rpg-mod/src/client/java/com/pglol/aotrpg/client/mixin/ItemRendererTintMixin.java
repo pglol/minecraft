@@ -20,7 +20,7 @@ public abstract class ItemRendererTintMixin {
         at = @At("HEAD"), argsOnly = true, require = 0)
     private VertexConsumerProvider aotrpg$tint(VertexConsumerProvider vc, ItemStack stack, ModelTransformationMode mode, boolean left,
                                               MatrixStack ms, VertexConsumerProvider same, int light, int overlay, BakedModel model) {
-        return RarityTint.enter(stack, vc);
+        return RarityTint.enter(stack, mode, vc);
     }
 
     @Inject(method = "renderItem(Lnet/minecraft/item/ItemStack;Lnet/minecraft/client/render/model/json/ModelTransformationMode;ZLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IILnet/minecraft/client/render/model/BakedModel;)V",

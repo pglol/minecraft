@@ -29,89 +29,50 @@ public final class InfusionFx {
 
     public static void tick(MinecraftClient mc) {
         RarityTint.reset();
-        if (mc.world == null || mc.player == null || mc.isPaused()) return;
-        long t = mc.world.getTime();
-        for (AbstractClientPlayerEntity p : mc.world.getPlayers()) {
-            if (p.isInvisible() || p.isSpectator() || p.squaredDistanceTo(mc.player) > 64 * 64) continue;
-            boolean own = p == mc.player && mc.options.getPerspective().isFirstPerson();
-            if (own && mc.currentScreen != null) continue;
-            blade(mc, p, p.getMainHandStack(), p.getMainArm() == Arm.RIGHT, own, t);
-            blade(mc, p, p.getOffHandStack(), p.getMainArm() != Arm.RIGHT, own, t);
-            // Sheathed on the back: the element still shows, more quietly (not from your own eyes).
-            com.pglol.aotrpg.Net.SheathState st = ClientState.sheaths.get(p.getUuid());
-            if (st != null && !own && !(p == mc.player && mc.options.getPerspective().isFirstPerson()) && !p.hasVehicle()) {
-                boolean two = !st.a().isEmpty() && !st.b().isEmpty();
-                if (!st.a().isEmpty()) sheathed(mc, p, st.a(), two ? 135 : 200, 0, t);
-                if (!st.b().isEmpty()) sheathed(mc, p, st.b(), two ? 225 : 200, 1, t);
-            }
-        }
+        if (mc.world != null && mc.world.getTime() % 200 == 0) lastEmit.clear();
     }
 
-    private static void blade(MinecraftClient mc, AbstractClientPlayerEntity p, ItemStack s, boolean right, boolean own, long t) {
-        Infusion inf = Infusions.of(s);
+    /** Last game tick each drawn blade gave off particles (by the stack drawn and first person or not). */
+    private static final java.util.Map<Long, Long> lastEmit = new java.util.HashMap<>();
+
+    /**
+     * Called as an infused blade finishes drawing, with points taken from its own geometry: a few
+     * of them become particles in the world, at most once a game tick per blade.
+     */
+    public static void emit(RarityTint.Sampler smp) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null || mc.isPaused()) return;
+        Infusion inf = Infusions.of(smp.stack);
         if (inf == null) return;
-        boolean mythic = "MYTHIC".equals(Gear.data(s).getString("rarity"));
-        boolean legendary = mythic || "LEGENDARY".equals(Gear.data(s).getString("rarity"));
-        int every = mythic ? 1 : legendary ? 2 : 3;
-        if (t % every != 0) return;
-        Vec3d[] line = own ? firstPerson(mc, right) : held(p, right);
-        int n = mythic ? 2 : 1;
-        for (int i = 0; i < n; i++) {
-            // Mostly out along the steel, not the grip.
-            double f = 0.2 + 0.8 * Math.sqrt(R.nextDouble());
-            Vec3d at = line[0].lerp(line[1], f);
-            double j = own ? 0.01 : 0.02;
-            spawn(mc, inf, mythic, at.add(R.nextGaussian() * j, R.nextGaussian() * j, R.nextGaussian() * j));
-        }
-    }
-
-    /** Along a grip sheathed on the back, using the same frame SheathRender draws it in. */
-    private static void sheathed(MinecraftClient mc, AbstractClientPlayerEntity p, ItemStack s, float angle, int i, long t) {
-        Infusion inf = Infusions.of(s);
-        if (inf == null || t % 3 != 0) return;
-        boolean mythic = "MYTHIC".equals(Gear.data(s).getString("rarity"));
-        boolean crouch = p.isInSneakingPose();
-        double armored = p.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST).isEmpty() ? 0.19 : 0.24;
-        // Along the grip's own length (it runs through the crossing point), mostly the blade half.
-        double f = -0.35 + R.nextDouble() * 0.9;
-        double a = Math.toRadians(angle);
-        double lx = -Math.sin(a) * f, ly = 1.15 + Math.cos(a) * f - (crouch ? 0.18 : 0), lz = armored + 0.012 * i + 0.03;
-        double th = Math.toRadians(180 - p.bodyYaw);
-        double wx = lx * Math.cos(th) + lz * Math.sin(th), wz = -lx * Math.sin(th) + lz * Math.cos(th);
-        Vec3d at = p.getPos().add(wx, ly, wz);
-        spawn(mc, inf, mythic && R.nextInt(2) == 0, at);
-    }
-
-    /** Where your own blade shows on screen in first person, as a line in the world just in front of you. */
-    private static Vec3d[] firstPerson(MinecraftClient mc, boolean right) {
+        long now = mc.world.getTime();
+        long key = ((long) System.identityHashCode(smp.stack) << 1) | (smp.firstPerson ? 1 : 0);
+        Long last = lastEmit.get(key);
+        if (last != null && last == now) return;
+        lastEmit.put(key, now);
+        String rar = Gear.data(smp.stack).getString("rarity");
+        boolean mythic = "MYTHIC".equals(rar), legendary = mythic || "LEGENDARY".equals(rar);
+        if (now % (mythic ? 1 : legendary ? 2 : 3) != 0) return;
         var cam = mc.gameRenderer.getCamera();
         Vec3d eye = cam.getPos();
-        float yaw = cam.getYaw() * MathHelper.RADIANS_PER_DEGREE;
-        Vec3d fwd = Vec3d.fromPolar(cam.getPitch(), cam.getYaw());
-        Vec3d rgt = new Vec3d(-MathHelper.cos(yaw), 0, -MathHelper.sin(yaw));
-        Vec3d up = rgt.crossProduct(fwd).normalize();
-        // Hands are drawn with their own fixed 70 degrees; the world (and these particles) with the
-        // setting plus running and speed widening it. Screen spots below are where the blades show
-        // on screen, so place them with the world's field of view as it is right now.
-        double fov = Math.toRadians(worldFov > 1 ? worldFov : mc.options.getFov().getValue());
-        double hh = Math.tan(fov / 2), hw = hh * mc.getWindow().getFramebufferWidth() / Math.max(1.0, mc.getWindow().getFramebufferHeight());
-        double side = right ? 1 : -1, z = 1.0;
-        // Screen spots (x -1..1, y -1..1): the grip low in the corner, the blade running up to the top edge.
-        Vec3d a = eye.add(fwd.multiply(z)).add(rgt.multiply(side * 0.84 * hw * z)).add(up.multiply(-0.8 * hh * z));
-        Vec3d b = eye.add(fwd.multiply(z)).add(rgt.multiply(side * 0.6 * hw * z)).add(up.multiply(0.95 * hh * z));
-        return new Vec3d[] {a, b};
-    }
-
-    /** Hand to tip for a player seen from outside. */
-    private static Vec3d[] held(AbstractClientPlayerEntity p, boolean right) {
-        float by = p.bodyYaw * MathHelper.RADIANS_PER_DEGREE;
-        Vec3d fwd = new Vec3d(-MathHelper.sin(by), 0, MathHelper.cos(by));
-        Vec3d rgt = new Vec3d(-MathHelper.cos(by), 0, -MathHelper.sin(by));
-        double side = right ? 1 : -1;
-        // The hand hangs at the side; the blade runs forward and up from it, not out sideways.
-        Vec3d hand = p.getPos().add(0, p.isInSneakingPose() ? 0.55 : 0.7, 0).add(rgt.multiply(side * 0.3)).add(fwd.multiply(0.15));
-        Vec3d dir = fwd.multiply(0.8).add(0, 0.45, 0).add(rgt.multiply(side * -0.05)).normalize();
-        return new Vec3d[] {hand, hand.add(dir.multiply(1.25))};
+        // Your own hands are drawn in view space with a fixed 70 degree view; the world with yours.
+        float spread = 1f;
+        if (smp.firstPerson) {
+            double wf = worldFov > 1 ? worldFov : mc.options.getFov().getValue();
+            spread = (float) (Math.tan(Math.toRadians(wf) / 2) / Math.tan(Math.toRadians(70) / 2));
+        }
+        int n = Math.min(smp.seen, mythic ? 2 : 1);
+        for (int i = 0; i < n; i++) {
+            float[] p = smp.picks[R.nextInt(Math.min(smp.seen, smp.picks.length))];
+            Vec3d at;
+            if (smp.firstPerson) {
+                org.joml.Vector3f v = new org.joml.Vector3f(p[0] * spread, p[1] * spread, p[2]);
+                cam.getRotation().transform(v);
+                at = eye.add(v.x, v.y, v.z);
+            } else {
+                at = eye.add(p[0], p[1], p[2]);
+            }
+            spawn(mc, inf, mythic, at);
+        }
     }
 
     private static void spawn(MinecraftClient mc, Infusion inf, boolean mythic, Vec3d at) {
