@@ -161,10 +161,27 @@ public final class CombatHotbar {
         c.fill(x, y, x + 22, y + S, 0xD00B0F0C);
         c.drawBorder(x, y, 22, S, col);
         if (!off.isEmpty()) {
+            // The off hand, with its rarity like the main hand's slot.
+            GearUi.backing(c, off, x + 3, y + 2);
             c.drawItem(pl, off, x + 3, y + 2, 77);
             c.drawItemInSlot(mc.textRenderer, off, x + 3, y + 2);
         } else {
-            LoadoutUi.drawGhost(c, st.a().isEmpty() ? st.b() : st.a(), x + 3, y + 2);
+            // Both sheathed grips, crossed on your back: never out of sight.
+            ItemStack a = st.a().isEmpty() ? st.b() : st.a(), b = st.a().isEmpty() ? ItemStack.EMPTY : st.b();
+            GearUi.backing(c, a, x + 3, y + 2);
+            var m = c.getMatrices();
+            if (!b.isEmpty()) {
+                m.push();
+                m.translate(x + 7, y + 3, 0);
+                m.scale(0.85f, 0.85f, 1);
+                c.drawItem(b, 0, 0);
+                m.pop();
+            }
+            m.push();
+            m.translate(x + 1, y + 1, 50);
+            m.scale(0.85f, 0.85f, 1);
+            c.drawItem(a, 0, 0);
+            m.pop();
         }
         String key = AotRpgClient.sheathKey().getBoundKeyLocalizedText().getString().toUpperCase();
         // Beside the slot, not above it (the space above belongs to the health bar).

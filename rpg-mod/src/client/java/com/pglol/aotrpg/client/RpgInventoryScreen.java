@@ -186,15 +186,31 @@ public class RpgInventoryScreen extends InventoryScreen {
             c.fill(fx + 2, fy + 16, fx + 16, fy + 17, 0xA0000000 | (col & 0xFFFFFF));
             if (!s.hasStack()) LoadoutUi.drawGhost(c, LoadoutUi.ghost(k), fx + 1, fy + 1);
         }
+        // Sheathed grips still show where they'd be drawn to: the pair, in their rarity, dimmed, with a sheath mark.
         if (sh != null && sh.count() > 0 && pl.getInventory().main.get(0).isEmpty()) {
-            ItemStack g = sh.a().isEmpty() ? sh.b() : sh.a();
-            LoadoutUi.drawGhost(c, g, x + FRAMES[0][0] + 1, y + FRAMES[0][1] + 1);
+            ItemStack g = sh.a().isEmpty() ? sh.b() : sh.a(), g2 = sh.a().isEmpty() ? ItemStack.EMPTY : sh.b();
+            sheathed(c, g, x + FRAMES[0][0] + 1, y + FRAMES[0][1] + 1);
+            if (!g2.isEmpty() && pl.getOffHandStack().isEmpty()) {
+                for (Slot s2 : handler.slots) {
+                    if (playerSlot(s2) && s2.getIndex() == OFFHAND) sheathed(c, g2, x + s2.x, y + s2.y);
+                }
+            }
         }
         String key = AotRpgClient.sheathKey().getBoundKeyLocalizedText().getString();
         boolean drawn = com.pglol.aotrpg.Loadout.isGrip(pl.getOffHandStack());
         String state = drawn ? "Blades drawn  ·  " + key : sh != null && sh.count() > 0 ? "Blades sheathed  ·  " + key : "";
         if (!state.isEmpty()) centre(c, Text.literal(state), x + RIGHT_C, y + 118, drawn ? 0xFFD06A5A : Ui.GOLD);
         Ui.text(c, Text.literal("Shift-click or Q puts it back in the satchel"), x + RIGHT_C, y + 131, 0.7f, Ui.MUTED, true);
+    }
+
+    private void sheathed(DrawContext c, ItemStack g, int ix, int iy) {
+        GearUi.backing(c, g, ix, iy);
+        c.drawItem(g, ix, iy);
+        c.getMatrices().push();
+        c.getMatrices().translate(0, 0, 200);
+        c.fill(ix, iy, ix + 16, iy + 16, 0x50000000);
+        Ui.text(c, Text.literal("\u2694"), ix + 12, iy + 9, 0.6f, Ui.GOLD, true);
+        c.getMatrices().pop();
     }
 
     private void centre(DrawContext c, Text t, int cx, int ty, int color) {
