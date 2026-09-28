@@ -151,10 +151,20 @@ public final class Gear {
             if (!id.getNamespace().equals("dannys-aot") || id.getPath().equals("odm_gear") || id.getPath().contains("spawn_egg")) continue;
             // Real clothing only: keys, tokens and other wearable trinkets are not armor.
             if (!(it instanceof net.minecraft.item.ArmorItem) && !clothingName(id.getPath())) continue;
+            // Titan and shifter parts are "worn" by the transformation, not clothes anyone puts on.
+            if (bodyPart(id.getPath())) continue;
             if (wornSlot(new ItemStack(it)) != null) out.add(it);
         }
         clothing = out;
         return out;
+    }
+
+    /** Pieces of titans and shifters (muscles, skin, crystal...): worn by transformations, never gear. */
+    static boolean bodyPart(String path) {
+        for (String w : new String[] {"shifter", "titan", "muscle", "flesh", "skin", "bone", "crystal", "nape", "hardening", "_body", "body_"}) {
+            if (path.contains(w)) return true;
+        }
+        return false;
     }
 
     private static boolean clothingName(String path) {
@@ -413,9 +423,24 @@ public final class Gear {
     public void enforceLevels(ServerPlayerEntity p) {
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         if (!pr.created || p.isCreative()) return;
-        // Anything that isn't a weapon or wearable loses gear stats it picked up by mistake.
+        // Anything that isn't a weapon or wearable loses gear stats it picked up by mistake; a titan
+        // part that was handed out as gear becomes a real piece of clothing of the same rarity and level.
         for (int a : AotRpg.SATCHEL.addresses(p)) {
             ItemStack s = AotRpg.SATCHEL.at(p, a);
+            if (isGear(s) && bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath())) {
+                Rarity rar;
+                try {
+                    rar = Rarity.valueOf(data(s).getString("rarity"));
+                } catch (Exception e) {
+                    rar = Rarity.COMMON;
+                }
+                ItemStack fixed = rollArmor(p.getRandom(), rar, Math.max(1, requiredLevel(s)));
+                if (!fixed.isEmpty()) {
+                    AotRpg.SATCHEL.set(p, a, fixed);
+                    Notify.toast(p, Text.literal("Gear replaced").formatted(Formatting.GOLD), fixed.getName().copy(), 0xE0B96A, null, null);
+                }
+                continue;
+            }
             if (isGear(s) && !real(s) && !aotWeapon(s) && wornSlot(s) == null) {
                 String path = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath();
                 if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note")) strip(s);
@@ -424,6 +449,19 @@ public final class Gear {
         for (net.minecraft.entity.EquipmentSlot slot : new net.minecraft.entity.EquipmentSlot[] {net.minecraft.entity.EquipmentSlot.HEAD,
             net.minecraft.entity.EquipmentSlot.CHEST, net.minecraft.entity.EquipmentSlot.LEGS, net.minecraft.entity.EquipmentSlot.FEET}) {
             ItemStack s = p.getEquippedStack(slot);
+            if (isGear(s) && bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath())) {
+                // A titan part worn as gear: off, and a real piece in its place.
+                Rarity rar;
+                try {
+                    rar = Rarity.valueOf(data(s).getString("rarity"));
+                } catch (Exception e) {
+                    rar = Rarity.COMMON;
+                }
+                p.equipStack(slot, ItemStack.EMPTY);
+                ItemStack fixed = rollArmor(p.getRandom(), rar, Math.max(1, requiredLevel(s)));
+                if (!fixed.isEmpty()) AotRpg.SATCHEL.add(p, fixed);
+                continue;
+            }
             if (s.isEmpty() || canUse(p, s)) continue;
             String name = s.getName().getString();
             int need = requiredLevel(s);
@@ -485,7 +523,7 @@ public final class Gear {
     public static boolean real(ItemStack s) {
         if (!isGear(s)) return false;
         String path = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath();
-        if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note")) return false;
+        if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note") || bodyPart(path)) return false;
         return wornSlot(s) != null || aotWeapon(s) || s.getItem() instanceof net.minecraft.item.SwordItem
             || s.getItem() instanceof net.minecraft.item.AxeItem || s.getItem() instanceof net.minecraft.item.RangedWeaponItem;
     }
