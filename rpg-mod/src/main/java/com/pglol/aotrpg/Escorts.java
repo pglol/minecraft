@@ -79,16 +79,20 @@ public final class Escorts {
             boolean near = false;
             for (ServerPlayerEntity p : players) if ((p.getX() - t.x()) * (p.getX() - t.x()) + (p.getZ() - t.z()) * (p.getZ() - t.z()) < 100 * 100) near = true;
             if (!near || !w.isChunkLoaded(t.x() >> 4, t.z() >> 4)) continue;
-            BlockPos at = spots.computeIfAbsent(t.id(), k -> spot(w, t));
-            if (at == null) continue;
+            Stalls.Spot spot = Stalls.place(w, "escort:" + t.id(), t, "MERCHANT", 10, 28, t.id().hashCode() * 31L + 5);
+            if (spot == null) continue;
+            BlockPos at = spot.pos();
+            float yaw = spot.facing().asRotation();
             if (w.getEntity(id(t)) instanceof VillagerEntity v && v.isAlive()) {
-                if (v.squaredDistanceTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5) > 2) v.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, v.getYaw(), 0);
+                if (v.squaredDistanceTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5) > 0.5) v.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, yaw, 0);
+                v.setHeadYaw(yaw);
+                v.setBodyYaw(yaw);
                 continue;
             }
             VillagerEntity v = EntityType.VILLAGER.create(w);
             if (v == null) continue;
             v.setUuid(id(t));
-            v.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, w.getRandom().nextFloat() * 360, 0);
+            v.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, yaw, 0);
             v.initialize(w, w.getLocalDifficulty(at), SpawnReason.EVENT, null);
             v.setVillagerData(v.getVillagerData().withProfession(VillagerProfession.NONE));
             v.setSilent(true);

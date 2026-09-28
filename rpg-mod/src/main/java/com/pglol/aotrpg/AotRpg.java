@@ -565,6 +565,7 @@ public final class AotRpg implements ModInitializer {
             DUELS.open(server);
             INBOX.open(server);
             BOUNTIES.open(server);
+            Stalls.open(server);
             STATS.open(server);
             REGIMENTS.open(server);
             RAID_BOSSES.open(server);

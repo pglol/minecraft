@@ -55,8 +55,6 @@ public final class Vendors {
 
     private static final String[] NAMES = {"Hilde", "Gunter", "Marta", "Otto", "Liesl", "Bruno", "Frida", "Ulrich", "Greta", "Kaspar", "Wanda", "Ewald"};
 
-    /** Where each town's traders stand (found once): town id -> kind -> spot. */
-    private final Map<String, Map<Kind, BlockPos>> stalls = new HashMap<>();
     /** What's been bought today: town/kind/day -> offer indices. */
     private final Map<String, Set<Integer>> sold = new HashMap<>();
 
@@ -79,16 +77,22 @@ public final class Vendors {
             boolean near = false;
             for (ServerPlayerEntity p : players) if ((p.getX() - t.x()) * (p.getX() - t.x()) + (p.getZ() - t.z()) * (p.getZ() - t.z()) < 100 * 100) near = true;
             if (!near || !w.isChunkLoaded(t.x() >> 4, t.z() >> 4)) continue;
-            Map<Kind, BlockPos> spots = stalls.computeIfAbsent(t.id(), k -> find(w, t));
-            for (var e : spots.entrySet()) {
-                UUID id = id(t, e.getKey());
+            for (Kind kind : Kind.values()) {
+                boolean back = kind == Kind.STRANGER;
+                Stalls.Spot spot = Stalls.place(w, "vendor:" + t.id() + ":" + kind.name(), t, kind.name(), back ? 26 : 8, back ? 48 : 22,
+                    (t.id() + kind.name()).hashCode());
+                if (spot == null) continue;
+                BlockPos s = spot.pos();
+                float yaw = spot.facing().asRotation();
+                UUID id = id(t, kind);
                 Entity ent = w.getEntity(id);
                 if (ent instanceof VillagerEntity v && v.isAlive()) {
-                    // Keep them at their stall.
-                    BlockPos s = e.getValue();
-                    if (v.squaredDistanceTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5) > 2) v.refreshPositionAndAngles(s.getX() + 0.5, s.getY(), s.getZ() + 0.5, v.getYaw(), 0);
-                } else if (w.isChunkLoaded(e.getValue().getX() >> 4, e.getValue().getZ() >> 4)) {
-                    spawn(w, t, e.getKey(), e.getValue(), id);
+                    // Keep them in their stall, facing the counter.
+                    if (v.squaredDistanceTo(s.getX() + 0.5, s.getY(), s.getZ() + 0.5) > 0.5) v.refreshPositionAndAngles(s.getX() + 0.5, s.getY(), s.getZ() + 0.5, yaw, 0);
+                    v.setHeadYaw(yaw);
+                    v.setBodyYaw(yaw);
+                } else if (w.isChunkLoaded(s.getX() >> 4, s.getZ() >> 4)) {
+                    spawn(w, t, kind, s, id);
                 }
             }
         }
@@ -112,41 +116,12 @@ public final class Vendors {
         return NAMES[Math.floorMod((t.id() + k.name()).hashCode(), NAMES.length)] + ", " + k.title;
     }
 
-    /** Stalls in the open around the town's square; the Stranger further out, off the main streets. */
-    private Map<Kind, BlockPos> find(ServerWorld w, Net.Area t) {
-        Map<Kind, BlockPos> out = new HashMap<>();
-        Random r = new Random(t.id().hashCode());
-        int base = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, t.x(), t.z());
-        List<BlockPos> used = new ArrayList<>();
-        for (Kind k : Kind.values()) {
-            boolean back = k == Kind.STRANGER;
-            for (int tries = 0; tries < 80; tries++) {
-                double a = r.nextDouble() * Math.PI * 2, rad = back ? 28 + r.nextDouble() * 18 : 5 + r.nextDouble() * 10 + tries * 0.1;
-                int x = t.x() + (int) Math.round(Math.cos(a) * rad), z = t.z() + (int) Math.round(Math.sin(a) * rad);
-                if (!w.isChunkLoaded(x >> 4, z >> 4)) continue;
-                int y = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-                if (Math.abs(y - base) > (back ? 6 : 3)) continue;
-                BlockPos feet = new BlockPos(x, y, z);
-                if (w.getBlockState(feet.down()).getCollisionShape(w, feet.down()).isEmpty()) continue;
-                if (!w.getBlockState(feet).isAir() || !w.getBlockState(feet.up()).isAir()) continue;
-                if (!w.getFluidState(feet.down()).isEmpty()) continue;
-                boolean clash = false;
-                for (BlockPos u : used) if (u.getSquaredDistance(feet) < 16) clash = true;
-                if (clash) continue;
-                used.add(feet);
-                out.put(k, feet);
-                break;
-            }
-        }
-        return out;
-    }
-
     private void spawn(ServerWorld w, Net.Area t, Kind k, BlockPos at, UUID id) {
         VillagerEntity v = EntityType.VILLAGER.create(w);
         if (v == null) return;
         v.setUuid(id);
-        float yaw = (float) Math.toDegrees(Math.atan2(-(t.x() - at.getX()), t.z() - at.getZ()));
-        if (k == Kind.STRANGER) yaw += 180;
+        Stalls.Spot spot = Stalls.get("vendor:" + t.id() + ":" + k.name());
+        float yaw = spot == null ? 0 : spot.facing().asRotation();
         v.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, yaw, 0);
         v.initialize(w, w.getLocalDifficulty(at), SpawnReason.EVENT, null);
         v.setVillagerData(v.getVillagerData().withProfession(VillagerProfession.NONE));
