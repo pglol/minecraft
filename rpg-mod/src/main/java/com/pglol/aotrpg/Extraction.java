@@ -636,9 +636,9 @@ public final class Extraction {
             for (UUID m : party.members) {
                 if (m.equals(p.getUuid())) continue;
                 BlockPos to = walkingTo.get(m);
-                ServerPlayerEntity o = server.getPlayerManager().getPlayer(m);
+                ServerPlayerEntity mate = server.getPlayerManager().getPlayer(m);
                 if (to != null) mates.add(to);
-                else if (o != null && inLobby(o) && o.getVehicle() != null && o.getVehicle().getCommandTags().contains(SEAT)) mates.add(o.getVehicle().getBlockPos());
+                else if (mate != null && inLobby(mate) && mate.getVehicle() != null && mate.getVehicle().getCommandTags().contains(SEAT)) mates.add(mate.getVehicle().getBlockPos());
             }
         }
         if (!mates.isEmpty()) {
