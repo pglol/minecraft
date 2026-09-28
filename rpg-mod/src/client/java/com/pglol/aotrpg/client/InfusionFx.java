@@ -209,6 +209,9 @@ public final class InfusionFx {
             // Soft gold motes that fade fast; End Rods linger and glow, so only the odd one as a glint.
             case RADIANT -> R.nextInt(8) == 0 ? ParticleTypes.END_ROD : new DustParticleEffect(new Vector3f(1f, 0.93f, 0.62f), 0.45f);
             case BLOOD -> new DustParticleEffect(new Vector3f(0.65f, 0.02f, 0.05f), 0.7f);
+            // Black smoke curling off the blade, the odd crimson ember in it.
+            case ECLIPSE -> R.nextInt(5) == 0 ? new DustParticleEffect(new Vector3f(0.75f, 0.03f, 0.06f), 0.6f)
+                : new DustParticleEffect(new Vector3f(0.02f, 0.02f, 0.03f), 0.9f);
         };
         if (inf == Infusion.BLOOD || inf == Infusion.VENOM) vy = -0.02;
         if (fx == ParticleTypes.END_ROD) vy = 0;

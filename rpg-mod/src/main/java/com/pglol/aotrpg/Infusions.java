@@ -65,7 +65,11 @@ public final class Infusions {
         BLOOD("Bloodsworn", 0xC01020, Formatting.DARK_RED, "Hits drink life",
             new String[]{"Crimson", "Blood-drinker", "Scarlet", "Sanguine"},
             new String[]{"Heartseeker", "The Red Oath", "Veinripper", "Bloodmoon"},
-            new String[]{"Ymir's Blood", "The Crimson Rumbling", "Sovereign of Blood", "Vowkeeper"});
+            new String[]{"Ymir's Blood", "The Crimson Rumbling", "Sovereign of Blood", "Vowkeeper"}),
+        ECLIPSE("Eclipsed", 0x121212, Formatting.DARK_GRAY, "Hits blind foes; strikes from behind cut deeper",
+            new String[]{"Blackened", "Soot-forged", "Nightbound", "Shade-kissed"},
+            new String[]{"Blackout", "The Unlit", "Umbrafang", "Last Light"},
+            new String[]{"Total Eclipse", "Hollow Sun", "The Dark Between Stars", "Night Without End"});
 
         public final String title, effect;
         public final int color;
@@ -193,6 +197,25 @@ public final class Infusions {
                 w.spawnParticles(ParticleTypes.END_ROD, at.x, at.y, at.z, (int) (14 * k), spread, spread, spread, 0.06);
                 w.spawnParticles(ParticleTypes.WAX_ON, p.getX(), p.getY() + 1, p.getZ(), 5, 0.3, 0.5, 0.3, 0.02);
             }
+            case ECLIPSE -> {
+                v.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, (int) (40 * k), 0));
+                v.addStatusEffect(new StatusEffectInstance(StatusEffects.DARKNESS, (int) (60 * k), 0));
+                // From behind: they never saw it coming.
+                Vec3d facing = v.getRotationVec(1f).multiply(1, 0, 1), toMe = p.getPos().subtract(v.getPos()).multiply(1, 0, 1);
+                if (facing.lengthSquared() > 1e-4 && toMe.lengthSquared() > 1e-4 && facing.normalize().dotProduct(toMe.normalize()) < -0.2) {
+                    busy = true;
+                    try {
+                        v.timeUntilRegen = 0;
+                        v.damage(w.getDamageSources().playerAttack(p), mythic ? 4f : 2.5f);
+                    } finally {
+                        busy = false;
+                    }
+                    w.spawnParticles(new DustParticleEffect(new Vector3f(0.8f, 0.05f, 0.08f), 1.2f), at.x, at.y, at.z, 12, spread, spread, spread, 0);
+                }
+                w.spawnParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y, at.z, (int) (10 * k), spread, spread, spread, 0.02);
+                w.spawnParticles(ParticleTypes.SQUID_INK, at.x, at.y, at.z, (int) (8 * k), spread, spread, spread, 0.03);
+                w.playSound(null, v.getBlockPos(), SoundEvents.ENTITY_WITHER_SHOOT, SoundCategory.PLAYERS, 0.25f, 1.8f);
+            }
             case BLOOD -> {
                 p.heal(Math.min(4, dealt * (mythic ? 0.2f : 0.12f)));
                 w.spawnParticles(new DustParticleEffect(new Vector3f(0.7f, 0.02f, 0.05f), 1.4f), at.x, at.y, at.z, (int) (20 * k), spread, spread, spread, 0);
@@ -233,6 +256,7 @@ public final class Infusions {
             case VENOM -> new DustParticleEffect(new Vector3f(0.4f, 0.9f, 0.3f), 0.8f);
             case RADIANT -> ParticleTypes.END_ROD;
             case BLOOD -> new DustParticleEffect(new Vector3f(0.6f, 0.02f, 0.05f), 0.9f);
+            case ECLIPSE -> ParticleTypes.SMOKE;
         };
         w.spawnParticles(fx, at.x, at.y, at.z, n, 0.08, 0.2, 0.08, inf == Infusion.VOID ? 0.02 : 0.005);
         if (mythic && inf == Infusion.VOID) w.spawnParticles(ParticleTypes.SQUID_INK, at.x, at.y, at.z, 1, 0.05, 0.1, 0.05, 0);

@@ -128,7 +128,7 @@ public final class Townsfolk {
         /** Children run, and tear about more. */
         boolean runner;
         /** Heading home: their doorstep, and how long they've been stuck on the way. */
-        BlockPos home;
+        BlockPos home, out;
         int stuck;
     }
 
@@ -157,6 +157,15 @@ public final class Townsfolk {
             Walk k = en.getValue();
             // They walk by our hand, without the game's own physics: keep their feet on the ground.
             if ((ticks + v.getId()) % 10 == 0) grounded(w, v);
+            if (k.out != null) {
+                // Out of the door first: to the nearest street, then on with the day.
+                if (toward(w, v, k, k.out, true)) {
+                    k.out = null;
+                    k.stuck = 0;
+                    k.pause = 10 + rng.nextInt(40);
+                }
+                continue;
+            }
             if (k.home != null) {
                 if (homeward(w, v, k)) {
                     it.remove();
@@ -200,7 +209,9 @@ public final class Townsfolk {
     private void step(ServerWorld w, VillagerEntity v, Walk k) {
         double x = v.getX(), z = v.getZ(), y = v.getY();
         if (k.hx == 0 && k.hz == 0 && !heading(w, v, k, rng.nextDouble() - 0.5, rng.nextDouble() - 0.5)) {
-            k.pause = 60;
+            // Nowhere to walk from here (off the street, at a doorstep): make for the nearest street.
+            sendOut(v, v.getBlockPos());
+            if (k.out == null) k.pause = 60;
             return;
         }
         // The street ends or turns: pick the way that bends least (never straight back unless it must).
@@ -345,13 +356,49 @@ public final class Townsfolk {
         }
     }
 
+    /** Sends a resident out of their door to the nearest street, then off along the streets. */
+    public void sendOut(VillagerEntity v, BlockPos door) {
+        adopt(v);
+        Walk k = walks.get(v.getUuid());
+        if (k == null) return;
+        BlockPos best = null;
+        double bd = Double.MAX_VALUE;
+        for (int dx = -10; dx <= 10; dx++) {
+            for (int dz = -10; dz <= 10; dz++) {
+                BlockPos st = street((ServerWorld) v.getWorld(), door.getX() + dx + 0.5, door.getZ() + dz + 0.5, door.getY());
+                if (st == null) continue;
+                double d = dx * dx + dz * dz + rng.nextDouble() * 4;
+                if (d < bd) {
+                    bd = d;
+                    best = st;
+                }
+            }
+        }
+        k.out = best;
+        k.stuck = 0;
+        k.hx = k.hz = 0;
+    }
+
     /** A step toward home. True once they're at the door (or had to be put there, unseen). */
     private boolean homeward(ServerWorld w, VillagerEntity v, Walk k) {
-        double dx = k.home.getX() + 0.5 - v.getX(), dz = k.home.getZ() + 0.5 - v.getZ(), d = Math.hypot(dx, dz);
+        return toward(w, v, k, k.home, false);
+    }
+
+    /** A step toward a spot. True once there (or stuck out of sight: put there, when told to). */
+    private boolean toward(ServerWorld w, VillagerEntity v, Walk k, BlockPos goal, boolean jump) {
+        double dx = goal.getX() + 0.5 - v.getX(), dz = goal.getZ() + 0.5 - v.getZ(), d = Math.hypot(dx, dz);
         if (d < 1.2) return true;
         boolean seen = false;
         for (ServerPlayerEntity p : w.getPlayers()) if (p.squaredDistanceTo(v) < 18 * 18) seen = true;
-        if (k.stuck > 80 && !seen) return true;
+        if (k.stuck > 80 && !seen) {
+            if (jump) v.refreshPositionAndAngles(goal.getX() + 0.5, goal.getY(), goal.getZ() + 0.5, v.getYaw(), 0);
+            return true;
+        }
+        if (k.stuck > 200) {
+            // Truly stuck, even in view: step there.
+            v.refreshPositionAndAngles(goal.getX() + 0.5, goal.getY(), goal.getZ() + 0.5, v.getYaw(), 0);
+            return true;
+        }
         double sp = v.isBaby() ? 0.07 : 0.09;
         // Straight for the door; round anything in the way by trying a little to either side.
         for (double turn : new double[] {0, 0.6, -0.6, 1.2, -1.2}) {

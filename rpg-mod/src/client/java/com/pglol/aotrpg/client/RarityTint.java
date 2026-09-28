@@ -116,14 +116,23 @@ public final class RarityTint {
             float k = r >= 5 ? 0.82f : r == 4 ? 0.7f : 0.58f;
             float ripple = r >= 5 ? 0.18f : r == 4 ? 0.12f : 0.07f;
             float t = (Util.getMeasuringTimeMs() % 100000L) / (r >= 5 ? 180f : 320f);
-            boolean dark = inf == com.pglol.aotrpg.Infusions.Infusion.VOID;
-            return layer -> new Tinted(base.getBuffer(layer), inf.color, k, ripple, t, dark);
+            // How each element sits on the steel: tinted, swallowed in violet dark, pearl-bright, or blacked out.
+            int mode = switch (inf) {
+                case VOID -> 1;
+                case RADIANT -> 2;
+                case ECLIPSE -> 3;
+                default -> 0;
+            };
+            // Fire, lightning, frost and light glow in the dark.
+            boolean glow = inf == com.pglol.aotrpg.Infusions.Infusion.EMBER || inf == com.pglol.aotrpg.Infusions.Infusion.STORM
+                || inf == com.pglol.aotrpg.Infusions.Infusion.FROST || inf == com.pglol.aotrpg.Infusions.Infusion.RADIANT;
+            return layer -> new Tinted(base.getBuffer(layer), inf.color, k, ripple, t, mode, glow && r >= 4);
         }
         float k = STRENGTH[r];
         if (r == 5) k += 0.12f * (float) Math.sin(Util.getMeasuringTimeMs() / 260.0);
         final float kk = k;
         final int tint = TINT[r];
-        return layer -> new Tinted(base.getBuffer(layer), tint, kk, 0, 0, false);
+        return layer -> new Tinted(base.getBuffer(layer), tint, kk, 0, 0, 0, false);
     }
 
     /** Passes everything through, pulling each vertex colour toward the tint (keeping its shading). */
@@ -131,16 +140,19 @@ public final class RarityTint {
         private final VertexConsumer inner;
         private final int tint;
         private final float k, ripple, t;
-        private final boolean dark;
+        /** 0 tint, 1 void (dark violet), 2 pearl light, 3 blacked out. */
+        private final int mode;
+        private final boolean glow;
         private float at;
 
-        Tinted(VertexConsumer inner, int tint, float k, float ripple, float t, boolean dark) {
+        Tinted(VertexConsumer inner, int tint, float k, float ripple, float t, int mode, boolean glow) {
             this.inner = inner;
             this.tint = tint;
             this.k = k;
             this.ripple = ripple;
             this.t = t;
-            this.dark = dark;
+            this.mode = mode;
+            this.glow = glow;
         }
 
         @Override
@@ -158,12 +170,30 @@ public final class RarityTint {
             // Light running along the steel.
             float wave = ripple == 0 ? 0 : (float) Math.sin(t + at);
             float kk = Math.max(0, Math.min(1, k + ripple * wave));
-            float bright = dark ? 0.55f + 0.5f * Math.max(0, wave) * (ripple * 4) : 1.35f + ripple * 2 * Math.max(0, wave);
-            // The void swallows the steel's own colour: near-black with violet running through it.
-            float keep = dark ? (1 - kk) * 0.35f : 1 - kk;
-            int r = Math.round(red * keep + tr * luma * bright * kk);
-            int g = Math.round(green * keep + tg * luma * bright * kk);
-            int b = Math.round(blue * keep + tb * luma * bright * kk);
+            float up = Math.max(0, wave);
+            int r, g, b;
+            if (mode == 2) {
+                // Pearl light: the steel goes near-white, with warm gold running through it.
+                float wht = 225 + 30 * luma, m = up * 0.65f;
+                float tr2 = wht * (1 - m) + 255 * m, tg2 = wht * (1 - m) + 200 * m, tb2 = wht * 0.95f * (1 - m) + 95 * m;
+                r = Math.round(red * (1 - kk) + tr2 * kk);
+                g = Math.round(green * (1 - kk) + tg2 * kk);
+                b = Math.round(blue * (1 - kk) + tb2 * kk);
+            } else if (mode == 3) {
+                // Blacked out: the steel swallowed whole, a thin crimson edge catching as the light runs along it.
+                float edge = up * up * up * 0.9f;
+                r = Math.round(red * 0.04f + luma * 16 + 200 * edge);
+                g = Math.round(green * 0.04f + luma * 14 + 18 * edge);
+                b = Math.round(blue * 0.04f + luma * 16 + 28 * edge);
+            } else {
+                boolean dark = mode == 1;
+                float bright = dark ? 0.55f + 0.5f * up * (ripple * 4) : 1.35f + ripple * 2 * up;
+                // The void swallows the steel's own colour: near-black with violet running through it.
+                float keep = dark ? (1 - kk) * 0.35f : 1 - kk;
+                r = Math.round(red * keep + tr * luma * bright * kk);
+                g = Math.round(green * keep + tg * luma * bright * kk);
+                b = Math.round(blue * keep + tb * luma * bright * kk);
+            }
             inner.color(Math.min(255, r), Math.min(255, g), Math.min(255, b), alpha);
             return this;
         }
@@ -182,7 +212,9 @@ public final class RarityTint {
 
         @Override
         public VertexConsumer light(int u, int v) {
-            inner.light(u, v);
+            // Glowing elements light themselves, day or night.
+            if (glow) inner.light(240, 240);
+            else inner.light(u, v);
             return this;
         }
 

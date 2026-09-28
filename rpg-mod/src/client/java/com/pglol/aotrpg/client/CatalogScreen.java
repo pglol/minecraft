@@ -25,9 +25,9 @@ public final class CatalogScreen extends Screen {
     private static final String[] TABS = {"Weapons", "Armor", "Items", "Crates", "Titles", "Cosmetics", "Money"};
     private static final String[] RARITY = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"};
     private static final int[] RARITY_COL = {0xFFEDE3C8, 0xFF5BD35B, 0xFF4A90FF, 0xFFB04AFF, 0xFFFFB020, 0xFFFF3A3A};
-    private static final String[] INFUSIONS = {"", "random", "FROST", "EMBER", "VOID", "STORM", "VENOM", "RADIANT", "BLOOD"};
+    private static final String[] INFUSIONS = {"", "random", "FROST", "EMBER", "VOID", "STORM", "VENOM", "RADIANT", "BLOOD", "ECLIPSE"};
     private static final String[] INFUSION_NAMES = {"No element", "Random element", "Frostborne", "Emberheart", "Voidborn",
-        "Stormcaller", "Viperfang", "Dawnlight", "Bloodsworn"};
+        "Stormcaller", "Viperfang", "Dawnlight", "Bloodsworn", "Eclipsed"};
 
     private static int tab, rarity = 5, infusion, level = 30, amount = 1, target;
     private static boolean inbox, jackpot = true;

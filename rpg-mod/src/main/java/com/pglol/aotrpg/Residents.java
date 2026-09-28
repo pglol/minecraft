@@ -221,11 +221,12 @@ public final class Residents {
                     v.wakeUp();
                     settled.remove(v.getUuid());
                 }
-                if (home && goesOut(m, w) && unseen(v, players, 6)) {
+                // One at a time out of the door, a little apart, and off to the street.
+                if (home && goesOut(m, w) && unseen(v, players, 6) && (w.getTime() / 20 + m.index() * 3) % 6 == 0) {
                     settled.remove(v.getUuid());
                     BlockPos d = door(h);
                     v.refreshPositionAndAngles(d.getX() + 0.5, d.getY(), d.getZ() + 0.5, v.getYaw(), 0);
-                    AotRpg.FOLK.adopt(v);
+                    AotRpg.FOLK.sendOut(v, d);
                 }
             }
             case 3 -> {
@@ -260,7 +261,10 @@ public final class Residents {
         v.setAiDisabled(true);
         if (!w.spawnEntity(v)) return;
         if (phase == 0) toBed(w, v, house, m);
-        else if ((phase == 1 || phase == 2) && goesOut(m, w)) AotRpg.FOLK.adopt(v);
+        else if ((phase == 1 || phase == 2) && goesOut(m, w)) {
+            // Already out and about: somewhere along the street near home, not stacked at the door.
+            AotRpg.FOLK.sendOut(v, d);
+        }
         else indoors(w, v, house);
     }
 
