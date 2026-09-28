@@ -57,7 +57,8 @@ public class AotPauseScreen extends Screen {
             new Tile("Tasks & Titles", "minecraft:target", hasChar, () -> ClientPlayNetworking.send(new Net.TaskAction("open", "")), "tasks"),
             new Tile("Battle Pass", "minecraft:nether_star", hasChar, () -> ClientPlayNetworking.send(new Net.PassAction("open", 0)), "pass"),
             new Tile("Events", "minecraft:firework_rocket", hasChar, () -> ClientPlayNetworking.send(new Net.EventAction("open", ""))),
-            new Tile("Server & Ranks", "minecraft:gold_ingot", true, () -> client.setScreen(new StatsScreen(this, 1)))});
+            new Tile("Server & Ranks", "minecraft:gold_ingot", true, () -> client.setScreen(new StatsScreen(this, 1))),
+            new Tile("Combat Camera", "minecraft:spyglass", true, () -> client.setScreen(new ShoulderSettingsScreen(this)))});
         y = section(y, bh, "Community", new Tile[] {
             new Tile("Social", "minecraft:bell", hasChar, () -> ClientPlayNetworking.send(new Net.SocialAction("open", null))),
             new Tile(war ? "Factions ⚔" : "Factions", "minecraft:shield", hasChar, () -> ClientPlayNetworking.send(new Net.FactionAction("open", ""))),

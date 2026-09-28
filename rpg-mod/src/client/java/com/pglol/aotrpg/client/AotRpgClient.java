@@ -73,6 +73,10 @@ public final class AotRpgClient implements ClientModInitializer {
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, "category.aot_rpg"));
         LockOn.key = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.lockon",
             InputUtil.Type.MOUSE, GLFW.GLFW_MOUSE_BUTTON_MIDDLE, "category.aot_rpg"));
+        ShoulderCam.swapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.shoulder_swap",
+            InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_CAPS_LOCK, "category.aot_rpg"));
+        ShoulderCam.load();
+        ClientTickEvents.END_CLIENT_TICK.register(ShoulderCam::tick);
         CombatUi.guardKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.aot_rpg.guard",
             InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, "category.aot_rpg"));
         WorldRenderEvents.START.register(LockOn::frame);

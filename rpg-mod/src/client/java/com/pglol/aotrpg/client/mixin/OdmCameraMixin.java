@@ -17,7 +17,7 @@ public abstract class OdmCameraMixin {
     @Inject(method = "tiltViewWhenHurt", at = @At("HEAD"))
     private void aotrpg$flip(MatrixStack matrices, float tickDelta, CallbackInfo ci) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.player == null || !mc.options.getPerspective().isFirstPerson()) return;
+        if (mc.player == null || !mc.options.getPerspective().isFirstPerson() || com.pglol.aotrpg.client.ShoulderCam.active()) return;
         OdmMoves.Anim a = OdmMoves.anim(mc.player.getId());
         if (a == null || a.kind() != OdmMoves.FLIP) return;
         float angle = OdmMoves.bodyAngle(a);

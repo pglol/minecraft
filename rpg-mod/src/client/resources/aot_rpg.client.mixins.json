@@ -33,7 +33,8 @@
     "GameRendererFovMixin",
     "FallShakeMixin",
     "PotionSwirlMixin",
-    "PlayerArmsMixin"
+    "PlayerArmsMixin",
+    "ShoulderHandMixin"
   ],
   "injectors": {
     "defaultRequire": 0

@@ -17,6 +17,7 @@ public abstract class GameRendererFovMixin {
         // A cutscene's lens (a dolly zoom, a wide plunge) for the world view.
         float cut = com.pglol.aotrpg.client.story.CutscenePlayer.fov();
         if (cut > 0) cir.setReturnValue((double) cut);
+        else if (com.pglol.aotrpg.client.ShoulderCam.fovKick() > 0.01f) cir.setReturnValue(cir.getReturnValue() + com.pglol.aotrpg.client.ShoulderCam.fovKick());
         InfusionFx.worldFov = cir.getReturnValue();
     }
 }
