@@ -1849,18 +1849,18 @@ public final class Net {
     }
 
     /** A player in the player list: character name, level, where they are, and their name colour. */
-    public record RosterEntry(java.util.UUID id, String name, int level, String where, int color) { }
+    public record ListedPlayer(java.util.UUID id, String name, int level, String where, int color) { }
 
-    public record Roster(java.util.List<RosterEntry> players) implements CustomPayload {
-        public static final Id<Roster> ID = id("roster");
-        public static final PacketCodec<RegistryByteBuf, Roster> CODEC = PacketCodec.of((v, b) -> {
+    public record PlayerListing(java.util.List<ListedPlayer> players) implements CustomPayload {
+        public static final Id<PlayerListing> ID = id("player_listing");
+        public static final PacketCodec<RegistryByteBuf, PlayerListing> CODEC = PacketCodec.of((v, b) -> {
             b.writeVarInt(v.players.size());
-            for (RosterEntry e : v.players) { b.writeUuid(e.id()); b.writeString(e.name()); b.writeVarInt(e.level()); b.writeString(e.where()); b.writeInt(e.color()); }
+            for (ListedPlayer e : v.players) { b.writeUuid(e.id()); b.writeString(e.name()); b.writeVarInt(e.level()); b.writeString(e.where()); b.writeInt(e.color()); }
         }, b -> {
             int n = Math.min(b.readVarInt(), 500);
-            java.util.List<RosterEntry> l = new java.util.ArrayList<>();
-            for (int i = 0; i < n; i++) l.add(new RosterEntry(b.readUuid(), b.readString(), b.readVarInt(), b.readString(), b.readInt()));
-            return new Roster(l);
+            java.util.List<ListedPlayer> l = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) l.add(new ListedPlayer(b.readUuid(), b.readString(), b.readVarInt(), b.readString(), b.readInt()));
+            return new PlayerListing(l);
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
@@ -2019,7 +2019,7 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(HomeAction.ID, HomeAction.CODEC);
         PayloadTypeRegistry.playS2C().register(LobbyView.ID, LobbyView.CODEC);
         PayloadTypeRegistry.playS2C().register(RunView.ID, RunView.CODEC);
-        PayloadTypeRegistry.playS2C().register(Roster.ID, Roster.CODEC);
+        PayloadTypeRegistry.playS2C().register(PlayerListing.ID, PlayerListing.CODEC);
         PayloadTypeRegistry.playS2C().register(Autopilot.ID, Autopilot.CODEC);
         PayloadTypeRegistry.playS2C().register(BenchView.ID, BenchView.CODEC);
         PayloadTypeRegistry.playC2S().register(ExtractionAction.ID, ExtractionAction.CODEC);

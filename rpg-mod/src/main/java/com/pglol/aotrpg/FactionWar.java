@@ -99,6 +99,17 @@ public final class FactionWar {
                 Cinematics.intro(there, at, subjects, "CALL TO ARMS", "Titans march on " + active.town + ". Hold the town!", 0xE04A3A);
             }
         }
+        // The attackers trail ash and embers, as if they'd marched through a burning town.
+        if (ticks % 60 == 17) {
+            for (UUID id : active.titans) {
+                Entity e = w.getEntity(id);
+                if (e == null || !e.isAlive()) continue;
+                w.spawnParticles(net.minecraft.particle.ParticleTypes.ASH, e.getX(), e.getY() + e.getHeight() * 0.6, e.getZ(), 12,
+                    e.getWidth() * 0.4, e.getHeight() * 0.3, e.getWidth() * 0.4, 0.01);
+                w.spawnParticles(net.minecraft.particle.ParticleTypes.LAVA, e.getX(), e.getY() + e.getHeight() * 0.5, e.getZ(), 2,
+                    e.getWidth() * 0.3, e.getHeight() * 0.3, e.getWidth() * 0.3, 0);
+            }
+        }
         // A titan only counts as gone once it's really dead: one out of loaded range is still out there.
         active.titans.removeIf(id -> {
             Entity e = w.getEntity(id);
@@ -152,11 +163,20 @@ public final class FactionWar {
         // Start small and build: the first wave is a handful, each one after a little bigger.
         int n = 2 + Math.min(4, near) + (4 - active.wavesLeft);
         var r = w.getRandom();
+        w.getChunk(active.x >> 4, active.z >> 4);
+        int ground = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, active.x, active.z);
+        int made = 0;
         for (int i = 0; i < n; i++) {
-            double a = r.nextDouble() * Math.PI * 2, d = 55 + r.nextDouble() * 30;
-            int x = (int) (active.x + Math.cos(a) * d), z = (int) (active.z + Math.sin(a) * d);
-            w.getChunk(x >> 4, z >> 4);
-            int y = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+            // Inside the district, in the streets: not out past its wall or up on a roof.
+            int x = active.x, z = active.z, y = ground;
+            for (int tries = 0; tries < 8; tries++) {
+                double a = r.nextDouble() * Math.PI * 2, d = 25 + r.nextDouble() * 25;
+                x = (int) (active.x + Math.cos(a) * d);
+                z = (int) (active.z + Math.sin(a) * d);
+                w.getChunk(x >> 4, z >> 4);
+                y = w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                if (Math.abs(y - ground) <= 6 && w.getFluidState(new BlockPos(x, y - 1, z)).isEmpty()) break;
+            }
             Entity t = kinds.get(r.nextInt(kinds.size())).create(w);
             if (t == null) continue;
             t.refreshPositionAndAngles(x + 0.5, y, z + 0.5, r.nextFloat() * 360, 0);
@@ -167,8 +187,12 @@ public final class FactionWar {
             }
             t.addCommandTag(TAG);
             t.addCommandTag("aot_titan");
-            if (w.spawnEntity(t)) active.titans.add(t.getUuid());
+            if (w.spawnEntity(t)) {
+                active.titans.add(t.getUuid());
+                made++;
+            }
         }
+        AotRpg.LOG.info("Call to Arms at {}: wave of {} titans ({} asked, {} kinds known)", active.town, made, n, kinds.size());
     }
 
     public static boolean eventTitan(Entity e) {

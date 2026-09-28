@@ -21,13 +21,13 @@ import java.util.UUID;
 public final class PlayerList {
     private PlayerList() {}
 
-    private static Map<UUID, Net.RosterEntry> roster = new LinkedHashMap<>();
+    private static Map<UUID, Net.ListedPlayer> roster = new LinkedHashMap<>();
     private static long openedAt;
     private static boolean wasOpen;
 
-    public static void on(Net.Roster r) {
-        Map<UUID, Net.RosterEntry> m = new LinkedHashMap<>();
-        for (Net.RosterEntry e : r.players()) m.put(e.id(), e);
+    public static void on(Net.PlayerListing r) {
+        Map<UUID, Net.ListedPlayer> m = new LinkedHashMap<>();
+        for (Net.ListedPlayer e : r.players()) m.put(e.id(), e);
         roster = m;
     }
 
@@ -64,7 +64,7 @@ public final class PlayerList {
         int total = 0;
         for (PlayerListEntry e : mc.getNetworkHandler().getListedPlayerListEntries()) {
             total++;
-            Net.RosterEntry r = roster.get(e.getProfile().getId());
+            Net.ListedPlayer r = roster.get(e.getProfile().getId());
             String where = r == null ? "Online" : r.where();
             groups.computeIfAbsent(where, k -> new ArrayList<>()).add(new Object[] {e, r});
         }
@@ -97,7 +97,7 @@ public final class PlayerList {
                     col++;
                 }
                 PlayerListEntry e = (PlayerListEntry) o[0];
-                Net.RosterEntry r = (Net.RosterEntry) o[1];
+                Net.ListedPlayer r = (Net.ListedPlayer) o[1];
                 int x = x0 + 10 + col * colW, y = y0 + 36 + row * 13;
                 boolean me = mc.player != null && e.getProfile().getId().equals(mc.player.getUuid());
                 c.fill(x, y, x + colW - 8, y + 12, me ? 0x50E0B96A : 0x30000000);

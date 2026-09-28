@@ -13,15 +13,15 @@ public final class PlayerRoster {
     private PlayerRoster() {}
 
     public static void broadcast(MinecraftServer server) {
-        List<Net.RosterEntry> list = new ArrayList<>();
+        List<Net.ListedPlayer> list = new ArrayList<>();
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             Profile pr = AotRpg.PROFILES.get(p.getUuid());
             String name = pr.created && !pr.name.isEmpty() ? pr.name : p.getName().getString();
-            list.add(new Net.RosterEntry(p.getUuid(), name, pr.created ? pr.level : 0, where(p), pr.roleColor != 0 ? pr.roleColor : 0xEDE3C8));
+            list.add(new Net.ListedPlayer(p.getUuid(), name, pr.created ? pr.level : 0, where(p), pr.roleColor != 0 ? pr.roleColor : 0xEDE3C8));
         }
-        Net.Roster msg = new Net.Roster(list);
+        Net.PlayerListing msg = new Net.PlayerListing(list);
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
-            if (ServerPlayNetworking.canSend(p, Net.Roster.ID)) ServerPlayNetworking.send(p, msg);
+            if (ServerPlayNetworking.canSend(p, Net.PlayerListing.ID)) ServerPlayNetworking.send(p, msg);
         }
     }
 
