@@ -203,9 +203,9 @@ public final class BagScreen extends Screen {
                 drop.accent = Ui.RED;
             }
             if (Gear.isGear(s)) {
-                // Two clicks: the first asks, the second breaks it down.
+                // Two clicks: the first asks, the second breaks it down. (Beside Drop, clear of the price field.)
                 boolean sure = scrapAsk == slot;
-                AotButton sc = addDrawableChild(new AotButton(bx, by - 22, 92, 18, Text.literal(sure ? "Disassemble?" : "Disassemble"), () -> {
+                AotButton sc = addDrawableChild(new AotButton(bx + 48, by, 92, 18, Text.literal(sure ? "Disassemble?" : "Disassemble"), () -> {
                     if (scrapAsk == slot) {
                         scrapAsk = -1;
                         act("scrap", slot, 0);

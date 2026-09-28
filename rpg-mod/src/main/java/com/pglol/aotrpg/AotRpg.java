@@ -648,6 +648,7 @@ public final class AotRpg implements ModInitializer {
         });
 
         ServerTickEvents.END_SERVER_TICK.register(this::tick);
+        Infusions.register();
 
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) ->
             !CREATION.chat(sender, message.getContent().getString()));
@@ -685,6 +686,7 @@ public final class AotRpg implements ModInitializer {
         CAVES.tick(server.getOverworld());
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
             CREATION.tick(p);
+            Infusions.trail(p, (int) ticks);
             STAMINA.tick(p, PROFILES.get(p.getUuid()), ticks);
             STORY.tick(p, PROFILES.get(p.getUuid()), ticks);
             QUESTS.tick(p, PROFILES.get(p.getUuid()), ticks);

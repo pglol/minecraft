@@ -10,6 +10,8 @@ import net.minecraft.util.Util;
  * Danny's blades and APG guns reskinned by rarity: the whole item is washed in its rarity's
  * colour as it's drawn (in hand, in any inventory, on your back, on the ground), a touch for
  * Rare, stronger through Epic and Legendary, and for Mythic a deep blood red that pulses.
+ * Infused blades wear their element instead, far stronger: ice blue, molten orange, a near-black
+ * void, and so on, with light rippling along the steel (the higher the rarity, the livelier).
  */
 public final class RarityTint {
     private RarityTint() {}
@@ -22,17 +24,41 @@ public final class RarityTint {
         if (base == null || s == null || s.isEmpty() || !com.pglol.aotrpg.Gear.aotWeapon(s)) return base;
         int r = GearUi.rarity(s);
         if (r < 2 || r >= TINT.length) return base;
+        com.pglol.aotrpg.Infusions.Infusion inf = com.pglol.aotrpg.Infusions.of(s);
+        if (inf != null) {
+            float k = r >= 5 ? 0.82f : r == 4 ? 0.7f : 0.58f;
+            float ripple = r >= 5 ? 0.18f : r == 4 ? 0.12f : 0.07f;
+            float t = (Util.getMeasuringTimeMs() % 100000L) / (r >= 5 ? 180f : 320f);
+            boolean dark = inf == com.pglol.aotrpg.Infusions.Infusion.VOID;
+            return layer -> new Tinted(base.getBuffer(layer), inf.color, k, ripple, t, dark);
+        }
         float k = STRENGTH[r];
         if (r == 5) k += 0.12f * (float) Math.sin(Util.getMeasuringTimeMs() / 260.0);
         final float kk = k;
         final int tint = TINT[r];
-        return layer -> new Tinted(base.getBuffer(layer), tint, kk);
+        return layer -> new Tinted(base.getBuffer(layer), tint, kk, 0, 0, false);
     }
 
     /** Passes everything through, pulling each vertex colour toward the tint (keeping its shading). */
-    private record Tinted(VertexConsumer inner, int tint, float k) implements VertexConsumer {
+    private static final class Tinted implements VertexConsumer {
+        private final VertexConsumer inner;
+        private final int tint;
+        private final float k, ripple, t;
+        private final boolean dark;
+        private float at;
+
+        Tinted(VertexConsumer inner, int tint, float k, float ripple, float t, boolean dark) {
+            this.inner = inner;
+            this.tint = tint;
+            this.k = k;
+            this.ripple = ripple;
+            this.t = t;
+            this.dark = dark;
+        }
+
         @Override
         public VertexConsumer vertex(float x, float y, float z) {
+            at = x * 3.1f + y * 4.7f + z * 2.3f;
             inner.vertex(x, y, z);
             return this;
         }
@@ -41,9 +67,15 @@ public final class RarityTint {
         public VertexConsumer color(int red, int green, int blue, int alpha) {
             float luma = (red * 0.3f + green * 0.59f + blue * 0.11f) / 255f;
             int tr = (tint >> 16) & 255, tg = (tint >> 8) & 255, tb = tint & 255;
-            int r = Math.round(red * (1 - k) + tr * luma * 1.35f * k);
-            int g = Math.round(green * (1 - k) + tg * luma * 1.35f * k);
-            int b = Math.round(blue * (1 - k) + tb * luma * 1.35f * k);
+            // Light running along the steel.
+            float wave = ripple == 0 ? 0 : (float) Math.sin(t + at);
+            float kk = Math.max(0, Math.min(1, k + ripple * wave));
+            float bright = dark ? 0.55f + 0.5f * Math.max(0, wave) * (ripple * 4) : 1.35f + ripple * 2 * Math.max(0, wave);
+            // The void swallows the steel's own colour: near-black with violet running through it.
+            float keep = dark ? (1 - kk) * 0.35f : 1 - kk;
+            int r = Math.round(red * keep + tr * luma * bright * kk);
+            int g = Math.round(green * keep + tg * luma * bright * kk);
+            int b = Math.round(blue * keep + tb * luma * bright * kk);
             inner.color(Math.min(255, r), Math.min(255, g), Math.min(255, b), alpha);
             return this;
         }

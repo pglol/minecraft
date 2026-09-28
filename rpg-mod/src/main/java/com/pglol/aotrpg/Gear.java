@@ -96,12 +96,12 @@ public final class Gear {
         Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS,
         Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS};
     private static final String[][] PREFIX = {
-        {"Worn", "Plain", "Soldier's"},
-        {"Sturdy", "Honed", "Garrison"},
-        {"Survey", "Veteran's", "Tempered"},
-        {"Commander's", "Ackerman", "Wall-forged"},
-        {"Coordinate", "Founder's", "Paths-touched"},
-        {"Ymir's", "Crimson", "Rumbling"}};
+        {"Worn", "Chipped", "Recruit's", "Trainee's", "Dented"},
+        {"Sturdy", "Honed", "Garrison", "Cadet's", "Stohess"},
+        {"Survey Corps", "Veteran's", "Tempered", "Scout's", "Trost-tested"},
+        {"Commander's", "Ackerman", "Wall-forged", "Levi's Spare", "Titan-scarred"},
+        {"Coordinate", "Founder's", "Paths-touched", "Warhammer", "Kingslayer"},
+        {"Ymir's", "Rumbling", "Eldian Oath", "Freedom's", "Attack Titan's"}};
 
     public static boolean isGear(ItemStack s) {
         NbtComponent c = s.get(DataComponentTypes.CUSTOM_DATA);
@@ -149,7 +149,9 @@ public final class Gear {
         for (Item it : net.minecraft.registry.Registries.ITEM) {
             Identifier id = net.minecraft.registry.Registries.ITEM.getId(it);
             if (!id.getNamespace().equals("dannys-aot") || id.getPath().equals("odm_gear") || id.getPath().contains("spawn_egg")) continue;
-            // Real clothing only: keys, tokens and other wearable trinkets are not armor.
+            // Real clothing only: keys, tokens and other wearable trinkets are not armor, even when
+            // Danny's mod lets them sit in an armor slot.
+            if (trinket(id.getPath())) continue;
             if (!(it instanceof net.minecraft.item.ArmorItem) && !clothingName(id.getPath())) continue;
             // Titan and shifter parts are "worn" by the transformation, not clothes anyone puts on.
             if (bodyPart(id.getPath())) continue;
@@ -167,8 +169,16 @@ public final class Gear {
         return false;
     }
 
+    /** Keys, tokens, badges, notes: things you carry or hang on a slot, never gear. */
+    static boolean trinket(String path) {
+        for (String w : new String[] {"key", "token", "badge", "note", "basement", "letter", "map", "coin", "medal", "ticket"}) {
+            if (path.contains(w)) return true;
+        }
+        return false;
+    }
+
     private static boolean clothingName(String path) {
-        if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note")) return false;
+        if (trinket(path)) return false;
         for (String w : new String[] {"uniform", "coat", "cloak", "cape", "jacket", "shirt", "pants", "trousers", "boots", "shoes",
             "hat", "helmet", "cap", "hood", "vest", "armor", "armour", "belt", "harness", "gloves", "scarf", "dress", "robe", "suit"}) {
             if (path.contains(w)) return true;
@@ -257,11 +267,15 @@ public final class Gear {
         g.putInt("up", 0);
         g.putLong("seed", r.nextLong());
         rollPerk(r, s, rarity, g);
+        Infusions.roll(r, s, rarity, g);
         NbtCompound tag = new NbtCompound();
         tag.put("aot_gear", g);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
         String[] names = PREFIX[rarity.ordinal()];
-        s.set(DataComponentTypes.CUSTOM_NAME, Text.literal(names[r.nextInt(names.length)] + " " + s.getItem().getName().getString())
+        String inf = g.getString("infusion");
+        String item = s.getItem().getName().getString();
+        String title = inf.isEmpty() ? names[r.nextInt(names.length)] + " " + item : Infusions.name(r, Infusions.Infusion.valueOf(inf), rarity, item);
+        s.set(DataComponentTypes.CUSTOM_NAME, Text.literal(title)
             .formatted(rarity.color).styled(st -> st.withItalic(false)));
         apply(s);
         return s;
@@ -269,6 +283,8 @@ public final class Gear {
 
     /** A new piece on a given base item (the forge). */
     public static ItemStack rollAs(Random r, Rarity rarity, int ilvl, Item base) {
+        String path = net.minecraft.registry.Registries.ITEM.getId(base).getPath();
+        if (trinket(path) || bodyPart(path)) return rollArmor(r, rarity, ilvl);
         return finish(r, new ItemStack(base), rarity, ilvl);
     }
 
@@ -284,11 +300,15 @@ public final class Gear {
         g.putInt("up", 0);
         g.putLong("seed", r.nextLong());
         rollPerk(r, s, rarity, g);
+        Infusions.roll(r, s, rarity, g);
         NbtCompound tag = new NbtCompound();
         tag.put("aot_gear", g);
         s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
         String[] names = PREFIX[rarity.ordinal()];
-        s.set(DataComponentTypes.CUSTOM_NAME, Text.literal(names[r.nextInt(names.length)] + " " + s.getItem().getName().getString())
+        String inf = g.getString("infusion");
+        String item = s.getItem().getName().getString();
+        String title = inf.isEmpty() ? names[r.nextInt(names.length)] + " " + item : Infusions.name(r, Infusions.Infusion.valueOf(inf), rarity, item);
+        s.set(DataComponentTypes.CUSTOM_NAME, Text.literal(title)
             .formatted(rarity.color).styled(st -> st.withItalic(false)));
         apply(s);
         return s;
@@ -366,6 +386,16 @@ public final class Gear {
             lore.add(Text.literal("✦ Twin Cut").formatted(Formatting.GOLD, Formatting.BOLD).styled(st -> st.withItalic(false)));
             lore.add(Text.literal("  Nape strikes count double").formatted(Formatting.YELLOW).styled(st -> st.withItalic(false)));
         }
+        Infusions.Infusion infusion = null;
+        try {
+            if (!g.getString("infusion").isEmpty()) infusion = Infusions.Infusion.valueOf(g.getString("infusion"));
+        } catch (Exception ignored) { }
+        if (infusion != null) {
+            Infusions.Infusion fi = infusion;
+            lore.add(Text.literal("\u2726 " + fi.title).formatted(fi.format, Formatting.BOLD).styled(st -> st.withItalic(false)));
+            lore.add(Text.literal("  " + fi.effect).formatted(fi.format).styled(st -> st.withItalic(false)));
+        }
+        if (weapon && rarity.ordinal() >= Rarity.EPIC.ordinal()) s.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
         // Boots break a fall like the ODM boots do (70%), whatever they are.
         if (worn == net.minecraft.entity.EquipmentSlot.FEET && !net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath().contains("odm")) {
             b.add(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, new EntityAttributeModifier(Identifier.of("aot_rpg", "gear_fall"), -0.7,
@@ -429,11 +459,11 @@ public final class Gear {
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         if (!pr.created || p.isCreative()) return;
         // Anything that isn't a weapon or wearable loses gear stats it picked up by mistake; a titan
-        // part that was handed out as gear becomes a real piece of clothing of the same rarity and level.
+        // part or a key that was handed out as gear becomes a real piece of clothing of the same rarity and level.
         for (int a : AotRpg.SATCHEL.addresses(p)) {
             ItemStack s = AotRpg.SATCHEL.at(p, a);
             if (missingFall(s)) apply(s);
-            if (isGear(s) && bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath())) {
+            if (isGear(s) && (bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath()) || trinket(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath()))) {
                 Rarity rar;
                 try {
                     rar = Rarity.valueOf(data(s).getString("rarity"));
@@ -449,14 +479,14 @@ public final class Gear {
             }
             if (isGear(s) && !real(s) && !aotWeapon(s) && wornSlot(s) == null) {
                 String path = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath();
-                if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note")) strip(s);
+                if (trinket(path)) strip(s);
             }
         }
         for (net.minecraft.entity.EquipmentSlot slot : new net.minecraft.entity.EquipmentSlot[] {net.minecraft.entity.EquipmentSlot.HEAD,
             net.minecraft.entity.EquipmentSlot.CHEST, net.minecraft.entity.EquipmentSlot.LEGS, net.minecraft.entity.EquipmentSlot.FEET}) {
             ItemStack s = p.getEquippedStack(slot);
             if (missingFall(s)) apply(s);
-            if (isGear(s) && bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath())) {
+            if (isGear(s) && (bodyPart(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath()) || trinket(net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath()))) {
                 // A titan part worn as gear: off, and a real piece in its place.
                 Rarity rar;
                 try {
@@ -540,7 +570,7 @@ public final class Gear {
     public static boolean real(ItemStack s) {
         if (!isGear(s)) return false;
         String path = net.minecraft.registry.Registries.ITEM.getId(s.getItem()).getPath();
-        if (path.contains("key") || path.contains("token") || path.contains("badge") || path.contains("note") || bodyPart(path)) return false;
+        if (trinket(path) || bodyPart(path)) return false;
         return wornSlot(s) != null || aotWeapon(s) || s.getItem() instanceof net.minecraft.item.SwordItem
             || s.getItem() instanceof net.minecraft.item.AxeItem || s.getItem() instanceof net.minecraft.item.RangedWeaponItem;
     }
