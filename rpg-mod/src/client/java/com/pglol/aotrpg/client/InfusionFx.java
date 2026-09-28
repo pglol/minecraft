@@ -37,6 +37,13 @@ public final class InfusionFx {
             if (own && mc.currentScreen != null) continue;
             blade(mc, p, p.getMainHandStack(), p.getMainArm() == Arm.RIGHT, own, t);
             blade(mc, p, p.getOffHandStack(), p.getMainArm() != Arm.RIGHT, own, t);
+            // Sheathed on the back: the element still shows, more quietly (not from your own eyes).
+            com.pglol.aotrpg.Net.SheathState st = ClientState.sheaths.get(p.getUuid());
+            if (st != null && !own && !(p == mc.player && mc.options.getPerspective().isFirstPerson()) && !p.hasVehicle()) {
+                boolean two = !st.a().isEmpty() && !st.b().isEmpty();
+                if (!st.a().isEmpty()) sheathed(mc, p, st.a(), two ? 135 : 200, 0, t);
+                if (!st.b().isEmpty()) sheathed(mc, p, st.b(), two ? 225 : 200, 1, t);
+            }
         }
     }
 
@@ -56,6 +63,23 @@ public final class InfusionFx {
             double j = own ? 0.01 : 0.02;
             spawn(mc, inf, mythic, at.add(R.nextGaussian() * j, R.nextGaussian() * j, R.nextGaussian() * j));
         }
+    }
+
+    /** Along a grip sheathed on the back, using the same frame SheathRender draws it in. */
+    private static void sheathed(MinecraftClient mc, AbstractClientPlayerEntity p, ItemStack s, float angle, int i, long t) {
+        Infusion inf = Infusions.of(s);
+        if (inf == null || t % 3 != 0) return;
+        boolean mythic = "MYTHIC".equals(Gear.data(s).getString("rarity"));
+        boolean crouch = p.isInSneakingPose();
+        double armored = p.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST).isEmpty() ? 0.19 : 0.24;
+        // Along the grip's own length (it runs through the crossing point), mostly the blade half.
+        double f = -0.35 + R.nextDouble() * 0.9;
+        double a = Math.toRadians(angle);
+        double lx = -Math.sin(a) * f, ly = 1.15 + Math.cos(a) * f - (crouch ? 0.18 : 0), lz = armored + 0.012 * i + 0.03;
+        double th = Math.toRadians(180 - p.bodyYaw);
+        double wx = lx * Math.cos(th) + lz * Math.sin(th), wz = -lx * Math.sin(th) + lz * Math.cos(th);
+        Vec3d at = p.getPos().add(wx, ly, wz);
+        spawn(mc, inf, mythic && R.nextInt(2) == 0, at);
     }
 
     /** Where your own blade shows on screen in first person, as a line in the world just in front of you. */

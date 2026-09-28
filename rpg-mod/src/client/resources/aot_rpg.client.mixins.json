@@ -30,7 +30,9 @@
     "PlayerListMixin",
     "BalloonUseMixin",
     "CloakArmorMixin",
-    "GameRendererFovMixin"
+    "GameRendererFovMixin",
+    "FallShakeMixin",
+    "PotionSwirlMixin"
   ],
   "injectors": {
     "defaultRequire": 0
