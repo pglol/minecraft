@@ -20,7 +20,8 @@ public abstract class MobTargetMixin {
     private void aotrpg$target(LivingEntity target, CallbackInfo ci) {
         if (target == null) return;
         MobEntity self = (MobEntity) (Object) this;
-        if (target instanceof MerchantEntity && AotRpg.isTitan(self)) ci.cancel();
+        // (Marleyan troops are fair game: titans hunt them like anyone.)
+        if (target instanceof MerchantEntity && AotRpg.isTitan(self) && !com.pglol.aotrpg.Troops.is(target)) ci.cancel();
         else if (target instanceof ServerPlayerEntity p && AotRpg.DOWNED != null && AotRpg.DOWNED.isDowned(p)) ci.cancel();
     }
 }

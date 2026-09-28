@@ -152,8 +152,19 @@ public final class LootBox {
             found.computeIfAbsent(key(p, o.pos()), k -> new HashSet<>()).add((int) sr[0]);
             if (!s.isEmpty()) {
                 int r = Gear.isGear(s) ? Gear.rarityOf(s) : 0;
-                if (r >= 4) p.playSoundToPlayer(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1f, r >= 5 ? 0.7f : 1f);
-                else p.playSoundToPlayer(SoundEvents.ITEM_BUNDLE_REMOVE_ONE, SoundCategory.PLAYERS, 0.5f, 1.2f + 0.1f * r);
+                if (r >= 4) {
+                    // A jackpot: it lands like one.
+                    p.playSoundToPlayer(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1f, r >= 5 ? 0.7f : 1f);
+                    p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, r >= 5 ? 0.9f : 0.5f, r >= 5 ? 0.8f : 1.2f);
+                    if (r >= 5) p.playSoundToPlayer(SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.PLAYERS, 0.35f, 1.6f);
+                    Notify.toast(p, Text.literal(r >= 5 ? "MYTHIC FIND" : "LEGENDARY FIND").formatted(r >= 5 ? Formatting.RED : Formatting.GOLD, Formatting.BOLD),
+                        s.getName().copy(), r >= 5 ? 0xFF2A2A : 0xFFB020, net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString(), null);
+                    var at = o.pos().toCenterPos();
+                    o.world().spawnParticles(p, r >= 5 ? net.minecraft.particle.ParticleTypes.TOTEM_OF_UNDYING : net.minecraft.particle.ParticleTypes.WAX_OFF,
+                        true, at.x, at.y + 0.8, at.z, 40, 0.4, 0.4, 0.4, 0.3);
+                } else {
+                    p.playSoundToPlayer(SoundEvents.ITEM_BUNDLE_REMOVE_ONE, SoundCategory.PLAYERS, 0.5f, 1.2f + 0.1f * r);
+                }
             }
             next(p, o);
             send(p, o, false);

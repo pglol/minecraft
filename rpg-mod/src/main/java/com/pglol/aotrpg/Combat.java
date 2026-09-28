@@ -67,7 +67,7 @@ public final class Combat {
                 AotRpg.ABILITIES.onKill(killer, entity);
                 AotRpg.CLASSES.onKill(killer, entity);
                 // The killer's kill effect, for a titan or a player (everyone nearby sees it).
-                if ((AotRpg.isTitan(entity) || entity instanceof PlayerEntity) && entity != killer) {
+                if ((AotRpg.isTitan(entity) || entity instanceof PlayerEntity || Troops.is(entity)) && entity != killer) {
                     net.minecraft.util.math.Vec3d c = entity.getBoundingBox().getCenter();
                     Net.SlashFx fx = new Net.SlashFx(AotRpg.COSMETICS.selected(killer, "kill"), c.x, c.y, c.z, (float) entity.getHeight());
                     for (ServerPlayerEntity o : net.fabricmc.fabric.api.networking.v1.PlayerLookup.around(killer.getServerWorld(), c, 96)) {
@@ -83,7 +83,7 @@ public final class Combat {
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
             if (!(source.getAttacker() instanceof ServerPlayerEntity attacker) || attacker == entity || taken <= 0) return;
             if (AotRpg.isTitan(entity)) AotRpg.LOOT.hit(attacker, entity);
-            if (!(entity instanceof PlayerEntity) && !AotRpg.isTitan(entity) && !(entity instanceof net.minecraft.entity.mob.HostileEntity)) return;
+            if (!(entity instanceof PlayerEntity) && !AotRpg.isTitan(entity) && !(entity instanceof net.minecraft.entity.mob.HostileEntity) && !Troops.is(entity)) return;
             boolean ranged = !melee(source);
             if (!ServerPlayNetworking.canSend(attacker, Net.HitMarker.ID)) return;
             boolean kill = entity.isDead() || entity.getHealth() <= 0;

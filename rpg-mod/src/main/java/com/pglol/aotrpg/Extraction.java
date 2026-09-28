@@ -167,6 +167,11 @@ public final class Extraction {
         int shard;
         BlockPos centre;
         final String id = Long.toString(System.nanoTime() ^ (long) (Math.random() * Long.MAX_VALUE), 36);
+        /** The match's events: when the next comes, and a supply drop on its way down (or landed). */
+        long nextEventAt;
+        UUID dropEntity;
+        BlockPos dropAt;
+        boolean dropOpened;
         final List<BlockPos> exits = new ArrayList<>();
         final List<BlockPos> barrels = new ArrayList<>();
         final List<Poi> pois = new ArrayList<>();
@@ -1171,6 +1176,17 @@ public final class Extraction {
                 ses.pois.add(poi);
             }
             RunObjectives.create(this, iw, ses, c, rnd);
+            // Marleyans are already out here: a patrol or two, and one sitting on a hot zone.
+            for (int i = 0; i < 2; i++) {
+                double a = rnd.nextDouble() * Math.PI * 2, d = 120 + rnd.nextInt(200);
+                BlockPos at = land(iw, c.getX() + (int) (Math.cos(a) * d), c.getZ() + (int) (Math.sin(a) * d), rnd, 30);
+                if (at != null) Troops.squad(iw, at, 3 + rnd.nextInt(2), island.level(), ses.id, c, ISLAND, rnd);
+            }
+            if (!ses.pois.isEmpty()) {
+                Poi guard = ses.pois.get(rnd.nextInt(ses.pois.size()));
+                Troops.squad(iw, guard.at, 3, island.level(), ses.id, guard.at, 40, rnd);
+            }
+            ses.nextEventAt = System.currentTimeMillis() + (150 + rnd.nextInt(90)) * 1000L;
         }
         run.session = ses;
         run.exits = ses.exits;
@@ -1253,6 +1269,20 @@ public final class Extraction {
     /** A titan fell to someone out on a run. */
     public void onTitanKill(ServerPlayerEntity killer, Entity dead) {
         for (Session ses : sessions) RunObjectives.titanDied(this, ses, dead);
+        if (dead.getCommandTags().contains(ABNORMAL) && dead.getWorld() instanceof ServerWorld w) {
+            // The abnormal's hoard: gear bursting out where it fell.
+            Island i = Island.of(w);
+            int lvl = i == null ? 20 : i.level() + 4;
+            for (int k = 0; k < 3; k++) {
+                ItemStack g = Gear.roll(w.random, Gear.rollRarity(w.random, 4), lvl);
+                if (g.isEmpty()) continue;
+                net.minecraft.entity.ItemEntity ie = new net.minecraft.entity.ItemEntity(w, dead.getX(), dead.getY() + 2, dead.getZ(), g,
+                    (w.random.nextDouble() - 0.5) * 0.6, 0.6, (w.random.nextDouble() - 0.5) * 0.6);
+                w.spawnEntity(ie);
+            }
+            w.spawnParticles(ParticleTypes.TOTEM_OF_UNDYING, dead.getX(), dead.getY() + 3, dead.getZ(), 120, 2, 3, 2, 0.6);
+            if (killer != null) Reveal.show(killer, "ABNORMAL SLAIN", "Its hoard spills out", "minecraft:nether_star", 5);
+        }
         Run r = killer == null ? null : runOf(killer.getUuid());
         if (r != null) bump(r, killer.getUuid(), "titans", 1);
     }
@@ -1308,7 +1338,15 @@ public final class Extraction {
                     }
                 }
                 RunObjectives.tick(this, sw, ses, divers, ticks);
+                if (ticks % 20 == 0) events(sw, ses, divers);
+                if (ses.dropEntity != null || ses.dropAt != null) supplyTick(sw, ses, ticks);
             }
+        }
+        for (Island island : Island.values()) {
+            ServerWorld iw = server.getWorld(island.world);
+            if (iw == null) continue;
+            Troops.tick(iw, ticks);
+            if (ticks % 20 == 3) Troops.titans(iw);
         }
         lobbyTick(ticks);
         if (ticks % 40 == 17 && lobbyWorld != Homes.WORLD) {
@@ -1365,6 +1403,151 @@ public final class Extraction {
                 if (t >= EXTRACT_TICKS) extracted(r, p);
             }
             if (r.members.isEmpty()) end(r);
+        }
+    }
+
+    // ------------------------------------------------------------------ match events
+
+    static final String ABNORMAL = "aot_abnormal";
+
+    /** Tells everyone in a match something big is happening, with which way and how far. */
+    private static void announce(List<ServerPlayerEntity> divers, String title, BlockPos at, int color, String icon,
+                                 net.minecraft.sound.SoundEvent sound, float pitch) {
+        for (ServerPlayerEntity p : divers) {
+            double dx = at.getX() - p.getX(), dz = at.getZ() - p.getZ();
+            String[] dirs = {"S", "SW", "W", "NW", "N", "NE", "E", "SE"};
+            String dir = dirs[Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(-dx, dz)) / 45.0), 8)];
+            Notify.toast(p, Text.literal(title).formatted(Formatting.BOLD), Text.literal(dir + "  ·  " + (int) Math.sqrt(dx * dx + dz * dz) + "m"),
+                color, icon, null);
+            p.playSoundToPlayer(sound, SoundCategory.MASTER, 1f, pitch);
+        }
+    }
+
+    /** Every few minutes something happens in a match: a supply drop, a Marleyan landing, an abnormal. */
+    private void events(ServerWorld w, Session ses, List<ServerPlayerEntity> divers) {
+        long now = System.currentTimeMillis();
+        if (divers.isEmpty() || ses.nextEventAt == 0 || now < ses.nextEventAt) return;
+        Random r = w.random;
+        ses.nextEventAt = now + (160 + r.nextInt(120)) * 1000L;
+        BlockPos c = ses.centre;
+        int roll = r.nextInt(10);
+        if (roll < 4 && ses.dropEntity == null && (ses.dropAt == null || ses.dropOpened)) {
+            // A supply drop: a crate coming down slow under a red smoke trail, full of the good stuff.
+            double a = r.nextDouble() * Math.PI * 2, d = 60 + r.nextInt(200);
+            BlockPos ground = land(w, c.getX() + (int) (Math.cos(a) * d), c.getZ() + (int) (Math.sin(a) * d), r, 30);
+            if (ground == null) return;
+            BlockPos sky = ground.up(70);
+            w.setBlockState(sky, Blocks.BARREL.getDefaultState().with(net.minecraft.block.BarrelBlock.FACING, Direction.UP), Block.NOTIFY_LISTENERS);
+            var fb = net.minecraft.entity.FallingBlockEntity.spawnFromBlock(w, sky, w.getBlockState(sky));
+            fb.dropItem = false;
+            fb.setNoGravity(true);
+            ses.dropEntity = fb.getUuid();
+            ses.dropAt = ground;
+            ses.dropOpened = false;
+            Troops.lure(ses.id, ground);
+            announce(divers, "SUPPLY DROP", ground, 0xE0463A, "minecraft:barrel", SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.6f);
+            for (ServerPlayerEntity p : divers) p.playSoundToPlayer(SoundEvents.BLOCK_BELL_USE, SoundCategory.MASTER, 0.8f, 0.7f);
+        } else if (roll < 7) {
+            // A Marleyan landing: a squad put down near someone, horn blaring.
+            ServerPlayerEntity p = divers.get(r.nextInt(divers.size()));
+            double a = r.nextDouble() * Math.PI * 2, d = 55 + r.nextInt(40);
+            BlockPos at = land(w, (int) (p.getX() + Math.cos(a) * d), (int) (p.getZ() + Math.sin(a) * d), r, 15);
+            if (at == null || Troops.count(ses.id) > 14) return;
+            Troops.squad(w, at, 4 + r.nextInt(2), ses.island.level() + 2, ses.id, c, ISLAND, r);
+            announce(divers, "MARLEYAN LANDING", at, 0xC0463A, "minecraft:crossbow", SoundEvents.EVENT_RAID_HORN.value(), 1f);
+        } else {
+            // An abnormal: one titan bigger, faster and meaner than the rest, carrying a hoard.
+            List<EntityType<?>> kinds = TitanTypes.ordinary();
+            if (kinds.isEmpty()) return;
+            ServerPlayerEntity p = divers.get(r.nextInt(divers.size()));
+            double a = r.nextDouble() * Math.PI * 2, d = 80 + r.nextInt(40);
+            BlockPos at = land(w, (int) (p.getX() + Math.cos(a) * d), (int) (p.getZ() + Math.sin(a) * d), r, 15);
+            if (at == null) return;
+            Entity t = kinds.get(r.nextInt(kinds.size())).create(w);
+            if (!(t instanceof net.minecraft.entity.mob.MobEntity mob)) return;
+            t.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, r.nextFloat() * 360, 0);
+            mob.initialize(w, w.getLocalDifficulty(at), net.minecraft.entity.SpawnReason.EVENT, null);
+            mob.setPersistent();
+            var scale = mob.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            if (scale != null) scale.setBaseValue(1.45);
+            var hp = mob.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MAX_HEALTH);
+            if (hp != null) hp.setBaseValue(hp.getBaseValue() * 2.2);
+            var sp = mob.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MOVEMENT_SPEED);
+            if (sp != null) sp.setBaseValue(sp.getBaseValue() * 1.35);
+            mob.setHealth(mob.getMaxHealth());
+            t.addCommandTag(TITAN);
+            t.addCommandTag("aot_titan");
+            t.addCommandTag(ABNORMAL);
+            t.setCustomName(Text.literal("Abnormal").formatted(Formatting.DARK_RED, Formatting.BOLD));
+            w.spawnEntity(t);
+            announce(divers, "ABNORMAL SIGHTED", at, 0x9A1A1A, "minecraft:wither_skeleton_skull", SoundEvents.ENTITY_RAVAGER_ROAR, 0.5f);
+        }
+    }
+
+    /** The supply drop coming down (slowly, trailing smoke), landing, and its beacon until someone opens it. */
+    private void supplyTick(ServerWorld w, Session ses, int ticks) {
+        if (ses.dropEntity != null) {
+            Entity e = w.getEntity(ses.dropEntity);
+            if (e instanceof net.minecraft.entity.FallingBlockEntity fb && fb.isAlive()) {
+                fb.setVelocity(0, -0.28, 0);
+                fb.velocityModified = true;
+                if (ticks % 2 == 0) w.spawnParticles(new net.minecraft.particle.DustParticleEffect(new org.joml.Vector3f(0.9f, 0.15f, 0.1f), 2.5f),
+                    fb.getX(), fb.getY() + 1.2, fb.getZ(), 3, 0.3, 0.3, 0.3, 0);
+                if (fb.getY() <= ses.dropAt.getY() + 0.6) {
+                    fb.discard();
+                    land(w, ses);
+                }
+                return;
+            }
+            if (ticks % 20 == 0) {
+                // Lost track of it (a chunk unloaded under it): it lands now.
+                if (e != null) e.discard();
+                land(w, ses);
+            }
+            return;
+        }
+        if (ses.dropAt == null || ses.dropOpened) return;
+        // A red smoke column over it, seen from anywhere on the island, until someone opens it.
+        if (ticks % 4 == 0) {
+            for (int k = 0; k < 3; k++) w.spawnParticles(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, ses.dropAt.getX() + 0.5, ses.dropAt.getY() + 1.2, ses.dropAt.getZ() + 0.5,
+                1, 0.1, 0.1, 0.1, 0.02);
+            w.spawnParticles(new net.minecraft.particle.DustParticleEffect(new org.joml.Vector3f(0.95f, 0.2f, 0.15f), 2f),
+                ses.dropAt.getX() + 0.5, ses.dropAt.getY() + 2 + w.random.nextDouble() * 6, ses.dropAt.getZ() + 0.5, 2, 0.15, 0.6, 0.15, 0);
+        }
+        if (!(w.getBlockEntity(ses.dropAt) instanceof BarrelBlockEntity b) || b.isEmpty()) {
+            ses.dropOpened = true;
+            Troops.lure(ses.id, null);
+        }
+    }
+
+    /** The drop hits the ground: a thump, dust, and a crate of the good stuff. */
+    private void land(ServerWorld w, Session ses) {
+        ses.dropEntity = null;
+        BlockPos at = ses.dropAt;
+        w.setBlockState(at, Blocks.BARREL.getDefaultState().with(net.minecraft.block.BarrelBlock.FACING, Direction.UP));
+        if (w.getBlockEntity(at) instanceof BarrelBlockEntity b) {
+            b.clear();
+            int lvl = ses.island.level() + 4;
+            for (int k = 0; k < 3; k++) {
+                ItemStack g = Gear.roll(w.random, Gear.rollRarity(w.random, 3), lvl);
+                if (!g.isEmpty()) b.setStack(k * 3, g);
+            }
+            net.minecraft.item.Item gas = AotItems.exact("gas_canister"), spears = AotItems.exact("thunder_spear");
+            if (gas != null) b.setStack(12, new ItemStack(gas, 2));
+            if (spears != null && w.random.nextBoolean()) b.setStack(14, new ItemStack(spears, 1 + w.random.nextInt(2)));
+            if (Refueler.ITEM != null && w.random.nextFloat() < 0.4f) b.setStack(16, new ItemStack(Refueler.ITEM));
+        }
+        ses.barrels.add(at);
+        track(ses.island, at);
+        w.playSound(null, at, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.BLOCKS, 1.2f, 1.4f);
+        w.playSound(null, at, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 1.4f, 0.6f);
+        w.spawnParticles(ParticleTypes.EXPLOSION, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, 3, 1, 0.2, 1, 0);
+        w.spawnParticles(ParticleTypes.CLOUD, at.getX() + 0.5, at.getY() + 0.2, at.getZ() + 0.5, 40, 2, 0.1, 2, 0.08);
+        // A recovery team is on its way for it.
+        if (w.random.nextFloat() < 0.7f && Troops.count(ses.id) < 14) {
+            double a = w.random.nextDouble() * Math.PI * 2;
+            BlockPos t = land(w, at.getX() + (int) (Math.cos(a) * 45), at.getZ() + (int) (Math.sin(a) * 45), w.random, 10);
+            if (t != null) Troops.squad(w, t, 3, ses.island.level() + 2, ses.id, at, 30, w.random);
         }
     }
 
@@ -1532,6 +1715,7 @@ public final class Extraction {
         if (e.getWorld().isClient || Island.of(e.getWorld()) == null) return false;
         // Things lying on an island belong to the match they were dropped in; any other match's
         // (one long over, loaded back from disk) are cleared away.
+        if (Troops.is(e)) return !Troops.known(e);
         if (e instanceof net.minecraft.entity.ItemEntity && self != null) {
             String mine = null;
             for (String t : e.getCommandTags()) if (t.startsWith("aot_ses:")) mine = t.substring(8);
@@ -1633,6 +1817,7 @@ public final class Extraction {
         sessions.remove(r.session);
         ServerWorld w = server.getWorld(r.island.world);
         if (w != null) RunObjectives.clear(w, r.session);
+        if (w != null) Troops.clear(w, r.session.id);
         // The instance is wiped for the next match: every barrel and block the match placed, and
         // everything left lying about (gear from the fallen, dropped loot) and its titans.
         List<Long> left = data.leftover.getOrDefault(r.island.id, new ArrayList<>());
@@ -1658,7 +1843,8 @@ public final class Extraction {
         if (w != null && c != null) {
             Box box = new Box(c.getX() - reach, w.getBottomY(), c.getZ() - reach, c.getX() + reach, w.getTopY(), c.getZ() + reach);
             for (Entity e : w.getEntitiesByClass(Entity.class, box, e -> e instanceof net.minecraft.entity.ItemEntity
-                || e instanceof net.minecraft.entity.projectile.PersistentProjectileEntity || e.getCommandTags().contains(TITAN))) e.discard();
+                || e instanceof net.minecraft.entity.projectile.PersistentProjectileEntity || e instanceof net.minecraft.entity.FallingBlockEntity
+                || e.getCommandTags().contains(TITAN) || Troops.is(e))) e.discard();
         }
         save();
     }

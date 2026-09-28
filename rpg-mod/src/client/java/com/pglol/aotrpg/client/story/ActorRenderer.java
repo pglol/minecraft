@@ -42,6 +42,8 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
         String s = StoryClient.skin(e.getId());
         if (s != null) return s;
         String name = e.hasCustomName() ? e.getCustomName().getString().toLowerCase(java.util.Locale.ROOT) : "";
+        if (name.contains("marleyan officer")) return "marley_officer";
+        if (name.contains("marleyan")) return "marley_soldier";
         if (name.contains("raid commander")) return "garrison_captain";
         if (name.contains("ferry")) return "farmer";
         if (name.contains("stable")) return "farmer";

@@ -533,6 +533,8 @@ public final class AotRpg implements ModInitializer {
             }
             if (HORSES.useHorse(sp, entity)) return ActionResult.SUCCESS;
             if (ESCORTS.use(sp, entity)) return ActionResult.SUCCESS;
+            // Marleyan troops don't chat or trade.
+            if (Troops.is(entity)) return ActionResult.FAIL;
             if (VENDORS.use(sp, entity) || DIALOGUE.talk(sp, entity) || FOLK.talk(sp, entity)) return ActionResult.SUCCESS;
             return ActionResult.PASS;
         });
@@ -811,6 +813,10 @@ public final class AotRpg implements ModInitializer {
             DEATH.onDeath(sp, source);
             EXTRACT.onDeath(sp);
             RECOVERY.onDeath(sp);
+            return;
+        }
+        if (Troops.is(dead) && dead instanceof net.minecraft.entity.passive.VillagerEntity v && dead.getWorld() instanceof ServerWorld sw) {
+            Troops.died(sw, v, source, Extraction.levelIn(sw, dead.getX(), dead.getZ()));
             return;
         }
         if (!isTitan(dead)) return;

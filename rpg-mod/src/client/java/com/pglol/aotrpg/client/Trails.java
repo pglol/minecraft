@@ -101,6 +101,11 @@ public final class Trails {
             double jx = (r.nextDouble() - 0.5) * 0.05, jy = (r.nextDouble() - 0.5) * 0.05, jz = (r.nextDouble() - 0.5) * 0.05;
             ParticleEffect e;
             switch (style) {
+                case "trail_troop" -> {
+                    // A Marleyan round: a hot orange tracer, thinning to smoke behind.
+                    e = f > 0.7 ? new DustParticleEffect(rgb(0xFFB040), 0.5f) : new DustParticleEffect(rgb(0x8A8278), 0.35f);
+                    if (i % 4 != 0 && f < 0.7) continue;
+                }
                 case "trail_ember" -> {
                     e = i % 3 == 0 ? ParticleTypes.SMOKE : new DustParticleEffect(rgb(r.nextBoolean() ? 0xFF8A2A : 0xFFC04A), 0.7f);
                     if (r.nextInt(12) == 0) w.addParticle(ParticleTypes.SMALL_FLAME, p.x, p.y, p.z, 0, 0.01, 0);

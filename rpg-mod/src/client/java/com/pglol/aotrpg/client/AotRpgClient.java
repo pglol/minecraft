@@ -121,6 +121,7 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         ClientTickEvents.END_CLIENT_TICK.register(DuelRing::tick);
         ClientTickEvents.END_CLIENT_TICK.register(InfusionFx::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(LootBeams::tick);
         ClientTickEvents.END_CLIENT_TICK.register(EffectFx::tick);
         ClientTickEvents.END_CLIENT_TICK.register(MotionGuard::tick);
         ClientTickEvents.END_CLIENT_TICK.register(SpecHud::tick);
