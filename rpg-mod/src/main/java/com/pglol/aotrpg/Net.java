@@ -2067,6 +2067,14 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: your homes and properties as cards (see Homes.sendList). */
+    public record HomeList(java.util.List<String> cards, int maxHomes) implements CustomPayload {
+        public static final Id<HomeList> ID = Net.id("home_list");
+        public static final PacketCodec<RegistryByteBuf, HomeList> CODEC = PacketCodec.of((v, b) -> { strs(b, v.cards); b.writeVarInt(v.maxHomes); },
+            b -> new HomeList(strs(b), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2127,6 +2135,7 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(StoreAction.ID, StoreAction.CODEC);
         PayloadTypeRegistry.playS2C().register(CatalogView.ID, CatalogView.CODEC);
         PayloadTypeRegistry.playS2C().register(DuelSetup.ID, DuelSetup.CODEC);
+        PayloadTypeRegistry.playS2C().register(HomeList.ID, HomeList.CODEC);
         PayloadTypeRegistry.playC2S().register(DuelChallenge.ID, DuelChallenge.CODEC);
         PayloadTypeRegistry.playC2S().register(CatalogGive.ID, CatalogGive.CODEC);
         PayloadTypeRegistry.playS2C().register(InboxView.ID, InboxView.CODEC);

@@ -72,7 +72,7 @@ public class AotPauseScreen extends Screen {
             })});
         locking = false;
         y = section(y, bh, "Home", new Tile[] {
-            new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("manage", -1, ""))),
+            new Tile("Home", "minecraft:oak_door", hasChar, () -> ClientPlayNetworking.send(new Net.HomeAction("list", -1, ""))),
             new Tile("Stables", "minecraft:saddle", hasChar, () -> ClientPlayNetworking.send(new Net.StableAction("view", "", ""))),
             new Tile("Estate & Pets", "minecraft:bricks", hasChar, () -> ClientPlayNetworking.send(new Net.EstateAction("open", ""))),
             // Operators: every property in the world, owners, offers and resets.

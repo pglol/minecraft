@@ -974,6 +974,15 @@ public final class Homes {
             return;
         }
         if (!AotRpg.PROFILES.get(p.getUuid()).created) return;
+        if (action.equals("list")) {
+            sendList(p);
+            return;
+        }
+        if (action.equals("view")) {
+            if (home >= 0 && deed(p, home) != null) send(p, home, true);
+            else if (home < 0 && data.plots.get(-home - 1) != null && stem(p).equals(data.plots.get(-home - 1).stem)) sendPlot(p, -home - 1, true);
+            return;
+        }
         if (home < 0 && !action.equals("manage") && !action.equals("offers") && !action.equals("stables")) {
             plotAction(p, action, -home - 1, arg);
             return;
@@ -1401,6 +1410,39 @@ public final class Homes {
         Offer o = HomeAdmin.offerFor(p, home);
         ServerPlayNetworking.send(p, new Net.HomeView(home, townOf(h), size, price(h), d != null, deeds(p).size(), MAX_HOMES, ups, visits, open,
             "home", o == null ? -1 : o.price, ""));
+    }
+
+    /**
+     * Every home and property this character owns, as cards: "home|kind|title|size|built|total|here".
+     * Plots use -(index + 1) for home.
+     */
+    public void sendList(ServerPlayerEntity p) {
+        if (!ServerPlayNetworking.canSend(p, Net.HomeList.ID)) return;
+        List<String> cards = new ArrayList<>();
+        int inside = p.getWorld().getRegistryKey() == WORLD ? instanceAt(p.getBlockPos()) : -1;
+        for (Deed d : deeds(p)) {
+            if (d.home < 0 || d.home >= AotRpg.PLACES.homes.size()) continue;
+            int[] h = AotRpg.PLACES.homes.get(d.home);
+            String size = (h[2] - h[0] + 1) + " x " + (h[3] - h[1] + 1) + " · " + Math.max(1, (h[5] - h[4]) / 6) + (h[5] - h[4] >= 12 ? " floors" : " floor");
+            int built = 0, total = 0;
+            for (Upgrade u : Upgrade.values()) {
+                if (u.yard && !d.upgrades.contains(u.name())) continue;
+                total++;
+                if (d.upgrades.contains(u.name())) built++;
+            }
+            cards.add(d.home + "|home|" + townOf(h) + "|" + size + "|" + built + "|" + total + "|" + (inside == d.instance ? 1 : 0));
+        }
+        String me = stem(p);
+        for (var e : data.plots.entrySet()) {
+            if (!me.equals(e.getValue().stem) || e.getKey() >= AotRpg.PLACES.plots.size()) continue;
+            Places.PlotInfo pl = AotRpg.PLACES.plots.get(e.getKey());
+            PlotDeed d = e.getValue();
+            int built = (d.stable ? 1 : 0) + (d.pond ? 1 : 0) + (d.smithy ? 1 : 0);
+            boolean here = p.getWorld().getRegistryKey() == World.OVERWORLD && HomePlots.plotAt(p.getBlockPos(), HomePlots.LAND) == e.getKey();
+            String size = (pl.x1() - pl.x0() + 1) + " x " + (pl.z1() - pl.z0() + 1) + " · " + pl.size() + " " + pl.kind() + " plot";
+            cards.add((-e.getKey() - 1) + "|plot|" + HomePlots.label(pl).replace('|', '/') + "|" + size + "|" + built + "|3|" + (here ? 1 : 0));
+        }
+        ServerPlayNetworking.send(p, new Net.HomeList(cards, MAX_HOMES));
     }
 
     /** Your homes and property on the map: town house doors and plot centres. */

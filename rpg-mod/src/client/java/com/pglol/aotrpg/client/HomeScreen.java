@@ -6,11 +6,14 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
- * A house deed or property: buy it (or accept an offer), and for your own home: go in, buy yard
- * upgrades, visit party members' copies, or sell it back.
+ * A house deed or property: buy it (or accept an offer), and for your own home: go in, build its
+ * upgrades, furnish it, visit party members' copies, or sell it back. (Staff manage every property
+ * from the pause menu's Properties.)
  */
 public final class HomeScreen extends Screen {
     private int left, top, w, h;
@@ -35,16 +38,11 @@ public final class HomeScreen extends Screen {
 
     @Override
     protected void init() {
-        w = Math.min(420, width - 20);
+        w = Math.min(440, width - 20);
         h = Math.min(290, height - 60);
         left = (width - w) / 2;
         top = Math.max(44, (height - h) / 2 + 10);
         addDrawableChild(new AotButton(left + w - 20, top - 22, 20, 20, Text.literal("✕"), this::close));
-        // Operators manage every property from here (the Property Office).
-        if (client.player != null && client.player.hasPermissionLevel(2)) {
-            addDrawableChild(new AotButton(left, top - 22, 120, 20, Text.literal("Property Office"),
-                () -> ClientPlayNetworking.send(new Net.HomeAction("admin_list", 0, ""))));
-        }
         Net.HomeView v = ClientState.home;
         if (v == null) return;
         boolean plot = v.kind().equals("plot");
@@ -68,44 +66,11 @@ public final class HomeScreen extends Screen {
             }
             return;
         }
-        addDrawableChild(new AotButton(plot ? left + 10 : left + 136, by - 26, 110, 22, Ui.heading("Estate & Pets"),
-            () -> ClientPlayNetworking.send(new Net.EstateAction("open", ""))));
-        addDrawableChild(new AotButton(plot ? left + 10 : left + 136, by, 110, 22, Ui.heading("Furniture"),
-            () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0))));
-        boolean stable = false;
-        for (Net.HomeUpgrade u : v.upgrades()) if (u.id().equals("STABLE") && u.owned()) stable = true;
-        if (stable) {
-            addDrawableChild(new AotButton(plot ? left + 124 : left + 250, by - 26, 110, 22, Ui.heading("Stables"),
-                () -> act("stables", v.home(), "")));
-        }
-        if (plot) {
-            int y = top + 96;
-            for (Net.HomeUpgrade u : v.upgrades()) {
-                AotButton b = addDrawableChild(new AotButton(left + w - 120, y + 2, 110, 18,
-                    Text.literal(u.owned() ? "Built" : "Build · " + u.price() + " M"),
-                    () -> act(u.id().equals("STABLE") ? "stable" : "build", v.home(), u.id())));
-                b.active = !u.owned();
-                y += 28;
-            }
-        }
-        if (!plot) {
-            // Already inside a home: the button takes you out instead.
-            boolean atHome = client.world != null && client.world.getRegistryKey().getValue().toString().equals("aot_rpg:homes");
-            addDrawableChild(new AotButton(left + 10, by, 120, 22, Ui.heading(atHome ? "Step outside" : "Go inside"), () -> {
-                act(atHome ? "leave" : "enter", v.home(), "");
-                close();
-            }));
-            int y = top + 70;
-            for (Net.HomeUpgrade u : v.upgrades()) {
-                boolean locked = u.desc().startsWith("Needs the Cellar");
-                AotButton b = addDrawableChild(new AotButton(left + w - 120, y + 2, 110, 16,
-                    Text.literal(u.owned() ? "Built" : locked ? "Needs Cellar" : "Build · " + u.price() + " M"), () -> act("upgrade", v.home(), u.id())));
-                b.active = !u.owned() && !locked;
-                y += 22;
-            }
-        }
-        AotButton sell = addDrawableChild(new AotButton(left + w - 170, by, 160, 22,
-            Text.literal(confirmSell ? "Click again to sell (half back)" : "Sell " + (plot ? "property" : "home")), () -> {
+        // Back to all your homes, and selling, sit above the panel, out of the way.
+        addDrawableChild(new AotButton(left, top - 22, 90, 20, Text.literal("‹ All homes"),
+            () -> ClientPlayNetworking.send(new Net.HomeAction("list", -1, ""))));
+        AotButton sell = addDrawableChild(new AotButton(left + w - 134, top - 22, 110, 20,
+            Text.literal(confirmSell ? "Confirm sale" : "Sell " + (plot ? "property" : "home")), () -> {
                 if (confirmSell) {
                     act("sell", v.home(), "");
                     close();
@@ -115,6 +80,38 @@ public final class HomeScreen extends Screen {
                 }
             }));
         sell.accent = Ui.RED;
+        sell.selected(confirmSell);
+        // One row of actions along the bottom, all the same size.
+        List<Object[]> row = new ArrayList<>();
+        if (!plot) {
+            boolean atHome = client.world != null && client.world.getRegistryKey().getValue().toString().equals("aot_rpg:homes");
+            row.add(new Object[] {atHome ? "Step outside" : "Go inside", (Runnable) () -> {
+                act(atHome ? "leave" : "enter", v.home(), "");
+                close();
+            }});
+        }
+        row.add(new Object[] {"Furniture", (Runnable) () -> ClientPlayNetworking.send(new Net.FurnitureAction("open", "", 0))});
+        row.add(new Object[] {"Estate & Pets", (Runnable) () -> ClientPlayNetworking.send(new Net.EstateAction("open", ""))});
+        boolean stable = false;
+        for (Net.HomeUpgrade u : v.upgrades()) if (u.id().equals("STABLE") && u.owned()) stable = true;
+        if (stable) row.add(new Object[] {"Stables", (Runnable) () -> act("stables", v.home(), "")});
+        int n = row.size(), gap = 6, bw = (w - 20 - gap * (n - 1)) / n;
+        for (int i = 0; i < n; i++) {
+            AotButton b = addDrawableChild(new AotButton(left + 10 + i * (bw + gap), by, bw, 22, Ui.heading((String) row.get(i)[0]), (Runnable) row.get(i)[1]));
+            if (i == 0) b.selected(true);
+        }
+        // Upgrades not yet built get a Build button; built ones just say so.
+        int y = top + (plot ? 50 : 52), step = plot ? 30 : 24;
+        for (Net.HomeUpgrade u : v.upgrades()) {
+            if (!u.owned()) {
+                boolean locked = u.desc().startsWith("Needs the Cellar");
+                AotButton b = addDrawableChild(new AotButton(left + w - 120, y + 1, 110, 17,
+                    Text.literal(locked ? "Needs Cellar" : "Build · " + String.format(Locale.ROOT, "%,d", u.price()) + " M"),
+                    () -> act(plot ? (u.id().equals("STABLE") ? "stable" : "build") : "upgrade", v.home(), u.id())));
+                b.active = !locked && ClientState.marks >= u.price();
+            }
+            y += step;
+        }
     }
 
     @Override
@@ -123,44 +120,33 @@ public final class HomeScreen extends Screen {
         Net.HomeView v = ClientState.home;
         if (v == null) return;
         boolean plot = v.kind().equals("plot");
-        Ui.text(c, Ui.title(v.owned() ? (plot ? "YOUR PROPERTY" : "YOUR HOME") : "DEED"), width / 2f, top - 40, 1.3f, Ui.GOLD, true);
+        Ui.text(c, Ui.title(v.owned() ? (plot ? "YOUR PROPERTY" : "YOUR HOME") : "DEED"), width / 2f, top - 44, 1.3f, Ui.GOLD, true);
         Ui.panel(c, left, top, w, h);
         Ui.crest(c, left + w - 70, top + 6, 60, 0.12f);
         Ui.text(c, Ui.heading(v.town()), left + 12, top + 10, 1.1f, Ui.CREAM, false);
-        Ui.text(c, Text.literal(v.size()), left + 12, top + 24, 0.8f, Ui.MUTED, false);
-        Ui.text(c, Text.literal(String.format(Locale.ROOT, "Price %,d Marks  ·  You have %,d", v.price(), ClientState.marks)), left + 12, top + 36, 0.8f, Ui.GOLD, false);
+        Ui.text(c, Text.literal(v.size()), left + 12, top + 24, 0.8f, Ui.GOLD, false);
         if (!v.owned()) {
+            Ui.text(c, Text.literal(String.format(Locale.ROOT, "Price %,d Marks  ·  You have %,d", v.price(), ClientState.marks)), left + 12, top + 36, 0.8f, Ui.GOLD, false);
             String how = plot ? (v.owner().isEmpty() ? "Unique land. Once bought, a house is built right here and only you can build on the plot."
                     : "Owned by " + v.owner() + ".")
                 : "Every buyer gets their own private copy of this house behind its door, with a cellar to dig and fit out. "
-                    + "The house in town stays as it is. Homes owned: " + v.homes() + " / " + v.maxHomes() + ".";
+                    + "Homes owned: " + v.homes() + " / " + v.maxHomes() + ".";
             Ui.wrapped(c, Text.literal(how), left + 12, top + 54, w - 24, Ui.CREAM);
             if (v.offer() >= 0) Ui.text(c, Text.literal("Private offer for you: " + v.offer() + " Marks"), left + 12, top + 100, 0.85f, 0xFF5BD35B, false);
             return;
         }
-        if (plot) {
-            Ui.wrapped(c, Text.literal("Your land: the plot and its surround out to the road. You can build, break and chop anything on it, "
-                + "and nothing you change there is ever regenerated. Furniture: buy it in the store, then place it from your crate here."),
-                left + 12, top + 54, w - 24, Ui.CREAM);
-            int y = top + 96;
-            for (Net.HomeUpgrade u : v.upgrades()) {
-                Ui.text(c, Ui.heading(u.title()), left + 12, y + 2, 0.9f, u.owned() ? Ui.GOLD : Ui.CREAM, false);
-                Ui.text(c, Text.literal(u.desc()), left + 12, y + 13, 0.6f, Ui.MUTED, false);
-                y += 28;
-            }
-            return;
-        }
-        Ui.text(c, Ui.heading("Cellar & upgrades"), left + 12, top + 54, 0.95f, Ui.GOLD, false);
-        Ui.text(c, Text.literal("Dug and fitted out under your house. Yards are for property plots."), left + 128, top + 56, 0.6f, Ui.MUTED, false);
-        int y = top + 70;
+        Ui.divider(c, left + 10, top + 40, w - 20);
+        int y = top + (plot ? 50 : 52), step = plot ? 30 : 24;
         for (Net.HomeUpgrade u : v.upgrades()) {
-            Ui.text(c, Ui.heading(u.title()), left + 12, y + 1, 0.8f, u.owned() ? Ui.GOLD : Ui.CREAM, false);
-            String d = u.desc();
+            c.fill(left + 8, y - 1, left + w - 8, y + step - 3, u.owned() ? 0x40302418 : 0x30000000);
+            c.fill(left + 8, y - 1, left + 10, y + step - 3, u.owned() ? Ui.GOLD : 0xFF4A4238);
+            Ui.text(c, Ui.heading(u.title()), left + 16, y + 1, 0.8f, u.owned() ? Ui.GOLD : Ui.CREAM, false);
+            String d = u.desc().replace("Needs the Cellar. ", "");
             int max = w - 150;
             while (d.length() > 4 && Ui.font().getWidth(d) * 0.55f > max) d = d.substring(0, d.length() - 4) + "...";
-            if (!d.equals(u.desc()) && !d.endsWith("...")) d += "...";
-            Ui.text(c, Text.literal(d), left + 12, y + 11, 0.55f, Ui.MUTED, false);
-            y += 22;
+            Ui.text(c, Text.literal(d), left + 16, y + 11, 0.55f, 0xFFCFC3A6, false);
+            if (u.owned()) Ui.text(c, Ui.heading("✔ Built"), left + w - 65, y + 5, 0.8f, Ui.GOLD, true);
+            y += step;
         }
     }
 }

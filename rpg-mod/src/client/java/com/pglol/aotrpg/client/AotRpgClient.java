@@ -214,6 +214,7 @@ public final class AotRpgClient implements ClientModInitializer {
             if (ctx.client().currentScreen instanceof HomeScreen s) s.refresh();
             else if (payload.open()) ctx.client().setScreen(new HomeScreen());
         });
+        ClientPlayNetworking.registerGlobalReceiver(Net.HomeList.ID, (payload, ctx) -> HomesScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.HomeAdminView.ID, (payload, ctx) -> {
             ClientState.homeAdmin = payload;
             if (ctx.client().currentScreen instanceof HomeAdminScreen s) s.refresh();
