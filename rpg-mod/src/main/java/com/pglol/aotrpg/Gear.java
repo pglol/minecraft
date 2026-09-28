@@ -521,16 +521,4 @@ public final class Gear {
         }
     }
 
-    /** Forge: one upgrade step. Returns the new level, or -1 if it cannot go higher. */
-    public static int upgrade(ItemStack s) {
-        NbtCompound tag = s.get(DataComponentTypes.CUSTOM_DATA).copyNbt();
-        NbtCompound g = tag.getCompound("aot_gear");
-        int up = g.getInt("up");
-        if (up >= 10) return -1;
-        g.putInt("up", up + 1);
-        tag.put("aot_gear", g);
-        s.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag));
-        apply(s);
-        return up + 1;
-    }
 }

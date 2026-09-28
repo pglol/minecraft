@@ -42,23 +42,6 @@ public final class Forge {
         return i == null ? Items.AIR : net.minecraft.registry.Registries.ITEM.get(i);
     }
 
-    /** Upgrade cost for gear at level up: marks, iron, ultrahard steel. */
-    public static long[] cost(ItemStack s) {
-        var d = Gear.data(s);
-        int up = d.getInt("up");
-        int r = 0;
-        try {
-            r = Gear.Rarity.valueOf(d.getString("rarity")).ordinal();
-        } catch (Exception ignored) { }
-        long marks = Math.round(40 * Math.pow(up + 1, 1.5) * (1 + 0.5 * r));
-        return new long[] {marks, 2 + up, Math.max(0, up - 4)};
-    }
-
-    public static double chance(ItemStack s, int smithing, double quality) {
-        int up = Gear.data(s).getInt("up");
-        return Math.max(0.15, Math.min(0.98, 1.0 - up * 0.075 + smithing * 0.004 + quality * 0.2));
-    }
-
     private static int count(ServerPlayerEntity p, Item it) {
         int n = 0;
         for (int a : AotRpg.SATCHEL.addresses(p)) {

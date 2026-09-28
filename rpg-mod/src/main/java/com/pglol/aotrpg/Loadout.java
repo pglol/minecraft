@@ -226,6 +226,14 @@ public final class Loadout {
     private void autoSheath(ServerPlayerEntity p) {
         PlayerInventory inv = p.getInventory();
         SimpleInventory g = gear(p);
+        // Aboard the balloon (and at home) nothing is drawn: right-click is for the stations, not ODM hooks.
+        if (p.getWorld().getRegistryKey() == Homes.WORLD) {
+            if (isGrip(inv.main.get(0)) || isGrip(inv.offHand.get(0))) {
+                sheatheHeld(p, g, true, true);
+                broadcast(p, true);
+            }
+            return;
+        }
         if (inv.selectedSlot != 0) {
             hold.remove(p.getUuid());
             if (isGrip(inv.main.get(0)) && isGrip(inv.offHand.get(0))) {

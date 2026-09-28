@@ -585,22 +585,6 @@ public final class Extraction {
         return out;
     }
 
-    /** Seats a player on the nearest free bench spot. */
-    private void sit(ServerPlayerEntity p) {
-        ServerWorld w = sky();
-        if (w == null || p.hasVehicle()) return;
-        BlockPos o = origin(slotAt(p.getX()));
-        List<BlockPos> spots = new ArrayList<>();
-        for (int x = -3; x <= 3; x++) {
-            spots.add(o.add(x, 1, -BASKET + 1));
-            spots.add(o.add(x, 1, BASKET - 1));
-        }
-        spots.sort((a, b) -> Double.compare(p.squaredDistanceTo(Vec3d.ofCenter(a)), p.squaredDistanceTo(Vec3d.ofCenter(b))));
-        for (BlockPos s : spots) {
-            if (sitOn(p, s)) return;
-        }
-    }
-
     /** Sits on this bench block if nobody is on it. */
     private boolean sitOn(ServerPlayerEntity p, BlockPos s) {
         ServerWorld w = sky();
@@ -1237,7 +1221,8 @@ public final class Extraction {
             List<ServerPlayerEntity> divers = new ArrayList<>();
             for (ServerPlayerEntity p : w.getPlayers()) {
                 if (runOf(p.getUuid()) != null) divers.add(p);
-                else if (ticks % 100 == 0 && !p.isSpectator() && !p.isCreative()) toLobby(p);
+                // Anyone left on an island outside a run goes back aboard (never the dead, nor someone watching their fall).
+                else if (ticks % 100 == 0 && p.isAlive() && !p.isSpectator() && !p.isCreative() && !watching.containsKey(p.getUuid())) toLobby(p);
             }
             List<Entity> titans = new ArrayList<>();
             for (Entity e : w.iterateEntities()) if (e.getCommandTags().contains(TITAN) && e.isAlive()) titans.add(e);
@@ -1462,7 +1447,10 @@ public final class Extraction {
     }
 
     /** Died out there: the gear stays where they fell, and they wake in the balloon. */
-    private final Set<UUID> fallen = new HashSet<>();
+    /** Fallen divers: where they fell (world and spot), waiting for their respawn. */
+    private final Map<UUID, Object[]> fallen = new HashMap<>();
+    /** Those watching the island from above after falling: their game mode before, to give back. */
+    private final Map<UUID, net.minecraft.world.GameMode> watching = new HashMap<>();
 
     public void onDeath(ServerPlayerEntity p) {
         Run r = runOf(p.getUuid());
@@ -1470,15 +1458,45 @@ public final class Extraction {
         clearView(p);
         r.members.remove(p.getUuid());
         r.extracting.remove(p.getUuid());
-        fallen.add(p.getUuid());
+        fallen.put(p.getUuid(), new Object[] {p.getServerWorld().getRegistryKey(), p.getPos()});
     }
 
-    /** After a respawn: true when they were sent back to the balloon. */
+    /**
+     * After a respawn: a calm last look. Set down (as a spectator) over where they fell, the camera
+     * drifts slowly up and away over the island, "KILLED IN ACTION", then back aboard the balloon.
+     * Nothing moves them during the respawn itself (a change of world right then is unsafe).
+     */
+    @SuppressWarnings("unchecked")
     public boolean respawn(ServerPlayerEntity p) {
-        if (!fallen.remove(p.getUuid())) return false;
-        toLobby(p);
-        Titles.show(p, Text.literal("KILLED IN ACTION").formatted(Formatting.DARK_RED, Formatting.BOLD),
-            Text.literal("Your gear lies where you fell").formatted(Formatting.RED), 10, 60, 20);
+        Object[] at = fallen.remove(p.getUuid());
+        if (at == null) return false;
+        UUID id = p.getUuid();
+        AotRpg.SCHEDULER.later(2, () -> {
+            ServerPlayerEntity pl = server.getPlayerManager().getPlayer(id);
+            if (pl == null) return;
+            ServerWorld w = server.getWorld((net.minecraft.registry.RegistryKey<World>) at[0]);
+            Vec3d spot = (Vec3d) at[1];
+            if (w == null) {
+                toLobby(pl, true);
+                return;
+            }
+            watching.put(id, pl.interactionManager.getGameMode());
+            pl.changeGameMode(net.minecraft.world.GameMode.SPECTATOR);
+            pl.teleport(w, spot.x, spot.y + 3, spot.z, pl.getYaw(), 60);
+            double a = Math.random() * Math.PI * 2;
+            List<Net.Shot> shots = new ArrayList<>();
+            Vec3d from = spot.add(Math.cos(a) * 4, 3, Math.sin(a) * 4), to = spot.add(Math.cos(a + 0.8) * 22, 34, Math.sin(a + 0.8) * 22);
+            shots.add(new Net.Shot(from.x, from.y, from.z, to.x, to.y, to.z, spot.x, spot.y + 0.5, spot.z, spot.x, spot.y, spot.z, 6.5f));
+            int t = Cinematics.play(List.of(pl), shots, "KILLED IN ACTION", "Your gear lies where you fell", 0xA02020);
+            pl.playSoundToPlayer(SoundEvents.BLOCK_BELL_RESONATE, SoundCategory.AMBIENT, 0.6f, 0.5f);
+            AotRpg.SCHEDULER.later(t, () -> {
+                ServerPlayerEntity back = server.getPlayerManager().getPlayer(id);
+                net.minecraft.world.GameMode mode = watching.remove(id);
+                if (back == null) return;
+                back.changeGameMode(mode == null || mode == net.minecraft.world.GameMode.SPECTATOR ? net.minecraft.world.GameMode.SURVIVAL : mode);
+                toLobby(back, true);
+            });
+        });
         return true;
     }
 
@@ -1496,6 +1514,12 @@ public final class Extraction {
             r.extracting.remove(p.getUuid());
         }
         fallen.remove(p.getUuid());
+        // Logging out while watching the fall: back to their own game mode, aboard next time.
+        net.minecraft.world.GameMode mode = watching.remove(p.getUuid());
+        if (mode != null) {
+            p.changeGameMode(mode == net.minecraft.world.GameMode.SPECTATOR ? net.minecraft.world.GameMode.SURVIVAL : mode);
+            AotRpg.PROFILES.get(p.getUuid()).inRun = true;
+        }
         walkingTo.remove(p.getUuid());
         sitBy.remove(p.getUuid());
         p.stopRiding();
