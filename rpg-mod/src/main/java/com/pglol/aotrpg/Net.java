@@ -2082,6 +2082,22 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** Server -> client: lie down in a bed: counting sheep (sleep itself is off; the night doesn't skip here). */
+    public record Dream(int seed) implements CustomPayload {
+        public static final Id<Dream> ID = Net.id("dream");
+        public static final PacketCodec<RegistryByteBuf, Dream> CODEC = PacketCodec.of((v, b) -> b.writeVarInt(v.seed), b -> new Dream(b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: how the counting went (sheep counted right, missed, titans counted, whether Sasha was counted). */
+    public record DreamDone(int counted, int missed, int titans, boolean sasha) implements CustomPayload {
+        public static final Id<DreamDone> ID = Net.id("dream_done");
+        public static final PacketCodec<RegistryByteBuf, DreamDone> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.counted); b.writeVarInt(v.missed); b.writeVarInt(v.titans); b.writeBoolean(v.sasha);
+        }, b -> new DreamDone(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readBoolean()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     static void register() {
         PayloadTypeRegistry.playS2C().register(ModeView.ID, ModeView.CODEC);
         PayloadTypeRegistry.playS2C().register(DownedView.ID, DownedView.CODEC);
@@ -2144,6 +2160,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(DuelSetup.ID, DuelSetup.CODEC);
         PayloadTypeRegistry.playS2C().register(HomeList.ID, HomeList.CODEC);
         PayloadTypeRegistry.playS2C().register(AlertsView.ID, AlertsView.CODEC);
+        PayloadTypeRegistry.playS2C().register(Dream.ID, Dream.CODEC);
+        PayloadTypeRegistry.playC2S().register(DreamDone.ID, DreamDone.CODEC);
         PayloadTypeRegistry.playC2S().register(DuelChallenge.ID, DuelChallenge.CODEC);
         PayloadTypeRegistry.playC2S().register(CatalogGive.ID, CatalogGive.CODEC);
         PayloadTypeRegistry.playS2C().register(InboxView.ID, InboxView.CODEC);

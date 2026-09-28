@@ -84,6 +84,7 @@ public final class AotRpg implements ModInitializer {
     public static final Store STORE = new Store();
     public static final Inbox INBOX = new Inbox();
     public static final Alerts ALERTS = new Alerts();
+    public static final Dreams DREAMS = new Dreams();
     public static final Season SEASON = new Season();
     public static final EventShop EVENTS = new EventShop();
     public static final Social SOCIAL = new Social();
@@ -675,6 +676,8 @@ public final class AotRpg implements ModInitializer {
 
         ServerTickEvents.END_SERVER_TICK.register(this::tick);
         Infusions.register();
+        DREAMS.register();
+        ServerPlayNetworking.registerGlobalReceiver(Net.DreamDone.ID, (payload, ctx) -> DREAMS.done(ctx.player(), payload));
 
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) ->
             !CREATION.chat(sender, message.getContent().getString()));
