@@ -54,7 +54,7 @@ public final class LobbyScreen extends Screen {
 
     private static boolean aboard(MinecraftClient mc) {
         return mc.player != null && mc.world != null && mc.player.getX() < -399_744
-            && mc.world.getRegistryKey().getValue().toString().equals("aot_rpg:homes");
+            && BalloonStations.skyWorld(mc.world);
     }
 
     /** Seated in the balloon with nothing else open: the lobby comes back up. */

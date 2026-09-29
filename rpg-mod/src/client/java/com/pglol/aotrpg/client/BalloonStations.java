@@ -21,9 +21,16 @@ public final class BalloonStations {
 
     private static long last;
 
+    /** The balloons' world: their own sky (the home world on servers from before it existed). */
+    public static boolean skyWorld(net.minecraft.world.World w) {
+        if (w == null) return false;
+        String id = w.getRegistryKey().getValue().toString();
+        return id.equals("aot_rpg:sky") || id.equals("aot_rpg:homes");
+    }
+
     public static boolean aboard(MinecraftClient mc) {
         return mc.player != null && mc.world != null && mc.player.getX() < -399_744
-            && mc.world.getRegistryKey().getValue().toString().equals("aot_rpg:homes");
+            && BalloonStations.skyWorld(mc.world);
     }
 
     static boolean station(BlockState st) {

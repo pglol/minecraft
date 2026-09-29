@@ -185,7 +185,7 @@ public final class Extraction {
     private final List<Session> sessions = new ArrayList<>();
     /** Squads that deploy within this long of a match starting share it (at most MATCH_SQUADS). */
     private static final long JOIN_WINDOW_MS = 120_000;
-    private static final int MATCH_SQUADS = 4, SHARD_SPACING = 8000, PREGEN_SHARDS = 3;
+    private static final int MATCH_SQUADS = 4, SHARD_SPACING = 8000, PREGEN_SHARDS = 2;
 
     static final class Data {
         int balloonVersion;
@@ -208,7 +208,8 @@ public final class Extraction {
      * whenever the server is busy.
      */
     private void pregen(int ticks) {
-        if (server.getAverageTickTime() > 35) return;
+        // Only on a quiet server, and never more than a chunk a tick.
+        if (server.getAverageTickTime() > 25) return;
         int r = ISLAND / 16 + 3, side = r * 2 + 1;
         for (int shard = 0; shard < PREGEN_SHARDS; shard++) for (Island i : Island.values()) {
             ServerWorld w = server.getWorld(i.world);
@@ -216,6 +217,18 @@ public final class Extraction {
             String key = shardKey(i, shard);
             int idx = data.pregen.getOrDefault(key, 0);
             if (idx >= side * side) continue;
+            // An instance's centre is worked out in the background first (it used to stall the server).
+            if (!data.centres.containsKey(key)) {
+                var f = finding.get(key);
+                if (f == null) {
+                    int sh = shard;
+                    finding.put(key, java.util.concurrent.CompletableFuture.supplyAsync(() -> findCentre(w, sh), net.minecraft.util.Util.getMainWorkerExecutor()));
+                    continue;
+                }
+                if (!f.isDone()) continue;
+                finding.remove(key);
+                keepCentre(i, shard, f.join());
+            }
             BlockPos c = centre(i, w, shard);
             int cx = c.getX() >> 4, cz = c.getZ() >> 4;
             // Skip the corners outside the island's circle, then ask for one chunk.
@@ -301,37 +314,56 @@ public final class Extraction {
      */
     private BlockPos centre(Island i, ServerWorld w, int shard) {
         String key = shardKey(i, shard);
-        int ox = (shard % 16) * SHARD_SPACING, oz = (shard / 16) * SHARD_SPACING;
         int[] c = data.centres.get(key);
         if (c == null) {
-            var gen = w.getChunkManager().getChunkGenerator();
-            var noise = w.getChunkManager().getNoiseConfig();
-            int sea = w.getSeaLevel(), bx = ox, bz = oz, best = -1;
-            for (int gx = -5; gx <= 5; gx++) {
-                for (int gz = -5; gz <= 5; gz++) {
-                    int cx = ox + gx * 480, cz = oz + gz * 480, land = 0;
-                    for (int sx = -3; sx <= 3; sx++) {
-                        for (int sz = -3; sz <= 3; sz++) {
-                            int h = gen.getHeight(cx + sx * 90, cz + sz * 90, Heightmap.Type.WORLD_SURFACE_WG, w, noise);
-                            if (h > sea + 2) land++;
-                        }
-                    }
-                    // Land, but not too far from the middle.
-                    int score = land * 10 - Math.abs(gx) - Math.abs(gz);
-                    if (score > best) {
-                        best = score;
-                        bx = cx;
-                        bz = cz;
-                    }
-                }
-            }
-            c = new int[] {bx, bz};
-            data.centres.put(key, c);
-            save();
-            AotRpg.LOG.info("Extraction island {} (instance {}) centred at {}, {}", i.id, shard, bx, bz);
+            // Needed right now (a squad is dropping): worked out here, unless it's already on its way.
+            var pending = finding.remove(key);
+            c = pending != null ? pending.join() : findCentre(w, shard);
+            keepCentre(i, shard, c);
         }
         return new BlockPos(c[0], 0, c[1]);
     }
+
+    /** Centres being worked out in the background, by instance key. */
+    private final Map<String, java.util.concurrent.CompletableFuture<int[]>> finding = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void keepCentre(Island i, int shard, int[] c) {
+        data.centres.put(shardKey(i, shard), c);
+        save();
+        AotRpg.LOG.info("Extraction island {} (instance {}) centred at {}, {}", i.id, shard, c[0], c[1]);
+    }
+
+    /**
+     * The land-richest spot near an instance's origin, from the terrain noise alone (no chunks
+     * made). Safe off the main thread; a coarse grid first, so it's quick.
+     */
+    private static int[] findCentre(ServerWorld w, int shard) {
+        int ox = (shard % 16) * SHARD_SPACING, oz = (shard / 16) * SHARD_SPACING;
+        var gen = w.getChunkManager().getChunkGenerator();
+        var noise = w.getChunkManager().getNoiseConfig();
+        int sea = w.getSeaLevel(), bx = ox, bz = oz, best = -1;
+        int reach = shard == 0 ? 5 : 3;
+        for (int gx = -reach; gx <= reach; gx++) {
+            for (int gz = -reach; gz <= reach; gz++) {
+                int cx = ox + gx * 480, cz = oz + gz * 480, land = 0;
+                for (int sx = -2; sx <= 2; sx++) {
+                    for (int sz = -2; sz <= 2; sz++) {
+                        int h = gen.getHeight(cx + sx * 120, cz + sz * 120, Heightmap.Type.WORLD_SURFACE_WG, w, noise);
+                        if (h > sea + 2) land++;
+                    }
+                }
+                // Land, but not too far from the middle.
+                int score = land * 10 - Math.abs(gx) - Math.abs(gz);
+                if (score > best) {
+                    best = score;
+                    bx = cx;
+                    bz = cz;
+                }
+            }
+        }
+        return new int[] {bx, bz};
+    }
+
 
     /** Which level titans on this island are (null world or off the islands: the open world's level). */
     public static int levelIn(World w, double x, double z) {

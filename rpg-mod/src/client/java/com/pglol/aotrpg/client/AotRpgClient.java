@@ -105,7 +105,7 @@ public final class AotRpgClient implements ClientModInitializer {
         // check or a drawn ODM grip would make of the click, the stash, bench and forge open.
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (!world.isClient || hand != net.minecraft.util.Hand.MAIN_HAND || player.getX() > -399_744
-                || !world.getRegistryKey().getValue().toString().equals("aot_rpg:homes")) return net.minecraft.util.ActionResult.PASS;
+                || !BalloonStations.skyWorld(world)) return net.minecraft.util.ActionResult.PASS;
             var st = world.getBlockState(hit.getBlockPos());
             boolean station = st.isOf(net.minecraft.block.Blocks.ENDER_CHEST) || st.isOf(net.minecraft.block.Blocks.CRAFTING_TABLE)
                 || st.isIn(net.minecraft.registry.tag.BlockTags.ANVIL) || st.isOf(net.minecraft.block.Blocks.BLAST_FURNACE)
