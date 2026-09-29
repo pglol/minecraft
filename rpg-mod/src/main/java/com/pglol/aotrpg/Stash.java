@@ -328,7 +328,11 @@ public final class Stash {
      * stays where it was.
      */
     public static void bankAll(ServerPlayerEntity p) {
-        List<Cell> cells = layout(p, null);
+        // Into the locker first: it's written to disk straight away, so a crash can't lose what
+        // left your pockets (home chests are only saved with their chunk).
+        List<Cell> cells = new ArrayList<>(layout(p, null));
+        SimpleInventory lk = locker(p);
+        cells.sort(java.util.Comparator.comparingInt(c -> c.inv() == lk ? 0 : 1));
         if (cells.isEmpty()) return;
         int moved = 0, left = 0;
         var inv = p.getInventory();

@@ -19,6 +19,38 @@ public enum Discipline {
     public final String title, blurb, perks;
     public final Item icon;
 
+    /** The mark a cadet draws on their first day, which reads as this strength. */
+    public String markName() {
+        return switch (this) {
+            case SCOUT -> "Wings of Freedom";
+            case VANGUARD -> "The Fang";
+            case GUARDIAN -> "The Bulwark";
+            case MARKSMAN -> "Hawk's Eye";
+            case MEDIC -> "The Ember";
+        };
+    }
+
+    public int markColor() {
+        return switch (this) {
+            case SCOUT -> 0x5FB8FF;
+            case VANGUARD -> 0xE0463A;
+            case GUARDIAN -> 0xD8A850;
+            case MARKSMAN -> 0x7FD06A;
+            case MEDIC -> 0xFF8A3A;
+        };
+    }
+
+    /** What the mark says about you. */
+    public String markLore() {
+        return switch (this) {
+            case SCOUT -> "Sweeping and open. You were never meant to stay inside the Walls.";
+            case VANGUARD -> "Sharp, jagged, all edges. You go straight at whatever's in front of you.";
+            case GUARDIAN -> "Closed and square. Nothing gets past you, and nobody behind you falls.";
+            case MARKSMAN -> "Clean lines and still points. You see it before anyone else does.";
+            case MEDIC -> "Round and whole. You hold the squad together when it's coming apart.";
+        };
+    }
+
     Discipline(String title, Item icon, String blurb, String perks) {
         this.title = title;
         this.icon = icon;

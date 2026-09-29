@@ -14,10 +14,15 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
-/** The character creator: Origin, Discipline, Attributes, Identity, Enlist. */
+/**
+ * The character creator. Where you're from; then your Mark, drawn by hand and read for what it
+ * says about you (the strength you start with); then the harness, the Cadet Corps' first test,
+ * where how steadily you hang earns extra training; then your body, your name, and you enlist.
+ * The barracks plays on behind it, and your cadet stands beside it the whole way.
+ */
 public class CreatorScreen extends Screen {
     public static final int POINTS = 5;
-    private static final String[] STEPS = {"Origin", "Discipline", "Attributes", "Identity", "Enlist"};
+    private static final String[] STEPS = {"Origin", "Your Mark", "The Harness", "Training", "Name", "Enlist"};
 
     /** Choices survive re-opening the screen (e.g. after the server rejects a name). */
     static final class Draft {
@@ -26,6 +31,23 @@ public class CreatorScreen extends Screen {
         Discipline discipline;
         final int[] stats = new int[Stat.values().length];
         String first = "", family = Names.rollFamily(null);
+        /** The mark as drawn (strokes of points in 0..1), when it was read, and how strongly. */
+        final java.util.List<java.util.List<float[]>> strokes = new java.util.ArrayList<>();
+        long revealAt;
+        int resonance;
+        boolean chimed;
+        /** The harness: best result so far (-1 untried, else bonus points 0-2), and the run in progress. */
+        int bonus = -1;
+        String verdict = "";
+        int phase;
+        double theta, omega, sumAbs, windA, windB;
+        long startAt, lastAt;
+        int samples;
+        boolean flipped;
+
+        int points() {
+            return POINTS + Math.max(0, bonus);
+        }
 
         int spent() {
             int s = 0;
@@ -45,7 +67,7 @@ public class CreatorScreen extends Screen {
         if (draft == null) draft = new Draft();
         d = draft;
         this.error = error == null || error.isEmpty() ? null : error;
-        if (this.error != null) d.step = 3;
+        if (this.error != null) d.step = 4;
     }
 
     @Override
@@ -68,15 +90,16 @@ public class CreatorScreen extends Screen {
 
         switch (d.step) {
             case 0 -> originStep();
-            case 1 -> disciplineStep();
-            case 2 -> statsStep();
-            case 3 -> identityStep();
+            case 1 -> markStep();
+            case 2 -> harnessStep();
+            case 3 -> statsStep();
+            case 4 -> identityStep();
             default -> enlistStep();
         }
 
         int by = height - 28;
         if (d.step > 0) addDrawableChild(new AotButton(left, by, 90, 20, Ui.heading("← Back"), () -> go(d.step - 1)));
-        if (d.step < 4) {
+        if (d.step < 5) {
             AotButton next = new AotButton(left + w - 90, by, 90, 20, Ui.heading("Next →"), () -> go(d.step + 1));
             next.active = canAdvance();
             addDrawableChild(next);
@@ -86,14 +109,15 @@ public class CreatorScreen extends Screen {
     private boolean canAdvance() {
         return switch (d.step) {
             case 0 -> d.origin != null;
-            case 1 -> d.discipline != null;
-            case 3 -> Names.clean(d.first) != null && Names.clean(d.family) != null;
+            case 1 -> d.discipline != null && Util.getMeasuringTimeMs() - d.revealAt > 1400;
+            case 2 -> d.bonus >= 0 && d.phase != 1;
+            case 4 -> Names.clean(d.first) != null && Names.clean(d.family) != null;
             default -> true;
         };
     }
 
     private void go(int step) {
-        d.step = Math.max(0, Math.min(4, step));
+        d.step = Math.max(0, Math.min(5, step));
         error = null;
         clearAndInit();
     }
@@ -125,6 +149,305 @@ public class CreatorScreen extends Screen {
         }
     }
 
+    // ---------------------------------------------------------------- the mark
+
+    private int canvasSize() {
+        return Math.max(80, Math.min(h - 34, w / 2 - 10));
+    }
+
+    private void markStep() {
+        int cs = canvasSize();
+        addDrawableChild(new AotButton(left, top + cs + 6, cs / 2 - 2, 20, Ui.heading("Clear"), () -> {
+            d.strokes.clear();
+            d.discipline = null;
+            d.revealAt = 0;
+            clearAndInit();
+        }));
+        AotButton read = addDrawableChild(new AotButton(left + cs / 2 + 2, top + cs + 6, cs / 2 - 2, 20, Ui.heading("Read my mark"), this::readMark));
+        int pts = 0;
+        for (var st : d.strokes) pts += st.size();
+        read.active = pts >= 6 && d.discipline == null;
+    }
+
+    private void readMark() {
+        MarkReader.Reading r = MarkReader.read(d.strokes);
+        d.discipline = r.mark();
+        d.resonance = r.resonance();
+        d.revealAt = Util.getMeasuringTimeMs();
+        d.chimed = false;
+        if (client != null && client.player != null) {
+            client.player.playSound(net.minecraft.sound.SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE, 1f, 0.8f);
+            client.player.playSound(net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, 1f, 0.7f);
+        }
+        clearAndInit();
+    }
+
+    private boolean inCanvas(double mx, double my) {
+        int cs = canvasSize();
+        return mx >= left && mx < left + cs && my >= top && my < top + cs;
+    }
+
+    private boolean drawing;
+
+    @Override
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (super.mouseClicked(mx, my, button)) return true;
+        if (d.step == 1 && button == 0 && inCanvas(mx, my) && d.strokes.size() < 10) {
+            // Drawing again after a reading starts a fresh one.
+            if (d.discipline != null) {
+                d.discipline = null;
+                d.revealAt = 0;
+                d.strokes.clear();
+            }
+            int cs = canvasSize();
+            java.util.List<float[]> st = new java.util.ArrayList<>();
+            st.add(new float[] {(float) (mx - left) / cs, (float) (my - top) / cs});
+            d.strokes.add(st);
+            drawing = true;
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
+        if (drawing && d.step == 1 && !d.strokes.isEmpty()) {
+            int cs = canvasSize();
+            float x = (float) Math.max(0, Math.min(1, (mx - left) / cs)), y = (float) Math.max(0, Math.min(1, (my - top) / cs));
+            var st = d.strokes.get(d.strokes.size() - 1);
+            float[] last = st.get(st.size() - 1);
+            if (Math.hypot(x - last[0], y - last[1]) > 0.006 && st.size() < 600) st.add(new float[] {x, y});
+            return true;
+        }
+        return super.mouseDragged(mx, my, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double mx, double my, int button) {
+        if (drawing) {
+            drawing = false;
+            clearAndInit();
+            return true;
+        }
+        return super.mouseReleased(mx, my, button);
+    }
+
+    /** A thick line, square by square. */
+    private static void seg(DrawContext c, double x0, double y0, double x1, double y1, int t, int col) {
+        int n = (int) Math.max(1, Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)));
+        for (int i = 0; i <= n; i++) {
+            int x = (int) (x0 + (x1 - x0) * i / n), y = (int) (y0 + (y1 - y0) * i / n);
+            c.fill(x - t / 2, y - t / 2, x - t / 2 + t, y - t / 2 + t, col);
+        }
+    }
+
+    private void drawMark(DrawContext c, int mouseX, int mouseY) {
+        int cs = canvasSize();
+        long now = Util.getMeasuringTimeMs();
+        float since = d.discipline == null ? -1 : (now - d.revealAt) / 1000f;
+        int col = d.discipline == null ? 0xE0B96A : d.discipline.markColor();
+        // The page: old paper, a faint ring to draw inside.
+        c.fill(left - 2, top - 2, left + cs + 2, top + cs + 2, 0xFF3A2A1A);
+        c.fill(left, top, left + cs, top + cs, 0xFFD6C49C);
+        c.fillGradient(left, top, left + cs, top + cs, 0x00000000, 0x30502A10);
+        for (int k = 0; k < 64; k++) {
+            double a = k / 64.0 * Math.PI * 2;
+            int rx = (int) (left + cs / 2.0 + Math.cos(a) * cs * 0.42), ry = (int) (top + cs / 2.0 + Math.sin(a) * cs * 0.42);
+            c.fill(rx, ry, rx + 1, ry + 1, 0x30402010);
+        }
+        // The ink, and once read, the light running through it in the mark's colour.
+        int total = 0;
+        for (var st : d.strokes) total += st.size();
+        int lit = since < 0 ? 0 : (int) (total * Math.min(1, since / 1.1f));
+        int k = 0;
+        float pulse = (float) (0.75 + 0.25 * Math.sin(now / 180.0));
+        for (var st : d.strokes) {
+            for (int i = 0; i < st.size(); i++, k++) {
+                float[] a = st.get(Math.max(0, i - 1)), b = st.get(i);
+                double x0 = left + a[0] * cs, y0 = top + a[1] * cs, x1 = left + b[0] * cs, y1 = top + b[1] * cs;
+                if (k < lit) {
+                    int glow = ((int) (110 * pulse) << 24) | col;
+                    seg(c, x0, y0, x1, y1, 7, glow);
+                    seg(c, x0, y0, x1, y1, 3, 0xFF000000 | col);
+                } else {
+                    seg(c, x0, y0, x1, y1, 3, 0xFF22160C);
+                }
+            }
+        }
+        if (since >= 1.1f) {
+            // The reading lands: a flash and a ring out from the middle.
+            float t = since - 1.1f;
+            if (!d.chimed && client != null && client.player != null) {
+                d.chimed = true;
+                client.player.playSound(net.minecraft.sound.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1f);
+                client.player.playSound(net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 0.6f);
+                clearAndInit();
+            }
+            if (t < 0.25f) c.fill(left, top, left + cs, top + cs, ((int) (200 * (1 - t / 0.25f)) << 24) | 0xFFFFFF);
+            float r = Math.min(1, t / 0.6f) * cs * 0.7f;
+            int ra = (int) (200 * Math.max(0, 1 - t / 0.6f));
+            if (ra > 4) for (int i = 0; i < 96; i++) {
+                double a = i / 96.0 * Math.PI * 2;
+                int x = (int) (left + cs / 2.0 + Math.cos(a) * r), y = (int) (top + cs / 2.0 + Math.sin(a) * r);
+                c.fill(x - 1, y - 1, x + 2, y + 2, (ra << 24) | col);
+            }
+        }
+        // Beside it: what to do, then what it says.
+        int ix = left + cs + 14, iw = left + w - ix;
+        Ui.panel(c, ix, top, iw, h);
+        if (d.discipline == null || since < 1.1f) {
+            Ui.text(c, Ui.title("DRAW YOUR MARK"), ix + iw / 2f, top + 14, 1.3f, Ui.GOLD, true);
+            Ui.wrapped(c, Text.literal("Every cadet leaves a mark on their first day. Draw anything that feels like yours: a crest, a shape, "
+                + "a scrawl. It will be read."), ix + 10, top + 38, iw - 20, Ui.CREAM);
+            if (since >= 0) Ui.text(c, Ui.heading("Reading..."), ix + iw / 2f, top + h / 2f, 1.2f, 0xFF000000 | col, true);
+            return;
+        }
+        Discipline m = d.discipline;
+        float in = Math.min(1, (since - 1.1f) / 0.3f);
+        float sc = 2.0f - 0.5f * in;
+        Ui.text(c, Ui.title(m.markName().toUpperCase()), ix + iw / 2f, top + 14, sc, ((int) (255 * in) << 24) | col, true);
+        Ui.text(c, Text.literal("Resonance " + d.resonance + "%"), ix + iw / 2f, top + 40, 0.85f, 0xFFE8E0D0, true);
+        Ui.divider(c, ix + 10, top + 54, iw - 20);
+        int ty = Ui.wrapped(c, Text.literal(m.markLore()), ix + 10, top + 62, iw - 20, Ui.CREAM);
+        c.drawTextWithShadow(textRenderer, Ui.heading("Your strength"), ix + 10, ty + 10, Ui.GOLD);
+        ty = Ui.wrapped(c, Text.literal(m.perks), ix + 10, ty + 22, iw - 20, 0xFF8FCB6A);
+        c.drawTextWithShadow(textRenderer, Ui.heading("Issued"), ix + 10, ty + 8, Ui.GOLD);
+        Ui.wrapped(c, Text.literal("Cadet uniform, training blade, rations. " + gear(m) + "."), ix + 10, ty + 20, iw - 20, Ui.CREAM);
+    }
+
+    // ---------------------------------------------------------------- the harness
+
+    private void harnessStep() {
+        AotButton go = addDrawableChild(new AotButton(width / 2 - 70, top + h - 30, 140, 22,
+            Ui.heading(d.phase == 0 && d.bonus < 0 ? "Hang me up" : d.phase == 1 ? "Hold steady..." : "Again"), this::startHarness));
+        go.active = d.phase != 1;
+    }
+
+    private void startHarness() {
+        d.phase = 1;
+        var r = new java.util.Random();
+        d.theta = (r.nextBoolean() ? 1 : -1) * (0.05 + r.nextDouble() * 0.06);
+        d.omega = 0;
+        d.sumAbs = 0;
+        d.samples = 0;
+        d.flipped = false;
+        d.windA = r.nextDouble() * 6;
+        d.windB = r.nextDouble() * 6;
+        d.startAt = d.lastAt = Util.getMeasuringTimeMs();
+        if (client != null && client.player != null) client.player.playSound(net.minecraft.sound.SoundEvents.BLOCK_CHAIN_PLACE, 1f, 0.8f);
+        clearAndInit();
+    }
+
+    private static final float RUN = 8f;
+
+    private void stepHarness(int mouseX) {
+        long now = Util.getMeasuringTimeMs();
+        double dt = Math.min(0.05, (now - d.lastAt) / 1000.0);
+        d.lastAt = now;
+        double t = (now - d.startAt) / 1000.0;
+        if (d.flipped) {
+            // Over you go.
+            d.theta += (Math.signum(d.theta) * Math.PI - d.theta) * Math.min(1, dt * 6);
+            if (t > 1.2 + d.samples * 0) finishHarness();
+            return;
+        }
+        // Lean against it: the mouse (or A / D) pushes the other way to whichever side you move it.
+        int cx = left + w / 2;
+        double u = Math.max(-1, Math.min(1, (mouseX - cx) / 70.0));
+        long win = client.getWindow().getHandle();
+        if (net.minecraft.client.util.InputUtil.isKeyPressed(win, org.lwjgl.glfw.GLFW.GLFW_KEY_A)
+            || net.minecraft.client.util.InputUtil.isKeyPressed(win, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT)) u = -1;
+        if (net.minecraft.client.util.InputUtil.isKeyPressed(win, org.lwjgl.glfw.GLFW.GLFW_KEY_D)
+            || net.minecraft.client.util.InputUtil.isKeyPressed(win, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT)) u = 1;
+        double harder = 0.6 + 0.8 * Math.min(1, t / RUN);
+        double wind = (1.1 * Math.sin(t * 1.3 + d.windA) + 0.8 * Math.sin(t * 2.7 + d.windB)) * harder;
+        double acc = 2.8 * Math.sin(d.theta) + wind - 1.5 * d.omega + 6.0 * u;
+        d.omega += acc * dt;
+        d.theta += d.omega * dt;
+        d.sumAbs += Math.abs(d.theta);
+        d.samples++;
+        if (Math.abs(d.theta) > 1.25) {
+            d.flipped = true;
+            d.startAt = now - (long) (RUN * 1000);
+            if (client.player != null) client.player.playSound(net.minecraft.sound.SoundEvents.ENTITY_PLAYER_HURT, 0.6f, 1.4f);
+            return;
+        }
+        if (t >= RUN) finishHarness();
+    }
+
+    private void finishHarness() {
+        d.phase = 2;
+        int got;
+        if (d.flipped) {
+            got = 0;
+            d.verdict = "UPSIDE DOWN";
+        } else {
+            double avg = d.sumAbs / Math.max(1, d.samples);
+            got = avg < 0.16 ? 2 : avg < 0.36 ? 1 : 0;
+            d.verdict = got == 2 ? "FLAWLESS" : got == 1 ? "STEADY" : "WOBBLY";
+        }
+        d.bonus = Math.max(d.bonus, got);
+        if (client != null && client.player != null) client.player.playSound(got == 2 ? net.minecraft.sound.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE
+            : net.minecraft.sound.SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), 0.7f, got == 2 ? 1f : 0.8f);
+        clearAndInit();
+    }
+
+    private void drawHarness(DrawContext c, int mouseX, int mouseY) {
+        if (d.phase == 1) stepHarness(mouseX);
+        Ui.panel(c, left, top, w, h);
+        int cx = left + w / 2, cy = top + h / 2 - 4;
+        // Instructor Shadis.
+        String line = d.phase == 1 ? (d.flipped ? "WHAT ARE YOU DOING?! GET UPRIGHT!" : "Hold it. HOLD IT.")
+            : d.phase == 2 ? switch (d.verdict) {
+                case "FLAWLESS" -> "...Hmph. Not bad, cadet.";
+                case "STEADY" -> "Adequate. Barely.";
+                case "UPSIDE DOWN" -> "Just like Jaeger. Again!";
+                default -> "You call that balance?";
+            } : "Cadet! Show me you can keep yourself upright in the gear!";
+        Ui.text(c, Ui.heading("Instructor Shadis"), cx, top + 8, 0.8f, Ui.MUTED, true);
+        Ui.text(c, Text.literal("\"" + line + "\""), cx, top + 20, 1f, Ui.CREAM, true);
+        // The rig: two posts, a crossbar, ropes to your belt.
+        int px = 70, postTop = cy - 56;
+        c.fill(cx - px - 3, postTop, cx - px + 3, top + h - 36, 0xFF5A3E22);
+        c.fill(cx + px - 3, postTop, cx + px + 3, top + h - 36, 0xFF5A3E22);
+        c.fill(cx - px - 6, postTop - 4, cx + px + 6, postTop + 2, 0xFF6B4A2A);
+        seg(c, cx - px, postTop + 4, cx - 5, cy, 1, 0xFF2A1E14);
+        seg(c, cx + px, postTop + 4, cx + 5, cy, 1, 0xFF2A1E14);
+        // You, hanging from the waist, turned by how far you've tipped.
+        var m = c.getMatrices();
+        m.push();
+        m.translate(cx, cy, 0);
+        m.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Z.rotation((float) d.theta));
+        c.fill(-7, -28, 7, 0, 0xFF5A4030);
+        c.fill(-7, -24, 7, -22, 0xFF22160C);
+        c.fill(-7, -8, 7, -6, 0xFF22160C);
+        c.fill(-6, 0, -1, 24, 0xFFE8E0D0);
+        c.fill(1, 0, 6, 24, 0xFFE8E0D0);
+        c.fill(-6, 20, -1, 26, 0xFF3A2A1A);
+        c.fill(1, 20, 6, 26, 0xFF3A2A1A);
+        c.fill(-11, -26, -7, -6, 0xFF5A4030);
+        c.fill(7, -26, 11, -6, 0xFF5A4030);
+        if (client != null && client.player != null) {
+            net.minecraft.client.gui.PlayerSkinDrawer.draw(c, client.getSkinProvider().getSkinTextures(client.player.getGameProfile()), -7, -43, 14);
+        }
+        m.pop();
+        // The balance meter and the clock.
+        int mw = 160, mx = cx - mw / 2, my = top + h - 56;
+        c.fill(mx, my, mx + mw, my + 5, 0x60000000);
+        c.fill(cx - 12, my, cx + 12, my + 5, 0x607FD06A);
+        int kx = (int) (cx + Math.max(-1, Math.min(1, d.theta / 1.25)) * mw / 2);
+        c.fill(kx - 2, my - 2, kx + 2, my + 7, Math.abs(d.theta) < 0.36 ? 0xFF7FD06A : 0xFFE0463A);
+        if (d.phase == 1 && !d.flipped) {
+            float left2 = Math.max(0, RUN - (Util.getMeasuringTimeMs() - d.startAt) / 1000f);
+            Ui.text(c, Ui.title(String.format(java.util.Locale.ROOT, "%.1f", left2)), cx, my - 18, 1.1f, Ui.GOLD, true);
+        }
+        if (d.phase == 2) {
+            int col = d.verdict.equals("FLAWLESS") ? 0xFF7FD06A : d.verdict.equals("STEADY") ? 0xFFE0B96A : 0xFFE0463A;
+            Ui.text(c, Ui.title(d.verdict), left + 60, cy - 10, 1.5f, col, true);
+            Ui.text(c, Text.literal("+" + Math.max(0, d.bonus) + " training"), left + w - 60, cy - 10, 1.1f, Ui.GOLD, true);
+        }
+    }
+
     private int statRowY(int i) {
         return top + 34 + i * Math.min(34, (h - 44) / 4);
     }
@@ -143,7 +466,7 @@ public class CreatorScreen extends Screen {
                 d.stats[s.ordinal()]++;
                 clearAndInit();
             });
-            plus.active = left2 < POINTS;
+            plus.active = left2 < d.points();
             addDrawableChild(minus);
             addDrawableChild(plus);
         }
@@ -215,7 +538,7 @@ public class CreatorScreen extends Screen {
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
         if (com.pglol.aotrpg.client.story.CutscenePlayer.active()) {
             // The barracks shows through: dark at the edges and behind the panel, clear around it.
-            c.fillGradient(0, 0, width, height, 0x50000000, 0x90000000);
+            c.fillGradient(0, 0, width, height, 0x28000000, 0x70000000);
             c.fill(left - 10, top - 6, left + w + 10, height - 32, 0xB00C100D);
             c.fillGradient(0, 0, width, 56, 0xC0000000, 0x00000000);
         } else {
@@ -237,10 +560,19 @@ public class CreatorScreen extends Screen {
 
         switch (d.step) {
             case 0 -> drawOrigin(c);
-            case 1 -> drawDiscipline(c);
-            case 2 -> drawStats(c);
-            case 3 -> drawIdentity(c);
+            case 1 -> drawMark(c, mouseX, mouseY);
+            case 2 -> drawHarness(c, mouseX, mouseY);
+            case 3 -> drawStats(c);
+            case 4 -> drawIdentity(c);
             default -> drawEnlist(c);
+        }
+        // Your cadet, beside it all (not over the drawing pad or the harness).
+        if (d.step != 1 && d.step != 2 && client != null && client.player != null) {
+            int mx0 = left + w + 12;
+            if (width - mx0 > 80) {
+                net.minecraft.client.gui.screen.ingame.InventoryScreen.drawEntity(c, mx0, top + 10, width - 12, top + h - 10,
+                    (int) Math.min(90, h / 2.4f), 0.0625f, mouseX, mouseY, client.player);
+            }
         }
     }
 
@@ -303,7 +635,7 @@ public class CreatorScreen extends Screen {
 
     private void drawStats(DrawContext c) {
         Ui.panel(c, left, top, w, h);
-        int remaining = POINTS - d.spent();
+        int remaining = d.points() - d.spent();
         Ui.text(c, Ui.heading("Train your body"), left + 10, top + 8, 1.2f, Ui.GOLD, false);
         Text pts = Ui.title(remaining + " point" + (remaining == 1 ? "" : "s") + " left");
         c.drawTextWithShadow(textRenderer, pts, left + w - 10 - textRenderer.getWidth(pts), top + 10, remaining > 0 ? Ui.GOLD : Ui.MUTED);
@@ -340,7 +672,7 @@ public class CreatorScreen extends Screen {
         // Mock of the floating name tag.
         String name = (d.first.isEmpty() ? "?" : d.first) + " " + (d.family.isEmpty() ? "?" : d.family);
         Text n = Text.literal(name).styled(s -> s.withBold(true));
-        String sub = "Lv 1 " + (d.discipline == null ? "" : d.discipline.title);
+        String sub = "Lv 1 " + (d.discipline == null ? "" : d.discipline.markName());
         int tw = Math.max(textRenderer.getWidth(n), textRenderer.getWidth(sub)) + 12;
         int cx = x + iw / 2, ty = top + 40;
         c.fill(cx - tw / 2, ty, cx + tw / 2, ty + 24, 0x60000000);
@@ -361,14 +693,14 @@ public class CreatorScreen extends Screen {
         Ui.divider(c, x + 20, top + 44, pw - 40);
         int y = top + 54;
         line(c, "Origin", d.origin == null ? "-" : d.origin.title, x, pw, y, Ui.CREAM);
-        line(c, "Discipline", d.discipline == null ? "-" : d.discipline.title, x, pw, y + 12,
-            d.discipline == null ? Ui.CREAM : Ui.disciplineColor(d.discipline.ordinal()));
+        line(c, "Mark", d.discipline == null ? "-" : d.discipline.markName(), x, pw, y + 12,
+            d.discipline == null ? Ui.CREAM : 0xFF000000 | d.discipline.markColor());
         int i = 0;
         for (Stat s : Stat.values()) {
             int bonus = (d.origin != null && d.origin.bonusStat == s ? 1 : 0) + (d.origin == Origin.UNDERGROUND && s == Stat.STRENGTH ? 1 : 0);
             line(c, s.title, String.valueOf(d.stats[s.ordinal()] + bonus), x, pw, y + 30 + 11 * i++, Ui.CREAM);
         }
-        if (POINTS - d.spent() > 0) line(c, "Unspent points", String.valueOf(POINTS - d.spent()), x, pw, y + 30 + 11 * i, Ui.MUTED);
+        if (d.points() - d.spent() > 0) line(c, "Unspent points", String.valueOf(d.points() - d.spent()), x, pw, y + 30 + 11 * i, Ui.MUTED);
         float pulse = (float) (0.6 + 0.4 * Math.sin(Util.getMeasuringTimeMs() / 400.0));
         int a = (int) (255 * pulse);
         Ui.text(c, Ui.heading("Dedicate your heart!"), width / 2f, top + h - 60, 1f, (a << 24) | 0xE0B96A, true);

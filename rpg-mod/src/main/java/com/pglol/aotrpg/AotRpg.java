@@ -309,6 +309,9 @@ public final class AotRpg implements ModInitializer {
             !(entity instanceof net.minecraft.entity.passive.AbstractHorseEntity h) || !HORSES.spare(h));
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) ->
             !(entity instanceof ServerPlayerEntity sp) || DUELS.allowDeath(sp) && DOWNED.allowDeath(sp, source, amount) && EXTRACT.allowDeath(sp, source) && TeamWatch.allowDeath(sp));
+        // The balloons are a safe place: nothing hurts anyone aboard (the void included).
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
+            !(entity instanceof ServerPlayerEntity sp && sp.getWorld().getRegistryKey() == Extraction.lobbyWorld() && Extraction.inLobby(sp)));
         // A scene's titans and actors only touch the players in that scene (and vice versa).
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             net.minecraft.entity.Entity att = source.getAttacker();
@@ -603,6 +606,12 @@ public final class AotRpg implements ModInitializer {
             SCHEDULER.later(100, () -> { if (!p.isDisconnected()) INBOX.joined(p); });
             SCHEDULER.later(120, () -> { if (!p.isDisconnected()) BOUNTIES.joined(p); });
             SCHEDULER.later(40, () -> { if (!p.isDisconnected()) RAID_BOSSES.joined(p); });
+            // Aboard a balloon when they left: straight back onto a bench (and the balloon rebuilt if the world lost it).
+            if (p.getWorld().getRegistryKey() == Extraction.lobbyWorld()) {
+                p.fallDistance = 0;
+                p.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING, 100, 0, false, false));
+                SCHEDULER.later(2, () -> { if (!p.isDisconnected()) EXTRACT.joined(p); });
+            }
             HomeAdmin.joined(p);
             SCHEDULER.later(60, () -> {
                 if (!p.isDisconnected()) HomeAdmin.notify(p);

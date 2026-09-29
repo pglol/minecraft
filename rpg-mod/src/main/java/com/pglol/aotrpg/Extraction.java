@@ -423,7 +423,10 @@ public final class Extraction {
     /** Builds a hot air balloon: a wicker basket with benches, ropes up to a striped envelope, the burner between. */
     private void buildBalloon(int slot) {
         ServerWorld w = sky();
-        if (w == null || data.built.contains(slot)) return;
+        if (w == null) return;
+        // Remembered as built but not actually there (the world didn't save it): build it again.
+        if (data.built.contains(slot) && w.getBlockState(origin(slot).down()).isAir()) data.built.remove(slot);
+        if (data.built.contains(slot)) return;
         BlockPos o = origin(slot);
         int f = Block.NOTIFY_LISTENERS | Block.FORCE_STATE;
         WorldCare.quiet(true);
@@ -792,6 +795,14 @@ public final class Extraction {
             // Balloons nobody is aboard are free for the next squad.
             slots.entrySet().removeIf(en -> !bySlot.containsKey(en.getValue())
                 && (server.getPlayerManager().getPlayer(en.getKey()) == null || !inLobby(server.getPlayerManager().getPlayer(en.getKey()))));
+        }
+    }
+
+    /** Logged in aboard a balloon: make sure it's there and put them back on a bench. */
+    public void joined(ServerPlayerEntity p) {
+        if (p.getWorld().getRegistryKey() == lobbyWorld && inLobby(p)) {
+            p.fallDistance = 0;
+            toLobby(p, true);
         }
     }
 
@@ -1381,6 +1392,17 @@ public final class Extraction {
             if (ticks % 20 == 3) Troops.titans(iw);
         }
         lobbyTick(ticks);
+        if (ticks % 20 == 9) {
+            // Aboard but below the basket (a glitch, a lag spike): caught and put back on a bench.
+            ServerWorld sw = sky();
+            if (sw != null) for (ServerPlayerEntity p : new ArrayList<>(sw.getPlayers())) {
+                if (!inLobby(p) || p.isSpectator() || p.isCreative()) continue;
+                if (p.getY() < LOBBY.getY() - 6) {
+                    p.fallDistance = 0;
+                    toLobby(p, true);
+                }
+            }
+        }
         if (ticks % 40 == 17 && lobbyWorld != Homes.WORLD) {
             ServerWorld hw = server.getWorld(Homes.WORLD);
             if (hw != null) for (ServerPlayerEntity p : new ArrayList<>(hw.getPlayers())) {
@@ -1961,6 +1983,15 @@ public final class Extraction {
      * they're straight into watching their squad. False: the death is handled here.
      */
     public boolean allowDeath(ServerPlayerEntity p, net.minecraft.entity.damage.DamageSource source) {
+        // Nobody dies aboard the balloons (a fall, the void, a glitch): back on a bench instead.
+        if (p.getWorld().getRegistryKey() == lobbyWorld && (lobbyWorld != Homes.WORLD || inLobby(p))) {
+            p.setHealth(p.getMaxHealth());
+            p.fallDistance = 0;
+            AotRpg.SCHEDULER.later(1, () -> {
+                if (!p.isDisconnected()) toLobby(p, true);
+            });
+            return false;
+        }
         Run r = runOf(p.getUuid());
         if (r == null || p.isSpectator()) return true;
         p.setHealth(p.getMaxHealth());

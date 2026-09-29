@@ -307,7 +307,8 @@ public final class CharacterCreation {
             if (v < 0) error = "Invalid stats.";
             sum += v;
         }
-        if (sum > START_POINTS) error = "Too many stat points.";
+        // (The harness test can earn up to two more.)
+        if (sum > START_POINTS + 2) error = "Too many stat points.";
         if (c.origin() < 0 || c.origin() >= Origin.values().length) error = "Choose an origin.";
         if (c.discipline() < 0 || c.discipline() >= Discipline.values().length) error = "Choose a discipline.";
         if (first == null) error = "First name: one word, 2-14 letters.";
@@ -394,7 +395,7 @@ public final class CharacterCreation {
         AotRpg.SCHEDULER.later(200, () -> {
             if (p.isDisconnected()) return;
             Titles.show(p, Text.literal(pr.name).formatted(Formatting.GOLD, Formatting.BOLD),
-                Text.literal(pr.discipline.title + " of the 104th Cadet Corps").formatted(Formatting.YELLOW), 20, 60, 20);
+                Text.literal(pr.discipline.markName() + "  ·  104th Cadet Corps").formatted(Formatting.YELLOW), 20, 60, 20);
             p.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 0.8f, 1f);
             boolean mod = AotRpg.hasClient(p);
             MutableText msg = Text.literal("\n\u2694 Chapter 1: The Recruit\n").formatted(Formatting.GOLD, Formatting.BOLD)
