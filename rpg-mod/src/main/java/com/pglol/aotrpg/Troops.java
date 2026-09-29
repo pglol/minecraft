@@ -71,6 +71,10 @@ public final class Troops {
         /** Chained cuts, and which blade cuts next. */
         int combo;
         boolean offhand;
+        /** Reading your rhythm: guard up (ticks), hits taken on it, a sidestep (ticks, direction), the last hit. */
+        int guard, guardHits, hitsInRow, dodge;
+        Vec3d dodgeDir;
+        long lastHit;
 
         Troop(UUID id, int squad, boolean officer, int role, int slot) {
             this.id = id;
@@ -394,6 +398,17 @@ public final class Troops {
             if (t.stun % 5 == 0) w.spawnParticles(ParticleTypes.CRIT, v.getX(), v.getY() + 2.1, v.getZ(), 3, 0.25, 0.05, 0.25, 0.02);
             return;
         }
+        if (t.dodge > 0) {
+            // A quick sidestep out of a flurry...
+            t.dodge--;
+            if (t.dodgeDir != null) walk(w, v, t.dodgeDir, 0.5);
+            if (t.dodge == 0 && t.blade) {
+                // ...and straight back in with a cut.
+                t.swing = 3;
+                t.cool = 0;
+            }
+            return;
+        }
         LivingEntity target = find(w, t.target);
         if (!valid(target)) target = null;
         LivingEntity ordered = find(w, t.orders);
@@ -645,6 +660,21 @@ public final class Troops {
     private static void melee(ServerWorld w, VillagerEntity v, Troop t, LivingEntity target, double dist, Squad sq) {
         face(v, target.getEyePos());
         Vec3d to = target.getPos().subtract(v.getPos()).multiply(1, 0, 1);
+        if (t.guard > 0) {
+            // Blades crossed in front: hits from the front glance off. Get round him, or wait it out.
+            t.guard--;
+            if (t.guard % 4 == 0) {
+                Vec3d g = v.getEyePos().add(v.getRotationVec(1f).multiply(0.6)).add(0, -0.3, 0);
+                w.spawnParticles(ParticleTypes.ELECTRIC_SPARK, g.x, g.y, g.z, 2, 0.15, 0.15, 0.15, 0.02);
+            }
+            if (dist < 1.8) walk(w, v, to.multiply(-1), 0.08);
+            if (t.guard == 0) {
+                // The guard drops into a quick cut.
+                t.swing = 3;
+                t.cool = 0;
+            }
+            return;
+        }
         if (t.swing > 0) {
             t.swing--;
             Vec3d hand = v.getEyePos().add(v.getRotationVec(1f).multiply(0.7)).add(0, -0.4, 0);
@@ -684,6 +714,11 @@ public final class Troops {
         }
         if (t.cool > 0) {
             t.cool--;
+            // Now and then the guard comes up on its own when you're in close.
+            if (dist < 3.2 && w.random.nextInt(t.officer ? 30 : 45) == 0) {
+                raise(w, v, t);
+                return;
+            }
             // Between cuts: stay on you, circling a little.
             if (dist > 2.4) walk(w, v, to, 0.2);
             else walk(w, v, new Vec3d(-to.z, 0, to.x).multiply(t.strafe), 0.06);
@@ -700,6 +735,76 @@ public final class Troops {
         // The tell: a glint and a scrape, then the cut.
         t.swing = t.officer ? 5 : 7;
         w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ITEM_TRIDENT_RETURN, SoundCategory.HOSTILE, 1f, 1.6f);
+    }
+
+    private static void raise(ServerWorld w, VillagerEntity v, Troop t) {
+        t.guard = t.officer ? 24 : 16;
+        t.guardHits = 0;
+        t.swing = 0;
+        t.combo = 0;
+        w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ITEM_ARMOR_EQUIP_CHAIN.value(), SoundCategory.HOSTILE, 1f, 1.5f);
+    }
+
+    /**
+     * A player's blow landing on a troop: how much of it goes through. Mash and they read it: a
+     * second quick hit sees the guard come up or a sidestep; keep hacking at the guard and they
+     * turn it (you're thrown off balance, and the cut comes straight back). Well-timed hits, a
+     * perfect parry, or getting round behind them is how you win.
+     */
+    public static double struck(Entity e, ServerPlayerEntity by) {
+        Troop t = troops.get(e.getUuid());
+        if (t == null || !(e instanceof VillagerEntity v) || !(v.getWorld() instanceof ServerWorld w) || t.stun > 0 || t.grabbed >= 0) return 1;
+        long now = w.getTime();
+        boolean quick = now - t.lastHit < 14;
+        t.lastHit = now;
+        Vec3d toBy = by.getPos().subtract(v.getPos()).multiply(1, 0, 1);
+        Vec3d look = v.getRotationVec(1f).multiply(1, 0, 1);
+        boolean front = toBy.lengthSquared() < 1e-4 || look.lengthSquared() < 1e-4 || look.normalize().dotProduct(toBy.normalize()) > 0.25;
+        if (t.dodge > 0) {
+            // Already stepping out of it: a whiff.
+            w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_NODAMAGE, SoundCategory.HOSTILE, 1f, 1.2f);
+            return 0;
+        }
+        if (t.guard > 0 && front) {
+            w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.BLOCK_ANVIL_PLACE, SoundCategory.HOSTILE, 0.6f, 1.8f);
+            Vec3d g = v.getEyePos().add(look.multiply(0.6));
+            w.spawnParticles(ParticleTypes.ELECTRIC_SPARK, g.x, g.y - 0.3, g.z, 8, 0.2, 0.2, 0.2, 0.15);
+            if (++t.guardHits >= 2 || quick) {
+                // Turned: the flailing blade is knocked aside and the answer comes at once.
+                t.guard = 0;
+                t.guardHits = 0;
+                Vec3d push = toBy.lengthSquared() < 1e-4 ? look.multiply(-1) : toBy.normalize();
+                by.addVelocity(push.x * 0.9, 0.25, push.z * 0.9);
+                by.velocityModified = true;
+                by.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOWNESS, 25, 3, false, false));
+                by.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.WEAKNESS, 25, 1, false, false));
+                by.playSoundToPlayer(SoundEvents.ITEM_SHIELD_BREAK, SoundCategory.HOSTILE, 1f, 1.4f);
+                w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.HOSTILE, 0.7f, 1.6f);
+                w.spawnParticles(ParticleTypes.CRIT, g.x, g.y, g.z, 14, 0.3, 0.3, 0.3, 0.3);
+                t.swing = 2;
+                t.combo = 1;
+                t.cool = 0;
+                return 0;
+            }
+            return 0.15;
+        }
+        t.hitsInRow = quick ? t.hitsInRow + 1 : 1;
+        if (t.blade && t.hitsInRow >= 2 && t.swing == 0) {
+            float r = w.random.nextFloat();
+            if (r < (t.officer ? 0.7f : 0.5f)) raise(w, v, t);
+            else if (r < 0.85f) {
+                // Out to the side and back in.
+                Vec3d side = new Vec3d(-toBy.z, 0, toBy.x);
+                if (w.random.nextBoolean()) side = side.multiply(-1);
+                t.dodgeDir = toBy.lengthSquared() < 1e-4 ? side : side.add(toBy.normalize().multiply(-0.4));
+                t.dodge = 4;
+                t.hitsInRow = 0;
+                w.playSound(null, v.getX(), v.getY(), v.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_WEAK, SoundCategory.HOSTILE, 1f, 0.6f);
+            }
+        }
+        // An officer mid-swing doesn't flinch; anyone else's cut is knocked back a little.
+        if (!(t.officer && t.swing > 0) && t.swing > 0) t.swing = Math.min(t.swing + 2, 8);
+        return 1;
     }
 
     // ------------------------------------------------------------------ loaded grips

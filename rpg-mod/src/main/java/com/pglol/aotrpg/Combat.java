@@ -24,6 +24,8 @@ public final class Combat {
         if (source.getAttacker() instanceof ServerPlayerEntity attacker && attacker != entity) {
             // A troop reeling from a parry takes a punishing hit.
             if (Troops.stunned(entity)) mult *= 1.6;
+            // Mashing at a troop: his guard, his sidestep, his answer.
+            if (Troops.is(entity) && melee(source)) mult *= Troops.struck(entity, attacker);
             // The riposte after a perfect parry.
             if (melee(source) && AotRpg.GUARD_FIGHT.takeCounter(attacker)) {
                 mult *= 1.5;
