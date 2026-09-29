@@ -23,9 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Cards over items on the ground, instead of a glow: the name (in its rarity colour) and, up close,
- * the details: rarity and kind, item level, the main stats, and whether it's too high for you. Gear
- * with a rarity gets a glowing frame, pulsing on Legendary and Mythic. Far away only the name shows.
+ * Names over items on the ground, raised above them on a thin stem and stacked out of each
+ * other's way. The one under your crosshair opens into a full card: rarity and kind, item level,
+ * the main stats, whether it's too high for you, in a glowing frame (pulsing on Legendary and
+ * Mythic), while the names around it step back.
  */
 public final class GroundLoot {
     private GroundLoot() {}
@@ -43,20 +44,39 @@ public final class GroundLoot {
         TextRenderer tr = mc.textRenderer;
         float time = (Util.getMeasuringTimeMs() % 100000) / 1000f;
         List<ItemEntity> items = mc.world.getEntitiesByClass(ItemEntity.class, new Box(cam, cam).expand(18), e -> !e.getStack().isEmpty());
+        items.sort((x, y) -> Double.compare(x.squaredDistanceTo(cam), y.squaredDistanceTo(cam)));
+        // The one you're looking at gets the full card; the rest just a name.
+        Vec3d look = mc.player.getRotationVec(td);
+        Vec3d eye = mc.player.getCameraPosVec(td);
+        ItemEntity focus = null;
+        double best = 0.965;
         for (ItemEntity e : items) {
+            Vec3d to = e.getLerpedPos(td).add(0, 0.4, 0).subtract(eye);
+            double d = to.length();
+            if (d > 8 || d < 1e-3) continue;
+            double dot = to.multiply(1 / d).dotProduct(look) + (8 - d) * 0.002;
+            if (dot > best) {
+                best = dot;
+                focus = e;
+            }
+        }
+        // Tags stack up out of each other's way instead of piling on top.
+        List<Vec3d> placed = new ArrayList<>();
+        Vec3d focusPos = focus == null ? null : focus.getLerpedPos(td);
+        for (int pass = 0; pass < 2; pass++) for (ItemEntity e : items) {
+            boolean full = e == focus;
+            if (full != (pass == 1)) continue;
             ItemStack s = e.getStack();
             Vec3d pos = e.getLerpedPos(td);
             double dist = pos.distanceTo(cam);
             if (dist > 18) continue;
             int rar = GearUi.rarity(s);
             long marks = marks(s);
-            boolean near = dist < 7;
-            // What the card says.
             List<Text> lines = new ArrayList<>();
             List<Integer> colors = new ArrayList<>();
             int titleCol = rar >= 0 ? RARITY[rar] : marks > 0 ? 0xF2C14E : 0xEDE3C8;
             String title = marks > 0 ? marks + " Marks" : s.getName().getString() + (s.getCount() > 1 ? "  ×" + s.getCount() : "");
-            if (rar >= 0 && near) {
+            if (full && rar >= 0) {
                 LoreComponent lore = s.get(DataComponentTypes.LORE);
                 if (lore != null) {
                     int stats = 0;
@@ -81,12 +101,27 @@ public final class GroundLoot {
                 }
             }
             float fade = dist < 14 ? 1 : (float) (1 - (dist - 14) / 4);
+            // Names beside the card you're reading step back.
+            if (!full && focusPos != null && pos.squaredDistanceTo(focusPos) < 3.5 * 3.5) fade *= 0.35f;
             int alpha = (int) (255 * Math.max(0, Math.min(1, fade)));
             if (alpha < 8) continue;
+            // Up above the blade, not across it.
+            double lift = full ? 1.55 : 1.3;
+            Vec3d at = pos.add(0, lift, 0);
+            if (!full) {
+                for (int k = 0; k < 8; k++) {
+                    boolean clash = false;
+                    for (Vec3d p : placed) if (Math.abs(p.y - at.y) < 0.24 && (p.x - at.x) * (p.x - at.x) + (p.z - at.z) * (p.z - at.z) < 1.3 * 1.3) clash = true;
+                    if (!clash) break;
+                    at = at.add(0, 0.26, 0);
+                }
+                placed.add(at);
+            }
+            double bob = Math.sin(time * 2 + e.getId()) * 0.02;
             ms.push();
-            ms.translate(pos.x - cam.x, pos.y - cam.y + 0.75 + Math.sin(time * 2 + e.getId()) * 0.03, pos.z - cam.z);
+            ms.translate(at.x - cam.x, at.y - cam.y + bob, at.z - cam.z);
             ms.multiply(mc.getEntityRenderDispatcher().getRotation());
-            float sc = 0.02f;
+            float sc = full ? 0.02f : 0.015f;
             ms.scale(sc, -sc, sc);
             Matrix4f m = ms.peek().getPositionMatrix();
             int light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
@@ -95,27 +130,28 @@ public final class GroundLoot {
             int h = 10 + lines.size() * 8 + (lines.isEmpty() ? 0 : 3);
             float x0 = -w / 2f - 5, x1 = w / 2f + 5, y0 = -h - 4, y1 = 0;
             VertexConsumer bg = vc.getBuffer(RenderLayer.getTextBackground());
-            quad(bg, m, x0, y0, x1, y1, -1.2f, (alpha * 170 / 255) << 24 | 0x0D0F0D, light);
-            // The frame: glowing in the rarity colour (pulsing from Legendary up).
-            if (rar >= 1) {
+            int col = rar >= 0 ? RARITY[rar] : titleCol;
+            // A thin stem down to what it names.
+            float stem = (float) ((at.y + bob - pos.y - 0.55) / sc);
+            if (stem > 2) quad(bg, m, -0.5f, y1, 0.5f, y1 + stem, -1.2f, (alpha * 120 / 255) << 24 | col, light);
+            quad(bg, m, x0, y0, x1, y1, -1.2f, (alpha * (full ? 200 : 150) / 255) << 24 | 0x0D0F0D, light);
+            if (rar >= 1 && full) {
+                // The frame: glowing in the rarity colour (pulsing from Legendary up).
                 float pulse = rar >= 4 ? 0.6f + 0.4f * (float) Math.sin(time * (rar == 5 ? 6 : 3)) : 0.85f;
                 int fa = (int) (alpha * pulse);
-                int col = RARITY[rar];
                 VertexConsumer glow = vc.getBuffer(RenderLayer.getTextBackground());
                 float t1 = 1.2f, g = rar >= 3 ? 3.5f : 2f;
                 quad(glow, m, x0, y0, x1, y0 + t1, -1.3f, fa << 24 | col, light);
                 quad(glow, m, x0, y1 - t1, x1, y1, -1.3f, fa << 24 | col, light);
                 quad(glow, m, x0, y0, x0 + t1, y1, -1.3f, fa << 24 | col, light);
                 quad(glow, m, x1 - t1, y0, x1, y1, -1.3f, fa << 24 | col, light);
-                // A soft halo outside the frame.
                 int ha = fa / 3;
                 quad(glow, m, x0 - g, y0 - g, x1 + g, y0, -1.1f, ha << 24 | col, light);
                 quad(glow, m, x0 - g, y1, x1 + g, y1 + g, -1.1f, ha << 24 | col, light);
                 quad(glow, m, x0 - g, y0, x0, y1, -1.1f, ha << 24 | col, light);
                 quad(glow, m, x1, y0, x1 + g, y1, -1.1f, ha << 24 | col, light);
-                // A tag of colour on the left edge.
-                quad(glow, m, x0, y0, x0 + 2.5f, y1, -1.35f, alpha << 24 | col, light);
             }
+            if (rar >= 1) quad(bg, m, x0, y0, x0 + 2.5f, y1, -1.35f, alpha << 24 | col, light);
             float y = y0 + 2;
             tr.draw(title, -tr.getWidth(title) / 2f, y, alpha << 24 | titleCol, false, m, vc, TextRenderer.TextLayerType.POLYGON_OFFSET, 0, light);
             y += 11;
