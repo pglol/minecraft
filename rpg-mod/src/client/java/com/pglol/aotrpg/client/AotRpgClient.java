@@ -121,6 +121,8 @@ public final class AotRpgClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Net.LootView.ID, (payload, ctx) -> LootScreen.update(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.DecorView.ID, (payload, ctx) -> DecorScreen.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.EventBanner.ID, (payload, ctx) -> EventBanner.on(payload));
+        ClientPlayNetworking.registerGlobalReceiver(Net.Threats.ID, (payload, ctx) -> ThreatSense.on(payload));
+        HudRenderCallback.EVENT.register(ThreatSense::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.Quake.ID, (payload, ctx) -> EffectFx.quake(payload.strength(), payload.ticks()));
         ClientPlayNetworking.registerGlobalReceiver(Net.DuelIntro.ID, (payload, ctx) -> DuelIntro.on(payload));
         ClientPlayNetworking.registerGlobalReceiver(Net.StashView.ID, (payload, ctx) -> {

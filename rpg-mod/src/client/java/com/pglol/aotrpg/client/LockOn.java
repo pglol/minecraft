@@ -67,7 +67,7 @@ public final class LockOn {
         if (e == mc.player || !e.isAlive() || !(e instanceof LivingEntity) || e.isInvisible()) return false;
         if (titanPart(e)) return false;
         // Marleyan troops too (drawn as people, named for their rank).
-        boolean troop = e.hasCustomName() && e.getCustomName().getString().startsWith("Marleyan");
+        boolean troop = e instanceof net.minecraft.entity.passive.VillagerEntity && e.hasCustomName() && e.getCustomName().getString().contains("Marleyan");
         return e instanceof PlayerEntity || e instanceof Monster || titan(e) || troop;
     }
 

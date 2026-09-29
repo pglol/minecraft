@@ -1469,6 +1469,29 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /**
+     * Server -> client: who is coming for you and from where (a sixth sense): each threat's
+     * position and how close it is to striking (1 marked you, 2 aiming or winding up, 3 about to hit).
+     */
+    public record Threats(double[] x, double[] y, double[] z, byte[] level) implements CustomPayload {
+        public static final Id<Threats> ID = id("threats");
+        public static final PacketCodec<RegistryByteBuf, Threats> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.level.length);
+            for (int i = 0; i < v.level.length; i++) {
+                b.writeDouble(v.x[i]); b.writeDouble(v.y[i]); b.writeDouble(v.z[i]); b.writeByte(v.level[i]);
+            }
+        }, b -> {
+            int n = Math.min(32, b.readVarInt());
+            double[] x = new double[n], y = new double[n], z = new double[n];
+            byte[] l = new byte[n];
+            for (int i = 0; i < n; i++) {
+                x[i] = b.readDouble(); y[i] = b.readDouble(); z[i] = b.readDouble(); l[i] = b.readByte();
+            }
+            return new Threats(x, y, z, l);
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: a duel's face-off: the two fighters side by side, VS, and the count to the fight. */
     public record DuelIntro(java.util.UUID a, String aName, int aLevel, String aRole, java.util.UUID b, String bName, int bLevel, String bRole,
                             String rules) implements CustomPayload {
@@ -2379,6 +2402,7 @@ public final class Net {
         PayloadTypeRegistry.playC2S().register(VendorSell.ID, VendorSell.CODEC);
         PayloadTypeRegistry.playS2C().register(DecorView.ID, DecorView.CODEC);
         PayloadTypeRegistry.playS2C().register(EventBanner.ID, EventBanner.CODEC);
+        PayloadTypeRegistry.playS2C().register(Threats.ID, Threats.CODEC);
         PayloadTypeRegistry.playS2C().register(Quake.ID, Quake.CODEC);
         PayloadTypeRegistry.playS2C().register(DuelIntro.ID, DuelIntro.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);

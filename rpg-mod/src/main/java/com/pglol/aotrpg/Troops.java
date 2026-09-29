@@ -75,6 +75,9 @@ public final class Troops {
         int guard, guardHits, hitsInRow, dodge;
         Vec3d dodgeDir;
         long lastHit;
+        /** Knocked back by a hit (direction and strength, ticks left), and a pause between weapon swaps. */
+        Vec3d knock;
+        int knockT, swapCool;
 
         Troop(UUID id, int squad, boolean officer, int role, int slot) {
             this.id = id;
@@ -123,9 +126,15 @@ public final class Troops {
         if (id == null) return null;
         Troop t = troops.get(id);
         Entity e = w.getEntity(id);
-        if (t == null || !t.blade || !(e instanceof VillagerEntity v) || !v.isAlive() || v.squaredDistanceTo(p) > 9 * 9) {
+        if (t == null || !(e instanceof VillagerEntity v) || !v.isAlive()) {
+            // He fell: the next man may step in.
             duels.remove(p.getUuid());
             duelOpen.put(p.getUuid(), System.currentTimeMillis() + 8000);
+            return null;
+        }
+        if (v.squaredDistanceTo(p) > 26 * 26) {
+            // You got clear of him: the fight is off, but nobody swaps in for it.
+            duels.remove(p.getUuid());
             return null;
         }
         return id;
@@ -277,6 +286,46 @@ public final class Troops {
             }
             think(w, v, t, sq, players, ticks);
         }
+        if (ticks % 2 == 0) sense(w, players);
+    }
+
+    /** Players who were last sent threats (so the arcs clear once nobody has them marked). */
+    private static final java.util.Set<UUID> sensed = new java.util.HashSet<>();
+
+    /** Each player's sixth sense: every troop (and titan) with them marked, and how close to striking. */
+    private static void sense(ServerWorld w, List<ServerPlayerEntity> players) {
+        for (ServerPlayerEntity p : players) {
+            if (!ServerPlayNetworking.canSend(p, Net.Threats.ID)) continue;
+            List<double[]> found = new ArrayList<>();
+            for (Troop t : troops.values()) {
+                if (!p.getUuid().equals(t.target) || t.grabbed >= 0) continue;
+                if (!(w.getEntity(t.id) instanceof VillagerEntity v) || !v.isAlive() || v.squaredDistanceTo(p) > 64 * 64) continue;
+                int lvl = t.swing > 0 && t.swing <= 4 || t.windup > 0 && t.windup <= 5 || t.burst > 0 ? 3
+                    : t.swing > 0 || t.windup > 0 || t.blade && v.squaredDistanceTo(p) < 5 * 5 && t.cool <= 3 ? 2 : 1;
+                // The honor ring only watches.
+                if (!t.blade && !t.id.equals(duels.get(p.getUuid())) && duels.containsKey(p.getUuid()) && t.windup == 0 && t.burst == 0) lvl = 1;
+                found.add(new double[] {v.getX(), v.getY() + 1, v.getZ(), lvl});
+                if (found.size() >= 24) break;
+            }
+            for (Entity e : w.getOtherEntities(p, p.getBoundingBox().expand(48, 30, 48), e -> e instanceof MobEntity m && AotRpg.isTitan(e) && m.getTarget() == p)) {
+                double reach = e.getWidth() * 0.6 + 4;
+                found.add(new double[] {e.getX(), e.getY() + e.getHeight() * 0.5, e.getZ(), e.squaredDistanceTo(p) < reach * reach ? 3 : 2});
+                if (found.size() >= 30) break;
+            }
+            if (found.isEmpty() && !sensed.remove(p.getUuid())) continue;
+            if (!found.isEmpty()) sensed.add(p.getUuid());
+            int n = found.size();
+            double[] x = new double[n], y = new double[n], z = new double[n];
+            byte[] l = new byte[n];
+            for (int i = 0; i < n; i++) {
+                double[] f = found.get(i);
+                x[i] = f[0];
+                y[i] = f[1];
+                z[i] = f[2];
+                l[i] = (byte) f[3];
+            }
+            ServerPlayNetworking.send(p, new Net.Threats(x, y, z, l));
+        }
     }
 
     private static boolean sees(ServerWorld w, Entity from, Vec3d at) {
@@ -392,6 +441,13 @@ public final class Troops {
     }
 
     private static void think(ServerWorld w, VillagerEntity v, Troop t, Squad sq, List<ServerPlayerEntity> players, int ticks) {
+        if (t.swapCool > 0) t.swapCool--;
+        if (t.knockT > 0 && t.knock != null) {
+            // Rocked back by a hit, sliding to a stop.
+            walk(w, v, t.knock, t.knock.length() * t.knockT / 5.0);
+            t.knockT--;
+            if (t.knockT >= 3) return;
+        }
         if (t.stun > 0) {
             // Reeling from a parry: stock still, seeing stars.
             t.stun--;
@@ -629,7 +685,8 @@ public final class Troops {
     }
 
     private static void gun(VillagerEntity v, Troop t) {
-        if (!t.blade) return;
+        if (!t.blade || t.swapCool > 0) return;
+        t.swapCool = 30;
         t.blade = false;
         t.swing = 0;
         t.combo = 0;
@@ -639,7 +696,8 @@ public final class Troops {
     }
 
     private static void blade(VillagerEntity v, Troop t) {
-        if (t.blade) return;
+        if (t.blade || t.swapCool > 0) return;
+        t.swapCool = 30;
         t.blade = true;
         t.windup = 0;
         t.burst = 0;
@@ -786,9 +844,31 @@ public final class Troops {
                 t.cool = 0;
                 return 0;
             }
+            // Driven back a step even on his guard.
+            t.knock = toBy.lengthSquared() < 1e-4 ? look.multiply(-0.2) : toBy.normalize().multiply(-0.2);
+            t.knockT = 3;
             return 0.15;
         }
         t.hitsInRow = quick ? t.hitsInRow + 1 : 1;
+        // A real hit rocks him back.
+        t.knock = toBy.lengthSquared() < 1e-4 ? look.multiply(-0.5) : toBy.normalize().multiply(-0.5);
+        t.knockT = 5;
+        if (t.blade && t.hitsInRow >= 3) {
+            // Pressed too hard: he plants his feet and shoves you off, and comes back cutting.
+            t.hitsInRow = 0;
+            t.knockT = 0;
+            Vec3d push = toBy.lengthSquared() < 1e-4 ? look.multiply(-1) : toBy.normalize();
+            by.addVelocity(push.x * 1.1, 0.3, push.z * 1.1);
+            by.velocityModified = true;
+            by.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOWNESS, 15, 2, false, false));
+            w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_KNOCKBACK, SoundCategory.HOSTILE, 1.2f, 0.7f);
+            w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PILLAGER_HURT, SoundCategory.HOSTILE, 1f, 0.8f);
+            w.spawnParticles(ParticleTypes.SWEEP_ATTACK, v.getX() + push.x, v.getY() + 1.1, v.getZ() + push.z, 1, 0, 0, 0, 0);
+            t.swing = 4;
+            t.combo = 0;
+            t.cool = 0;
+            return 0.6;
+        }
         if (t.blade && t.hitsInRow >= 2 && t.swing == 0) {
             float r = w.random.nextFloat();
             if (r < (t.officer ? 0.7f : 0.5f)) raise(w, v, t);
@@ -1044,14 +1124,14 @@ public final class Troops {
         Random r = w.random;
         List<ItemStack> drops = new ArrayList<>();
         Item ammo = AotItems.exact("apg_cartridge"), gas = AotItems.exact("gas_canister"), blades = AotItems.exact("blade_component");
-        if (ammo != null) drops.add(new ItemStack(ammo, 4 + r.nextInt(8)));
-        if (gas != null && r.nextFloat() < 0.35f) drops.add(new ItemStack(gas));
-        if (blades != null && r.nextFloat() < 0.35f) drops.add(new ItemStack(blades, 3 + r.nextInt(5)));
-        if (officer || r.nextFloat() < 0.18f) {
+        if (ammo != null && (officer || r.nextFloat() < 0.6f)) drops.add(new ItemStack(ammo, 2 + r.nextInt(4)));
+        if (gas != null && r.nextFloat() < 0.12f) drops.add(new ItemStack(gas));
+        if (blades != null && r.nextFloat() < 0.15f) drops.add(new ItemStack(blades, 1 + r.nextInt(3)));
+        if (officer ? r.nextFloat() < 0.6f : r.nextFloat() < 0.07f) {
             ItemStack g = Gear.roll(r, Gear.rollRarity(r, officer ? 3 : 1), Math.max(1, level + r.nextInt(3)));
             if (!g.isEmpty()) drops.add(g);
         }
-        if (officer && r.nextFloat() < 0.4f && AotItems.exact("apg_gun") != null) drops.add(new ItemStack(AotItems.exact("apg_gun")));
+        if (officer && r.nextFloat() < 0.15f && AotItems.exact("apg_gun") != null) drops.add(new ItemStack(AotItems.exact("apg_gun")));
         for (ItemStack s : drops) {
             ItemEntity ie = new ItemEntity(w, v.getX(), v.getY() + 0.8, v.getZ(), s,
                 (r.nextDouble() - 0.5) * 0.25, 0.3 + r.nextDouble() * 0.15, (r.nextDouble() - 0.5) * 0.25);
