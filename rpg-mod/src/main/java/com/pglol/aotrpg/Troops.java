@@ -457,7 +457,8 @@ public final class Troops {
         boolean titan = AotRpg.isTitan(target);
         // Up close with a person on the ground: both blades out. They can't follow you into the air
         // (no gear of their own), so once you pull well away or take off, it's back to the gun.
-        boolean airborne = target instanceof ServerPlayerEntity sp2 && (!sp2.isOnGround() && sp2.getVelocity().lengthSquared() > 0.09);
+        boolean airborne = target instanceof ServerPlayerEntity sp2 && !sp2.isOnGround()
+            && sp2.getY() - w.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, sp2.getBlockX(), sp2.getBlockZ()) > 2.5;
         if (!titan && target instanceof ServerPlayerEntity duelP) {
             // Honor: one blade at a time. While someone is fighting this person hand to hand, the
             // rest hold a ring and keep their guns up for when he takes to the air.
@@ -474,14 +475,14 @@ public final class Troops {
                 return;
             }
             boolean open = duelOpen.getOrDefault(duelP.getUuid(), 0L) > System.currentTimeMillis();
-            if (!airborne && (dist < 7 || t.blade && dist < 11 || open && dist < 14)) {
+            if (!airborne && (dist < 16 || t.blade && dist < 22 || open && dist < 20)) {
                 if (holder == null) {
                     duels.put(duelP.getUuid(), t.id);
                     duelOpen.remove(duelP.getUuid());
                     w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PILLAGER_CELEBRATE, SoundCategory.HOSTILE, 1f, 0.9f);
                 }
                 blade(v, t);
-            } else if (dist > 11 || airborne) {
+            } else if (dist > 22 || airborne) {
                 if (t.blade) duels.remove(duelP.getUuid(), t.id);
                 gun(v, t);
             }
@@ -493,6 +494,14 @@ public final class Troops {
 
         Vec3d at = aim(target);
         Vec3d flat = target.getPos().subtract(v.getPos()).multiply(1, 0, 1);
+        if (!titan && !airborne && dist < 32) {
+            // A person on foot is a blade fight: close in (the gun is for when they take to the air).
+            t.windup = 0;
+            t.burst = 0;
+            face(v, target.getEyePos());
+            walk(w, v, flat, 0.22);
+            return;
+        }
         Vec3d move;
         double speed;
         if (titan && t.job == 2) {
@@ -548,7 +557,7 @@ public final class Troops {
             face(v, t.aimAt);
             if (ticks % 2 == 0) laser(w, v, t.aimAt);
             if (t.windup == 0) {
-                t.burst = t.officer ? 5 : 4;
+                t.burst = titan ? 4 : t.officer ? 3 : 2;
                 t.cool = 0;
             }
             return;
@@ -559,7 +568,7 @@ public final class Troops {
                 // Each round walks a little further onto where you are now.
                 if (t.aimAt != null) t.aimAt = t.aimAt.lerp(at.add(target.getVelocity().multiply(3, 0, 3)), 0.25);
                 fire(w, v, t, target, t.aimAt, dist, sq);
-                if (--t.burst == 0) t.cool = (t.officer ? 18 : 24) + w.random.nextInt(18);
+                if (--t.burst == 0) t.cool = (titan ? 25 : 55) + w.random.nextInt(30);
             }
             return;
         }
@@ -572,9 +581,9 @@ public final class Troops {
         // between); split onto different targets, they fire at once.
         int next = sq.volleys.getOrDefault(target.getUuid(), 0);
         if (ticks < next) return;
-        sq.volleys.put(target.getUuid(), ticks + (titan ? 6 : 11));
+        sq.volleys.put(target.getUuid(), ticks + (titan ? 10 : 30));
         if (sq.volleys.size() > 16) sq.volleys.values().removeIf(x -> x < ticks);
-        t.windup = titan ? 6 : t.officer ? 10 : 13;
+        t.windup = titan ? 8 : t.officer ? 13 : 16;
         t.aimAt = at;
         if (target instanceof ServerPlayerEntity p) p.playSoundToPlayer(SoundEvents.ITEM_CROSSBOW_LOADING_MIDDLE.value(), SoundCategory.HOSTILE, 1f, 1.4f);
     }
