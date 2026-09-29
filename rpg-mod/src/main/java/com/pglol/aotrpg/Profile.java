@@ -84,6 +84,8 @@ public final class Profile {
     public PlayerClass cls;
     /** Ferry stations found on foot (area ids). */
     public java.util.Set<String> discovered = new java.util.HashSet<>();
+    /** Recipes learned from schematics (see Recipes). */
+    public java.util.Set<String> recipes = new java.util.HashSet<>();
     /** Map cells walked (Fog.CELL blocks square), packed x << 32 | z: the rest is fogged on the map. */
     public java.util.Set<Long> explored = new java.util.HashSet<>();
     /** Marks owed for crimes seen in town (a drawn weapon, theft). */

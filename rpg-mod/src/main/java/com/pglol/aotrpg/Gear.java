@@ -552,6 +552,11 @@ public final class Gear {
         boolean boss = titan.hasCustomName() || titan.getMaxHealth() >= 300;
         boolean shifter = TitanGuard.isShifter(titan);
         float chance = shifter || boss ? 1f : Math.min(0.6f, 0.12f + size / 400f);
+        // What the titan's last meals carried: sometimes a schematic.
+        if (r.nextFloat() < (shifter || boss ? 0.4f : 0.08f)) {
+            ItemStack sch = Recipes.randomSchematic(r, shifter || boss ? 3 : 2);
+            if (!sch.isEmpty()) Loot.claim(killer, sch);
+        }
         if (r.nextFloat() >= chance) return;
         int luck = (shifter ? 2 : boss ? 1 : 0) + (Extraction.inRun(killer.getUuid()) ? 1 : 0);
         Rarity rar = rollRarity(r, luck);

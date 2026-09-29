@@ -52,6 +52,7 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
         if (name.contains("armorer")) return "merchant";
         if (name.contains("provisioner")) return "baker";
         if (name.contains("toolmaker")) return "farmer";
+        if (name.contains("craftsman")) return "civilian_m";
         if (name.contains("bladesmith")) return "garrison_soldier";
         if (name.contains("merchant")) return "merchant";
         long h = e.getUuid().getLeastSignificantBits() ^ e.getUuid().getMostSignificantBits();

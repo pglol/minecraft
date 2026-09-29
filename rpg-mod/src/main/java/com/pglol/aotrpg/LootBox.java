@@ -57,6 +57,50 @@ public final class LootBox {
         send(p, o, true);
     }
 
+    /**
+     * An old chest out in the world (a ruin, a camp, a mineshaft) opened for the first time: our
+     * loot instead of the vanilla tables. Supplies and materials for the benches, food, maybe a
+     * schematic, and now and then a piece of gear for the area (never above Rare).
+     */
+    public static void fillWild(ServerWorld w, BlockPos pos, net.minecraft.block.entity.LootableContainerBlockEntity lc) {
+        if (lc.getLootTable() == null || AotRpg.CARE.config.vanillaChestLoot) return;
+        lc.setLootTable(null);
+        lc.clear();
+        var r = w.random;
+        int level = Math.max(1, Extraction.levelIn(w, pos.getX(), pos.getZ()));
+        List<ItemStack> put = new ArrayList<>();
+        net.minecraft.item.Item[][] mats = {
+            {net.minecraft.item.Items.IRON_INGOT, null}, {net.minecraft.item.Items.COAL, null}, {net.minecraft.item.Items.STRING, null},
+            {net.minecraft.item.Items.LEATHER, null}, {net.minecraft.item.Items.PAPER, null}, {net.minecraft.item.Items.GUNPOWDER, null},
+            {net.minecraft.item.Items.GOLD_NUGGET, null}, {net.minecraft.item.Items.COPPER_INGOT, null}, {net.minecraft.item.Items.BREAD, null},
+            {net.minecraft.item.Items.COOKED_BEEF, null}, {net.minecraft.item.Items.APPLE, null}, {net.minecraft.item.Items.TORCH, null},
+        };
+        int n = 3 + r.nextInt(4);
+        for (int i = 0; i < n; i++) {
+            net.minecraft.item.Item it = mats[r.nextInt(mats.length)][0];
+            put.add(new ItemStack(it, 1 + r.nextInt(Math.min(8, it.getMaxCount()))));
+        }
+        for (String path : AotItems.SUPPLY_PATHS) {
+            net.minecraft.item.Item it = AotItems.exact(path);
+            if (it != null && r.nextFloat() < 0.35f) put.add(new ItemStack(it, 2 + r.nextInt(6)));
+        }
+        if (r.nextFloat() < 0.18f) {
+            ItemStack sch = Recipes.randomSchematic(r, level >= 20 ? 3 : 2);
+            if (!sch.isEmpty()) put.add(sch);
+        }
+        if (r.nextFloat() < 0.12f) {
+            Gear.Rarity rar = r.nextFloat() < 0.25f ? Gear.Rarity.RARE : r.nextBoolean() ? Gear.Rarity.UNCOMMON : Gear.Rarity.COMMON;
+            ItemStack g = Gear.roll(r, rar, level);
+            if (!g.isEmpty()) put.add(g);
+        }
+        int size = lc.size();
+        List<Integer> slots = new ArrayList<>();
+        for (int i = 0; i < size; i++) slots.add(i);
+        java.util.Collections.shuffle(slots, new java.util.Random(r.nextLong()));
+        for (int i = 0; i < put.size() && i < slots.size(); i++) lc.setStack(slots.get(i), put.get(i));
+        lc.markDirty();
+    }
+
     /** Forgets a player's searches (their run is over). */
     public static void forget(UUID id) {
         open.remove(id);

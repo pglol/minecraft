@@ -1504,6 +1504,69 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /** One line at a workbench: what it makes, from what (and how much of each you have), and whether you know it. */
+    public record CraftRow(String id, String name, String category, ItemStack result, java.util.List<ItemStack> inputs, java.util.List<String> labels,
+                           java.util.List<Integer> have, boolean known, String hint) {
+        static void write(RegistryByteBuf b, CraftRow r) {
+            b.writeString(r.id); b.writeString(r.name); b.writeString(r.category);
+            ItemStack.OPTIONAL_PACKET_CODEC.encode(b, r.result);
+            b.writeVarInt(r.inputs.size());
+            for (int i = 0; i < r.inputs.size(); i++) {
+                ItemStack.OPTIONAL_PACKET_CODEC.encode(b, r.inputs.get(i));
+                b.writeString(r.labels.get(i));
+                b.writeVarInt(r.have.get(i));
+            }
+            b.writeBoolean(r.known); b.writeString(r.hint);
+        }
+
+        static CraftRow read(RegistryByteBuf b) {
+            String id = b.readString(), name = b.readString(), cat = b.readString();
+            ItemStack res = ItemStack.OPTIONAL_PACKET_CODEC.decode(b);
+            int n = Math.min(16, b.readVarInt());
+            java.util.List<ItemStack> ins = new java.util.ArrayList<>();
+            java.util.List<String> labels = new java.util.ArrayList<>();
+            java.util.List<Integer> have = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                ins.add(ItemStack.OPTIONAL_PACKET_CODEC.decode(b));
+                labels.add(b.readString());
+                have.add(b.readVarInt());
+            }
+            return new CraftRow(id, name, cat, res, ins, labels, have, b.readBoolean(), b.readString());
+        }
+    }
+
+    /** Server -> client: a workbench's recipes (open: show the screen; else just refresh it). */
+    public record CraftView(String bench, String title, int color, int secondsLeft, String skill, int skillLevel, java.util.List<CraftRow> rows,
+                            boolean open) implements CustomPayload {
+        public static final Id<CraftView> ID = id("craft_view");
+        public static final PacketCodec<RegistryByteBuf, CraftView> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.bench); b.writeString(v.title); b.writeInt(v.color); b.writeVarInt(v.secondsLeft);
+            b.writeString(v.skill); b.writeVarInt(v.skillLevel);
+            b.writeVarInt(v.rows.size());
+            for (CraftRow r : v.rows) CraftRow.write(b, r);
+            b.writeBoolean(v.open);
+        }, b -> {
+            String bench = b.readString(), title = b.readString();
+            int color = b.readInt(), secs = b.readVarInt();
+            String skill = b.readString();
+            int sl = b.readVarInt();
+            int n = Math.min(1024, b.readVarInt());
+            java.util.List<CraftRow> rows = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) rows.add(CraftRow.read(b));
+            return new CraftView(bench, title, color, secs, skill, sl, rows, b.readBoolean());
+        });
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** Client -> server: at a workbench: "craft" (recipe id, how many times) or "close". */
+    public record CraftAction(String action, String recipe, int qty) implements CustomPayload {
+        public static final Id<CraftAction> ID = id("craft_action");
+        public static final PacketCodec<RegistryByteBuf, CraftAction> CODEC = PacketCodec.of((v, b) -> {
+            b.writeString(v.action); b.writeString(v.recipe); b.writeVarInt(v.qty);
+        }, b -> new CraftAction(b.readString(), b.readString(), b.readVarInt()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: a duel's face-off: the two fighters side by side, VS, and the count to the fight. */
     public record DuelIntro(java.util.UUID a, String aName, int aLevel, String aRole, java.util.UUID b, String bName, int bLevel, String bRole,
                             String rules) implements CustomPayload {
@@ -2416,6 +2479,8 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(EventBanner.ID, EventBanner.CODEC);
         PayloadTypeRegistry.playS2C().register(Threats.ID, Threats.CODEC);
         PayloadTypeRegistry.playS2C().register(TroopAnim.ID, TroopAnim.CODEC);
+        PayloadTypeRegistry.playS2C().register(CraftView.ID, CraftView.CODEC);
+        PayloadTypeRegistry.playC2S().register(CraftAction.ID, CraftAction.CODEC);
         PayloadTypeRegistry.playS2C().register(Quake.ID, Quake.CODEC);
         PayloadTypeRegistry.playS2C().register(DuelIntro.ID, DuelIntro.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);

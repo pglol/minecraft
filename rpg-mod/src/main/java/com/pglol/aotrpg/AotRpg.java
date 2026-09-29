@@ -137,6 +137,8 @@ public final class AotRpg implements ModInitializer {
         Refueler.register();
         Net.register();
         SatchelHandler.register();
+        Crafting.register();
+        Harvest.register();
         // The Extraction lobby's board and stash, and a run's supply barrels (ahead of the land protection).
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.isClient || !(player instanceof ServerPlayerEntity sp) || hand != net.minecraft.util.Hand.MAIN_HAND) return ActionResult.PASS;
@@ -151,7 +153,10 @@ public final class AotRpg implements ModInitializer {
             if (key == Homes.WORLD || key == Extraction.SKY || HomePlots.plotAt(pos, 0) >= 0) return ActionResult.PASS;
             var state = world.getBlockState(pos);
             boolean box = state.isOf(net.minecraft.block.Blocks.BARREL) || state.getBlock() instanceof net.minecraft.block.ChestBlock;
-            if (!box || !(world.getBlockEntity(pos) instanceof net.minecraft.block.entity.LootableContainerBlockEntity)) return ActionResult.PASS;
+            if (!box || !(world.getBlockEntity(pos) instanceof net.minecraft.block.entity.LootableContainerBlockEntity lc)) return ActionResult.PASS;
+            // Someone's chest in town: theft, if anyone is watching.
+            if (!CARE.canBuild(sp, pos) && WITNESS.theft(sp)) return ActionResult.FAIL;
+            if (world.getRegistryKey() == net.minecraft.world.World.OVERWORLD) LootBox.fillWild(sp.getServerWorld(), pos, lc);
             LootBox.show(sp, pos, state.getBlock().getName().getString());
             return ActionResult.SUCCESS;
         });
@@ -472,12 +477,18 @@ public final class AotRpg implements ModInitializer {
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, be) -> {
             if (!world.isClient && player instanceof ServerPlayerEntity sp && FURNITURE.onBreak(sp, pos)) return false;
             if (CARE.canBuild(player, pos)) return true;
+            // The wild outside the towns: trees, ores and underground rock are there to be worked.
+            if (!player.isCreative() && Harvest.allowed(player, pos, state)) return true;
             // Anyone may put out a fire.
             if (state.getBlock() instanceof net.minecraft.block.AbstractFireBlock) return true;
             CARE.deny(player);
             return false;
         });
-        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, be) -> CARE.forget(pos));
+        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, be) -> {
+            // What's harvested from the wild grows back in time; anything else broken stays broken.
+            if (Harvest.node(state) && !player.isCreative() && Harvest.allowed(player, pos, state)) CARE.regrowLater(pos, 20L * 60 * 15);
+            else CARE.forget(pos);
+        });
         UseItemCallback.EVENT.register((player, world, hand) -> {
             var stack = player.getStackInHand(hand);
             if (!world.isClient && (stack.getItem() instanceof net.minecraft.item.BucketItem
@@ -811,6 +822,8 @@ public final class AotRpg implements ModInitializer {
         if (ticks % 60 == 15) PlayerRoster.broadcast(server);
         EXTRACT.tick(ticks);
         LootBox.tick(server);
+        Crafting.tick(server, ticks);
+        Harvest.tick(server);
         LOOT.tick(ticks);
         TITAN_LEVELS.tick(server, ticks);
         RAID_BOSSES.tick(ticks);

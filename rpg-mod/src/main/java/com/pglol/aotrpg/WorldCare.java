@@ -253,6 +253,15 @@ public final class WorldCare {
         }
     }
 
+    /**
+     * Harvested (a felled tree, a mined vein): it grows back, but not for a while, and never while
+     * anyone watches (the usual rule for mending).
+     */
+    public void regrowLater(BlockPos pos, long extraTicks) {
+        Entry e = changed.get(pos.asLong());
+        if (e != null) changed.put(pos.asLong(), new Entry(e.state(), e.be(), e.at() + extraTicks, e.debris()));
+    }
+
     /** A block an operator removed on purpose stays removed. */
     public void forget(BlockPos pos) {
         changed.remove(pos.asLong());

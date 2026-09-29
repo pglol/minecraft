@@ -43,6 +43,7 @@ public final class Vendors {
     public enum Kind {
         ARMORER("Armorer", "Armour and uniforms"), BLADESMITH("Bladesmith", "Grips, blades and supplies"),
         PROVISIONER("Provisioner", "The best food in town"), TOOLMAKER("Toolmaker", "Tools for every trade"),
+        CRAFTSMAN("Craftsman", "Workbenches and schematics"),
         STRANGER("Hooded Stranger", "No questions asked");
 
         public final String title, pitch;
@@ -301,6 +302,31 @@ public final class Vendors {
                 vanilla(out, Items.IRON_INGOT, 16, 12);
                 vanilla(out, Items.COAL, 32, 2);
             }
+            case CRAFTSMAN -> {
+                // The benches themselves (bought once, carried for good).
+                for (Recipes.Bench b : Recipes.Bench.values()) out.add(new Offer(Crafting.benchItem(b), b.price, 3));
+                // Today's schematics: things this customer doesn't know yet.
+                List<Recipes.Recipe> unknown = new ArrayList<>();
+                for (Recipes.Recipe x : Recipes.all()) if (x.tier() > 0 && !Recipes.known(viewer, x)) unknown.add(x);
+                for (int i = 0; i < 6 && !unknown.isEmpty(); i++) {
+                    Recipes.Recipe x = unknown.remove(r.nextInt(unknown.size()));
+                    // Tier 3 turns up on a trader's table only now and then.
+                    if (x.tier() >= 3 && r.nextFloat() < 0.6f) continue;
+                    out.add(new Offer(Recipes.schematic(x), x.tier() == 1 ? 260 : x.tier() == 2 ? 950 : 2800, 1));
+                }
+                vanilla(out, Items.IRON_INGOT, 16, 14);
+                vanilla(out, Items.COPPER_INGOT, 16, 6);
+                vanilla(out, Items.LEATHER, 16, 8);
+                vanilla(out, Items.STRING, 16, 3);
+                vanilla(out, Items.PAPER, 16, 3);
+                vanilla(out, Items.GUNPOWDER, 16, 9);
+                vanilla(out, Items.GLASS, 32, 3);
+                vanilla(out, Items.WHITE_WOOL, 16, 4);
+                vanilla(out, Items.BRICK, 32, 2);
+                vanilla(out, Items.REDSTONE, 16, 7);
+                aot(out, "ultrahard_steel_ingot", 4, 60);
+                aot(out, "ultrahard_leather", 4, 45);
+            }
             case STRANGER -> {
                 // Stolen from a quartermaster or a dead captain: good for a shop, and cheap for it.
                 // (Nothing finer ever passes through a stall: Epic and above is only ever traded
@@ -418,14 +444,45 @@ public final class Vendors {
             if (k == Kind.ARMORER && armor || k == Kind.BLADESMITH && !armor) return Math.max(1, Math.round(Market.gearValue(s) * 4 * 0.3));
             return 0;
         }
-        for (Offer o : stock) if (o.stack().isOf(s.getItem()) && !Gear.isGear(o.stack())) return Math.max(1, Math.round(o.each() * 0.35));
+        // Schematics and benches: only the Craftsman deals in them.
+        String sch = Recipes.schematicOf(s);
+        if (sch != null) {
+            Recipes.Recipe rr = Recipes.get(sch);
+            return k == Kind.CRAFTSMAN && rr != null ? (rr.tier() == 1 ? 80 : rr.tier() == 2 ? 300 : 900) : 0;
+        }
+        Recipes.Bench bench = Crafting.benchOf(s);
+        if (bench != null) return k == Kind.CRAFTSMAN ? Math.round(bench.price * 0.4) : 0;
+        for (Offer o : stock) {
+            if (!o.stack().isOf(s.getItem()) || Gear.isGear(o.stack())) continue;
+            if (Recipes.schematicOf(o.stack()) != null || Crafting.benchOf(o.stack()) != null) continue;
+            return Math.max(1, Math.round(o.each() * 0.35));
+        }
         return switch (k) {
             case PROVISIONER -> s.contains(DataComponentTypes.FOOD) ? 2 : 0;
             case TOOLMAKER -> s.getItem() instanceof net.minecraft.item.MiningToolItem || s.getItem() instanceof net.minecraft.item.ShearsItem
                 || s.getItem() instanceof net.minecraft.item.FishingRodItem ? 8 : 0;
             case BLADESMITH -> Registries.ITEM.getId(s.getItem()).getNamespace().equals("dannys-aot") ? 3 : 0;
+            // What you cut and dig out of the wild.
+            case CRAFTSMAN -> harvestValue(s);
             default -> 0;
         };
+    }
+
+    /** What the Craftsman pays for raw materials. */
+    private static long harvestValue(ItemStack s) {
+        if (s.isIn(net.minecraft.registry.tag.ItemTags.LOGS)) return 1;
+        if (s.isOf(Items.COAL) || s.isOf(Items.CHARCOAL) || s.isOf(Items.FLINT)) return 1;
+        if (s.isOf(Items.RAW_IRON) || s.isOf(Items.RAW_COPPER)) return 3;
+        if (s.isOf(Items.RAW_GOLD)) return 5;
+        if (s.isOf(Items.IRON_INGOT)) return 5;
+        if (s.isOf(Items.GOLD_INGOT)) return 7;
+        if (s.isOf(Items.COPPER_INGOT)) return 2;
+        if (s.isOf(Items.REDSTONE) || s.isOf(Items.LAPIS_LAZULI)) return 2;
+        if (s.isOf(Items.DIAMOND)) return 70;
+        if (s.isOf(Items.EMERALD)) return 40;
+        if (s.isOf(Items.AMETHYST_SHARD) || s.isOf(Items.QUARTZ)) return 3;
+        if (s.isOf(Items.LEATHER) || s.isOf(Items.STRING)) return 1;
+        return 0;
     }
 
     private Who at(ServerPlayerEntity p, int entityId, Entity[] out) {

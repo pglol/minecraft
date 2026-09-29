@@ -1205,6 +1205,11 @@ public final class Troops {
             ItemStack g = Gear.roll(r, Gear.rollRarity(r, officer ? 3 : 1), Math.max(1, level + r.nextInt(3)));
             if (!g.isEmpty()) drops.add(g);
         }
+        // Marleyan know-how: now and then a schematic in a pocket (officers carry the good ones).
+        if (r.nextFloat() < (officer ? 0.25f : 0.06f)) {
+            ItemStack sch = Recipes.randomSchematic(r, officer ? 3 : 2);
+            if (!sch.isEmpty()) drops.add(sch);
+        }
         if (officer && r.nextFloat() < 0.15f && AotItems.exact("apg_gun") != null) drops.add(new ItemStack(AotItems.exact("apg_gun")));
         for (ItemStack s : drops) {
             // Cut down by someone: it's theirs, straight into the bag. (Eaten by a titan, it spills.)

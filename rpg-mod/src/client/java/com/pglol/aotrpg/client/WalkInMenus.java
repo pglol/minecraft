@@ -16,7 +16,7 @@ public final class WalkInMenus {
     private static boolean was;
 
     private static boolean walkable(MinecraftClient mc) {
-        return mc.currentScreen instanceof LootScreen || mc.currentScreen instanceof IslandMapScreen || mc.currentScreen instanceof WorldMapScreen;
+        return mc.currentScreen instanceof LootScreen || mc.currentScreen instanceof CraftScreen ||mc.currentScreen instanceof IslandMapScreen || mc.currentScreen instanceof WorldMapScreen;
     }
 
     public static void tick(MinecraftClient mc) {
