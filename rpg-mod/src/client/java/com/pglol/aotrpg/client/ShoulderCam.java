@@ -72,6 +72,7 @@ public final class ShoulderCam {
     private static float weight;
     private static Vec3d offset, offsetVel = Vec3d.ZERO;
     private static float roll, fovNow, lastYaw;
+    private static double aimDist;
     private static long lastFrame;
     private static boolean wanted;
 
@@ -165,10 +166,12 @@ public final class ShoulderCam {
         // Looking at exactly what you're aiming at, so the middle of the screen is where your
         // strike or grapple goes (not a line beside it).
         var aimHit = p.raycast(96, td, false);
-        Vec3d aim = aimHit.getType() == HitResult.Type.MISS ? eye.add(fwd.multiply(96)) : aimHit.getPos();
-        if (mc.crosshairTarget instanceof net.minecraft.util.hit.EntityHitResult eh && eh.getPos().squaredDistanceTo(eye) < aim.squaredDistanceTo(eye)) {
-            aim = eh.getPos();
-        }
+        double hitDist = aimHit.getType() == HitResult.Type.MISS ? 96 : aimHit.getPos().distanceTo(eye);
+        if (mc.crosshairTarget instanceof net.minecraft.util.hit.EntityHitResult eh) hitDist = Math.min(hitDist, eh.getPos().distanceTo(eye));
+        // Always along your look, only the depth eases (so sweeping past a post or a leaf doesn't
+        // jerk the view and the crosshair around).
+        aimDist = aimDist <= 0 ? hitDist : aimDist + (hitDist - aimDist) * (1 - (float) Math.exp(-dt * (hitDist < aimDist ? 14 : 5)));
+        Vec3d aim = eye.add(fwd.multiply(Math.max(3, aimDist)));
         Vec3d to = aim.subtract(pos);
         float camYaw = yaw, camPitch = pitch;
         if (to.lengthSquared() > 4) {

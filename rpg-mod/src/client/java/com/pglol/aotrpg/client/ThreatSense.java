@@ -47,7 +47,8 @@ public final class ThreatSense {
         float yaw = cam.getYaw();
         int w = c.getScaledWindowWidth(), h = c.getScaledWindowHeight();
         float cx = w / 2f, cy = h / 2f;
-        float base = Math.min(w, h) * 0.2f;
+        // Well out from the middle, so it never reads as part of the crosshair.
+        float base = Math.min(w, h) * 0.34f;
         float pulse = 0.5f + 0.5f * (float) Math.sin(t / 70.0);
         for (int i = 0; i < now.level().length; i++) {
             int lvl = now.level()[i];
@@ -57,11 +58,11 @@ public final class ThreatSense {
             float rel = MathHelper.wrapDegrees(to - yaw);
             double dist = Math.sqrt(dx * dx + dz * dz);
             // Closer threats sit tighter round the crosshair and spread wider.
-            float r = base + (float) MathHelper.clamp(dist * 0.6, 0, 26);
+            float r = base + (float) MathHelper.clamp(dist * 0.4, 0, 18);
             float span = lvl >= 3 ? 26 : lvl == 2 ? 20 : 14;
             span *= (float) MathHelper.clamp(1.4 - dist / 60, 0.8, 1.4);
-            int rgb = lvl >= 3 ? 0xFF2A2A : lvl == 2 ? 0xFF9A3A : 0xF2EEE6;
-            float alpha = (lvl >= 3 ? 0.55f + 0.45f * pulse : lvl == 2 ? 0.55f : 0.22f) * fade;
+            int rgb = lvl >= 3 ? 0xFF2A2A : lvl == 2 ? 0xFF9A3A : 0xC8604A;
+            float alpha = (lvl >= 3 ? 0.55f + 0.45f * pulse : lvl == 2 ? 0.5f : 0.18f) * fade;
             int thick = lvl >= 3 ? 3 : 2;
             arc(c, cx, cy, r, rel, span, thick, rgb, alpha);
             // A soft glow ring just outside.

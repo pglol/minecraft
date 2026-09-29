@@ -191,72 +191,147 @@ public final class Vendors {
         List<Offer> out = new ArrayList<>();
         switch (k) {
             case ARMORER -> {
-                for (int i = 0; i < 7; i++) {
-                    Gear.Rarity rar = rarity(r, 0.35f, 0.35f, 0.2f, 0.08f, 0.02f);
+                for (int i = 0; i < 14; i++) {
+                    Gear.Rarity rar = rarity(r, 0.4f, 0.22f);
                     ItemStack s = Gear.rollArmor(r, rar, lo + r.nextInt(hi - lo + 1));
                     out.add(new Offer(s, Market.gearValue(s) * 4, 1));
                 }
+                aot(out, "uniform", 1, 60);
+                aot(out, "scout_uniform", 1, 140);
+                aot(out, "trench_coat", 1, 90);
+                aot(out, "trench_coat_scout", 1, 150);
+                aot(out, "trench_coat_garrison", 1, 120);
+                aot(out, "trench_coat_military_police", 1, 160);
+                aot(out, "odm_boots", 1, 110);
+                aot(out, "odm_gear", 1, 650);
+                aot(out, "ultrahard_leather", 8, 35);
+                aot(out, "training_corps_banner", 2, 45);
             }
             case BLADESMITH -> {
                 Item grip = AotItems.exact("blade");
-                for (int i = 0; grip != null && i < 3; i++) {
-                    Gear.Rarity rar = rarity(r, 0.3f, 0.38f, 0.22f, 0.08f, 0.02f);
+                for (int i = 0; grip != null && i < 7; i++) {
+                    Gear.Rarity rar = rarity(r, 0.38f, 0.22f);
                     ItemStack s = Gear.make(r, grip, rar, lo + r.nextInt(hi - lo + 1), null);
                     out.add(new Offer(s, Market.gearValue(s) * 4, 1));
+                }
+                for (String gun : new String[] {"apg_gun", "odm_apg"}) {
+                    Item g = AotItems.exact(gun);
+                    for (int i = 0; g != null && i < 2; i++) {
+                        ItemStack s = Gear.make(r, g, rarity(r, 0.38f, 0.2f), lo + r.nextInt(hi - lo + 1), null);
+                        out.add(new Offer(s, Market.gearValue(s) * 4, 1));
+                    }
                 }
                 supply(out, "blade_component", 16, 10);
                 supply(out, "gas_canister", 2, 26);
                 supply(out, "ice_burst_cluster", 32, 4);
-                supply(out, "thunder_spear", 2, 180);
                 supply(out, "apg_cartridge", 16, 5);
+                supply(out, "thunder_spear", 2, 180);
+                aot(out, "flare_gun", 1, 70);
+                aot(out, "yellow_flare_cartridge", 8, 6);
+                aot(out, "red_flare_cartridge", 8, 6);
+                aot(out, "green_flare_cartridge", 8, 6);
+                aot(out, "black_flare_cartridge", 8, 9);
+                aot(out, "ice_burst_stone", 4, 40);
+                aot(out, "small_ice_burst_shard", 16, 3);
+                aot(out, "ultrahard_steel_ingot", 8, 45);
+                aot(out, "handcuff_lock", 2, 30);
             }
             case PROVISIONER -> {
-                vanilla(out, Items.COOKED_BEEF, 8, 13);
                 vanilla(out, Items.BREAD, 12, 7);
-                vanilla(out, Items.GOLDEN_CARROT, 6, 30);
+                vanilla(out, Items.COOKED_BEEF, 8, 13);
                 vanilla(out, Items.COOKED_PORKCHOP, 8, 13);
-                vanilla(out, Items.PUMPKIN_PIE, 4, 16);
+                vanilla(out, Items.COOKED_MUTTON, 8, 11);
+                vanilla(out, Items.COOKED_CHICKEN, 8, 9);
+                vanilla(out, Items.COOKED_RABBIT, 6, 9);
+                vanilla(out, Items.COOKED_SALMON, 8, 10);
+                vanilla(out, Items.COOKED_COD, 8, 8);
                 vanilla(out, Items.BAKED_POTATO, 12, 6);
-                vanilla(out, Items.GOLDEN_APPLE, 1, 400);
+                vanilla(out, Items.RABBIT_STEW, 3, 24);
+                vanilla(out, Items.MUSHROOM_STEW, 4, 14);
+                vanilla(out, Items.BEETROOT_SOUP, 4, 12);
+                vanilla(out, Items.PUMPKIN_PIE, 4, 16);
+                vanilla(out, Items.CAKE, 1, 45);
+                vanilla(out, Items.COOKIE, 16, 3);
+                vanilla(out, Items.APPLE, 12, 5);
+                vanilla(out, Items.MELON_SLICE, 16, 2);
+                vanilla(out, Items.SWEET_BERRIES, 16, 2);
+                vanilla(out, Items.CARROT, 16, 2);
+                vanilla(out, Items.DRIED_KELP, 16, 2);
                 vanilla(out, Items.HONEY_BOTTLE, 3, 12);
-                Item wine = AotItems.exact("vintage_wine");
-                if (wine != null) vanilla(out, wine, 1, 40);
+                vanilla(out, Items.MILK_BUCKET, 2, 15);
+                vanilla(out, Items.GOLDEN_CARROT, 6, 30);
+                vanilla(out, Items.GOLDEN_APPLE, 1, 400);
+                aot(out, "vintage_wine", 1, 40);
             }
             case TOOLMAKER -> {
                 vanilla(out, Items.IRON_PICKAXE, 1, 60);
                 vanilla(out, Items.DIAMOND_PICKAXE, 1, 420);
                 vanilla(out, Items.IRON_AXE, 1, 55);
+                vanilla(out, Items.DIAMOND_AXE, 1, 400);
                 vanilla(out, Items.IRON_SHOVEL, 1, 35);
-                vanilla(out, Items.FISHING_ROD, 1, 22);
+                vanilla(out, Items.IRON_HOE, 1, 30);
                 vanilla(out, Items.SHEARS, 1, 18);
+                vanilla(out, Items.FISHING_ROD, 1, 22);
+                vanilla(out, Items.FLINT_AND_STEEL, 1, 14);
+                vanilla(out, Items.BRUSH, 1, 20);
+                vanilla(out, Items.BUCKET, 2, 20);
+                vanilla(out, Items.WATER_BUCKET, 1, 24);
+                vanilla(out, Items.COMPASS, 1, 45);
+                vanilla(out, Items.CLOCK, 1, 55);
+                vanilla(out, Items.SPYGLASS, 1, 70);
+                vanilla(out, Items.MAP, 2, 20);
+                vanilla(out, Items.NAME_TAG, 1, 60);
                 vanilla(out, Items.SADDLE, 1, 90);
                 vanilla(out, Items.LEAD, 2, 16);
-                vanilla(out, Items.SPYGLASS, 1, 70);
-                vanilla(out, Items.LANTERN, 2, 12);
+                vanilla(out, Items.LANTERN, 4, 12);
+                vanilla(out, Items.TORCH, 32, 1);
+                vanilla(out, Items.CAMPFIRE, 2, 18);
+                vanilla(out, Items.LADDER, 16, 2);
+                vanilla(out, Items.SCAFFOLDING, 16, 3);
+                vanilla(out, Items.CHEST, 4, 10);
+                vanilla(out, Items.BARREL, 4, 10);
+                vanilla(out, Items.CRAFTING_TABLE, 2, 6);
+                vanilla(out, Items.FURNACE, 2, 12);
+                vanilla(out, Items.WHITE_BED, 1, 35);
+                vanilla(out, Items.STRING, 16, 2);
+                vanilla(out, Items.IRON_INGOT, 16, 12);
+                vanilla(out, Items.COAL, 32, 2);
             }
             case STRANGER -> {
-                // High-ranked and cheap for it: stolen from a quartermaster, a noble, a dead captain.
-                for (int i = 0; i < 4; i++) {
-                    Gear.Rarity rar = rarity(r, 0, 0, 0.45f, 0.43f, 0.12f);
+                // Stolen from a quartermaster or a dead captain: good for a shop, and cheap for it.
+                // (Nothing finer ever passes through a stall: Epic and above is only ever traded
+                // between players on the global market.)
+                for (int i = 0; i < 8; i++) {
+                    Gear.Rarity rar = r.nextFloat() < 0.7f ? Gear.Rarity.RARE : Gear.Rarity.UNCOMMON;
                     ItemStack s = r.nextBoolean() && AotItems.exact("blade") != null
-                        ? Gear.make(r, AotItems.exact("blade"), rar, hi + 2 + r.nextInt(4), null)
-                        : Gear.rollArmor(r, rar, hi + 2 + r.nextInt(4));
+                        ? Gear.make(r, AotItems.exact("blade"), rar, hi + 1 + r.nextInt(4), null)
+                        : Gear.rollArmor(r, rar, hi + 1 + r.nextInt(4));
                     stolen(s);
                     out.add(new Offer(s, Math.round(Market.gearValue(s) * 2.4), 1));
                 }
+                supply(out, "thunder_spear", 1, 120);
+                supply(out, "gas_canister", 1, 18);
+                aot(out, "syringe", 1, 260);
+                aot(out, "zekes_glasses", 1, 300);
+                aot(out, "vintage_wine", 2, 30);
             }
         }
+        // Whatever rolled, a stall never holds anything above Rare.
+        out.removeIf(o -> Gear.isGear(o.stack()) && Gear.rarityOf(o.stack()) > Gear.Rarity.RARE.ordinal());
         return out;
     }
 
-    private static Gear.Rarity rarity(net.minecraft.util.math.random.Random r, float un, float rare, float epic, float leg, float myth) {
+    /** Common, Uncommon or Rare: never anything finer in a stall. */
+    private static Gear.Rarity rarity(net.minecraft.util.math.random.Random r, float un, float rare) {
         float x = r.nextFloat();
-        if (x < myth) return Gear.Rarity.MYTHIC;
-        if ((x -= myth) < leg) return Gear.Rarity.LEGENDARY;
-        if ((x -= leg) < epic) return Gear.Rarity.EPIC;
-        if ((x -= epic) < rare) return Gear.Rarity.RARE;
-        if ((x - rare) < un) return Gear.Rarity.UNCOMMON;
+        if (x < rare) return Gear.Rarity.RARE;
+        if (x - rare < un) return Gear.Rarity.UNCOMMON;
         return Gear.Rarity.COMMON;
+    }
+
+    private static void aot(List<Offer> out, String path, int n, long each) {
+        Item it = AotItems.exact(path);
+        if (it != null) vanilla(out, it, n, each);
     }
 
     private static void supply(List<Offer> out, String path, int n, long each) {
