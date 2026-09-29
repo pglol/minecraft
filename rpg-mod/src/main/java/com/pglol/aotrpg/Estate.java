@@ -674,6 +674,12 @@ public final class Estate {
         if (!pr.created || p.isSpectator()) return;
         ServerWorld w = p.getServerWorld();
         String me = p.getUuidAsString();
+        // Extraction is its own game: no pets aboard the balloon or out on the islands.
+        if (Extraction.inLobby(p) || Extraction.Island.of(w) != null || Extraction.inRun(p.getUuid())) {
+            for (MobEntity e : w.getEntitiesByClass(MobEntity.class, p.getBoundingBox().expand(96),
+                e -> me.equals(owner(e, COMPANION)) || me.equals(owner(e, HOME_PET)))) e.discard();
+            return;
+        }
         boolean home = atHome(p);
         Box near = p.getBoundingBox().expand(48);
         // Home pets: wander your land while you're home, gone when you leave.
@@ -723,6 +729,7 @@ public final class Estate {
     private void follow(ServerPlayerEntity p) {
         Profile pr = AotRpg.PROFILES.get(p.getUuid());
         if (pr.companion == null || pr.companion.isEmpty() || p.isSpectator()) return;
+        if (Extraction.inLobby(p) || Extraction.Island.of(p.getWorld()) != null) return;
         String me = p.getUuidAsString();
         List<MobEntity> comps = p.getServerWorld().getEntitiesByClass(MobEntity.class, p.getBoundingBox().expand(64), e -> me.equals(owner(e, COMPANION)));
         if (comps.isEmpty()) return;
