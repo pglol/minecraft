@@ -1385,11 +1385,10 @@ public final class Extraction {
                 if (ses.dropEntity != null || ses.dropAt != null) supplyTick(sw, ses, ticks);
             }
         }
-        for (Island island : Island.values()) {
-            ServerWorld iw = server.getWorld(island.world);
-            if (iw == null) continue;
-            Troops.tick(iw, ticks);
-            if (ticks % 20 == 3) Troops.titans(iw);
+        // Troops wherever they are (the islands, or the open world when an operator calls some in).
+        for (ServerWorld tw : server.getWorlds()) {
+            Troops.tick(tw, ticks);
+            if (ticks % 20 == 3) Troops.titans(tw);
         }
         lobbyTick(ticks);
         if (ticks % 20 == 9) {
@@ -1808,7 +1807,10 @@ public final class Extraction {
      * by the titan itself, and removing them left island titans impossible to cut.
      */
     public static boolean stray(Entity e) {
-        if (e.getWorld().isClient || Island.of(e.getWorld()) == null) return false;
+        if (e.getWorld().isClient) return false;
+        // A troop from before a restart (in any world) isn't run by anyone any more.
+        if (Troops.is(e)) return !Troops.known(e);
+        if (Island.of(e.getWorld()) == null) return false;
         // Things lying on an island belong to the match they were dropped in; any other match's
         // (one long over, loaded back from disk) are cleared away.
         if (Troops.is(e)) return !Troops.known(e);

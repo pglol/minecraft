@@ -575,6 +575,18 @@ final class Commands {
                     Store.aotIcon(r >= 4 ? "@apg_gun" : "@blade"), r);
                 return 1;
             }))));
+        // Operators: call a Marleyan squad in right here (any world), or send them off again.
+        d.register(CommandManager.literal("troops").requires(s -> s.hasPermissionLevel(2))
+            .then(CommandManager.literal("spawn")
+                .executes(c -> troops(c.getSource().getPlayerOrThrow(), 4))
+                .then(CommandManager.argument("count", IntegerArgumentType.integer(1, 8))
+                    .executes(c -> troops(c.getSource().getPlayerOrThrow(), IntegerArgumentType.getInteger(c, "count")))))
+            .then(CommandManager.literal("clear").executes(c -> {
+                ServerPlayerEntity p = c.getSource().getPlayerOrThrow();
+                for (net.minecraft.server.world.ServerWorld w : p.getServer().getWorlds()) Troops.clear(w, "test:" + p.getUuid());
+                Notify.toast(p, Text.literal("Troops dismissed").formatted(Formatting.GRAY), null, 0x8F8A7A, null, null);
+                return 1;
+            })));
         d.register(CommandManager.literal("catalog").requires(s -> s.hasPermissionLevel(2)).executes(c -> {
             Catalog.open(c.getSource().getPlayerOrThrow());
             return 1;
@@ -725,5 +737,20 @@ final class Commands {
                 });
         }
         m.open(p);
+    }
+
+    /** A test squad of n Marleyans, landing twenty blocks ahead of you. */
+    private static int troops(ServerPlayerEntity p, int n) {
+        var w = p.getServerWorld();
+        var ahead = p.getRotationVector().multiply(1, 0, 1).normalize().multiply(20);
+        int x = (int) (p.getX() + ahead.x), z = (int) (p.getZ() + ahead.z);
+        int y = w.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int level = Math.max(1, AotRpg.PROFILES.get(p.getUuid()).level);
+        int made = Troops.squad(w, new net.minecraft.util.math.BlockPos(x, y, z), n, level, "test:" + p.getUuid(), p.getBlockPos(), 80, w.random);
+        w.spawnParticles(net.minecraft.particle.ParticleTypes.CLOUD, x + 0.5, y + 0.5, z + 0.5, 40, 2, 0.3, 2, 0.05);
+        p.playSoundToPlayer(SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.HOSTILE, 1f, 1f);
+        Notify.toast(p, Text.literal(made + " Marleyans").formatted(Formatting.RED, Formatting.BOLD), Text.literal("/troops clear sends them off"),
+            0xC0463A, "minecraft:crossbow", null);
+        return made;
     }
 }

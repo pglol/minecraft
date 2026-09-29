@@ -98,6 +98,24 @@ public final class Troops {
     }
 
     private static final Map<UUID, Troop> troops = new HashMap<>();
+    /** Honor: who is fighting whom hand to hand (player -> troop); the rest wait their turn. */
+    private static final Map<UUID, UUID> duels = new HashMap<>();
+    /** A hand-to-hand fight just ended (player -> until when): the next man steps in. */
+    private static final Map<UUID, Long> duelOpen = new HashMap<>();
+
+    /** The troop fighting this player hand to hand right now, or null. */
+    private static UUID duelist(ServerWorld w, ServerPlayerEntity p) {
+        UUID id = duels.get(p.getUuid());
+        if (id == null) return null;
+        Troop t = troops.get(id);
+        Entity e = w.getEntity(id);
+        if (t == null || !t.blade || !(e instanceof VillagerEntity v) || !v.isAlive() || v.squaredDistanceTo(p) > 9 * 9) {
+            duels.remove(p.getUuid());
+            duelOpen.put(p.getUuid(), System.currentTimeMillis() + 8000);
+            return null;
+        }
+        return id;
+    }
     private static final Map<Integer, Squad> squads = new HashMap<>();
     /** A spot a match's squads converge on (a supply drop), by session. */
     private static final Map<String, BlockPos> lures = new HashMap<>();
@@ -172,11 +190,14 @@ public final class Troops {
             Item gun = AotItems.exact("apg_gun");
             if (gun != null) v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, new ItemStack(gun));
             v.setEquipmentDropChance(net.minecraft.entity.EquipmentSlot.MAINHAND, 0);
+            // Known before it enters the world: the clean-up of leftover troops checks as it loads.
+            int role = made == 0 ? 0 : made % 2 == 0 ? 2 : 1;
+            troops.put(v.getUuid(), new Troop(v.getUuid(), sq.id, officer, role, made));
             if (w.spawnEntity(v)) {
-                int role = made == 0 ? 0 : made % 2 == 0 ? 2 : 1;
-                troops.put(v.getUuid(), new Troop(v.getUuid(), sq.id, officer, role, made));
                 if (made == 0) sq.leader = v.getUuid();
                 made++;
+            } else {
+                troops.remove(v.getUuid());
             }
         }
         return made;
@@ -230,7 +251,7 @@ public final class Troops {
                     near = p;
                 }
             }
-            if (near == null || nd > 160 * 160) continue;
+            if (near == null || nd > 300 * 300) continue;
             Squad sq = squads.get(t.squad);
             if (sq == null) continue;
             if (t.grabbed >= 0) {
@@ -321,8 +342,40 @@ public final class Troops {
         // Up close with a person on the ground: blades out. They can't follow you into the air
         // (no gear of their own), so the moment you pull away or take off, it's back to the gun.
         boolean airborne = target instanceof ServerPlayerEntity sp2 && (!sp2.isOnGround() && sp2.getVelocity().lengthSquared() > 0.09);
-        if (!titan && dist < 5 && !airborne) blade(v, t);
-        else if (dist > 6 || airborne || titan) gun(v, t);
+        if (!titan && target instanceof ServerPlayerEntity duelP) {
+            // Honor: one blade at a time. While someone is fighting this person hand to hand, the
+            // rest hold back in a ring, weapons down, and watch; when he falls, the next steps in.
+            UUID holder = duelist(w, duelP);
+            if (holder != null && !holder.equals(t.id)) {
+                t.windup = 0;
+                t.burst = 0;
+                gun(v, t);
+                Vec3d flat0 = target.getPos().subtract(v.getPos()).multiply(1, 0, 1);
+                if (dist < 8) walk(w, v, flat0.multiply(-1), 0.1);
+                else if (dist > 12) walk(w, v, flat0, 0.12);
+                else walk(w, v, new Vec3d(-flat0.z, 0, flat0.x).multiply(t.strafe), 0.03);
+                face(v, target.getEyePos());
+                return;
+            }
+            boolean open = duelOpen.getOrDefault(duelP.getUuid(), 0L) > System.currentTimeMillis();
+            if (!airborne && (dist < 5 || open && dist < 13)) {
+                if (dist >= 5) {
+                    // The next one walks in to take up the fight.
+                    face(v, target.getEyePos());
+                    walk(w, v, target.getPos().subtract(v.getPos()).multiply(1, 0, 1), 0.16);
+                    return;
+                }
+                if (holder == null) {
+                    duels.put(duelP.getUuid(), t.id);
+                    duelOpen.remove(duelP.getUuid());
+                    w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PILLAGER_CELEBRATE, SoundCategory.HOSTILE, 1f, 0.9f);
+                }
+                blade(v, t);
+            } else if (dist > 6 || airborne) {
+                if (t.blade) duels.remove(duelP.getUuid(), t.id);
+                gun(v, t);
+            }
+        } else if (titan) gun(v, t);
         if (t.blade) {
             melee(w, v, t, target, dist, sq);
             return;
@@ -596,6 +649,13 @@ public final class Troops {
         Troop t = troops.remove(v.getUuid());
         boolean officer = v.getCommandTags().contains(OFFICER);
         Squad sq = t == null ? null : squads.get(t.squad);
+        // A duel ends with him: the next man may step in.
+        for (var it = duels.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            if (!e.getValue().equals(v.getUuid())) continue;
+            duelOpen.put(e.getKey(), System.currentTimeMillis() + 8000);
+            it.remove();
+        }
         if (sq != null) {
             // The leader falls: an officer's squad breaks; otherwise the next man steps up.
             if (officer) {
