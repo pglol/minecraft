@@ -65,6 +65,12 @@ public final class Troops {
         UUID grabber;
         Vec3d grabFrom;
         boolean spotted;
+        /** The squad's orders: 0 free, 1 draw the titan off, 2 work round to its nape, 3 on a person. */
+        int job;
+        UUID orders;
+        /** Chained cuts, and which blade cuts next. */
+        int combo;
+        boolean offhand;
 
         Troop(UUID id, int squad, boolean officer, int role, int slot) {
             this.id = id;
@@ -87,6 +93,10 @@ public final class Troops {
         int nextVolley;
         /** Their officer is down: shakier aim, and some of them run. */
         boolean broken;
+        /** Where the squad stands (the middle of it), and when the next shots at each target may start. */
+        Vec3d mid;
+        int plan;
+        final Map<UUID, Integer> volleys = new HashMap<>();
 
         Squad(int id, String session, BlockPos centre, int radius, int level) {
             this.id = id;
@@ -182,10 +192,11 @@ public final class Troops {
             v.addCommandTag(TAG);
             v.addCommandTag("aot_ses:" + session);
             if (officer) v.addCommandTag(OFFICER);
-            v.setCustomName(Text.literal(officer ? "Marleyan Officer" : "Marleyan Rifleman").formatted(officer ? Formatting.GOLD : Formatting.RED));
-            v.setCustomNameVisible(officer);
+            v.setCustomName(Text.literal("Lv " + level + " ").formatted(Formatting.GRAY)
+                .append(Text.literal(officer ? "Marleyan Officer" : "Marleyan Rifleman").formatted(officer ? Formatting.GOLD : Formatting.RED)));
+            v.setCustomNameVisible(true);
             var hp = v.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
-            if (hp != null) hp.setBaseValue((officer ? 60 : 28) + level * 0.8);
+            if (hp != null) hp.setBaseValue((officer ? 90 : 45) + level * (officer ? 3.5 : 2.2));
             v.setHealth(v.getMaxHealth());
             Item gun = AotItems.exact("apg_gun");
             if (gun != null) v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, new ItemStack(gun));
@@ -233,12 +244,14 @@ public final class Troops {
                 }
             }
         }
-        for (var it = troops.entrySet().iterator(); it.hasNext(); ) {
-            var en = it.next();
+        if (ticks % 20 == 7) for (Squad sq : new ArrayList<>(squads.values())) plan(w, sq, players);
+        // A copy: a troop dying mid-loop (eaten, cut down) takes himself off the list.
+        for (var en : new ArrayList<>(troops.entrySet())) {
             Troop t = en.getValue();
+            if (troops.get(en.getKey()) != t) continue;
             Entity ent = w.getEntity(en.getKey());
             if (!(ent instanceof VillagerEntity v) || !v.isAlive()) {
-                if (ent != null && !ent.isAlive()) it.remove();
+                if (ent != null && !ent.isAlive()) troops.remove(en.getKey(), t);
                 continue;
             }
             // Asleep when nobody is near (the island is big; they wait where they are).
@@ -278,6 +291,102 @@ public final class Troops {
         return id != null && w.getEntity(id) instanceof LivingEntity le && le.isAlive() ? le : null;
     }
 
+    // ------------------------------------------------------------------ squad tactics
+
+    /**
+     * Once a second, the squad reads the field and gives orders. A titan and people both near: a
+     * few peel off to draw the titan away (keeping their distance, shooting to hold its eye) while
+     * the rest press the people. A titan alone: one draws it, the rest work round behind to its
+     * nape. People alone: fire is split between them, and anyone hurt badly gets the whole squad.
+     */
+    private static void plan(ServerWorld w, Squad sq, List<ServerPlayerEntity> players) {
+        List<Troop> men = new ArrayList<>();
+        List<VillagerEntity> bodies = new ArrayList<>();
+        for (Troop t : troops.values()) {
+            if (t.squad != sq.id || t.grabbed >= 0) continue;
+            if (w.getEntity(t.id) instanceof VillagerEntity v && v.isAlive()) {
+                men.add(t);
+                bodies.add(v);
+            }
+        }
+        if (men.isEmpty()) {
+            sq.mid = null;
+            return;
+        }
+        Vec3d mid = Vec3d.ZERO;
+        for (VillagerEntity v : bodies) mid = mid.add(v.getPos());
+        mid = mid.multiply(1.0 / bodies.size());
+        sq.mid = mid;
+        final Vec3d m = mid;
+        List<ServerPlayerEntity> people = new ArrayList<>();
+        for (ServerPlayerEntity p : players) {
+            if (p.isSpectator() || p.isCreative() || AotRpg.DOWNED.isDowned(p)) continue;
+            if (p.squaredDistanceTo(m) < 42 * 42) people.add(p);
+        }
+        people.sort((a, b) -> Double.compare(a.squaredDistanceTo(m), b.squaredDistanceTo(m)));
+        LivingEntity titan = null;
+        double td = 50 * 50;
+        for (Entity e : w.getOtherEntities(null, new Box(m, m).expand(50, 30, 50), e -> AotRpg.isTitan(e) && e.isAlive() && TitanLevels.rootOf(e) == e)) {
+            double d = e.squaredDistanceTo(m);
+            if (d < td) {
+                td = d;
+                titan = (LivingEntity) e;
+            }
+        }
+        int plan = titan != null && !people.isEmpty() ? 3 : titan != null ? 2 : !people.isEmpty() ? 1 : 0;
+        if (plan != sq.plan && plan >= 2 && men.size() > 1) {
+            // The call to split up: a shout down the line.
+            Entity lead = sq.leader == null ? bodies.get(0) : w.getEntity(sq.leader);
+            if (lead != null) w.playSound(null, lead.getX(), lead.getY() + 1.6, lead.getZ(), SoundEvents.ENTITY_PILLAGER_AMBIENT, SoundCategory.HOSTILE, 2f, 0.7f);
+        }
+        sq.plan = plan;
+        for (Troop t : men) {
+            t.job = 0;
+            t.orders = null;
+        }
+        if (plan == 0) return;
+        // Who's hurt worst among the people: finish them.
+        ServerPlayerEntity weak = null;
+        for (ServerPlayerEntity p : people) if (p.getHealth() < p.getMaxHealth() * 0.4f && (weak == null || p.getHealth() < weak.getHealth())) weak = p;
+        int baiters = 0;
+        if (titan != null) {
+            // The ones nearest the titan draw it (never the whole squad when people are about).
+            final LivingEntity ti = titan;
+            List<Integer> order = new ArrayList<>();
+            for (int i = 0; i < men.size(); i++) order.add(i);
+            order.sort((a, b) -> Double.compare(bodies.get(a).squaredDistanceTo(ti), bodies.get(b).squaredDistanceTo(ti)));
+            int n = plan == 3 ? Math.max(1, Math.round(men.size() * 0.35f)) : men.size() > 1 ? 1 : men.size();
+            if (plan == 3 && men.size() > 1) n = Math.min(n, men.size() - 1);
+            for (int k = 0; k < order.size(); k++) {
+                Troop t = men.get(order.get(k));
+                if (k < n) {
+                    t.job = 1;
+                    t.orders = ti.getUuid();
+                    baiters++;
+                } else if (plan == 2) {
+                    t.job = 2;
+                    t.orders = ti.getUuid();
+                }
+            }
+        }
+        if (people.isEmpty()) return;
+        int k = 0;
+        for (Troop t : men) {
+            if (t.job != 0) continue;
+            t.job = 3;
+            // Split fire between people, but everyone turns on someone about to fall.
+            ServerPlayerEntity p = weak != null && k % 3 != 2 ? weak : people.get(k % Math.min(people.size(), Math.max(1, (men.size() - baiters + 1) / 2)));
+            t.orders = p.getUuid();
+            k++;
+        }
+    }
+
+    // ------------------------------------------------------------------ one man
+
+    private static boolean valid(LivingEntity e) {
+        return e != null && e.isAlive() && !(e instanceof ServerPlayerEntity sp && (sp.isSpectator() || sp.isCreative() || AotRpg.DOWNED.isDowned(sp)));
+    }
+
     private static void think(ServerWorld w, VillagerEntity v, Troop t, Squad sq, List<ServerPlayerEntity> players, int ticks) {
         if (t.stun > 0) {
             // Reeling from a parry: stock still, seeing stars.
@@ -286,43 +395,50 @@ public final class Troops {
             return;
         }
         LivingEntity target = find(w, t.target);
-        if (target instanceof ServerPlayerEntity sp && (sp.isSpectator() || sp.isCreative() || AotRpg.DOWNED.isDowned(sp))) target = null;
-        // Whoever just shot or cut them gets their attention.
-        if (v.getAttacker() instanceof LivingEntity att && att.isAlive() && att != target && v.getLastAttackedTime() > v.age - 5
-            && (att instanceof ServerPlayerEntity || AotRpg.isTitan(att))) target = att;
-        // The squad fights as one: take the leader's target when you have none.
+        if (!valid(target)) target = null;
+        LivingEntity ordered = find(w, t.orders);
+        if (!valid(ordered)) ordered = null;
+        // Orders first; but whoever is cutting at them up close gets dealt with.
+        if (ordered != null) target = ordered;
+        if (v.getAttacker() instanceof LivingEntity att && valid(att) && att != target && v.getLastAttackedTime() > v.age - 10
+            && (att instanceof ServerPlayerEntity && att.squaredDistanceTo(v) < 8 * 8 || AotRpg.isTitan(att) && t.job != 3)) target = att;
         if (target == null && sq.leader != null && !sq.leader.equals(t.id)) {
             Troop lead = troops.get(sq.leader);
-            if (lead != null) target = find(w, lead.target);
+            if (lead != null) {
+                LivingEntity lt = find(w, lead.target);
+                if (valid(lt)) target = lt;
+            }
         }
         if (--t.retarget <= 0 || target == null) {
             t.retarget = 10;
-            LivingEntity best = null;
-            double bd = Double.MAX_VALUE;
-            for (Entity e : w.getOtherEntities(v, v.getBoundingBox().expand(44, 30, 44), e -> e instanceof LivingEntity le && le.isAlive())) {
-                LivingEntity le = (LivingEntity) e;
-                double d = le.squaredDistanceTo(v);
-                if (le instanceof ServerPlayerEntity p) {
-                    if (p.isSpectator() || p.isCreative() || AotRpg.DOWNED.isDowned(p) || d > 38 * 38) continue;
-                } else if (AotRpg.isTitan(le) && TitanLevels.rootOf(le) == le) {
-                    d *= 0.6;
-                } else continue;
-                if (d < bd && sees(w, v, aim(le))) {
-                    bd = d;
-                    best = le;
+            if (target == null) {
+                LivingEntity best = null;
+                double bd = Double.MAX_VALUE;
+                for (Entity e : w.getOtherEntities(v, v.getBoundingBox().expand(44, 30, 44), e -> e instanceof LivingEntity le && le.isAlive())) {
+                    LivingEntity le = (LivingEntity) e;
+                    double d = le.squaredDistanceTo(v);
+                    if (le instanceof ServerPlayerEntity p) {
+                        if (!valid(p) || d > 40 * 40) continue;
+                    } else if (AotRpg.isTitan(le) && TitanLevels.rootOf(le) == le) {
+                        d *= 0.6;
+                    } else continue;
+                    if (d < bd && sees(w, v, aim(le))) {
+                        bd = d;
+                        best = le;
+                    }
                 }
+                target = best;
             }
-            if (best != null && (target == null || best != target && bd < target.squaredDistanceTo(v) * 0.6)) target = best;
         }
         if (target instanceof ServerPlayerEntity sp && !t.spotted) {
             t.spotted = true;
             sp.playSoundToPlayer(SoundEvents.ENTITY_PILLAGER_CELEBRATE, SoundCategory.HOSTILE, 1f, 0.8f);
         }
+        if (target == null || !target.getUuid().equals(t.target)) t.windup = 0;
         t.target = target == null ? null : target.getUuid();
 
-        // Hurt badly, or their officer's down: some fall back for a while.
-        if (!t.officer && t.flee <= 0 && target != null
-            && (v.getHealth() < v.getMaxHealth() * 0.3f || sq.broken && w.random.nextInt(400) == 0)) t.flee = 90;
+        // Only a leaderless squad nearly dead on its feet falls back, and not for long.
+        if (!t.officer && t.flee <= 0 && target != null && sq.broken && v.getHealth() < v.getMaxHealth() * 0.2f && w.random.nextInt(200) == 0) t.flee = 40;
         if (t.flee > 0) {
             t.flee--;
             t.windup = 0;
@@ -339,39 +455,33 @@ public final class Troops {
 
         double dist = Math.sqrt(v.squaredDistanceTo(target));
         boolean titan = AotRpg.isTitan(target);
-        // Up close with a person on the ground: blades out. They can't follow you into the air
-        // (no gear of their own), so the moment you pull away or take off, it's back to the gun.
+        // Up close with a person on the ground: both blades out. They can't follow you into the air
+        // (no gear of their own), so once you pull well away or take off, it's back to the gun.
         boolean airborne = target instanceof ServerPlayerEntity sp2 && (!sp2.isOnGround() && sp2.getVelocity().lengthSquared() > 0.09);
         if (!titan && target instanceof ServerPlayerEntity duelP) {
             // Honor: one blade at a time. While someone is fighting this person hand to hand, the
-            // rest hold back in a ring, weapons down, and watch; when he falls, the next steps in.
+            // rest hold a ring and keep their guns up for when he takes to the air.
             UUID holder = duelist(w, duelP);
             if (holder != null && !holder.equals(t.id)) {
                 t.windup = 0;
                 t.burst = 0;
                 gun(v, t);
                 Vec3d flat0 = target.getPos().subtract(v.getPos()).multiply(1, 0, 1);
-                if (dist < 8) walk(w, v, flat0.multiply(-1), 0.1);
-                else if (dist > 12) walk(w, v, flat0, 0.12);
-                else walk(w, v, new Vec3d(-flat0.z, 0, flat0.x).multiply(t.strafe), 0.03);
+                if (dist < 8) walk(w, v, flat0.multiply(-1), 0.12);
+                else if (dist > 12) walk(w, v, flat0, 0.16);
+                else walk(w, v, new Vec3d(-flat0.z, 0, flat0.x).multiply(t.strafe), 0.05);
                 face(v, target.getEyePos());
                 return;
             }
             boolean open = duelOpen.getOrDefault(duelP.getUuid(), 0L) > System.currentTimeMillis();
-            if (!airborne && (dist < 5 || open && dist < 13)) {
-                if (dist >= 5) {
-                    // The next one walks in to take up the fight.
-                    face(v, target.getEyePos());
-                    walk(w, v, target.getPos().subtract(v.getPos()).multiply(1, 0, 1), 0.16);
-                    return;
-                }
+            if (!airborne && (dist < 7 || t.blade && dist < 11 || open && dist < 14)) {
                 if (holder == null) {
                     duels.put(duelP.getUuid(), t.id);
                     duelOpen.remove(duelP.getUuid());
                     w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PILLAGER_CELEBRATE, SoundCategory.HOSTILE, 1f, 0.9f);
                 }
                 blade(v, t);
-            } else if (dist > 6 || airborne) {
+            } else if (dist > 11 || airborne) {
                 if (t.blade) duels.remove(duelP.getUuid(), t.id);
                 gun(v, t);
             }
@@ -381,46 +491,75 @@ public final class Troops {
             return;
         }
 
-        // At range, in formation: the leader holds back, riflemen hold a line, flankers work round the side.
         Vec3d at = aim(target);
         Vec3d flat = target.getPos().subtract(v.getPos()).multiply(1, 0, 1);
-        double want = titan ? Math.max(16, target.getHeight() * 1.2) : t.role == 0 ? 22 : 17;
         Vec3d move;
-        if (t.role == 2 && !titan) {
-            // A spot off to the target's side (left or right by slot), closing to about 14 blocks.
-            double base = Math.atan2(v.getZ() - target.getZ(), v.getX() - target.getX());
-            double ang = base + (t.slot % 4 < 2 ? 1 : -1) * 0.35;
-            Vec3d spot = target.getPos().add(Math.cos(ang) * 14, 0, Math.sin(ang) * 14);
+        double speed;
+        if (titan && t.job == 2) {
+            // Round the back of it, shooting for the nape.
+            double yaw = Math.toRadians(target.getYaw());
+            Vec3d back = new Vec3d(Math.sin(yaw), 0, -Math.cos(yaw));
+            at = nape(target);
+            Vec3d spot = target.getPos().add(back.multiply(target.getWidth() * 0.5 + Math.max(9, target.getHeight() * 0.8)));
             move = spot.subtract(v.getPos()).multiply(1, 0, 1);
-            if (move.lengthSquared() < 4) move = Vec3d.ZERO;
-            else move = move.normalize();
+            move = move.lengthSquared() < 4 ? Vec3d.ZERO : move.normalize();
+            speed = 0.2;
+        } else if (titan) {
+            // Drawing it off: keep just out of its reach, backing away from the rest of the squad.
+            double want = Math.max(13, target.getWidth() * 0.6 + target.getHeight() * 0.7);
+            Vec3d off = sq.mid == null || t.job != 1 ? Vec3d.ZERO : v.getPos().subtract(sq.mid).multiply(1, 0, 1);
+            off = off.lengthSquared() < 1e-3 ? new Vec3d(-flat.z, 0, flat.x) : off;
+            move = off.normalize().multiply(0.5);
+            if (dist < want) move = move.add(flat.normalize().multiply(-1.2));
+            else if (dist > want + 8) move = move.add(flat.normalize());
+            speed = dist < want ? 0.22 : 0.14;
+        } else if (t.role == 2) {
+            // A spot off to the person's side (left or right by slot), closing to about 12 blocks.
+            double base = Math.atan2(v.getZ() - target.getZ(), v.getX() - target.getX());
+            double ang = base + (t.slot % 4 < 2 ? 1 : -1) * 0.45;
+            Vec3d spot = target.getPos().add(Math.cos(ang) * 12, 0, Math.sin(ang) * 12);
+            move = spot.subtract(v.getPos()).multiply(1, 0, 1);
+            move = move.lengthSquared() < 4 ? Vec3d.ZERO : move.normalize();
+            speed = 0.15;
         } else {
+            double want = t.role == 0 ? 18 : 14;
             Vec3d side = new Vec3d(-flat.z, 0, flat.x).normalize().multiply(t.strafe);
             if (--t.strafeFlip <= 0) {
-                t.strafeFlip = 30 + w.random.nextInt(40);
+                t.strafeFlip = 25 + w.random.nextInt(35);
                 t.strafe = -t.strafe;
             }
-            move = side.multiply(t.windup > 0 ? 0.15 : 0.45);
-            if (dist > want + 6) move = move.add(flat.normalize());
-            else if (dist < want - 5) move = move.add(flat.normalize().multiply(-1));
+            move = side.multiply(t.windup > 0 ? 0.2 : 0.5);
+            if (dist > want + 5) move = move.add(flat.normalize());
+            else if (dist < want - 6) move = move.add(flat.normalize().multiply(-0.6));
+            speed = t.windup > 0 ? 0.07 : 0.13;
         }
-        walk(w, v, move, titan && dist < want ? 0.19 : t.windup > 0 ? 0.05 : 0.11);
-        face(v, t.windup > 0 && t.aimAt != null ? t.aimAt : at);
+        walk(w, v, move, speed);
 
         if (t.windup > 0) {
-            // Taking aim: a red line to where the volley will go. Move and it misses.
+            // Taking aim: the red line tracks you (leading where you're going), then locks for a
+            // moment before the burst. Break your line late and it misses.
             t.windup--;
+            if (t.windup > 4) {
+                Vec3d lead = at.add(target.getVelocity().multiply(titan ? 0 : 7, 0.3, titan ? 0 : 7));
+                t.aimAt = t.aimAt == null ? lead : t.aimAt.lerp(lead, t.officer ? 0.55 : 0.4);
+            } else if (t.windup == 4 && target instanceof ServerPlayerEntity p) {
+                p.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.HOSTILE, 1f, 1.8f);
+            }
+            face(v, t.aimAt);
             if (ticks % 2 == 0) laser(w, v, t.aimAt);
             if (t.windup == 0) {
-                t.burst = t.officer ? 4 : 3;
+                t.burst = t.officer ? 5 : 4;
                 t.cool = 0;
             }
             return;
         }
+        face(v, at);
         if (t.burst > 0) {
-            if (ticks % 4 == 0) {
+            if (ticks % 3 == 0) {
+                // Each round walks a little further onto where you are now.
+                if (t.aimAt != null) t.aimAt = t.aimAt.lerp(at.add(target.getVelocity().multiply(3, 0, 3)), 0.25);
                 fire(w, v, t, target, t.aimAt, dist, sq);
-                if (--t.burst == 0) t.cool = 40 + w.random.nextInt(30);
+                if (--t.burst == 0) t.cool = (t.officer ? 18 : 24) + w.random.nextInt(18);
             }
             return;
         }
@@ -428,12 +567,22 @@ public final class Troops {
             t.cool--;
             return;
         }
-        // Volleys in turns across the squad: a rhythm you can learn and rush between.
-        if (ticks < sq.nextVolley || !sees(w, v, at)) return;
-        sq.nextVolley = ticks + (titan ? 10 : 22);
-        t.windup = titan ? 6 : t.officer ? 12 : 16;
+        if (!sees(w, v, at)) return;
+        // Volleys at one target come in turns across the squad (a rhythm you can learn and rush
+        // between); split onto different targets, they fire at once.
+        int next = sq.volleys.getOrDefault(target.getUuid(), 0);
+        if (ticks < next) return;
+        sq.volleys.put(target.getUuid(), ticks + (titan ? 6 : 11));
+        if (sq.volleys.size() > 16) sq.volleys.values().removeIf(x -> x < ticks);
+        t.windup = titan ? 6 : t.officer ? 10 : 13;
         t.aimAt = at;
         if (target instanceof ServerPlayerEntity p) p.playSoundToPlayer(SoundEvents.ITEM_CROSSBOW_LOADING_MIDDLE.value(), SoundCategory.HOSTILE, 1f, 1.4f);
+    }
+
+    /** A titan's weak spot: high on the back of the neck. */
+    private static Vec3d nape(LivingEntity ti) {
+        double yaw = Math.toRadians(ti.getYaw());
+        return ti.getPos().add(Math.sin(yaw) * ti.getWidth() * 0.25, ti.getHeight() * 0.88, -Math.cos(yaw) * ti.getWidth() * 0.25);
     }
 
     /** Walking the squad's patrol in a wedge behind whoever leads. */
@@ -459,8 +608,10 @@ public final class Troops {
         if (!t.blade) return;
         t.blade = false;
         t.swing = 0;
+        t.combo = 0;
         Item gun = AotItems.exact("apg_gun");
-        if (gun != null) v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, new ItemStack(gun));
+        v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, gun != null ? new ItemStack(gun) : ItemStack.EMPTY);
+        v.equipStack(net.minecraft.entity.EquipmentSlot.OFFHAND, ItemStack.EMPTY);
     }
 
     private static void blade(VillagerEntity v, Troop t) {
@@ -468,51 +619,153 @@ public final class Troops {
         t.blade = true;
         t.windup = 0;
         t.burst = 0;
-        Item grip = AotItems.exact("blade");
-        if (grip != null) v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, new ItemStack(grip));
+        t.cool = 4;
+        ItemStack grip = loadedGrip();
+        v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, grip.copy());
+        v.equipStack(net.minecraft.entity.EquipmentSlot.OFFHAND, grip.copy());
+        v.setEquipmentDropChance(net.minecraft.entity.EquipmentSlot.OFFHAND, 0);
         v.getWorld().playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ITEM_ARMOR_EQUIP_IRON.value(), SoundCategory.HOSTILE, 1f, 1.3f);
+        v.getWorld().playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ITEM_TRIDENT_RETURN, SoundCategory.HOSTILE, 0.8f, 1.9f);
     }
 
     /**
-     * Blades up close: close in, then a wind-up you can read (a glint, a rising scrape) before the
-     * cut. Guard it facing them and they're thrown off balance, wide open; step out of reach and it
-     * whiffs.
+     * Blades up close, both hands: closes fast, a short wind-up you can read (a glint, a scrape),
+     * then cuts that chain two or three deep, alternating hands. Guard one in time and they're
+     * thrown off balance, wide open; step out of reach and it whiffs.
      */
     private static void melee(ServerWorld w, VillagerEntity v, Troop t, LivingEntity target, double dist, Squad sq) {
         face(v, target.getEyePos());
+        Vec3d to = target.getPos().subtract(v.getPos()).multiply(1, 0, 1);
         if (t.swing > 0) {
             t.swing--;
             Vec3d hand = v.getEyePos().add(v.getRotationVec(1f).multiply(0.7)).add(0, -0.4, 0);
             w.spawnParticles(ParticleTypes.ENCHANTED_HIT, hand.x, hand.y, hand.z, 2, 0.1, 0.1, 0.1, 0.05);
+            if (dist > 2.2) walk(w, v, to, 0.12);
             if (t.swing > 0) return;
-            v.swingHand(net.minecraft.util.Hand.MAIN_HAND);
-            w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.HOSTILE, 1f, 0.9f);
+            v.swingHand(t.offhand ? net.minecraft.util.Hand.OFF_HAND : net.minecraft.util.Hand.MAIN_HAND);
+            t.offhand = !t.offhand;
+            w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.HOSTILE, 1f, 0.9f + t.combo * 0.12f);
             Vec3d look = v.getRotationVec(1f).multiply(1, 0, 1).normalize();
-            Vec3d to = target.getPos().subtract(v.getPos()).multiply(1, 0, 1);
-            boolean reach = dist < 3.4 && to.lengthSquared() > 1e-4 && look.dotProduct(to.normalize()) > 0.3;
+            boolean reach = dist < 3.7 && to.lengthSquared() > 1e-4 && look.dotProduct(to.normalize()) > 0.2;
             if (!reach) {
-                t.cool = 14;
+                t.combo = 0;
+                t.cool = 8;
                 return;
             }
             // (A guard raised in time turns it: a well-timed one throws them off balance, see Guard.)
-            target.damage(w.getDamageSources().mobAttack(v), 5 + sq.level * 0.1f + (t.officer ? 2 : 0));
-            target.addVelocity(look.x * 0.5, 0.2, look.z * 0.5);
+            float dmg = 6 + sq.level * 0.22f + (t.officer ? 2.5f : 0) + t.combo * 1.5f;
+            target.damage(w.getDamageSources().mobAttack(v), dmg);
+            target.addVelocity(look.x * 0.35, 0.15, look.z * 0.35);
             target.velocityModified = true;
-            t.cool = 18;
+            if (t.stun > 0) {
+                // Parried: the chain is broken.
+                t.combo = 0;
+                return;
+            }
+            if (t.combo < (t.officer ? 3 : 2) && w.random.nextFloat() < 0.6f) {
+                // Straight into the next cut, from the other hand.
+                t.combo++;
+                t.swing = 4;
+                w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ITEM_TRIDENT_RETURN, SoundCategory.HOSTILE, 0.8f, 1.8f);
+                return;
+            }
+            t.combo = 0;
+            t.cool = t.officer ? 7 : 10;
             return;
         }
         if (t.cool > 0) {
             t.cool--;
-            if (dist > 2.6) walk(w, v, target.getPos().subtract(v.getPos()).multiply(1, 0, 1), 0.14);
+            // Between cuts: stay on you, circling a little.
+            if (dist > 2.4) walk(w, v, to, 0.2);
+            else walk(w, v, new Vec3d(-to.z, 0, to.x).multiply(t.strafe), 0.06);
+            return;
+        }
+        if (dist > 5) {
+            walk(w, v, to, 0.26);
             return;
         }
         if (dist > 2.6) {
-            walk(w, v, target.getPos().subtract(v.getPos()).multiply(1, 0, 1), 0.2);
-            return;
+            // A lunge to close the gap, winding up as he comes.
+            walk(w, v, to, 0.42);
         }
         // The tell: a glint and a scrape, then the cut.
-        t.swing = t.officer ? 8 : 11;
+        t.swing = t.officer ? 5 : 7;
         w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ITEM_TRIDENT_RETURN, SoundCategory.HOSTILE, 1f, 1.6f);
+    }
+
+    // ------------------------------------------------------------------ loaded grips
+
+    private static ItemStack gripTemplate = ItemStack.EMPTY;
+    private static int gripRichness = -1;
+    private static java.nio.file.Path gripFile;
+
+    /** How much a grip carries beyond the bare item (a loaded one carries its blade data). */
+    private static int richness(ItemStack s) {
+        int n = 0;
+        var cd = s.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+        if (cd != null) for (String k : cd.copyNbt().getKeys()) if (!k.equals("aot_gear")) n += 2;
+        for (var c : s.getComponents()) {
+            var id = net.minecraft.registry.Registries.DATA_COMPONENT_TYPE.getId(c.type());
+            if (id != null && !id.getNamespace().equals("minecraft")) n += 2;
+        }
+        return n;
+    }
+
+    /**
+     * Danny's grips show a blade only when one is loaded, and that lives on the item. The troops
+     * copy a real loaded grip: the richest one seen in a player's hand is kept (and saved) as the
+     * pattern, fresh and unworn.
+     */
+    public static void learnGrip(net.minecraft.server.MinecraftServer server, ItemStack held) {
+        Item g = AotItems.exact("blade");
+        if (g == null || held.getItem() != g) return;
+        int r = richness(held);
+        if (r <= gripRichness) return;
+        ItemStack s = held.copyWithCount(1);
+        var cd = s.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+        if (cd != null) {
+            var n = cd.copyNbt();
+            n.remove("aot_gear");
+            for (String k : new ArrayList<>(n.getKeys())) {
+                String lk = k.toLowerCase(java.util.Locale.ROOT);
+                if (lk.contains("damage") && n.get(k) instanceof net.minecraft.nbt.AbstractNbtNumber) n.putInt(k, 0);
+            }
+            s.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA, net.minecraft.component.type.NbtComponent.of(n));
+        }
+        s.remove(net.minecraft.component.DataComponentTypes.LORE);
+        s.remove(net.minecraft.component.DataComponentTypes.CUSTOM_NAME);
+        s.setDamage(0);
+        gripTemplate = s;
+        gripRichness = r;
+        try {
+            if (gripFile == null) gripFile = server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("aot_rpg").resolve("troop_grip.dat");
+            java.nio.file.Files.createDirectories(gripFile.getParent());
+            var tag = new net.minecraft.nbt.NbtCompound();
+            tag.put("grip", s.encode(server.getRegistryManager()));
+            tag.putInt("rich", r);
+            net.minecraft.nbt.NbtIo.writeCompressed(tag, gripFile);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void loadGrip(net.minecraft.server.MinecraftServer server) {
+        gripFile = server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("aot_rpg").resolve("troop_grip.dat");
+        gripTemplate = ItemStack.EMPTY;
+        gripRichness = -1;
+        if (!java.nio.file.Files.exists(gripFile)) return;
+        try {
+            var tag = net.minecraft.nbt.NbtIo.readCompressed(gripFile, net.minecraft.nbt.NbtSizeTracker.ofUnlimitedBytes());
+            gripTemplate = ItemStack.fromNbt(server.getRegistryManager(), tag.get("grip")).orElse(ItemStack.EMPTY);
+            gripRichness = gripTemplate.isEmpty() ? -1 : tag.getInt("rich");
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** A grip with its blade in. */
+    public static ItemStack loadedGrip() {
+        if (!gripTemplate.isEmpty()) return gripTemplate.copy();
+        Item g = AotItems.exact("blade");
+        return g != null ? new ItemStack(g) : new ItemStack(net.minecraft.item.Items.IRON_SWORD);
     }
 
     /** The aim line: a thin red trace from the muzzle toward where the volley is going. */
@@ -564,9 +817,10 @@ public final class Troops {
         if (aimed == null) aimed = aim(target);
         Vec3d muzzle = v.getEyePos().add(v.getRotationVec(1f).multiply(0.6)).add(0, -0.25, 0);
         boolean titan = AotRpg.isTitan(target);
-        double spread = titan ? 0.6 : 0.55 + dist * 0.02;
-        if (sq.broken) spread *= 1.6;
-        else if (!t.officer && sq.leader != null && troops.containsKey(sq.leader) && troops.get(sq.leader).officer) spread *= 0.85;
+        double spread = titan ? 0.5 : 0.28 + dist * 0.011;
+        if (sq.broken) spread *= 1.5;
+        else if (!t.officer && sq.leader != null && troops.containsKey(sq.leader) && troops.get(sq.leader).officer) spread *= 0.8;
+        if (t.officer) spread *= 0.8;
         var r = w.random;
         Vec3d end = aimed.add(r.nextGaussian() * spread, r.nextGaussian() * spread * 0.7, r.nextGaussian() * spread);
         Vec3d dir = end.subtract(muzzle).normalize();
@@ -583,10 +837,12 @@ public final class Troops {
             if (target instanceof ServerPlayerEntity p) p.playSoundToPlayer(SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.HOSTILE, 1f, 2f);
             return;
         }
-        float dmg = titan ? 7 + sq.level * 0.25f : 2.5f + sq.level * 0.06f + (t.officer ? 1 : 0);
+        float dmg = titan ? 7 + sq.level * 0.3f : 3f + sq.level * 0.12f + (t.officer ? 1.5f : 0);
+        if (titan && t.job == 2 && stop.y > target.getY() + target.getHeight() * 0.75) dmg *= 1.6f;
         target.damage(w.getDamageSources().mobAttack(v), dmg);
         w.spawnParticles(titan ? ParticleTypes.CLOUD : ParticleTypes.CRIT, stop.x, stop.y, stop.z, titan ? 3 : 5, 0.15, 0.15, 0.15, 0.05);
-        if (titan && target instanceof MobEntity m && r.nextFloat() < 0.35f) m.setTarget(v);
+        // Whoever's drawing it keeps its eye; the rest only sometimes catch it.
+        if (titan && target instanceof MobEntity m && (t.job == 1 || r.nextFloat() < 0.2f)) m.setTarget(v);
     }
 
     // ------------------------------------------------------------------ titans
@@ -596,8 +852,9 @@ public final class Troops {
      * crunch). Called once a second.
      */
     public static void titans(ServerWorld w) {
-        for (var en : troops.entrySet()) {
+        for (var en : new ArrayList<>(troops.entrySet())) {
             Troop t = en.getValue();
+            if (troops.get(en.getKey()) != t) continue;
             if (t.grabbed >= 0 || !(w.getEntity(en.getKey()) instanceof VillagerEntity v) || !v.isAlive()) continue;
             for (Entity e : w.getOtherEntities(v, v.getBoundingBox().expand(10, 8, 10), e -> AotRpg.isTitan(e) && TitanLevels.rootOf(e) == e && e.isAlive())) {
                 LivingEntity ti = (LivingEntity) e;

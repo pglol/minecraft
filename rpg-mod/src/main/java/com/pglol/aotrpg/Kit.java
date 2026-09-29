@@ -62,7 +62,7 @@ public final class Kit {
         ItemStack grip = ItemStack.EMPTY;
         if (drawn) {
             Item g = AotItems.exact("blade");
-            grip = g != null ? new ItemStack(g) : AotItems.present() ? AotItems.bestStack(1, AotItems.GRIP, "blade") : new ItemStack(Items.IRON_SWORD);
+            grip = g != null ? Troops.loadedGrip() : AotItems.present() ? AotItems.bestStack(1, AotItems.GRIP, "blade") : new ItemStack(Items.IRON_SWORD);
             if (grip.isEmpty()) grip = new ItemStack(Items.IRON_SWORD);
         }
         v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, grip.copy());

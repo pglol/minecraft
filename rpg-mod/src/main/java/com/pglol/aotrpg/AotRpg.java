@@ -552,6 +552,7 @@ public final class AotRpg implements ModInitializer {
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             PROFILES.open(server);
+            Troops.loadGrip(server);
             DOWNED.open(server);
             STORY.open(server);
             CLASSES.open(server);

@@ -1390,6 +1390,11 @@ public final class Extraction {
             Troops.tick(tw, ticks);
             if (ticks % 20 == 3) Troops.titans(tw);
         }
+        // Learn what a loaded grip looks like from anyone holding one (the troops copy it).
+        if (ticks % 100 == 41) for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+            Troops.learnGrip(server, p.getMainHandStack());
+            Troops.learnGrip(server, p.getOffHandStack());
+        }
         lobbyTick(ticks);
         if (ticks % 20 == 9) {
             // Aboard but below the basket (a glitch, a lag spike): caught and put back on a bench.
