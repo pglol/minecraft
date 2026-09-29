@@ -42,6 +42,16 @@ public final class IslandMapScreen extends Screen {
     }
 
     @Override
+    public boolean keyPressed(int key, int scan, int mods) {
+        // The map key puts it away again.
+        if (AotRpgClient.mapKey().matchesKey(key, scan) && !Screen.hasControlDown()) {
+            close();
+            return true;
+        }
+        return super.keyPressed(key, scan, mods);
+    }
+
+    @Override
     protected void init() {
         AotButton c = addDrawableChild(new AotButton(width - 74, height - 24, 64, 16, Text.literal("Recentre"), () -> {
             if (ExtractionHud.view != null) recentre(ExtractionHud.view);

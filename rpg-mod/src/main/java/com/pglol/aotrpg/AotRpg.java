@@ -142,6 +142,19 @@ public final class AotRpg implements ModInitializer {
             if (world.isClient || !(player instanceof ServerPlayerEntity sp) || hand != net.minecraft.util.Hand.MAIN_HAND) return ActionResult.PASS;
             return EXTRACT.use(sp, hit.getBlockPos()) ? ActionResult.SUCCESS : ActionResult.PASS;
         });
+        // Chests and barrels out in the world are searched in the loot screen (walk while you
+        // rummage), not the vanilla chest window. Homes, home plots and the lobby keep their own.
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (world.isClient || !(player instanceof ServerPlayerEntity sp) || hand != net.minecraft.util.Hand.MAIN_HAND || sp.isSneaking()) return ActionResult.PASS;
+            net.minecraft.util.math.BlockPos pos = hit.getBlockPos();
+            var key = world.getRegistryKey();
+            if (key == Homes.WORLD || key == Extraction.SKY || HomePlots.plotAt(pos, 0) >= 0) return ActionResult.PASS;
+            var state = world.getBlockState(pos);
+            boolean box = state.isOf(net.minecraft.block.Blocks.BARREL) || state.getBlock() instanceof net.minecraft.block.ChestBlock;
+            if (!box || !(world.getBlockEntity(pos) instanceof net.minecraft.block.entity.LootableContainerBlockEntity)) return ActionResult.PASS;
+            LootBox.show(sp, pos, state.getBlock().getName().getString());
+            return ActionResult.SUCCESS;
+        });
         ServerPlayNetworking.registerGlobalReceiver(Net.ExtractionAction.ID, (payload, ctx) -> EXTRACT.action(ctx.player(), payload.action(), payload.arg()));
         ServerPlayNetworking.registerGlobalReceiver(Net.StashAction.ID, (payload, ctx) -> Stash.action(ctx.player(), payload.action(), payload.slot()));
         ServerPlayNetworking.registerGlobalReceiver(Net.LootAction.ID, (payload, ctx) -> LootBox.action(ctx.player(), payload.action(), payload.slot()));
