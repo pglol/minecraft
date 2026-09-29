@@ -610,7 +610,7 @@ public final class AotRpg implements ModInitializer {
             if (p.getWorld().getRegistryKey() == Extraction.lobbyWorld()) {
                 p.fallDistance = 0;
                 p.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING, 100, 0, false, false));
-                SCHEDULER.later(2, () -> { if (!p.isDisconnected()) EXTRACT.joined(p); });
+                SCHEDULER.later(2, () -> { if (!p.isDisconnected()) EXTRACT.reseat(p); });
             }
             HomeAdmin.joined(p);
             SCHEDULER.later(60, () -> {

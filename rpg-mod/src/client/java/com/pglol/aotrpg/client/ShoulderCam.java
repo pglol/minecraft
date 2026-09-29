@@ -162,12 +162,41 @@ public final class ShoulderCam {
         // In from (and back out to) your own eyes.
         float k = weight * weight * (3 - 2 * weight);
         Vec3d pos = eye.lerp(target, k);
-        return new com.pglol.aotrpg.client.story.CutscenePlayer.Cam(pos.x, pos.y, pos.z, yaw, pitch);
+        // Looking at exactly what you're aiming at, so the middle of the screen is where your
+        // strike or grapple goes (not a line beside it).
+        var aimHit = p.raycast(96, td, false);
+        Vec3d aim = aimHit.getType() == HitResult.Type.MISS ? eye.add(fwd.multiply(96)) : aimHit.getPos();
+        if (mc.crosshairTarget instanceof net.minecraft.util.hit.EntityHitResult eh && eh.getPos().squaredDistanceTo(eye) < aim.squaredDistanceTo(eye)) {
+            aim = eh.getPos();
+        }
+        Vec3d to = aim.subtract(pos);
+        float camYaw = yaw, camPitch = pitch;
+        if (to.lengthSquared() > 4) {
+            double hz = Math.sqrt(to.x * to.x + to.z * to.z);
+            float ay = (float) (MathHelper.atan2(to.z, to.x) * MathHelper.DEGREES_PER_RADIAN) - 90f;
+            float ap = (float) -(MathHelper.atan2(to.y, hz) * MathHelper.DEGREES_PER_RADIAN);
+            camYaw = MathHelper.lerpAngleDegrees(k, yaw, ay);
+            camPitch = MathHelper.lerp(k, pitch, ap);
+        }
+        return new com.pglol.aotrpg.client.story.CutscenePlayer.Cam(pos.x, pos.y, pos.z, camYaw, camPitch);
     }
 
     /** The bank, applied to the view. */
     public static void roll(MatrixStack m) {
         if (active() && Math.abs(roll) > 0.02f) m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(roll * weight));
+    }
+
+    /** A crosshair when the view isn't first person (vanilla draws none then). */
+    public static void crosshair(net.minecraft.client.gui.DrawContext c, net.minecraft.client.render.RenderTickCounter tick) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (!active() || mc.options.hudHidden || mc.options.getPerspective().isFirstPerson() || mc.currentScreen != null) return;
+        int x = c.getScaledWindowWidth() / 2, y = c.getScaledWindowHeight() / 2;
+        int a = (int) (220 * weight) << 24;
+        c.fill(x - 4, y, x - 1, y + 1, a | 0xFFFFFF);
+        c.fill(x + 2, y, x + 5, y + 1, a | 0xFFFFFF);
+        c.fill(x, y - 4, x + 1, y - 1, a | 0xFFFFFF);
+        c.fill(x, y + 2, x + 1, y + 5, a | 0xFFFFFF);
+        c.fill(x, y, x + 1, y + 1, a | 0xFFFFFF);
     }
 
     /** Degrees to add to the field of view. */

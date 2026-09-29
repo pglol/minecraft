@@ -799,7 +799,7 @@ public final class Extraction {
     }
 
     /** Logged in aboard a balloon: make sure it's there and put them back on a bench. */
-    public void joined(ServerPlayerEntity p) {
+    public void reseat(ServerPlayerEntity p) {
         if (p.getWorld().getRegistryKey() == lobbyWorld && inLobby(p)) {
             p.fallDistance = 0;
             toLobby(p, true);
