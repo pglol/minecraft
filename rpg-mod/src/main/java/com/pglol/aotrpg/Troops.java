@@ -78,6 +78,8 @@ public final class Troops {
         /** Knocked back by a hit (direction and strength, ticks left), and a pause between weapon swaps. */
         Vec3d knock;
         int knockT, swapCool;
+        /** The current cut's wind-up has been shown to onlookers. */
+        boolean swingShown;
 
         Troop(UUID id, int squad, boolean officer, int role, int slot) {
             this.id = id;
@@ -159,6 +161,8 @@ public final class Troops {
         if (t == null) return;
         t.stun = Math.max(t.stun, ticks);
         t.swing = 0;
+        t.swingShown = false;
+        if (e instanceof VillagerEntity sv) anim(sv, 0, 0, 0);
         t.windup = 0;
         t.burst = 0;
     }
@@ -444,9 +448,9 @@ public final class Troops {
         if (t.swapCool > 0) t.swapCool--;
         if (t.knockT > 0 && t.knock != null) {
             // Rocked back by a hit, sliding to a stop.
-            walk(w, v, t.knock, t.knock.length() * t.knockT / 5.0);
+            walk(w, v, t.knock, t.knock.length() * t.knockT / 6.0);
             t.knockT--;
-            if (t.knockT >= 3) return;
+            if (t.knockT >= 2) return;
         }
         if (t.stun > 0) {
             // Reeling from a parry: stock still, seeing stars.
@@ -656,6 +660,7 @@ public final class Troops {
         if (sq.volleys.size() > 16) sq.volleys.values().removeIf(x -> x < ticks);
         t.windup = titan ? 8 : t.officer ? 13 : 16;
         t.aimAt = at;
+        anim(v, 4, t.windup + (titan ? 4 : t.officer ? 3 : 2) * 3 + 4, 0);
         if (target instanceof ServerPlayerEntity p) p.playSoundToPlayer(SoundEvents.ITEM_CROSSBOW_LOADING_MIDDLE.value(), SoundCategory.HOSTILE, 1f, 1.4f);
     }
 
@@ -689,6 +694,7 @@ public final class Troops {
         t.swapCool = 30;
         t.blade = false;
         t.swing = 0;
+        t.swingShown = false;
         t.combo = 0;
         Item gun = AotItems.exact("apg_gun");
         v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, gun != null ? new ItemStack(gun) : ItemStack.EMPTY);
@@ -702,7 +708,8 @@ public final class Troops {
         t.windup = 0;
         t.burst = 0;
         t.cool = 4;
-        ItemStack grip = loadedGrip();
+        Squad sq0 = squads.get(t.squad);
+        ItemStack grip = t.officer ? officerGrip(v.getRandom(), sq0 == null ? 1 : sq0.level) : loadedGrip();
         v.equipStack(net.minecraft.entity.EquipmentSlot.MAINHAND, grip.copy());
         v.equipStack(net.minecraft.entity.EquipmentSlot.OFFHAND, grip.copy());
         v.setEquipmentDropChance(net.minecraft.entity.EquipmentSlot.OFFHAND, 0);
@@ -733,6 +740,10 @@ public final class Troops {
             }
             return;
         }
+        if (t.swing > 0 && !t.swingShown) {
+            anim(v, 1, t.swing, t.offhand ? 1 : 0);
+            t.swingShown = true;
+        }
         if (t.swing > 0) {
             t.swing--;
             Vec3d hand = v.getEyePos().add(v.getRotationVec(1f).multiply(0.7)).add(0, -0.4, 0);
@@ -740,6 +751,8 @@ public final class Troops {
             if (dist > 2.2) walk(w, v, to, 0.12);
             if (t.swing > 0) return;
             v.swingHand(t.offhand ? net.minecraft.util.Hand.OFF_HAND : net.minecraft.util.Hand.MAIN_HAND);
+            anim(v, 2, 5, t.offhand ? 1 : 0);
+            t.swingShown = false;
             t.offhand = !t.offhand;
             w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.HOSTILE, 1f, 0.9f + t.combo * 0.12f);
             Vec3d look = v.getRotationVec(1f).multiply(1, 0, 1).normalize();
@@ -795,7 +808,15 @@ public final class Troops {
         w.playSound(null, v.getX(), v.getY() + 1, v.getZ(), SoundEvents.ITEM_TRIDENT_RETURN, SoundCategory.HOSTILE, 1f, 1.6f);
     }
 
+    /** Shows everyone nearby what his body is doing (see Net.TroopAnim). */
+    private static void anim(VillagerEntity v, int kind, int ticks, int hand) {
+        Net.TroopAnim a = new Net.TroopAnim(v.getId(), (byte) kind, (byte) Math.min(127, Math.max(0, ticks)), (byte) hand);
+        for (ServerPlayerEntity o : PlayerLookup.tracking(v)) if (ServerPlayNetworking.canSend(o, Net.TroopAnim.ID)) ServerPlayNetworking.send(o, a);
+    }
+
     private static void raise(ServerWorld w, VillagerEntity v, Troop t) {
+        anim(v, 3, t.officer ? 24 : 16, 0);
+        t.swingShown = false;
         t.guard = t.officer ? 24 : 16;
         t.guardHits = 0;
         t.swing = 0;
@@ -809,9 +830,26 @@ public final class Troops {
      * turn it (you're thrown off balance, and the cut comes straight back). Well-timed hits, a
      * perfect parry, or getting round behind them is how you win.
      */
+    /** Shot or hit from range: a jolt back from where it came. */
+    public static void jolt(Entity e, ServerPlayerEntity by) {
+        Troop t = troops.get(e.getUuid());
+        if (t == null || t.grabbed >= 0) return;
+        Vec3d away = e.getPos().subtract(by.getPos()).multiply(1, 0, 1);
+        if (away.lengthSquared() < 1e-4) return;
+        t.knock = away.normalize().multiply(0.5);
+        t.knockT = 4;
+    }
+
     public static double struck(Entity e, ServerPlayerEntity by) {
         Troop t = troops.get(e.getUuid());
-        if (t == null || !(e instanceof VillagerEntity v) || !(v.getWorld() instanceof ServerWorld w) || t.stun > 0 || t.grabbed >= 0) return 1;
+        if (t == null || !(e instanceof VillagerEntity v) || !(v.getWorld() instanceof ServerWorld w) || t.grabbed >= 0) return 1;
+        if (t.stun > 0) {
+            // Reeling: every hit lands, and sends him staggering back.
+            Vec3d away = v.getPos().subtract(by.getPos()).multiply(1, 0, 1);
+            t.knock = away.lengthSquared() < 1e-4 ? Vec3d.ZERO : away.normalize().multiply(0.9);
+            t.knockT = 6;
+            return 1;
+        }
         long now = w.getTime();
         boolean quick = now - t.lastHit < 14;
         t.lastHit = now;
@@ -830,6 +868,7 @@ public final class Troops {
             if (++t.guardHits >= 2 || quick) {
                 // Turned: the flailing blade is knocked aside and the answer comes at once.
                 t.guard = 0;
+                t.swingShown = false;
                 t.guardHits = 0;
                 Vec3d push = toBy.lengthSquared() < 1e-4 ? look.multiply(-1) : toBy.normalize();
                 by.addVelocity(push.x * 0.9, 0.25, push.z * 0.9);
@@ -851,12 +890,14 @@ public final class Troops {
         }
         t.hitsInRow = quick ? t.hitsInRow + 1 : 1;
         // A real hit rocks him back.
-        t.knock = toBy.lengthSquared() < 1e-4 ? look.multiply(-0.5) : toBy.normalize().multiply(-0.5);
-        t.knockT = 5;
+        t.knock = toBy.lengthSquared() < 1e-4 ? look.multiply(-0.8) : toBy.normalize().multiply(-0.8);
+        t.knockT = 6;
         if (t.blade && t.hitsInRow >= 3) {
             // Pressed too hard: he plants his feet and shoves you off, and comes back cutting.
             t.hitsInRow = 0;
             t.knockT = 0;
+            anim(v, 5, 6, 0);
+            t.swingShown = false;
             Vec3d push = toBy.lengthSquared() < 1e-4 ? look.multiply(-1) : toBy.normalize();
             by.addVelocity(push.x * 1.1, 0.3, push.z * 1.1);
             by.velocityModified = true;
@@ -893,11 +934,11 @@ public final class Troops {
     private static int gripRichness = -1;
     private static java.nio.file.Path gripFile;
 
-    /** How much a grip carries beyond the bare item (a loaded one carries its blade data). */
+    /** How much a grip carries beyond the bare item (a loaded one carries its blade data). Our own marks don't count. */
     private static int richness(ItemStack s) {
         int n = 0;
         var cd = s.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
-        if (cd != null) for (String k : cd.copyNbt().getKeys()) if (!k.equals("aot_gear")) n += 2;
+        if (cd != null) for (String k : cd.copyNbt().getKeys()) if (!k.startsWith("aot_")) n += 2;
         for (var c : s.getComponents()) {
             var id = net.minecraft.registry.Registries.DATA_COMPONENT_TYPE.getId(c.type());
             if (id != null && !id.getNamespace().equals("minecraft")) n += 2;
@@ -905,34 +946,43 @@ public final class Troops {
         return n;
     }
 
+    private static <T> void copy(ItemStack to, net.minecraft.component.Component<T> c) {
+        to.set(c.type(), c.value());
+    }
+
     /**
      * Danny's grips show a blade only when one is loaded, and that lives on the item. The troops
      * copy a real loaded grip: the richest one seen in a player's hand is kept (and saved) as the
-     * pattern, fresh and unworn.
+     * pattern, but only the AoT mod's own blade data comes across: a fresh, plain, unworn grip,
+     * never the player's rarity, infusion, name or looks.
      */
     public static void learnGrip(net.minecraft.server.MinecraftServer server, ItemStack held) {
         Item g = AotItems.exact("blade");
         if (g == null || held.getItem() != g) return;
         int r = richness(held);
         if (r <= gripRichness) return;
-        ItemStack s = held.copyWithCount(1);
-        var cd = s.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+        ItemStack s = new ItemStack(g);
+        var cd = held.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
         if (cd != null) {
             var n = cd.copyNbt();
-            n.remove("aot_gear");
             for (String k : new ArrayList<>(n.getKeys())) {
+                if (k.startsWith("aot_")) {
+                    n.remove(k);
+                    continue;
+                }
                 String lk = k.toLowerCase(java.util.Locale.ROOT);
                 if (lk.contains("damage") && n.get(k) instanceof net.minecraft.nbt.AbstractNbtNumber) n.putInt(k, 0);
             }
-            s.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA, net.minecraft.component.type.NbtComponent.of(n));
+            if (!n.isEmpty()) s.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA, net.minecraft.component.type.NbtComponent.of(n));
         }
-        s.remove(net.minecraft.component.DataComponentTypes.LORE);
-        s.remove(net.minecraft.component.DataComponentTypes.CUSTOM_NAME);
-        s.setDamage(0);
+        for (var c : held.getComponents()) {
+            var id = net.minecraft.registry.Registries.DATA_COMPONENT_TYPE.getId(c.type());
+            if (id != null && !id.getNamespace().equals("minecraft")) copy(s, c);
+        }
         gripTemplate = s;
         gripRichness = r;
         try {
-            if (gripFile == null) gripFile = server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("aot_rpg").resolve("troop_grip.dat");
+            if (gripFile == null) gripFile = server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("aot_rpg").resolve("troop_grip2.dat");
             java.nio.file.Files.createDirectories(gripFile.getParent());
             var tag = new net.minecraft.nbt.NbtCompound();
             tag.put("grip", s.encode(server.getRegistryManager()));
@@ -943,7 +993,7 @@ public final class Troops {
     }
 
     public static void loadGrip(net.minecraft.server.MinecraftServer server) {
-        gripFile = server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("aot_rpg").resolve("troop_grip.dat");
+        gripFile = server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("aot_rpg").resolve("troop_grip2.dat");
         gripTemplate = ItemStack.EMPTY;
         gripRichness = -1;
         if (!java.nio.file.Files.exists(gripFile)) return;
@@ -953,6 +1003,30 @@ public final class Troops {
             gripRichness = gripTemplate.isEmpty() ? -1 : tag.getInt("rich");
         } catch (Exception ignored) {
         }
+    }
+
+    /**
+     * An officer's grip: the same loaded blade with a touch of Epic about it (nothing finer: the
+     * showpiece blades belong to bosses and to players).
+     */
+    private static ItemStack officerGrip(Random r, int level) {
+        ItemStack base = loadedGrip();
+        Item g = AotItems.exact("blade");
+        if (g == null || base.getItem() != g) return base;
+        ItemStack s = Gear.make(r, g, Gear.Rarity.EPIC, Math.max(1, level), null);
+        if (s.isEmpty()) return base;
+        var cd = base.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+        if (cd != null) {
+            var n = s.getOrDefault(net.minecraft.component.DataComponentTypes.CUSTOM_DATA, net.minecraft.component.type.NbtComponent.DEFAULT).copyNbt();
+            var add = cd.copyNbt();
+            for (String k : add.getKeys()) n.put(k, add.get(k).copy());
+            s.set(net.minecraft.component.DataComponentTypes.CUSTOM_DATA, net.minecraft.component.type.NbtComponent.of(n));
+        }
+        for (var c : base.getComponents()) {
+            var id = net.minecraft.registry.Registries.DATA_COMPONENT_TYPE.getId(c.type());
+            if (id != null && !id.getNamespace().equals("minecraft")) copy(s, c);
+        }
+        return s;
     }
 
     /** A grip with its blade in. */
@@ -1133,6 +1207,11 @@ public final class Troops {
         }
         if (officer && r.nextFloat() < 0.15f && AotItems.exact("apg_gun") != null) drops.add(new ItemStack(AotItems.exact("apg_gun")));
         for (ItemStack s : drops) {
+            // Cut down by someone: it's theirs, straight into the bag. (Eaten by a titan, it spills.)
+            if (src.getAttacker() instanceof ServerPlayerEntity looter) {
+                Loot.claim(looter, s);
+                continue;
+            }
             ItemEntity ie = new ItemEntity(w, v.getX(), v.getY() + 0.8, v.getZ(), s,
                 (r.nextDouble() - 0.5) * 0.25, 0.3 + r.nextDouble() * 0.15, (r.nextDouble() - 0.5) * 0.25);
             ie.setPickupDelay(10);

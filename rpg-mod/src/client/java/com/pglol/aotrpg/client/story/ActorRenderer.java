@@ -63,7 +63,14 @@ public final class ActorRenderer extends EntityRenderer<VillagerEntity> {
     /** A story character: the player model in a skin from assets/aot_rpg/textures/entity/actor. */
     static final class Person extends LivingEntityRenderer<VillagerEntity, PlayerEntityModel<VillagerEntity>> {
         Person(EntityRendererFactory.Context ctx) {
-            super(ctx, new PlayerEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER), false), 0.5f);
+            super(ctx, new PlayerEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER), false) {
+                @Override
+                public void setAngles(VillagerEntity e, float limbAngle, float limbDistance, float age, float headYaw, float headPitch) {
+                    super.setAngles(e, limbAngle, limbDistance, age, headYaw, headPitch);
+                    // Troops act out their moves (wind-ups, cuts, guard, aiming).
+                    TroopPoses.apply(this, e, headPitch);
+                }
+            }, 0.5f);
             // What they wear and hold, drawn like a player's: uniform, harness, boots and blades.
             addFeature(new net.minecraft.client.render.entity.feature.ArmorFeatureRenderer<>(this,
                 new net.minecraft.client.render.entity.model.ArmorEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER_INNER_ARMOR)),

@@ -825,6 +825,11 @@ public final class AotRpg implements ModInitializer {
             RECOVERY.onDeath(sp);
             return;
         }
+        {
+            // Kill loot goes straight to the killer's bag, not the ground.
+            ServerPlayerEntity looter = source.getAttacker() instanceof ServerPlayerEntity a ? a : isTitan(dead) ? TITAN_LEVELS.lastStriker(dead) : null;
+            if (looter != null) Loot.sweep(dead, looter);
+        }
         if (Troops.is(dead) && dead instanceof net.minecraft.entity.passive.VillagerEntity v && dead.getWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
             Troops.died(sw, v, source, Extraction.levelIn(sw, dead.getX(), dead.getZ()));
             return;
@@ -848,7 +853,7 @@ public final class AotRpg implements ModInitializer {
         java.util.List<ServerPlayerEntity> earners = LOOT.earners(killer, dead);
         long bounty = 4 + Math.round(dead.getMaxHealth() / 40);
         for (ServerPlayerEntity er : earners) {
-            Coins.drop(dead, er == killer ? bounty : Math.max(2, bounty * 3 / 4), er);
+            Coins.give(er, er == killer ? bounty : Math.max(2, bounty * 3 / 4));
             GEAR.titanDrop(er, dead, Extraction.levelIn(dead.getWorld(), dead.getX(), dead.getZ()));
         }
         QUESTS.onTitanKill(killer, dead.getX(), dead.getZ());

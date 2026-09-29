@@ -51,6 +51,15 @@ public final class Coins {
         }
     }
 
+    /** Marks straight into your purse (no coins on the ground to chase). */
+    public static void give(ServerPlayerEntity p, long total) {
+        if (total <= 0) return;
+        AotRpg.WALLET.earn(p, total, null);
+        p.playSoundToPlayer(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.4f, 1.5f);
+        Notify.toast(p, Text.literal("+ ").formatted(Formatting.GREEN).append(Wallet.marks(Math.round(total * (1 + Roles.bonus(AotRpg.PROFILES.get(p.getUuid())))))),
+            Text.literal("Titan bounty"), 0xE0B96A, "minecraft:gold_nugget", "coins");
+    }
+
     private static long value(ItemEntity e) {
         NbtComponent c = e.getStack().get(DataComponentTypes.CUSTOM_DATA);
         return c == null ? 0 : c.copyNbt().getLong(KEY);

@@ -184,10 +184,14 @@ public final class Vendors {
         return w.getTimeOfDay() / 24000;
     }
 
-    /** Today's stock for this trader: the same for everyone, rolled from the town, the trade and the day. */
-    private List<Offer> stock(ServerWorld w, Net.Area t, Kind k) {
-        net.minecraft.util.math.random.Random r = net.minecraft.util.math.random.Random.create((t.id() + ":" + k.name() + ":" + day(w)).hashCode());
-        int lo = Math.max(1, t.min()), hi = Math.max(lo + 2, t.max() + 4);
+    /**
+     * Today's stock for this trader, as this player sees it: the gear is rolled around their own
+     * level (a little under to a little over), so every customer gets a different spread.
+     */
+    private List<Offer> stock(ServerWorld w, Net.Area t, Kind k, ServerPlayerEntity viewer) {
+        net.minecraft.util.math.random.Random r = net.minecraft.util.math.random.Random.create((t.id() + ":" + k.name() + ":" + day(w) + ":" + viewer.getUuid()).hashCode());
+        int pl = Math.max(1, AotRpg.PROFILES.get(viewer.getUuid()).level);
+        int lo = Math.max(1, pl - 3), hi = pl + 2;
         List<Offer> out = new ArrayList<>();
         switch (k) {
             case ARMORER -> {
@@ -371,8 +375,8 @@ public final class Vendors {
 
     private void send(ServerPlayerEntity p, Entity e, Who who, boolean open) {
         ServerWorld w = p.getServerWorld();
-        List<Offer> st = stock(w, who.town(), who.kind());
-        Map<Integer, Integer> gone = sold.getOrDefault(key(w, who), Map.of());
+        List<Offer> st = stock(w, who.town(), who.kind(), p);
+        Map<Integer, Integer> gone = sold.getOrDefault(key(w, who, p), Map.of());
         List<ItemStack> items = new ArrayList<>();
         List<Long> prices = new ArrayList<>();
         List<Integer> units = new ArrayList<>();
@@ -398,8 +402,8 @@ public final class Vendors {
             who.kind() == Kind.STRANGER, items, prices, units, sells, sellPrices, open));
     }
 
-    private static String key(ServerWorld w, Who who) {
-        return who.town().id() + "/" + who.kind().name() + "/" + day(w);
+    private static String key(ServerWorld w, Who who, ServerPlayerEntity p) {
+        return who.town().id() + "/" + who.kind().name() + "/" + p.getUuid() + "/" + day(w);
     }
 
     /** What this trader pays for one of these (0: not something they deal in). */
@@ -438,9 +442,9 @@ public final class Vendors {
         Who who = at(p, entityId, ent);
         if (who == null) return;
         Entity e = ent[0];
-        List<Offer> st = stock(w, who.town(), who.kind());
+        List<Offer> st = stock(w, who.town(), who.kind(), p);
         if (index < 0 || index >= st.size()) return;
-        Map<Integer, Integer> gone = sold.computeIfAbsent(key(w, who), k -> new HashMap<>());
+        Map<Integer, Integer> gone = sold.computeIfAbsent(key(w, who, p), k -> new HashMap<>());
         Offer o = st.get(index);
         int left = o.units() - gone.getOrDefault(index, 0);
         int n = Math.max(1, Math.min(qty, left));
@@ -466,7 +470,7 @@ public final class Vendors {
         }
         // Everyone at this stall sees it go.
         for (ServerPlayerEntity o2 : w.getPlayers()) if (o2.squaredDistanceTo(e) < 12 * 12) send(o2, e, who, false);
-        if (sold.size() > 500) sold.keySet().removeIf(k -> !k.endsWith("/" + day(w)));
+        if (sold.size() > 4000) sold.keySet().removeIf(k -> !k.endsWith("/" + day(w)));
     }
 
     /** Sells qty of what's at this address (inventory or satchel) to the trader. */
@@ -476,7 +480,7 @@ public final class Vendors {
         Who who = at(p, entityId, ent);
         if (who == null || addr < 9) return;
         ItemStack s = AotRpg.SATCHEL.at(p, addr);
-        long each = sellEach(who.kind(), s, stock(w, who.town(), who.kind()));
+        long each = sellEach(who.kind(), s, stock(w, who.town(), who.kind(), p));
         if (each <= 0) return;
         int n = Math.max(1, Math.min(qty, s.getCount()));
         ItemStack rest = s.copy();

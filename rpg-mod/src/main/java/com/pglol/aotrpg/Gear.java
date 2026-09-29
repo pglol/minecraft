@@ -558,18 +558,13 @@ public final class Gear {
         int ilvl = dropLevel(killer, areaLevel, shifter ? 3 : boss ? 1 : 0);
         ItemStack s = roll(r, rar, ilvl);
         if (s.isEmpty()) return;
-        ServerWorld w = (ServerWorld) titan.getWorld();
-        ItemEntity e = new ItemEntity(w, titan.getX(), titan.getY() + 1, titan.getZ(), s,
-            (r.nextDouble() - 0.5) * 0.3, 0.3, (r.nextDouble() - 0.5) * 0.3);
-        e.setPickupDelay(10);
-        // Yours alone: nobody else sees it or can pick it up.
-        Loot.own(e, killer);
-        w.spawnEntity(e);
         if (rar.ordinal() >= 2) {
-            // A good drop gets its moment (the loot is on the ground, yours alone).
+            // A good drop gets its moment.
             Reveal.show(killer, rar.title.toUpperCase() + " DROP", s.getName().getString(), net.minecraft.registry.Registries.ITEM.getId(s.getItem()).toString(),
                 rar.ordinal());
         }
+        // Straight into your bag.
+        Loot.claim(killer, s);
     }
 
     private static void announce(ServerPlayerEntity p, ItemStack s, Rarity r) {

@@ -1492,6 +1492,18 @@ public final class Net {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
+    /**
+     * Server -> client: a troop's move, for his body to act it out: 1 winding up a cut, 2 the cut
+     * (hand: 0 right, 1 left), 3 guard up, 4 aiming the gun, 5 a shove, 0 back to rest.
+     */
+    public record TroopAnim(int entity, byte kind, byte ticks, byte hand) implements CustomPayload {
+        public static final Id<TroopAnim> ID = id("troop_anim");
+        public static final PacketCodec<RegistryByteBuf, TroopAnim> CODEC = PacketCodec.of((v, b) -> {
+            b.writeVarInt(v.entity); b.writeByte(v.kind); b.writeByte(v.ticks); b.writeByte(v.hand);
+        }, b -> new TroopAnim(b.readVarInt(), b.readByte(), b.readByte(), b.readByte()));
+        @Override public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     /** Server -> client: a duel's face-off: the two fighters side by side, VS, and the count to the fight. */
     public record DuelIntro(java.util.UUID a, String aName, int aLevel, String aRole, java.util.UUID b, String bName, int bLevel, String bRole,
                             String rules) implements CustomPayload {
@@ -2403,6 +2415,7 @@ public final class Net {
         PayloadTypeRegistry.playS2C().register(DecorView.ID, DecorView.CODEC);
         PayloadTypeRegistry.playS2C().register(EventBanner.ID, EventBanner.CODEC);
         PayloadTypeRegistry.playS2C().register(Threats.ID, Threats.CODEC);
+        PayloadTypeRegistry.playS2C().register(TroopAnim.ID, TroopAnim.CODEC);
         PayloadTypeRegistry.playS2C().register(Quake.ID, Quake.CODEC);
         PayloadTypeRegistry.playS2C().register(DuelIntro.ID, DuelIntro.CODEC);
         PayloadTypeRegistry.playC2S().register(TalkChoice.ID, TalkChoice.CODEC);
