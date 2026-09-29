@@ -194,6 +194,9 @@ public final class AotRpgClient implements ClientModInitializer {
         });
         WorldRenderEvents.AFTER_ENTITIES.register(Beams::render);
         WorldRenderEvents.AFTER_ENTITIES.register(SheathRender::render);
+        net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback.EVENT.register((type, renderer, helper, ctx) -> {
+            if (renderer instanceof net.minecraft.client.render.entity.PlayerEntityRenderer pr) helper.register(new SheathRender.Feature(pr));
+        });
         WorldRenderEvents.AFTER_ENTITIES.register(ChatterFx::render);
         ClientPlayNetworking.registerGlobalReceiver(Net.HealInfo.ID, (payload, ctx) -> {
             CombatHotbar.heal = payload;

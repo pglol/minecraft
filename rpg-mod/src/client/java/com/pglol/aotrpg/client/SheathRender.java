@@ -37,15 +37,7 @@ public final class SheathRender {
         if (ms == null || vc == null) return;
         Vec3d cam = ctx.camera().getPos();
         float td = ctx.tickCounter().getTickDelta(true);
-        for (PlayerEntity pl : mc.world.getPlayers()) {
-            Net.SheathState st = ClientState.sheaths.get(pl.getUuid());
-            if (st == null || st.count() <= 0 || pl.isInvisible() || pl.hasVehicle()) continue;
-            if (pl == mc.player && mc.options.getPerspective().isFirstPerson()) continue;
-            EntityPose pose = pl.getPose();
-            if (pose != EntityPose.STANDING && pose != EntityPose.CROUCHING) continue;
-            ItemStack[] grips = st.count() == 2 ? new ItemStack[] {st.a(), st.b()} : new ItemStack[] {st.a().isEmpty() ? st.b() : st.a()};
-            draw(mc, ms, vc, cam, td, pl, grips);
-        }
+        // (Players carry theirs as a layer of their own model: see Feature.)
         // Cadets and soldiers in the story: harness on and hands empty means blades sheathed on the back.
         ItemStack blade = grip();
         if (!blade.isEmpty()) {
@@ -96,6 +88,12 @@ public final class SheathRender {
             ms.translate(0, crouch ? 1.02 : 1.2, 0);
             if (crouch) ms.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-28));
             ms.translate(0, 0, armored ? 0.24 : 0.19);
+            grips(mc, ms, vc, light, pl, grips);
+            ms.pop();
+    }
+
+    /** The grips themselves, crossed, in a frame on the back (origin between the shoulder blades, +z out of the back). */
+    private static void grips(MinecraftClient mc, MatrixStack ms, VertexConsumerProvider vc, int light, LivingEntity pl, ItemStack[] grips) {
             for (int i = 0; i < grips.length; i++) {
                 ItemStack stack = grips[i];
                 ms.push();
@@ -123,6 +121,35 @@ public final class SheathRender {
                 }
                 ms.pop();
             }
+    }
+
+    /**
+     * A player's sheathed grips as a layer of their model, fixed to the body: they move with
+     * whatever animates it (crouching, an ODM flip, a movement pack such as Fresh Moves), and show
+     * in the combat camera's over-the-shoulder view too.
+     */
+    public static final class Feature extends net.minecraft.client.render.entity.feature.FeatureRenderer<net.minecraft.client.network.AbstractClientPlayerEntity,
+        net.minecraft.client.render.entity.model.PlayerEntityModel<net.minecraft.client.network.AbstractClientPlayerEntity>> {
+
+        public Feature(net.minecraft.client.render.entity.feature.FeatureRendererContext<net.minecraft.client.network.AbstractClientPlayerEntity,
+            net.minecraft.client.render.entity.model.PlayerEntityModel<net.minecraft.client.network.AbstractClientPlayerEntity>> ctx) {
+            super(ctx);
+        }
+
+        @Override
+        public void render(MatrixStack ms, VertexConsumerProvider vc, int light, net.minecraft.client.network.AbstractClientPlayerEntity pl,
+                           float limbAngle, float limbDistance, float tickDelta, float animationProgress, float headYaw, float headPitch) {
+            Net.SheathState st = ClientState.sheaths.get(pl.getUuid());
+            if (st == null || st.count() <= 0 || pl.isInvisible() || pl.hasVehicle()) return;
+            ItemStack[] grips = st.count() == 2 ? new ItemStack[] {st.a(), st.b()} : new ItemStack[] {st.a().isEmpty() ? st.b() : st.a()};
+            boolean armored = !pl.getEquippedStack(EquipmentSlot.CHEST).isEmpty();
+            ms.push();
+            // Onto the body as it's posed right now, then back to an upright frame (the model's is flipped).
+            getContextModel().body.rotate(ms);
+            ms.scale(-1, -1, 1);
+            ms.translate(0, -0.22, armored ? 0.24 : 0.19);
+            grips(MinecraftClient.getInstance(), ms, vc, light, pl, grips);
             ms.pop();
+        }
     }
 }
