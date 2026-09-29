@@ -226,6 +226,8 @@ public final class Dialogue {
                         "Coat's seen better days. " + w[0] + " could fix you up. Their " + where + ".");
                     case TOOLMAKER -> pick("Tools? " + w[0] + " the Toolmaker. Their " + where + ".",
                         w[0] + " makes a pickaxe that'll outlive you. Their " + where + ".");
+                    case CRAFTSMAN -> pick("Want to make your own? " + w[0] + " the Craftsman sells benches you can carry. Their " + where + ".",
+                        w[0] + " has schematics nobody else will part with. Their " + where + ".");
                     case STRANGER -> pick("There's " + w[0] + " in the back streets, " + w[2] + " paces " + w[1] + ". Sells things no honest soldier could afford. I never told you.",
                         "Keep it quiet: " + w[0] + " deals in the back streets, " + w[1] + " of here. Wear what they sell where the Military Police can see and you'll regret it.");
                 };
