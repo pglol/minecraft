@@ -270,6 +270,21 @@ public final class Loadout {
         }
     }
 
+    /**
+     * Grips on your back: the empty sheath slot a new grip should fill (-2 when both hold grips).
+     * -1 when nothing is on your back (grips go to your hands then).
+     */
+    public static int openSheath(ServerPlayerEntity p) {
+        SimpleInventory g = gear(p);
+        if (!sheathed(g)) return -1;
+        if (g.getStack(SHEATH_A).isEmpty()) return SHEATH_A;
+        if (g.getStack(SHEATH_B).isEmpty()) return SHEATH_B;
+        return -2;
+    }
+
+    /** The first (main-hand) sheath slot. */
+    public static final int MAIN_SHEATH = SHEATH_A;
+
     public static ItemStack sheathStack(ServerPlayerEntity p, int i) {
         return gear(p).getStack(i);
     }

@@ -422,6 +422,30 @@ public final class Satchel {
         send(p, false);
     }
 
+    /**
+     * A grip, quick-equipped: they come in pairs, so it fills whichever of the two places is empty
+     * (on your back if that's where your grips are, else your hands: slot 1, then the off hand),
+     * and only swaps out the main one when both are already full.
+     */
+    private void equipGrip(ServerPlayerEntity p, net.minecraft.inventory.Inventory bag, int slot, ItemStack s) {
+        int open = Loadout.openSheath(p);
+        if (open >= 0) {
+            Loadout.setSheath(p, open, s.copy());
+            bag.setStack(slot, ItemStack.EMPTY);
+            return;
+        }
+        if (open == -2) {
+            ItemStack old = Loadout.sheathStack(p, Loadout.MAIN_SHEATH).copy();
+            Loadout.setSheath(p, Loadout.MAIN_SHEATH, s.copy());
+            bag.setStack(slot, old);
+            return;
+        }
+        var inv = p.getInventory();
+        if (!Loadout.isGrip(inv.main.get(0))) equipTo(p, bag, slot, s, 0);
+        else if (!Loadout.isGrip(inv.offHand.get(0))) equipTo(p, bag, slot, s, OFF);
+        else equipTo(p, bag, slot, s, 0);
+    }
+
     /** Armor to its slot; anything else to the loadout slot made for it (what was there comes back). */
     void equip(ServerPlayerEntity p, net.minecraft.inventory.Inventory bag, int slot, ItemStack s) {
         if (Gear.isGear(s) && !Gear.canUse(p, s)) {
@@ -429,8 +453,8 @@ public final class Satchel {
                 Text.literal("Needs level " + Gear.requiredLevel(s)), 0xC0463A, null, null);
             return;
         }
-        if (Loadout.isGrip(s) && Loadout.sheathFor(p, 0, s) >= 0) {
-            equipTo(p, bag, slot, s, 0);
+        if (Loadout.isGrip(s)) {
+            equipGrip(p, bag, slot, s);
             return;
         }
         var es = p.getPreferredEquipmentSlot(s);
