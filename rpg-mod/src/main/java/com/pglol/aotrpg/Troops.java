@@ -80,6 +80,9 @@ public final class Troops {
         int knockT, swapCool;
         /** The current cut's wind-up has been shown to onlookers. */
         boolean swingShown;
+        /** How well he's read your rhythm (quick hits raise it), and his footwork between cuts. */
+        int read, stepT, stepCd;
+        Vec3d stepDir;
 
         Troop(UUID id, int squad, boolean officer, int role, int slot) {
             this.id = id;
@@ -247,9 +250,33 @@ public final class Troops {
 
     // ------------------------------------------------------------------ the fight
 
+    /** Where each player really is going: the server's own velocity for a player is near zero. */
+    private static final Map<UUID, Vec3d[]> motion = new HashMap<>();
+
+    private static void trackMotion(List<ServerPlayerEntity> players) {
+        for (ServerPlayerEntity p : players) {
+            Vec3d[] m = motion.computeIfAbsent(p.getUuid(), k -> new Vec3d[] {p.getPos(), Vec3d.ZERO});
+            Vec3d d = p.getPos().subtract(m[0]);
+            if (d.lengthSquared() > 64) d = Vec3d.ZERO; // a teleport, not a swing
+            m[1] = m[1].lerp(d, 0.6);
+            m[0] = p.getPos();
+        }
+        if (motion.size() > 512) motion.clear();
+    }
+
+    /** Blocks per tick this is moving. */
+    private static Vec3d vel(Entity e) {
+        if (e instanceof ServerPlayerEntity) {
+            Vec3d[] m = motion.get(e.getUuid());
+            return m == null ? Vec3d.ZERO : m[1];
+        }
+        return e.getVelocity();
+    }
+
     public static void tick(ServerWorld w, int ticks) {
         if (troops.isEmpty()) return;
         List<ServerPlayerEntity> players = new ArrayList<>(w.getPlayers());
+        trackMotion(players);
         for (Squad sq : squads.values()) {
             if (--sq.regoal <= 0 || sq.goal == null) {
                 sq.regoal = 400 + w.random.nextInt(400);
@@ -623,8 +650,11 @@ public final class Troops {
             // Taking aim: the red line tracks you (leading where you're going), then locks for a
             // moment before the burst. Break your line late and it misses.
             t.windup--;
-            if (t.windup > 4) {
-                Vec3d lead = at.add(target.getVelocity().multiply(titan ? 0 : 7, 0.3, titan ? 0 : 7));
+            if (airborne) {
+                // On the gear there's no line to break: they track you all the way, leading your swing.
+                t.aimAt = at.add(vel(target).multiply(3));
+            } else if (t.windup > 4) {
+                Vec3d lead = at.add(vel(target).multiply(titan ? 0 : 7, 0.3, titan ? 0 : 7));
                 t.aimAt = t.aimAt == null ? lead : t.aimAt.lerp(lead, t.officer ? 0.55 : 0.4);
             } else if (t.windup == 4 && target instanceof ServerPlayerEntity p) {
                 p.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.HOSTILE, 1f, 1.8f);
@@ -632,7 +662,7 @@ public final class Troops {
             face(v, t.aimAt);
             if (ticks % 2 == 0) laser(w, v, t.aimAt);
             if (t.windup == 0) {
-                t.burst = titan ? 4 : t.officer ? 3 : 2;
+                t.burst = titan ? 4 : airborne ? 3 : t.officer ? 3 : 2;
                 t.cool = 0;
             }
             return;
@@ -640,10 +670,11 @@ public final class Troops {
         face(v, at);
         if (t.burst > 0) {
             if (ticks % 3 == 0) {
-                // Each round walks a little further onto where you are now.
-                if (t.aimAt != null) t.aimAt = t.aimAt.lerp(at.add(target.getVelocity().multiply(3, 0, 3)), 0.25);
-                fire(w, v, t, target, t.aimAt, dist, sq);
-                if (--t.burst == 0) t.cool = (titan ? 25 : 55) + w.random.nextInt(30);
+                // Each round walks further onto where you are now (all the way, if you're in the air).
+                Vec3d ahead = at.add(vel(target).multiply(airborne ? 2.5 : 3, airborne ? 2 : 0, airborne ? 2.5 : 3));
+                t.aimAt = t.aimAt == null || airborne ? ahead : t.aimAt.lerp(ahead, 0.25);
+                fire(w, v, t, target, t.aimAt, dist, sq, airborne);
+                if (--t.burst == 0) t.cool = (titan ? 25 : airborne ? 30 : 55) + w.random.nextInt(airborne ? 16 : 30);
             }
             return;
         }
@@ -656,7 +687,7 @@ public final class Troops {
         // between); split onto different targets, they fire at once.
         int next = sq.volleys.getOrDefault(target.getUuid(), 0);
         if (ticks < next) return;
-        sq.volleys.put(target.getUuid(), ticks + (titan ? 10 : 30));
+        sq.volleys.put(target.getUuid(), ticks + (titan ? 10 : airborne ? 16 : 30));
         if (sq.volleys.size() > 16) sq.volleys.values().removeIf(x -> x < ticks);
         t.windup = titan ? 8 : t.officer ? 13 : 16;
         t.aimAt = at;
@@ -790,9 +821,21 @@ public final class Troops {
                 raise(w, v, t);
                 return;
             }
-            // Between cuts: stay on you, circling a little.
+            // Between cuts: never standing still. Quick shifts, to the side, back out of reach, or in.
+            if (t.stepT > 0 && t.stepDir != null) {
+                t.stepT--;
+                walk(w, v, t.stepDir, 0.34);
+                return;
+            }
+            if (--t.stepCd <= 0 && dist < 4.5) {
+                t.stepCd = 5 + w.random.nextInt(8);
+                Vec3d side = new Vec3d(-to.z, 0, to.x).multiply(w.random.nextBoolean() ? 1 : -1);
+                float r = w.random.nextFloat();
+                t.stepDir = r < 0.45f ? side : r < 0.7f ? to.multiply(-1) : dist > 2.2 ? to : side;
+                t.stepT = 3;
+                return;
+            }
             if (dist > 2.4) walk(w, v, to, 0.2);
-            else walk(w, v, new Vec3d(-to.z, 0, to.x).multiply(t.strafe), 0.06);
             return;
         }
         if (dist > 5) {
@@ -830,6 +873,24 @@ public final class Troops {
      * turn it (you're thrown off balance, and the cut comes straight back). Well-timed hits, a
      * perfect parry, or getting round behind them is how you win.
      */
+    /**
+     * Out of the way of a blow: a quick shift to one side, a hop back, or a step in past your
+     * blade, and straight back in with a cut.
+     */
+    private static void evade(ServerWorld w, VillagerEntity v, Troop t, Vec3d toBy) {
+        Vec3d at = toBy.lengthSquared() < 1e-4 ? v.getRotationVec(1f).multiply(1, 0, 1) : toBy.normalize();
+        Vec3d side = new Vec3d(-at.z, 0, at.x).multiply(w.random.nextBoolean() ? 1 : -1);
+        float r = w.random.nextFloat();
+        t.dodgeDir = r < 0.5f ? side.add(at.multiply(-0.3)) : r < 0.8f ? at.multiply(-1) : side.multiply(0.6).add(at);
+        t.dodge = 4;
+        t.hitsInRow = 0;
+        t.knockT = 0;
+        t.swingShown = false;
+        w.playSound(null, v.getX(), v.getY(), v.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_NODAMAGE, SoundCategory.HOSTILE, 1f, 1.3f);
+        w.playSound(null, v.getX(), v.getY(), v.getZ(), SoundEvents.ITEM_ARMOR_EQUIP_LEATHER.value(), SoundCategory.HOSTILE, 0.8f, 1.6f);
+        w.spawnParticles(ParticleTypes.CLOUD, v.getX(), v.getY() + 0.1, v.getZ(), 4, 0.2, 0.02, 0.2, 0.02);
+    }
+
     /** Shot or hit from range: a jolt back from where it came. */
     public static void jolt(Entity e, ServerPlayerEntity by) {
         Troop t = troops.get(e.getUuid());
@@ -889,6 +950,13 @@ public final class Troops {
             return 0.15;
         }
         t.hitsInRow = quick ? t.hitsInRow + 1 : 1;
+        t.read = quick ? Math.min(4, t.read + 1) : Math.max(0, t.read - 1);
+        // Reading you: the faster and more often you swing, the likelier he's already gone.
+        float evade = Math.min(0.75f, (t.officer ? 0.18f : 0.1f) + 0.18f * t.read);
+        if (t.blade && t.swing == 0 && w.random.nextFloat() < evade) {
+            evade(w, v, t, toBy);
+            return 0;
+        }
         // A real hit rocks him back.
         t.knock = toBy.lengthSquared() < 1e-4 ? look.multiply(-0.8) : toBy.normalize().multiply(-0.8);
         t.knockT = 6;
@@ -910,21 +978,15 @@ public final class Troops {
             t.cool = 0;
             return 0.6;
         }
+        // A second quick hit always gets an answer: the guard comes up, or he's out of the way.
         if (t.blade && t.hitsInRow >= 2 && t.swing == 0) {
-            float r = w.random.nextFloat();
-            if (r < (t.officer ? 0.7f : 0.5f)) raise(w, v, t);
-            else if (r < 0.85f) {
-                // Out to the side and back in.
-                Vec3d side = new Vec3d(-toBy.z, 0, toBy.x);
-                if (w.random.nextBoolean()) side = side.multiply(-1);
-                t.dodgeDir = toBy.lengthSquared() < 1e-4 ? side : side.add(toBy.normalize().multiply(-0.4));
-                t.dodge = 4;
-                t.hitsInRow = 0;
-                w.playSound(null, v.getX(), v.getY(), v.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_WEAK, SoundCategory.HOSTILE, 1f, 0.6f);
-            }
+            if (w.random.nextFloat() < (t.officer ? 0.6f : 0.5f)) raise(w, v, t);
+            else evade(w, v, t, toBy);
         }
         // An officer mid-swing doesn't flinch; anyone else's cut is knocked back a little.
         if (!(t.officer && t.swing > 0) && t.swing > 0) t.swing = Math.min(t.swing + 2, 8);
+        // Hit, he answers quickly.
+        if (t.blade && t.swing == 0) t.cool = Math.min(t.cool, 5);
         return 1;
     }
 
@@ -1081,11 +1143,12 @@ public final class Troops {
      * One round of a volley, at the spot aimed at during the wind-up (plus some scatter): a target
      * that moved since is missed, one that stood still is hit. Titans are too big to miss.
      */
-    private static void fire(ServerWorld w, VillagerEntity v, Troop t, LivingEntity target, Vec3d aimed, double dist, Squad sq) {
+    private static void fire(ServerWorld w, VillagerEntity v, Troop t, LivingEntity target, Vec3d aimed, double dist, Squad sq, boolean flying) {
         if (aimed == null) aimed = aim(target);
         Vec3d muzzle = v.getEyePos().add(v.getRotationVec(1f).multiply(0.6)).add(0, -0.25, 0);
         boolean titan = AotRpg.isTitan(target);
-        double spread = titan ? 0.5 : 0.28 + dist * 0.011;
+        // At someone swinging on their gear they aim where you'll be, and they're good at it.
+        double spread = titan ? 0.5 : flying ? 0.2 + dist * 0.007 : 0.28 + dist * 0.011;
         if (sq.broken) spread *= 1.5;
         else if (!t.officer && sq.leader != null && troops.containsKey(sq.leader) && troops.get(sq.leader).officer) spread *= 0.8;
         if (t.officer) spread *= 0.8;
@@ -1093,7 +1156,7 @@ public final class Troops {
         Vec3d end = aimed.add(r.nextGaussian() * spread, r.nextGaussian() * spread * 0.7, r.nextGaussian() * spread);
         Vec3d dir = end.subtract(muzzle).normalize();
         Vec3d far = muzzle.add(dir.multiply(Math.max(dist + 20, 40)));
-        var hitBox = target.getBoundingBox().expand(titan ? 0.5 : 0.15).raycast(muzzle, far);
+        var hitBox = target.getBoundingBox().expand(titan ? 0.5 : flying ? 0.35 : 0.15).raycast(muzzle, far);
         boolean hit = hitBox.isPresent() && sees(w, v, hitBox.get());
         Vec3d stop = hitBox.orElse(end);
         w.playSound(null, v.getX(), v.getY() + 1.5, v.getZ(), SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.HOSTILE, 1.6f, 1.5f + r.nextFloat() * 0.2f);

@@ -209,7 +209,7 @@ public final class Guard {
                     att.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 30, 1, false, false, false));
                     att.sendMessage(Text.literal("Parried!").formatted(Formatting.RED, Formatting.BOLD), true);
                 } else if (Troops.is(src)) {
-                    Troops.stagger(src, 50);
+                    Troops.stagger(src, 22);
                 } else {
                     push(src, def, 0.9);
                 }

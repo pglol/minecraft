@@ -2153,7 +2153,7 @@ public final class Net {
      * shuts the screen.
      */
     public record LootView(long pos, String title, int size, java.util.List<BagEntry> items, java.util.List<Integer> hidden,
-                           int searching, int searchMs, boolean open, boolean close) implements CustomPayload {
+                           int searching, int searchMs, boolean open, boolean close, java.util.List<BagEntry> bag, int bagSize) implements CustomPayload {
         public static final Id<LootView> ID = id("loot_view");
         public static final PacketCodec<RegistryByteBuf, LootView> CODEC = PacketCodec.of((v, b) -> {
             b.writeLong(v.pos); b.writeString(v.title); b.writeVarInt(v.size);
@@ -2165,6 +2165,12 @@ public final class Net {
             b.writeVarInt(v.hidden.size());
             for (int h : v.hidden) b.writeVarInt(h);
             b.writeVarInt(v.searching); b.writeVarInt(v.searchMs); b.writeBoolean(v.open); b.writeBoolean(v.close);
+            b.writeVarInt(v.bag.size());
+            for (BagEntry e : v.bag) {
+                b.writeVarInt(e.slot());
+                ItemStack.OPTIONAL_PACKET_CODEC.encode(b, e.stack());
+            }
+            b.writeVarInt(v.bagSize);
         }, b -> {
             long pos = b.readLong();
             String title = b.readString();
@@ -2175,7 +2181,12 @@ public final class Net {
             int hn = Math.min(b.readVarInt(), 256);
             java.util.List<Integer> h = new java.util.ArrayList<>();
             for (int i = 0; i < hn; i++) h.add(b.readVarInt());
-            return new LootView(pos, title, size, l, h, b.readVarInt(), b.readVarInt(), b.readBoolean(), b.readBoolean());
+            int searching = b.readVarInt(), searchMs = b.readVarInt();
+            boolean open = b.readBoolean(), close = b.readBoolean();
+            int bn = Math.min(b.readVarInt(), 512);
+            java.util.List<BagEntry> bag = new java.util.ArrayList<>();
+            for (int i = 0; i < bn; i++) bag.add(new BagEntry(b.readVarInt(), ItemStack.OPTIONAL_PACKET_CODEC.decode(b)));
+            return new LootView(pos, title, size, l, h, searching, searchMs, open, close, bag, b.readVarInt());
         });
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }

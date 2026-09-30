@@ -145,15 +145,19 @@ public final class LootBox {
             else hidden.add(i);
         }
         long[] sr = search.get(p.getUuid());
+        // What you carry: the satchel (the loadout bar the client already knows).
+        var bagInv = AotRpg.SATCHEL.get(p.getUuid());
+        List<Net.BagEntry> bag = new ArrayList<>();
+        for (int i = 0; i < bagInv.size(); i++) if (!bagInv.getStack(i).isEmpty()) bag.add(new Net.BagEntry(i, bagInv.getStack(i).copy()));
         ServerPlayNetworking.send(p, new Net.LootView(o.pos().asLong(), o.title(), inv.size(), items, hidden,
-            sr == null ? -1 : (int) sr[0], sr == null ? 0 : (int) sr[2], openIt, false));
+            sr == null ? -1 : (int) sr[0], sr == null ? 0 : (int) sr[2], openIt, false, bag, bagInv.size()));
     }
 
     private static void close(ServerPlayerEntity p) {
         open.remove(p.getUuid());
         search.remove(p.getUuid());
         if (ServerPlayNetworking.canSend(p, Net.LootView.ID)) {
-            ServerPlayNetworking.send(p, new Net.LootView(0, "", 0, List.of(), List.of(), -1, 0, false, true));
+            ServerPlayNetworking.send(p, new Net.LootView(0, "", 0, List.of(), List.of(), -1, 0, false, true, List.of(), 0));
         }
     }
 
@@ -237,11 +241,11 @@ public final class LootBox {
                 for (int i = 0; i < inv.size(); i++) if (seen.contains(i) && !inv.getStack(i).isEmpty() && take(p, inv, i)) any = true;
                 if (!any) return;
             }
-            // From your pockets (inventory slot) into the container.
+            // From your satchel (Satchel.BAG + i) or your loadout bar (0-8) into the container.
             case "put" -> {
-                var pi = p.getInventory();
-                if (slot < 0 || slot >= pi.main.size()) return;
-                ItemStack s = pi.main.get(slot);
+                boolean fromBag = slot >= Satchel.BAG;
+                if (!fromBag && (slot < 0 || slot >= 9)) return;
+                ItemStack s = AotRpg.SATCHEL.at(p, slot);
                 if (s.isEmpty() || Satchel.isStory(s)) return;
                 ItemStack rest = s.copy();
                 for (int i = 0; i < inv.size() && !rest.isEmpty(); i++) {
@@ -263,8 +267,8 @@ public final class LootBox {
                     Notify.toast(p, Text.literal("It's full").formatted(Formatting.RED), null, 0xC0463A, "minecraft:barrel", null);
                     return;
                 }
-                pi.main.set(slot, rest);
-                pi.markDirty();
+                AotRpg.SATCHEL.set(p, slot, rest.isEmpty() ? ItemStack.EMPTY : rest);
+                if (fromBag) AotRpg.SATCHEL.save(p.getUuid());
                 p.playSoundToPlayer(SoundEvents.ITEM_BUNDLE_INSERT, SoundCategory.PLAYERS, 0.6f, 0.9f);
             }
             default -> { return; }
@@ -273,37 +277,17 @@ public final class LootBox {
         refresh(p.getServer(), o);
     }
 
-    /** Into your pockets: the loadout slot made for it if that's empty, else the backpack. */
+    /** Into your satchel (equip it from there). */
     private static boolean take(ServerPlayerEntity p, Inventory inv, int slot) {
         ItemStack s = inv.getStack(slot);
         if (s.isEmpty()) return false;
-        var pi = p.getInventory();
-        ItemStack rest = s.copy();
-        for (int j = 0; j < 9 && !rest.isEmpty(); j++) {
-            if (Loadout.SLOTS[j] == Loadout.Kind.FREE || !pi.main.get(j).isEmpty() || !Loadout.fits(Loadout.SLOTS[j], rest)) continue;
-            pi.main.set(j, rest);
-            rest = ItemStack.EMPTY;
-        }
-        for (int j = 9; j < 36 && !rest.isEmpty(); j++) {
-            ItemStack m = pi.main.get(j);
-            if (!m.isEmpty() && ItemStack.areItemsAndComponentsEqual(m, rest) && m.getCount() < m.getMaxCount()) {
-                int n = Math.min(rest.getCount(), m.getMaxCount() - m.getCount());
-                m.increment(n);
-                rest.decrement(n);
-            }
-        }
-        for (int j = 9; j < 36 && !rest.isEmpty(); j++) {
-            if (pi.main.get(j).isEmpty()) {
-                pi.main.set(j, rest);
-                rest = ItemStack.EMPTY;
-            }
-        }
+        ItemStack rest = AotRpg.SATCHEL.get(p.getUuid()).addStack(s.copy());
         if (rest.getCount() == s.getCount()) {
-            Notify.toast(p, Text.literal("Your pockets are full").formatted(Formatting.RED), null, 0xC0463A, "minecraft:bundle", null);
+            Notify.toast(p, Text.literal("Your satchel is full").formatted(Formatting.RED), null, 0xC0463A, "minecraft:bundle", null);
             return false;
         }
         inv.setStack(slot, rest);
-        pi.markDirty();
+        AotRpg.SATCHEL.save(p.getUuid());
         p.playSoundToPlayer(SoundEvents.ITEM_BUNDLE_INSERT, SoundCategory.PLAYERS, 0.6f, 1.2f);
         return true;
     }
